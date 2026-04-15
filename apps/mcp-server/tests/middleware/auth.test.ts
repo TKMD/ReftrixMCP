@@ -887,6 +887,86 @@ describe("認証ミドルウェア (Auth Middleware)", () => {
     });
   });
 
+  describe("M-4: env APIキー鍵長検証", () => {
+    /**
+     * テスト: MCP_API_KEYS由来の短すぎるキー（reftrix_後31文字以下）が拒否されること
+     * 40文字未満のキーはスキップされ、認証失敗となる
+     */
+    it("MCP_API_KEYS由来の短すぎるキー（39文字）が拒否されること", async () => {
+      // Arrange: 39文字のキー（reftrix_ + 31文字 = 39文字 < 40文字最低要件）
+      const shortKey = "reftrix_" + "a".repeat(31); // 39 chars total
+      process.env.MCP_API_KEYS = JSON.stringify([
+        { key: shortKey, role: "ADMIN", userId: "short-key-user" },
+      ]);
+
+      // Act
+      const result = await validateApiKey(shortKey);
+
+      // Assert: 認証失敗（短すぎるキーはスキップされる）
+      expect(result).toBeNull();
+    });
+
+    /**
+     * テスト: MCP_API_KEYS由来の十分な長さのキー（reftrix_後32文字以上）が認証成功すること
+     */
+    it("MCP_API_KEYS由来の十分な長さのキー（40文字）が認証成功すること", async () => {
+      // Arrange: 40文字のキー（reftrix_ + 32文字 = 40文字 >= 最低要件）
+      const validKey = "reftrix_" + "b".repeat(32); // 40 chars total
+      process.env.MCP_API_KEYS = JSON.stringify([
+        { key: validKey, role: "ADMIN", userId: "valid-key-user" },
+      ]);
+
+      // Act
+      const result = await validateApiKey(validKey);
+
+      // Assert: 認証成功
+      expect(result).not.toBeNull();
+      expect(result?.role).toBe("ADMIN");
+      expect(result?.userId).toBe("valid-key-user");
+    });
+
+    /**
+     * テスト: TEST_API_KEY_MAPPINGSの短いキー（開発用）は引き続き認証成功すること
+     * 鍵長チェックはenvキーパスのみに適用される
+     */
+    it("TEST_API_KEY_MAPPINGSの短いテストキーは引き続き認証成功すること", async () => {
+      // Arrange: reftrix_admin_test_key_12345678 は32文字 < 40文字
+      // しかしテストキーは鍵長チェック対象外
+      const testKey = TEST_API_KEYS.ADMIN_KEY;
+
+      // Act
+      const result = await validateApiKey(testKey);
+
+      // Assert: テストキーは引き続き認証成功
+      expect(result).not.toBeNull();
+      expect(result?.role).toBe("ADMIN");
+    });
+
+    /**
+     * テスト: MCP_API_KEYS内の短いキーと有効なキーが混在する場合、
+     * 短いキーのみスキップされ有効なキーは使用可能
+     */
+    it("短いキーと有効なキーが混在する場合、有効なキーのみ使用可能", async () => {
+      // Arrange
+      const shortKey = "reftrix_" + "c".repeat(20); // 28文字（短すぎる）
+      const validKey = "reftrix_" + "d".repeat(32); // 40文字（OK）
+      process.env.MCP_API_KEYS = JSON.stringify([
+        { key: shortKey, role: "ADMIN", userId: "short-user" },
+        { key: validKey, role: "USER", userId: "valid-user" },
+      ]);
+
+      // Act: 短いキーで認証
+      const shortResult = await validateApiKey(shortKey);
+      // Act: 有効なキーで認証
+      const validResult = await validateApiKey(validKey);
+
+      // Assert
+      expect(shortResult).toBeNull(); // 短いキーは拒否
+      expect(validResult).not.toBeNull(); // 有効なキーは認証成功
+      expect(validResult?.userId).toBe("valid-user");
+    });
+  });
+
   describe("エラーレスポンス形式テスト", () => {
     /**
      * テスト: 認証エラーのAuthResult形式

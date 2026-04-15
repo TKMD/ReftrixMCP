@@ -189,8 +189,8 @@ export class ThemeAnalyzer {
 
       // Call Vision AI
       const response = await this.client.generateJSON<VisionThemeResponse>(
-        prompt,
-        screenshotBase64
+        screenshotBase64,
+        prompt
       );
 
       // Validate response

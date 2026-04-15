@@ -303,8 +303,8 @@ describe("system.health MCPツール", () => {
         ]);
         expect(result.data.services.initialization?.skippedCategories).toEqual([]);
         expect(result.data.services.initialization?.errors).toEqual([]);
-        // v0.3.0: 35 tools — project.get/project.list削除、quality.batch_evaluate/getJobStatus削除、Tier 2新規11ツール追加
-        expect(result.data.services.initialization?.registeredToolCount).toBe(35);
+        // v0.4.0: 39 tools — report.generate追加
+        expect(result.data.services.initialization?.registeredToolCount).toBe(39);
       }
     });
 

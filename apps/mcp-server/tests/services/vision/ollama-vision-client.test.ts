@@ -115,10 +115,19 @@ describe("OllamaVisionClient", () => {
         timeout: 30000,
       });
 
-      // 最初の2回は失敗、3回目で成功
+      // 最初の2回はサーバーエラー（リトライ可能）、3回目で成功
+      // 注: 接続拒否(ECONNREFUSED)はOV-2修正により即座にフォールバックされリトライ不可
       mockFetch
-        .mockRejectedValueOnce(new Error("Connection refused"))
-        .mockRejectedValueOnce(new Error("Connection refused"))
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          statusText: "Internal Server Error",
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          statusText: "Internal Server Error",
+        })
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ response: "success" }),
@@ -136,8 +145,13 @@ describe("OllamaVisionClient", () => {
         timeout: 30000,
       });
 
-      // すべて失敗
-      mockFetch.mockRejectedValue(new Error("Connection refused"));
+      // すべてサーバーエラー（リトライ可能だが最終的に失敗）
+      // 注: 接続拒否はOV-2修正により即座にフォールバックされるためサーバーエラーを使用
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
+      });
 
       await expect(client.generate("base64image", "test prompt")).rejects.toThrow(
         VisionAnalysisError
@@ -167,6 +181,24 @@ describe("OllamaVisionClient", () => {
       });
 
       // リトライしないので1回のみ
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("接続拒否エラー(ECONNREFUSED)はenableRetry=trueでもリトライしないこと (OV-2)", async () => {
+      const client = new OllamaVisionClient({
+        enableRetry: true,
+        maxRetries: 3,
+        timeout: 30000,
+      });
+
+      // ECONNREFUSED — Ollamaサービス未起動
+      mockFetch.mockRejectedValue(new Error("connect ECONNREFUSED 127.0.0.1:11434"));
+
+      await expect(client.generate("base64image", "test prompt")).rejects.toMatchObject({
+        code: "OLLAMA_UNAVAILABLE",
+      });
+
+      // 接続拒否は即座にフォールバックするため1回のみ
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
@@ -238,6 +270,19 @@ describe("OllamaVisionClient", () => {
 
       const result = await client.isAvailable();
       expect(result).toBe(false);
+    }, 10000); // 10秒タイムアウト
+
+    it("fetch失敗時にclearTimeoutが呼ばれること (OV-3)", async () => {
+      const client = new OllamaVisionClient();
+      const clearTimeoutSpy = vi.spyOn(global, "clearTimeout");
+
+      mockFetch.mockRejectedValueOnce(new Error("Network error"));
+
+      const result = await client.isAvailable();
+
+      expect(result).toBe(false);
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      clearTimeoutSpy.mockRestore();
     }, 10000); // 10秒タイムアウト
   });
 
@@ -347,10 +392,19 @@ describe("OllamaVisionClient - Default Retry Behavior", () => {
     // デフォルト設定でクライアントを作成
     const client = new OllamaVisionClient();
 
-    // 最初の2回は失敗、3回目で成功（デフォルトmaxRetries=3）
+    // 最初の2回はサーバーエラー（リトライ可能）、3回目で成功（デフォルトmaxRetries=3）
+    // 注: 接続拒否はOV-2修正により即座にフォールバックされるためサーバーエラーを使用
     mockFetch
-      .mockRejectedValueOnce(new Error("connection refused"))
-      .mockRejectedValueOnce(new Error("connection refused"))
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
+      })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ response: "success after retry" }),

@@ -121,6 +121,12 @@ import {
   type DesignChangeTrackerPrismaClient,
 } from "./design-change-tracker.service";
 
+// Visual Regression関連インポート（design.regression_test用、v0.4.0）
+import {
+  setVisualRegressionPrismaClientFactory,
+  type IVisualRegressionPrismaClient,
+} from "./visual-regression.service";
+
 // Audit Log関連インポート（audit.query用、v0.3.0 T2-AUD）
 import {
   setAuditLogPrismaClientFactory,
@@ -132,10 +138,28 @@ import { setAuditQueryServiceFactory } from "../tools/audit/query.tool";
 // GDPR Deletion関連インポート（data.delete / data.export用、v0.3.0 T2-GDPR）
 import {
   setGdprPrismaClientFactory,
+  setGdprScreenshotPersistenceFactory,
   getGdprDeletionService,
   type GdprPrismaClient,
 } from "./gdpr-deletion.service";
-import { setDataDeleteServiceFactory, setDataExportServiceFactory } from "../tools/data/data.tool";
+import {
+  setDataDeleteServiceFactory,
+  setDataExportServiceFactory,
+  setDataDeleteBackfillQueueFactory,
+} from "../tools/data/data.tool";
+import { createEmbeddingBackfillQueue } from "../queues/embedding-backfill-queue";
+import type { Queue } from "bullmq";
+import type {
+  EmbeddingBackfillJobData,
+  EmbeddingBackfillJobResult,
+} from "../queues/embedding-backfill-queue";
+
+// Screenshot 永続化サービス（GDPR Art. 17 削除経路用、v0.4.0 PR1）
+// Screenshot persistence service (for GDPR Art. 17 deletion path, v0.4.0 PR1)
+import {
+  createScreenshotPersistenceService,
+  type IScreenshotPersistencePrismaClient,
+} from "./screenshot-persistence.service";
 
 // Embedding Quality関連インポート（embedding.quality用、v0.3.0 T2-EMB）
 import {
@@ -156,6 +180,9 @@ import {
 import { MultiDeviceCaptureService } from "./responsive/multi-device-capture.service";
 import { ResponsiveDiffService } from "./responsive/responsive-diff.service";
 import { setResponsiveCaptureServiceFactory } from "../tools/responsive/capture.tool";
+
+// Report Generate関連インポート（report.generate用、v0.4.0）
+import { setReportPrismaClientFactory, type IReportPrismaClient } from "./report-template.service";
 
 // =====================================================
 // 検索・補助サービス初期化結果
@@ -264,6 +291,9 @@ export function initializeSearchAndAuxiliaryServices(
   // Design Change Tracker サービス初期化
   initializeDesignChangeTrackerService(config, result);
 
+  // Visual Regression サービス初期化（v0.4.0）
+  initializeVisualRegressionService(config, result);
+
   // Audit Log サービス初期化（v0.3.0 T2-AUD）
   initializeAuditLogService(config, result);
 
@@ -278,6 +308,9 @@ export function initializeSearchAndAuxiliaryServices(
 
   // Responsive Capture サービス初期化（v0.3.0 T2-10）
   initializeResponsiveCaptureService(result);
+
+  // Report Generate サービス初期化（v0.4.0）
+  initializeReportService(config, result);
 
   return result;
 }
@@ -666,6 +699,29 @@ function initializeDesignChangeTrackerService(
   }
 }
 
+function initializeVisualRegressionService(
+  config: ServiceInitializerConfig,
+  result: SearchRegistrarResult
+): void {
+  try {
+    // VisualRegressionService の DI 登録（Prisma designSnapshot model）
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma model access requires any cast from IPrismaClientMinimal
+    const prismaWithDesignSnapshot = config.prisma as any;
+    setVisualRegressionPrismaClientFactory(
+      () =>
+        ({
+          designSnapshot: prismaWithDesignSnapshot.designSnapshot,
+        }) as IVisualRegressionPrismaClient
+    );
+
+    result.registeredFactories.push("visualRegressionPrisma");
+    result.categories.push("visualRegression");
+    logger.info("[ServiceInitializer] visualRegression factory registered (prisma)");
+  } catch (error) {
+    recordInitError(result, "VisualRegression", ["visualRegressionPrisma"], error);
+  }
+}
+
 // =====================================================
 // v0.3.0 Tier 2 新サービス初期化
 // v0.3.0 Tier 2 new service initialization
@@ -716,14 +772,62 @@ function initializeGdprDeletionService(
         }) as unknown as GdprPrismaClient
     );
 
+    // Screenshot 永続化サービスを GDPR 削除経路にも注入（GDPR Art. 17）
+    // Wire screenshot persistence service into GDPR deletion path (GDPR Art. 17)
+    //
+    // GDPR 削除時に DB 行と合わせて `<REFTRIX_SCREENSHOT_ROOT>/phase5/<pageId>.png`
+    // のファイル本体も削除する。Prisma の `webPage.update` などを利用するため、
+    // ここで最小限の Prisma クライアントアダプタを構築して注入する。
+    //
+    // Also removes the on-disk PNG (`<REFTRIX_SCREENSHOT_ROOT>/phase5/<pageId>.png`)
+    // alongside the DB row on GDPR deletion. Builds a minimal Prisma adapter for
+    // the persistence service here.
+    setGdprScreenshotPersistenceFactory(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- adapter between PrismaClient and IScreenshotPersistencePrismaClient
+      const anyPrisma = config.prisma as any;
+      if (!anyPrisma?.webPage) {
+        throw new Error(
+          "[ServiceRegistrar] PrismaClient does not expose webPage delegate for screenshot persistence"
+        );
+      }
+      return createScreenshotPersistenceService({
+        prisma: config.prisma as unknown as IScreenshotPersistencePrismaClient,
+      });
+    });
+
     // data.delete / data.export ツールの DI ファクトリ登録
     // GdprDeletionService は delete + export の両方を提供する
     setDataDeleteServiceFactory(() => getGdprDeletionService());
     setDataExportServiceFactory(() => getGdprDeletionService());
 
-    result.registeredFactories.push("gdprPrisma", "dataDeleteService", "dataExportService");
+    // PR7a-4: Embedding Backfill Queue を data.delete に注入（lazy init）
+    // GDPR Art.17 / CCPA §1798.105: page 削除時に Queue の滞留ジョブを削除
+    // するため。Redis 接続コストを避けるため初回呼び出しまで遅延初期化する。
+    //
+    // PR7a-4: Inject embedding backfill queue into data.delete (lazy init).
+    // Required for GDPR Art.17 / CCPA §1798.105 erasure: removes queued
+    // backfill jobs tied to the page being deleted. Lazy-initialized to
+    // avoid Redis connection cost when data.delete is never invoked.
+    let cachedBackfillQueue: Queue<EmbeddingBackfillJobData, EmbeddingBackfillJobResult> | null =
+      null;
+    setDataDeleteBackfillQueueFactory(() => {
+      if (cachedBackfillQueue === null) {
+        cachedBackfillQueue = createEmbeddingBackfillQueue();
+      }
+      return cachedBackfillQueue;
+    });
+
+    result.registeredFactories.push(
+      "gdprPrisma",
+      "gdprScreenshotPersistence",
+      "dataDeleteService",
+      "dataExportService",
+      "dataDeleteBackfillQueue"
+    );
     result.categories.push("gdprDeletion");
-    logger.info("[ServiceInitializer] gdprDeletion factories registered (prisma, delete, export)");
+    logger.info(
+      "[ServiceInitializer] gdprDeletion factories registered (prisma, delete, export, backfillQueue)"
+    );
   } catch (error) {
     recordInitError(
       result,
@@ -794,5 +898,25 @@ function initializeResponsiveCaptureService(result: SearchRegistrarResult): void
       ["responsiveCaptureService", "responsiveDiffService"],
       error
     );
+  }
+}
+
+/**
+ * Report Generate サービス初期化（v0.4.0）
+ * report.generate ツール用の PrismaClient DI ファクトリを登録
+ */
+function initializeReportService(
+  config: ServiceInitializerConfig,
+  result: SearchRegistrarResult
+): void {
+  try {
+    const prisma = config.prisma as unknown as IReportPrismaClient;
+    setReportPrismaClientFactory(() => prisma);
+
+    result.registeredFactories.push("reportPrismaClient");
+    result.categories.push("report");
+    logger.info("[ServiceInitializer] report factory registered (prisma)");
+  } catch (error) {
+    recordInitError(result, "Report", ["reportPrismaClient"], error);
   }
 }

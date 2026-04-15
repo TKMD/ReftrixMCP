@@ -24,6 +24,9 @@ import { Queue } from "bullmq";
 import { getRedisConfig } from "../config/redis";
 import { logger } from "../utils/logger";
 import { PAGE_ANALYZE_QUEUE_NAME } from "../queues/page-analyze-queue";
+// v0.4.0 PR4: Embedding backfill queue for Bull Board UI
+// v0.4.0 PR4: Bull Board UI 用の embedding バックフィル Queue
+import { EMBEDDING_BACKFILL_QUEUE_NAME } from "../queues/embedding-backfill-queue";
 import type { Server } from "http";
 
 /**
@@ -131,11 +134,24 @@ export async function startBullBoard(config: BullBoardConfig): Promise<Server | 
     const redisConfig = getRedisConfig();
 
     // Queue インスタンスを作成（UI用、読み取り専用）
+    // BullMQ 公式必須: `maxRetriesPerRequest: null` を Queue / QueueEvents / Worker
+    // 接続で強制する（https://docs.bullmq.io/guide/connections）。
+    // BullMQ requires `maxRetriesPerRequest: null` for Queue / QueueEvents / Worker.
     const pageAnalyzeQueue = new Queue(PAGE_ANALYZE_QUEUE_NAME, {
       connection: {
         host: redisConfig.host,
         port: redisConfig.port,
-        maxRetriesPerRequest: redisConfig.maxRetriesPerRequest,
+        maxRetriesPerRequest: null,
+      },
+    });
+
+    // v0.4.0 PR4: Embedding backfill queue を Bull Board に登録
+    // v0.4.0 PR4: Register the embedding backfill queue in Bull Board
+    const embeddingBackfillQueue = new Queue(EMBEDDING_BACKFILL_QUEUE_NAME, {
+      connection: {
+        host: redisConfig.host,
+        port: redisConfig.port,
+        maxRetriesPerRequest: null,
       },
     });
 
@@ -144,7 +160,7 @@ export async function startBullBoard(config: BullBoardConfig): Promise<Server | 
     serverAdapter.setBasePath("/admin/queues");
 
     createBullBoard({
-      queues: [new BullMQAdapter(pageAnalyzeQueue)],
+      queues: [new BullMQAdapter(pageAnalyzeQueue), new BullMQAdapter(embeddingBackfillQueue)],
       serverAdapter,
     });
 

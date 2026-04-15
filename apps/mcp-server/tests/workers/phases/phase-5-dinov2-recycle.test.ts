@@ -78,8 +78,9 @@ describe("Phase 5: DINOv2 SessionOptions + Recycle Threshold", () => {
 
   // --------------------------------------------------------------------------
   // Test 1: enableCpuMemArena: false がソースに含まれること
+  // (CPU path uses enableCpuMemArena: false; CUDA path omits it)
   // --------------------------------------------------------------------------
-  it("DINOv2 worker-thread.tsにenableCpuMemArena: false設定が含まれること / should include enableCpuMemArena: false in DINOv2 worker-thread SessionOptions", () => {
+  it("DINOv2 worker-thread.tsにenableCpuMemArena: false設定が含まれること / should include enableCpuMemArena: false in DINOv2 worker-thread SessionOptions (CPU path)", () => {
     const workerThreadPath = path.resolve(
       __dirname,
       "../../../../..",
@@ -88,8 +89,10 @@ describe("Phase 5: DINOv2 SessionOptions + Recycle Threshold", () => {
     const source = fs.readFileSync(workerThreadPath, "utf-8");
 
     expect(source).toContain("enableCpuMemArena");
-    // Verify the value is set to false
+    // Verify the CPU fallback path sets enableCpuMemArena: false
     expect(source).toMatch(/enableCpuMemArena:\s*false/);
+    // Verify CUDA path uses CUDAExecutionProvider
+    expect(source).toContain("CUDAExecutionProvider");
   });
 
   // --------------------------------------------------------------------------

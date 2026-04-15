@@ -26,7 +26,9 @@
  */
 
 import { logger } from "../utils/logger";
+import { sanitizeErrorMessage } from "../utils/sanitize-error";
 import { truncateId } from "../utils/truncate-id";
+import type { IPhase5ScreenshotPersistence } from "./screenshot-persistence.types";
 
 // =====================================================
 // 定数 / Constants
@@ -201,6 +203,39 @@ export function resetGdprPrismaClientFactory(): void {
 }
 
 // =====================================================
+// Screenshot Persistence DI (GDPR Art. 17 screenshot cleanup)
+// Screenshot 永続化サービスの DI（GDPR Art. 17 screenshot 削除）
+// =====================================================
+
+let screenshotPersistenceFactory: (() => IPhase5ScreenshotPersistence) | null = null;
+
+/**
+ * Screenshot 永続化サービスのファクトリを設定する
+ * Set the screenshot persistence service factory
+ *
+ * GDPR Art. 17 削除経路で `deleteScreenshot()` を呼び出すために使用する。
+ * Used by the GDPR Art. 17 deletion paths to call `deleteScreenshot()`.
+ *
+ * ファクトリが未設定の場合、screenshot ファイルは削除されず、PR6 の TTL cron
+ * による `cleanupExpired()` で最終的に削除される（graceful degradation）。
+ * When unset, screenshots are not deleted immediately and will be reaped by
+ * PR6's TTL cron via `cleanupExpired()` (graceful degradation).
+ */
+export function setGdprScreenshotPersistenceFactory(
+  factory: () => IPhase5ScreenshotPersistence
+): void {
+  screenshotPersistenceFactory = factory;
+}
+
+/**
+ * Screenshot 永続化サービスのファクトリをリセット
+ * Reset the screenshot persistence service factory
+ */
+export function resetGdprScreenshotPersistenceFactory(): void {
+  screenshotPersistenceFactory = null;
+}
+
+// =====================================================
 // GdprDeletionService
 // =====================================================
 
@@ -210,6 +245,7 @@ export function resetGdprPrismaClientFactory(): void {
  */
 export class GdprDeletionService {
   private prismaClient: GdprPrismaClient | null = null;
+  private screenshotService: IPhase5ScreenshotPersistence | null = null;
 
   /**
    * PrismaClientを取得 / Get PrismaClient
@@ -225,6 +261,49 @@ export class GdprDeletionService {
     }
 
     throw new Error("PrismaClient not initialized");
+  }
+
+  /**
+   * Screenshot 永続化サービスを取得（未設定時は null）
+   * Get screenshot persistence service (null if unset — graceful degradation)
+   */
+  private getScreenshotService(): IPhase5ScreenshotPersistence | null {
+    if (this.screenshotService) {
+      return this.screenshotService;
+    }
+    if (screenshotPersistenceFactory) {
+      this.screenshotService = screenshotPersistenceFactory();
+      return this.screenshotService;
+    }
+    return null;
+  }
+
+  /**
+   * Screenshot ファイルを削除（best-effort、失敗は warn のみ）
+   * Delete a screenshot file (best-effort; failures logged as warn)
+   *
+   * DB 削除成功後に呼ばれる想定。ファイル削除失敗時も DB 変更を巻き戻さず、
+   * 残ったファイルは PR6 の TTL cron で回収される。
+   * Called after successful DB deletion. Does not roll back DB on file failure;
+   * orphaned files are reaped by PR6's TTL cron.
+   */
+  private async deleteScreenshotBestEffort(pageId: string): Promise<void> {
+    const svc = this.getScreenshotService();
+    if (!svc) {
+      logger.warn(
+        "[GdprDeletionService] ScreenshotPersistenceService not wired; skipping screenshot file deletion",
+        { pageId: truncateId(pageId) }
+      );
+      return;
+    }
+    try {
+      await svc.deleteScreenshot(pageId);
+    } catch (err) {
+      logger.warn("[GdprDeletionService] Screenshot file deletion failed (non-fatal)", {
+        pageId: truncateId(pageId),
+        error: sanitizeErrorMessage(err),
+      });
+    }
   }
 
   /**
@@ -283,6 +362,16 @@ export class GdprDeletionService {
       );
       deletedRecords["web_pages"] = pageCount;
     });
+
+    // DB トランザクション成功後に screenshot ファイルを削除（GDPR Art. 17）
+    // Delete screenshot file after successful DB transaction (GDPR Art. 17)
+    //
+    // DB 側では web_pages 行が既に削除されているため、内部の
+    // screenshotPersistenceService.deleteScreenshot() の DB NULL 化は P2025 で
+    // 吸収されるが、ファイルシステム上の PNG は確実に消去される。
+    // The row is already gone, so deleteScreenshot()'s internal DB null-out
+    // catches P2025 and swallows it; the on-disk PNG is removed deterministically.
+    await this.deleteScreenshotBestEffort(pageId);
 
     const deletedAt = new Date().toISOString();
 
@@ -494,6 +583,14 @@ export class GdprDeletionService {
     const prisma = this.getPrismaClient();
     let pagesDeleted = 0;
     let profileDeleted = false;
+    /**
+     * トランザクション内で削除成功した page ID を収集し、
+     * コミット後に screenshot ファイルを best-effort 削除する。
+     *
+     * Collect page IDs successfully deleted inside the transaction; delete
+     * their screenshot files best-effort after the transaction commits.
+     */
+    const deletedPageIds: string[] = [];
 
     await prisma.$transaction(async (tx) => {
       // ページの削除 / Delete pages
@@ -516,6 +613,7 @@ export class GdprDeletionService {
 
           await tx.$executeRawUnsafe(`DELETE FROM web_pages WHERE id = $1::uuid`, pageId);
           pagesDeleted++;
+          deletedPageIds.push(pageId);
         }
       }
 
@@ -548,6 +646,12 @@ export class GdprDeletionService {
         }
       }
     });
+
+    // DB コミット後、削除成功した各ページの screenshot を best-effort で削除
+    // After DB commit, best-effort delete screenshot files for each deleted page
+    for (const pageId of deletedPageIds) {
+      await this.deleteScreenshotBestEffort(pageId);
+    }
 
     const deletedAt = new Date().toISOString();
 

@@ -359,19 +359,19 @@ nano ~/.config/Claude/claude_desktop_config.json
 
 ## 5. ワーカーの起動 / Start Workers
 
-page.analyzeは非同期処理のため、WorkerSupervisorが管理するワーカープロセスの起動が必要です。WorkerSupervisorは `autorun=false` で設定されており、`start-workers.ts` で明示的に `run()` を呼び出すことでワーカーが開始されます。
+**v0.4.0 PR7d-2 以降 / v0.4.0 PR7d-2+**: page.analyze ワーカーは MCP サーバー起動時に `WorkerSupervisor` が自動的に fork します。手動起動は通常不要です。手動起動する場合、Redis-based dual-run guard が既存 Worker を検出した場合は `exit(1)` するため、意図的な opt-out として `REFTRIX_ALLOW_MANUAL_WORKER=true` を設定してください（ADR-0011 参照）。
 
-Since page.analyze runs asynchronously, a worker process managed by WorkerSupervisor must be started. WorkerSupervisor is configured with `autorun=false`, and workers are started by explicitly calling `run()` in `start-workers.ts`.
+**v0.4.0 PR7d-2+**: The page.analyze worker is auto-forked by `WorkerSupervisor` when the MCP server starts. Manual startup is normally unnecessary. If you do start manually and the MCP server is also running, the Redis-based dual-run guard will `exit(1)`; set `REFTRIX_ALLOW_MANUAL_WORKER=true` to opt out explicitly (see ADR-0011).
 
 ```bash
-# page.analyzeワーカー起動（WorkerSupervisor管理、start-workers.tsで明示的run()呼び出し）
-# Start page.analyze worker (managed by WorkerSupervisor, explicit run() via start-workers.ts)
+# page.analyzeワーカー手動起動（開発者向け、MCP サーバー未起動時のみ）
+# Manual page.analyze worker start (developer-only, when MCP server is not running)
 pnpm --filter @reftrixmcp/mcp-server worker:start:page
 ```
 
-> **Warning / 警告**: ワーカー未起動の場合、`page.analyze` の結果はDBに保存されません。ジョブはキューに滞留し、ワーカー起動後に処理されます。
+> **Warning / 警告**: ワーカー未起動かつ MCP サーバー未起動の場合、`page.analyze` の結果はDBに保存されません。ジョブはキューに滞留し、ワーカー起動後に処理されます。
 >
-> **Warning**: Without the worker running, `page.analyze` results will NOT be saved to the database. Jobs will remain queued until the worker is started.
+> **Warning**: Without a running worker (either via MCP server auto-fork or manual start), `page.analyze` results will NOT be saved. Jobs remain queued until a worker starts.
 
 > **重要 / Important**: ワーカープロセスは `.env.local` から `DATABASE_URL` を読み込みます（`loadEnvLocal()` 経由）。`.mcp.json` や `claude_desktop_config.json` の `env` 設定はMCPサーバープロセスにのみ適用され、ワーカープロセスには反映されません。ワーカーが正しくDBに接続するには、プロジェクトルートに `.env.local` が必要です。
 >
@@ -430,7 +430,7 @@ await mcp__reftrix__system_health({ detailed: true });
 
 Once setup is complete, refer to the following guides to utilize the features:
 
-- [MCPツール使用ガイド / MCP Tools Usage Guide](./02-mcp-tools-guide.md) - <!-- gen:tool-count -->35<!-- /gen:tool-count -->のMCPツールの使用方法 / How to use the <!-- gen:tool-count -->35<!-- /gen:tool-count --> MCP tools
+- [MCPツール使用ガイド / MCP Tools Usage Guide](./02-mcp-tools-guide.md) - <!-- gen:tool-count -->39<!-- /gen:tool-count -->のMCPツールの使用方法 / How to use the <!-- gen:tool-count -->39<!-- /gen:tool-count --> MCP tools
 - [page.analyze詳細ガイド / page.analyze Deep Dive](./03-page-analyze-deep-dive.md) - 統合分析の詳細 / Detailed unified analysis
 - [トラブルシューティングガイド / Troubleshooting Guide](./04-troubleshooting.md) - 問題解決 / Problem solving
 

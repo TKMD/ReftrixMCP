@@ -20,6 +20,14 @@ import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { truncateId } from "../../utils/truncate-id";
 import { logger, isDevelopment } from "../../utils/logger";
 import { getAuditLogService } from "../../services/audit-log.service";
+import {
+  EMBEDDING_BACKFILL_CATEGORIES,
+  buildBackfillJobId,
+  type EmbeddingBackfillCategory,
+  type EmbeddingBackfillJobData,
+  type EmbeddingBackfillJobResult,
+} from "../../queues/embedding-backfill-queue";
+import type { Queue } from "bullmq";
 import type {
   PageDeletionResult,
   ProfileDeletionResult,
@@ -108,10 +116,36 @@ export type DataExportInput = z.infer<typeof dataExportInputSchema>;
 // 出力型 / Output Types
 // =====================================================
 
+/**
+ * Queue ジョブ削除内訳 / Queue job removal breakdown
+ *
+ * PR7a-4: `data.delete` が target=page / target=all_user_data を処理したとき
+ * に削除した embedding-backfill Queue ジョブの件数内訳。
+ *
+ * PR7a-4: Breakdown of embedding-backfill queue jobs removed when
+ * `data.delete` processes target=page / target=all_user_data.
+ */
+export interface QueueJobsRemoved {
+  embeddingBackfill: {
+    /** 実際に削除された件数 / Number of jobs successfully removed */
+    removed: number;
+    /** 実行中のためスキップした件数 / Number of active jobs skipped (BullMQ cannot remove active jobs) */
+    skippedActive: number;
+  };
+}
+
 export type DataDeleteOutput =
   | {
       success: true;
       data: PageDeletionResult | ProfileDeletionResult | AllUserDataDeletionResult;
+      /**
+       * PR7a-4: target=page / target=all_user_data でのみ設定される。
+       * target=profile では未設定（プロファイル削除は webPage と無関係）。
+       *
+       * PR7a-4: Only set for target=page / target=all_user_data. Omitted for
+       * target=profile (profile deletion is unrelated to webPages).
+       */
+      queueJobsRemoved?: QueueJobsRemoved;
     }
   | {
       success: false;
@@ -145,6 +179,146 @@ export const resetDataDeleteServiceFactory = deleteServiceDI.reset;
 const exportServiceDI = createDIFactory<GdprDeletionServiceForTool>("GdprDeletionServiceExport");
 export const setDataExportServiceFactory = exportServiceDI.set;
 export const resetDataExportServiceFactory = exportServiceDI.reset;
+
+// =====================================================
+// Embedding Backfill Queue DI (PR7a-4)
+// =====================================================
+
+/**
+ * Embedding Backfill Queue の最小インターフェース（ツール層ビュー）
+ * Minimal interface of the embedding backfill queue (tool-layer view)
+ *
+ * `data.delete` が必要とするのは `getJob` のみ。BullMQ `Queue` の完全な型を
+ * 要求するとテスト mock が煩雑になるため、ツール層では最小限のビューだけを
+ * 定義する。実装側（service-registrar）は `Queue` 実体を返せばよい。
+ *
+ * `data.delete` only needs `getJob`. Avoid demanding the full BullMQ `Queue`
+ * type so that test mocks stay small. The production registrar simply returns
+ * the real `Queue` instance.
+ */
+export interface BackfillQueueForTool {
+  getJob(jobId: string): Promise<BackfillJobForTool | null | undefined>;
+}
+
+/**
+ * Embedding Backfill Job の最小インターフェース（ツール層ビュー）
+ * Minimal interface of a backfill job (tool-layer view)
+ */
+export interface BackfillJobForTool {
+  getState(): Promise<string>;
+  remove(): Promise<void>;
+}
+
+// Real BullMQ Queue assignability guard (type-level only): 実 Queue を
+// BackfillQueueForTool に代入できることをコンパイル時に保証する。
+// Ensures the real BullMQ Queue satisfies the tool-layer view at compile time.
+type _BullMQQueueAssignableGuard =
+  Queue<EmbeddingBackfillJobData, EmbeddingBackfillJobResult> extends BackfillQueueForTool
+    ? true
+    : never;
+// Reference the type alias to prevent "declared but unused" stripping.
+export type __InternalBackfillQueueAssignability = _BullMQQueueAssignableGuard;
+
+const backfillQueueDI = createDIFactory<BackfillQueueForTool>("EmbeddingBackfillQueueForDataTool");
+export const setDataDeleteBackfillQueueFactory = backfillQueueDI.set;
+export const resetDataDeleteBackfillQueueFactory = backfillQueueDI.reset;
+
+/**
+ * 単一 webPageId に紐づく Embedding Backfill Queue ジョブを削除する。
+ * Remove all embedding backfill jobs tied to a single webPageId.
+ *
+ * PR7a-4 (LCC M-1 / GDPR Art.17 / CCPA §1798.105): web_page の削除時に
+ * Queue 内の滞留ジョブを削除することで、削除済みページに対する非同期 backfill
+ * 再開を防止し、削除権の完全履行を保証する。
+ *
+ * - `active` (実行中) ジョブは BullMQ 仕様上 `remove()` 不可のため skip する。
+ *   Worker が完了した後、cascade delete 済みの `web_pages` 行に対する DB
+ *   更新で失敗するが、これは許容動作（sanitizeErrorMessage 経由で warn log
+ *   にとどまる）。
+ * - SSOT 遵守: `EMBEDDING_BACKFILL_CATEGORIES` を直接参照し、7 カテゴリすべて
+ *   を対象とする（`part_text` / `part_visual` / `section_visual` / `motion` /
+ *   `background` / `js_animation` / `responsive`）。
+ * - Graceful Degradation: 個々の getJob / getState / remove 失敗は warn log
+ *   のみ。削除主処理の妨げにはしない。
+ *
+ * PR7a-4 (LCC M-1 / GDPR Art.17 / CCPA §1798.105): Removes queued backfill
+ * jobs tied to a deleted web_page so that async backfill cannot resurrect
+ * data that the user requested erased.
+ *
+ * - `active` (running) jobs cannot be removed per BullMQ contract and are
+ *   skipped. When the worker completes, its DB writes against the already
+ *   cascade-deleted `web_pages` row will fail, which is acceptable
+ *   (captured via sanitizeErrorMessage as a warn log).
+ * - SSOT compliance: iterates `EMBEDDING_BACKFILL_CATEGORIES` directly,
+ *   covering all 7 categories.
+ * - Graceful Degradation: individual getJob / getState / remove failures
+ *   log warn only and do not abort the primary deletion.
+ *
+ * @param queue - BackfillQueueForTool (real BullMQ Queue or test mock)
+ * @param webPageId - 対象 webPage ID (UUID)
+ * @returns 削除件数 / skip 件数の内訳
+ */
+export async function removeBackfillJobsForWebPage(
+  queue: BackfillQueueForTool,
+  webPageId: string
+): Promise<{ removed: number; skippedActive: number }> {
+  let removed = 0;
+  let skippedActive = 0;
+
+  for (const category of EMBEDDING_BACKFILL_CATEGORIES) {
+    const jobId = buildBackfillJobId(webPageId, category satisfies EmbeddingBackfillCategory);
+    try {
+      const job = await queue.getJob(jobId);
+      if (!job) {
+        continue;
+      }
+
+      const state = await job.getState();
+      if (state === "active") {
+        // BullMQ contract: active jobs cannot be remove()d. Skip and let the
+        // worker finish; the post-job DB write will fail against the already
+        // cascade-deleted web_pages row (expected, logged by worker).
+        skippedActive++;
+        logger.info("[data.delete] Active backfill job skipped", {
+          webPageId: truncateId(webPageId),
+          category,
+        });
+        continue;
+      }
+
+      await job.remove();
+      removed++;
+    } catch (error) {
+      logger.warn("[data.delete] Failed to remove backfill job", {
+        webPageId: truncateId(webPageId),
+        category,
+        error: sanitizeErrorMessage(error),
+      });
+    }
+  }
+
+  return { removed, skippedActive };
+}
+
+/**
+ * 複数 webPage にまたがる Queue ジョブ削除を集約する。
+ * Aggregate queue-job removal across multiple webPageIds.
+ */
+async function removeBackfillJobsForWebPages(
+  queue: BackfillQueueForTool,
+  webPageIds: readonly string[]
+): Promise<{ removed: number; skippedActive: number }> {
+  let removed = 0;
+  let skippedActive = 0;
+
+  for (const webPageId of webPageIds) {
+    const sub = await removeBackfillJobsForWebPage(queue, webPageId);
+    removed += sub.removed;
+    skippedActive += sub.skippedActive;
+  }
+
+  return { removed, skippedActive };
+}
 
 // =====================================================
 // エラーコード判定 / Error Code Mapping
@@ -232,6 +406,49 @@ export async function dataDeleteHandler(input: unknown): Promise<DataDeleteOutpu
   const service = deleteServiceDI.get()!();
 
   try {
+    // =============================================================
+    // PR7a-4: Pre-delete embedding-backfill Queue cleanup
+    // GDPR Art.17 / CCPA §1798.105 / LCC M-1
+    // =============================================================
+    // DB 削除の**前**に Queue 内の滞留ジョブを削除する。DB 削除後に Worker
+    // が active ジョブを消費すると cascade delete 済み行への書き込みが失敗
+    // するだけで済むが、waiting / delayed / failed ジョブは削除しないと
+    // 将来の再試行で削除済みデータに対する処理が走る可能性がある。
+    //
+    // Clean the queue **before** DB deletion. Jobs that remain in
+    // waiting/delayed/failed states could otherwise be picked up later and
+    // process data the user has asked to erase.
+    let queueJobsRemoved: QueueJobsRemoved | undefined;
+    const backfillQueueFactory = backfillQueueDI.get();
+
+    if (validated.target === "page" && backfillQueueFactory) {
+      try {
+        const queue = backfillQueueFactory();
+        const summary = await removeBackfillJobsForWebPage(queue, validated.id);
+        queueJobsRemoved = { embeddingBackfill: summary };
+      } catch (error) {
+        logger.warn("[MCP Tool] data.delete queue cleanup failed", {
+          target: "page",
+          id: truncateId(validated.id),
+          error: sanitizeErrorMessage(error),
+        });
+        // Graceful Degradation: DB 削除は続行
+      }
+    } else if (validated.target === "all_user_data" && backfillQueueFactory) {
+      try {
+        const queue = backfillQueueFactory();
+        const summary = await removeBackfillJobsForWebPages(queue, validated.page_ids ?? []);
+        queueJobsRemoved = { embeddingBackfill: summary };
+      } catch (error) {
+        logger.warn("[MCP Tool] data.delete queue cleanup failed", {
+          target: "all_user_data",
+          pageCount: (validated.page_ids ?? []).length,
+          error: sanitizeErrorMessage(error),
+        });
+        // Graceful Degradation: DB 削除は続行
+      }
+    }
+
     let result: PageDeletionResult | ProfileDeletionResult | AllUserDataDeletionResult;
 
     switch (validated.target) {
@@ -275,6 +492,30 @@ export async function dataDeleteHandler(input: unknown): Promise<DataDeleteOutpu
       details: { reason: validated.reason },
     });
 
+    // PR7a-4: Queue ジョブ削除の監査ログ（DB 削除と独立に記録）
+    // PR7a-4: Queue job removal audit log (recorded independently of DB deletion)
+    if (queueJobsRemoved) {
+      await auditLogService.log({
+        action: "embedding_backfill_queue_jobs_removed",
+        actor: "mcp-client",
+        targetType: validated.target === "page" ? "web_page" : "all_user_data",
+        targetId: validated.id,
+        result: "success",
+        details: {
+          reason: validated.reason,
+          removedCount: queueJobsRemoved.embeddingBackfill.removed,
+          skippedActiveCount: queueJobsRemoved.embeddingBackfill.skippedActive,
+        },
+      });
+    }
+
+    if (queueJobsRemoved) {
+      return {
+        success: true,
+        data: result,
+        queueJobsRemoved,
+      };
+    }
     return {
       success: true,
       data: result,
@@ -441,12 +682,15 @@ export async function dataExportHandler(input: unknown): Promise<DataExportOutpu
 export const dataDeleteToolDefinition = {
   name: "data.delete",
   description:
-    "GDPR Art.17「忘れられる権利」に基づくデータ完全削除。" +
+    "GDPR Art.17「忘れられる権利」/ CCPA §1798.105 に基づくデータ完全削除。" +
     "page（全関連テーブルCASCADE DELETE）、profile（嗜好プロファイル完全削除）、" +
     "all_user_data（全ユーザーデータ一括削除）から選択。confirm: true 必須。" +
-    "GDPR Art.17 Right to Erasure. Permanently deletes all data for the specified target. " +
+    "target=page / all_user_data では DB 削除前に embedding-backfill Queue の" +
+    "滞留ジョブ（7カテゴリ）も削除し、非同期 backfill による削除済みデータ復活を防止する。" +
+    "GDPR Art.17 / CCPA §1798.105 Right to Erasure. Permanently deletes all data for the specified target. " +
     "Supports page (CASCADE DELETE), profile (hard delete), all_user_data (bulk delete). " +
-    "confirm: true is required.",
+    "confirm: true is required. For target=page / all_user_data, embedding-backfill queue jobs " +
+    "(7 categories) are also removed before DB deletion to prevent async backfill from resurrecting erased data.",
   annotations: {
     title: "Data Delete (GDPR Art.17)",
     readOnlyHint: false,

@@ -608,14 +608,11 @@ describe("P1-F: setImmediate yield points", () => {
       workerSource = fs.readFileSync(phase5Path, "utf8");
     });
 
-    it("Embedding Phase 内に setImmediate yield point が5箇所以上存在すること", () => {
-      const embeddingPhaseStart = workerSource.indexOf("async function processEmbeddingPhase");
-      expect(embeddingPhaseStart).toBeGreaterThan(-1);
-
-      const embeddingPhaseBody = workerSource.slice(embeddingPhaseStart);
+    it("Embedding sub-phase functions に setImmediate yield point が5箇所以上存在すること", () => {
+      // Legacy processEmbeddingPhase は削除済み。yield points は sub-phase functions 内に存在。
       // setImmediate yield の標準パターン
       const yieldPattern = /await new Promise<void>\(\(resolve\) => setImmediate\(resolve\)\)/g;
-      const matches = embeddingPhaseBody.match(yieldPattern);
+      const matches = workerSource.match(yieldPattern);
 
       // Section, Motion, Vision-Motion, Background, JSAnimation の各チャンク間 = 5箇所
       expect(matches).not.toBeNull();

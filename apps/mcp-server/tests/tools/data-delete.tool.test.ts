@@ -28,9 +28,17 @@ import {
   dataExportHandler,
   setDataExportServiceFactory,
   resetDataExportServiceFactory,
+  setDataDeleteBackfillQueueFactory,
+  resetDataDeleteBackfillQueueFactory,
   DATA_MCP_ERROR_CODES,
   type GdprDeletionServiceForTool,
+  type BackfillQueueForTool,
+  type BackfillJobForTool,
 } from "../../src/tools/data/data.tool";
+import {
+  EMBEDDING_BACKFILL_CATEGORIES,
+  buildBackfillJobId,
+} from "../../src/queues/embedding-backfill-queue";
 
 // =====================================================
 // logger モック / Logger mock
@@ -143,6 +151,89 @@ function createMockService(
 // テスト
 // =====================================================
 
+// =====================================================
+// audit-log.service mock
+// =====================================================
+// data.delete 内部で getAuditLogService().log() を呼ぶ。Prisma client 未設定
+// の場合はサイレント warn で済む挙動に依存しているため、spy だけ差し込む。
+
+import {
+  getAuditLogService,
+  resetAuditLogService,
+  setAuditLogPrismaClientFactory,
+  resetAuditLogPrismaClientFactory,
+  type AuditLogPrismaClient,
+} from "../../src/services/audit-log.service";
+
+function createAuditLogSpy(): {
+  prismaMock: AuditLogPrismaClient;
+  createSpy: ReturnType<typeof vi.fn>;
+} {
+  const createSpy = vi.fn().mockResolvedValue({});
+  const prismaMock = {
+    auditLog: {
+      create: createSpy,
+      findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+  } as unknown as AuditLogPrismaClient;
+  return { prismaMock, createSpy };
+}
+
+// =====================================================
+// Embedding Backfill Queue mock helpers (PR7a-4)
+// =====================================================
+
+interface MockJobOptions {
+  state: "waiting" | "active" | "delayed" | "failed" | "completed";
+  removeThrows?: Error;
+  getStateThrows?: Error;
+}
+
+function createMockJob(opts: MockJobOptions): BackfillJobForTool & {
+  removeMock: ReturnType<typeof vi.fn>;
+} {
+  const removeMock = vi.fn(async () => {
+    if (opts.removeThrows) throw opts.removeThrows;
+  });
+  const getState = vi.fn(async () => {
+    if (opts.getStateThrows) throw opts.getStateThrows;
+    return opts.state;
+  });
+  return {
+    getState,
+    remove: removeMock,
+    removeMock,
+  };
+}
+
+/**
+ * 全 7 カテゴリについて指定状態のジョブを返す Queue モック
+ */
+function createMockQueueWithJobs(
+  opts: MockJobOptions | ((category: string) => MockJobOptions | null)
+): BackfillQueueForTool & {
+  getJobMock: ReturnType<typeof vi.fn>;
+  jobs: Map<string, ReturnType<typeof createMockJob>>;
+} {
+  const jobs = new Map<string, ReturnType<typeof createMockJob>>();
+  const getJobMock = vi.fn(async (jobId: string) => {
+    if (jobs.has(jobId)) return jobs.get(jobId)!;
+
+    // jobId format: `<webPageId>__<category>` (BullMQ `:` 制限のため `__` を使用)
+    // jobId format: `<webPageId>__<category>` (uses `__` due to BullMQ `:` restriction)
+    const category = jobId.split("__")[1] ?? "";
+    const jobOpts = typeof opts === "function" ? opts(category) : opts;
+    if (jobOpts === null) return null;
+
+    const job = createMockJob(jobOpts);
+    jobs.set(jobId, job);
+    return job;
+  });
+  return { getJob: getJobMock, getJobMock, jobs };
+}
+
 describe("data.delete MCP Tool", () => {
   let mockService: GdprDeletionServiceForTool;
 
@@ -155,6 +246,9 @@ describe("data.delete MCP Tool", () => {
   afterEach(() => {
     resetDataDeleteServiceFactory();
     resetDataExportServiceFactory();
+    resetDataDeleteBackfillQueueFactory();
+    resetAuditLogPrismaClientFactory();
+    resetAuditLogService();
     vi.restoreAllMocks();
   });
 
@@ -332,7 +426,210 @@ describe("data.delete MCP Tool", () => {
   });
 
   // =====================================================
-  // 4. data.export 正常系 / data.export normal cases
+  // 4. PR7a-4: Embedding Backfill Queue cleanup on data.delete
+  // GDPR Art.17 / CCPA §1798.105 / LCC M-1
+  // =====================================================
+
+  describe("data.delete - embedding backfill queue cleanup (PR7a-4)", () => {
+    it("target=page で 7 カテゴリすべての Queue ジョブを削除する / should remove queue jobs for all 7 categories on page deletion", async () => {
+      const mockQueue = createMockQueueWithJobs({ state: "waiting" });
+      setDataDeleteBackfillQueueFactory(() => mockQueue);
+
+      const result = await dataDeleteHandler({
+        target: "page",
+        id: MOCK_PAGE_ID,
+        reason: "GDPR Art.17 request",
+        confirm: true,
+      });
+
+      expect(result).toHaveProperty("success", true);
+      // 7 カテゴリすべてで getJob が呼ばれる
+      expect(mockQueue.getJobMock).toHaveBeenCalledTimes(EMBEDDING_BACKFILL_CATEGORIES.length);
+      // jobId フォーマット検証 (BullMQ `:` 制限のため `__` separator を使用)
+      // jobId format check (uses `__` separator due to BullMQ `:` restriction)
+      for (const category of EMBEDDING_BACKFILL_CATEGORIES) {
+        expect(mockQueue.getJobMock).toHaveBeenCalledWith(
+          buildBackfillJobId(MOCK_PAGE_ID, category)
+        );
+      }
+      // 各ジョブの remove() が呼ばれた
+      expect(mockQueue.jobs.size).toBe(EMBEDDING_BACKFILL_CATEGORIES.length);
+      for (const job of mockQueue.jobs.values()) {
+        expect(job.removeMock).toHaveBeenCalledOnce();
+      }
+      if ("queueJobsRemoved" in result && result.queueJobsRemoved) {
+        expect(result.queueJobsRemoved.embeddingBackfill.removed).toBe(
+          EMBEDDING_BACKFILL_CATEGORIES.length
+        );
+        expect(result.queueJobsRemoved.embeddingBackfill.skippedActive).toBe(0);
+      } else {
+        throw new Error("queueJobsRemoved should be set for target=page");
+      }
+    });
+
+    it("active ジョブは skip して skippedActive にカウントする / should skip active jobs and count them as skippedActive", async () => {
+      // part_text は active、それ以外は waiting
+      const mockQueue = createMockQueueWithJobs((category) =>
+        category === "part_text" ? { state: "active" } : { state: "waiting" }
+      );
+      setDataDeleteBackfillQueueFactory(() => mockQueue);
+
+      const result = await dataDeleteHandler({
+        target: "page",
+        id: MOCK_PAGE_ID,
+        reason: "test",
+        confirm: true,
+      });
+
+      expect(result).toHaveProperty("success", true);
+      if ("queueJobsRemoved" in result && result.queueJobsRemoved) {
+        expect(result.queueJobsRemoved.embeddingBackfill.skippedActive).toBe(1);
+        expect(result.queueJobsRemoved.embeddingBackfill.removed).toBe(
+          EMBEDDING_BACKFILL_CATEGORIES.length - 1
+        );
+      } else {
+        throw new Error("queueJobsRemoved should be set");
+      }
+
+      // active ジョブの remove は呼ばれない
+      const partTextJob = mockQueue.jobs.get(buildBackfillJobId(MOCK_PAGE_ID, "part_text"));
+      expect(partTextJob?.removeMock).not.toHaveBeenCalled();
+    });
+
+    it("getJob が例外を投げても削除処理を続行する / should continue on getJob errors (graceful degradation)", async () => {
+      let callCount = 0;
+      const failingQueue: BackfillQueueForTool = {
+        getJob: vi.fn(async (jobId: string) => {
+          callCount++;
+          // 最初の 1 回は throw、残りは null
+          if (callCount === 1) {
+            throw new Error("Redis connection refused");
+          }
+          // 残りは sqlite internal path を模した機密風文字列
+          if (callCount === 2) {
+            throw new Error("internal column secret_field mismatch");
+          }
+          return null;
+        }),
+      };
+      setDataDeleteBackfillQueueFactory(() => failingQueue);
+
+      const result = await dataDeleteHandler({
+        target: "page",
+        id: MOCK_PAGE_ID,
+        reason: "test",
+        confirm: true,
+      });
+
+      // DB 削除は続行されている
+      expect(result).toHaveProperty("success", true);
+      expect(mockService.deletePage).toHaveBeenCalled();
+      // 7 カテゴリすべて試行された
+      expect(failingQueue.getJob).toHaveBeenCalledTimes(EMBEDDING_BACKFILL_CATEGORIES.length);
+    });
+
+    it("target=all_user_data で複数ページの Queue ジョブをすべて削除する / should remove queue jobs for all pages on all_user_data", async () => {
+      const PAGE_ID_2 = "03934567-89ab-7def-0123-456789abcdef";
+      const mockQueue = createMockQueueWithJobs({ state: "waiting" });
+      setDataDeleteBackfillQueueFactory(() => mockQueue);
+
+      const result = await dataDeleteHandler({
+        target: "all_user_data",
+        id: MOCK_PROFILE_ID,
+        reason: "account deletion",
+        confirm: true,
+        page_ids: [MOCK_PAGE_ID, PAGE_ID_2],
+      });
+
+      expect(result).toHaveProperty("success", true);
+      // 2 pages × 7 categories = 14 getJob calls
+      expect(mockQueue.getJobMock).toHaveBeenCalledTimes(2 * EMBEDDING_BACKFILL_CATEGORIES.length);
+      if ("queueJobsRemoved" in result && result.queueJobsRemoved) {
+        expect(result.queueJobsRemoved.embeddingBackfill.removed).toBe(
+          2 * EMBEDDING_BACKFILL_CATEGORIES.length
+        );
+      } else {
+        throw new Error("queueJobsRemoved should be set for target=all_user_data");
+      }
+    });
+
+    it("target=profile では Queue ジョブ削除を実行しない / should NOT remove queue jobs on target=profile", async () => {
+      const mockQueue = createMockQueueWithJobs({ state: "waiting" });
+      setDataDeleteBackfillQueueFactory(() => mockQueue);
+
+      const result = await dataDeleteHandler({
+        target: "profile",
+        id: MOCK_PROFILE_ID,
+        reason: "test",
+        confirm: true,
+      });
+
+      expect(result).toHaveProperty("success", true);
+      expect(mockQueue.getJobMock).not.toHaveBeenCalled();
+      if ("queueJobsRemoved" in result) {
+        // profile では undefined のはず
+        expect(result.queueJobsRemoved).toBeUndefined();
+      }
+    });
+
+    it("Queue ジョブ削除後に audit_logs へ記録される / should record audit_log entry for queue job removal", async () => {
+      const { prismaMock, createSpy } = createAuditLogSpy();
+      setAuditLogPrismaClientFactory(() => prismaMock);
+      resetAuditLogService();
+      // 初期化を発火
+      getAuditLogService();
+
+      const mockQueue = createMockQueueWithJobs({ state: "waiting" });
+      setDataDeleteBackfillQueueFactory(() => mockQueue);
+
+      await dataDeleteHandler({
+        target: "page",
+        id: MOCK_PAGE_ID,
+        reason: "GDPR Art.17",
+        confirm: true,
+      });
+
+      // action=data.delete と action=embedding_backfill_queue_jobs_removed の 2 回
+      expect(createSpy).toHaveBeenCalledTimes(2);
+      const actions = createSpy.mock.calls.map(
+        (call: unknown[]) => (call[0] as { data: { action: string } }).data.action
+      );
+      expect(actions).toContain("data.delete");
+      expect(actions).toContain("embedding_backfill_queue_jobs_removed");
+
+      // 詳細フィールド検証
+      const queueAuditCall = createSpy.mock.calls.find(
+        (call: unknown[]) =>
+          (call[0] as { data: { action: string } }).data.action ===
+          "embedding_backfill_queue_jobs_removed"
+      );
+      expect(queueAuditCall).toBeDefined();
+      const details = (queueAuditCall![0] as { data: { details: unknown } }).data.details;
+      expect(details).toMatchObject({
+        removedCount: EMBEDDING_BACKFILL_CATEGORIES.length,
+        skippedActiveCount: 0,
+      });
+    });
+
+    it("Queue factory 未設定でも DB 削除は続行する / should proceed with DB deletion when queue factory not set", async () => {
+      // 意図的に setDataDeleteBackfillQueueFactory を呼ばない
+      const result = await dataDeleteHandler({
+        target: "page",
+        id: MOCK_PAGE_ID,
+        reason: "test",
+        confirm: true,
+      });
+
+      expect(result).toHaveProperty("success", true);
+      expect(mockService.deletePage).toHaveBeenCalled();
+      if ("queueJobsRemoved" in result) {
+        expect(result.queueJobsRemoved).toBeUndefined();
+      }
+    });
+  });
+
+  // =====================================================
+  // 5. data.export 正常系 / data.export normal cases
   // =====================================================
 
   describe("data.export - normal cases", () => {
@@ -365,7 +662,7 @@ describe("data.delete MCP Tool", () => {
   });
 
   // =====================================================
-  // 5. data.export バリデーション / data.export validation
+  // 6. data.export バリデーション / data.export validation
   // =====================================================
 
   describe("data.export - validation", () => {

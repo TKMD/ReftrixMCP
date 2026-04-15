@@ -68,6 +68,12 @@ packages/ml/models/
 # Docker volumes
 docker/data/
 
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# MCP server runtime data
+apps/mcp-server/data/
+
 # Temporary files
 tmp
 temp
@@ -83,6 +89,9 @@ backups/
 
 # Claude Code local settings (user-specific)
 .claude/settings.local.json
+
+# Claude Code scheduled tasks runtime lock (session-specific)
+.claude/scheduled_tasks.lock
 
 # OSS generation output
 

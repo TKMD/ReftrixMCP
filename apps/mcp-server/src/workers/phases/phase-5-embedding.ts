@@ -15,7 +15,9 @@
 import { logger, isDevelopment } from "../../utils/logger";
 import sharp from "sharp";
 import path from "path";
+import * as os from "node:os";
 import * as fs from "node:fs";
+import { resolvePhase5Dir } from "../../services/screenshot-persistence.service";
 
 // Embedding generation (reuse from synchronous flow)
 import {
@@ -65,7 +67,17 @@ import {
 } from "./types";
 
 // Phase 5 RAW decode optimization
+// v0.4.0 PR7d-2 (TDA LOW-1): also import createPhase5TempDir/cleanupPhase5TempDir
+// so RAW decode writes into an ephemeral `reftrix-phase5-raw-*` dir under
+// os.tmpdir() (whitelisted by cleanupPhase5TempDir) instead of the persisted
+// screenshot directory. Prevents stale RAW files under
+// <REFTRIX_SCREENSHOT_ROOT>/phase5/ on exception paths.
+// v0.4.0 PR7d-2 (TDA LOW-1): createPhase5TempDir/cleanupPhase5TempDir を追加
+// import し、RAW decode を `<REFTRIX_SCREENSHOT_ROOT>/phase5/` ではなく
+// os.tmpdir() 配下の `reftrix-phase5-raw-*` (whitelist 対象) に書き出す。
 import {
+  createPhase5TempDir,
+  cleanupPhase5TempDir,
   decodeToRawFile,
   loadRawBuffer,
   acquireSectionCropBufferFromRaw,
@@ -78,39 +90,15 @@ import type { GpuResourceManager } from "../../services/gpu-resource-manager";
 import type { LayoutEmbeddingService } from "../../services/layout-embedding.service";
 
 // ============================================================================
-// P0-A: Phase 5 RSS Measurement Points (8 points)
-// ============================================================================
-
-/**
- * Phase 5 メモリ計測ログ出力（P0-A）
- *
- * Phase 5 の各サブフェーズ境界で RSS / heapUsed / external / arrayBuffers を記録する。
- * isDevelopment() ガード禁止（全環境で出力）。PII を含めない。
- *
- * Logs Phase 5 memory usage at sub-phase boundaries.
- * No isDevelopment() guard (logs in all environments). No PII included.
- */
-function logPhase5Memory(label: string): void {
-  const mem = process.memoryUsage();
-  logger.info("[Phase5Memory]", {
-    label,
-    rssMb: Math.round(mem.rss / 1024 / 1024),
-    heapUsedMb: Math.round(mem.heapUsed / 1024 / 1024),
-    externalMb: Math.round(mem.external / 1024 / 1024),
-    arrayBuffersMb: Math.round(mem.arrayBuffers / 1024 / 1024),
-  });
-}
-
-// ============================================================================
 // Dependency Injection Interface
 // ============================================================================
 
 /**
  * Dependencies injected from the orchestrator (module-level singletons).
  *
- * processEmbeddingPhase は元の page-analyze-worker.ts でモジュールレベルの
- * シングルトン (sharedLayoutEmbeddingService, gpuResourceManager, prisma) を
- * 直接参照していた。Phase 抽出後はこのインターフェースを通じて注入する。
+ * dispatchEmbeddingPhase は page-analyze-worker.ts のモジュールレベルシングルトン
+ * (sharedLayoutEmbeddingService, gpuResourceManager, prisma) を
+ * このインターフェースを通じて受け取る。
  */
 export interface EmbeddingPhaseDeps {
   /** Shared ONNX session singleton for all text embedding sub-phases */
@@ -149,6 +137,29 @@ export interface EmbeddingPhasePrismaClient {
 // Note: EmbeddingPhasePrismaClient is already exported via `export interface` above
 
 // ============================================================================
+// Screenshot path allowlist (SEC: Path Traversal defense)
+// ============================================================================
+
+/**
+ * Phase 5 で screenshot PNG として受け入れるパスを検証する
+ * Validate that the given absolute path is an acceptable screenshot location
+ *
+ * 許可ルート（いずれか配下であれば OK） / Allowed roots (must be under one of):
+ *   1. `<os.tmpdir()>/reftrix-phase5-raw-<random>/` - 短命 RAW decode tmp dir
+ *   2. `<REFTRIX_SCREENSHOT_ROOT>/phase5/`          - v0.4.0 永続化パス
+ */
+async function isAllowedScreenshotPath(absolutePath: string): Promise<boolean> {
+  const tmpRoot = path.resolve(os.tmpdir());
+  const persistRoot = await resolvePhase5Dir();
+  const underTmpPhase5Raw =
+    absolutePath.startsWith(tmpRoot + path.sep) &&
+    path.basename(path.dirname(absolutePath)).startsWith("reftrix-phase5-raw-");
+  const underPersistRoot =
+    absolutePath.startsWith(persistRoot + path.sep) || absolutePath === persistRoot;
+  return underTmpPhase5Raw || underPersistRoot;
+}
+
+// ============================================================================
 // Sub-phase shared context (for extracted sub-phase functions)
 // ============================================================================
 
@@ -173,515 +184,14 @@ interface EmbeddingSubPhaseContext {
 }
 
 // ============================================================================
-// Main Phase Function (Orchestrator — refactored from 1396 lines to ~280)
+// Legacy processEmbeddingPhase removed (v0.4.0)
+//
+// The in-process embedding path was retired. Phase 5 always uses
+// child_process.fork() via dispatchEmbeddingPhase → runPhase5ViaFork().
 // ============================================================================
 
-/**
- * Phase 5: Embedding Generation
- *
- * Generates text embeddings (e5-base) and visual embeddings (DINOv2) for all
- * analyzed content: sections, motions, backgrounds, JS animations, responsive
- * analyses, and parts.
- *
- * @param params - Embedding phase parameters (job data, save results, etc.)
- * @param deps - Injected dependencies (singletons from orchestrator)
- * @returns Embedding phase result with generation counts
- */
-export async function processEmbeddingPhase(
-  params: EmbeddingPhaseParams,
-  deps: EmbeddingPhaseDeps
-): Promise<EmbeddingPhaseResult> {
-  const {
-    webPageId,
-    url,
-    job,
-    effectiveToken,
-    effectiveLockDuration,
-    sectionSaveResult,
-    motionSaveResult,
-    jsSaveResult,
-    bgSaveResult,
-    scrollVisionSaveResult,
-    layoutResultForNarrative,
-    motionResultForEmbedding,
-    jsAnimationsForEmbedding,
-    scrollVisionResultForEmbedding,
-    responsiveAnalysisId,
-    partsSavedCount,
-    screenshotPngPath,
-    onProgress,
-  } = params;
-
-  // P0-B: screenshotBase64 をミュータブルに保持（Phase 5 冒頭で早期 null 化するため）
-  let screenshotBase64: string | null | undefined = params.screenshotBase64;
-
-  const { sharedLayoutEmbeddingService, gpuResourceManager, prisma } = deps;
-
-  const result: EmbeddingPhaseResult = {
-    sectionEmbeddingsGenerated: 0,
-    motionEmbeddingsGenerated: 0,
-    bgEmbeddingsGenerated: 0,
-    jsAnimationEmbeddingsGenerated: 0,
-    responsiveEmbeddingsGenerated: 0,
-    partEmbeddingsGenerated: 0,
-    partVisualEmbeddingsGenerated: 0,
-    sectionVisualEmbeddingsGenerated: 0,
-    embeddingFailedChunks: 0,
-    completed: false,
-  };
-
-  // ========================================================================
-  // Sharp memory control: disable internal cache and limit concurrency
-  // to prevent libvips arena memory accumulation during embedding phase.
-  // Restored in the finally block below.
-  // ========================================================================
-  const previousCacheState = sharp.cache();
-  const previousConcurrency = sharp.concurrency();
-  sharp.cache(false);
-  sharp.concurrency(1);
-
-  try {
-    // Compound progress tracking: accumulate across all embedding sub-phases
-    const sectionCount =
-      sectionSaveResult &&
-      sectionSaveResult.idMapping.size > 0 &&
-      layoutResultForNarrative?.sections
-        ? (layoutResultForNarrative.sections as SectionDataForEmbedding[]).length
-        : 0;
-    const motionCount =
-      motionSaveResult && motionSaveResult.idMapping.size > 0 && motionResultForEmbedding?.patterns
-        ? motionResultForEmbedding.patterns.length
-        : 0;
-    const visionMotionCount =
-      scrollVisionSaveResult &&
-      scrollVisionSaveResult.idMapping.size > 0 &&
-      scrollVisionResultForEmbedding
-        ? scrollVisionResultForEmbedding.scrollTriggeredAnimations.length
-        : 0;
-    const bgCount =
-      bgSaveResult && bgSaveResult.ids.length > 0 && layoutResultForNarrative?.backgroundDesigns
-        ? (layoutResultForNarrative.backgroundDesigns as unknown[]).length
-        : 0;
-    const jsCount =
-      jsSaveResult && jsSaveResult.idMapping.size > 0 && jsAnimationsForEmbedding
-        ? jsSaveResult.idMapping.size
-        : 0;
-    const totalEmbeddingItems = sectionCount + motionCount + visionMotionCount + bgCount + jsCount;
-    let completedEmbeddingItems = 0;
-
-    function reportEmbeddingSubProgress(_subCompleted: number, _subTotal: number): void {
-      if (!onProgress || totalEmbeddingItems <= 0) return;
-      completedEmbeddingItems++;
-      try {
-        onProgress(completedEmbeddingItems, totalEmbeddingItems);
-      } catch {
-        /* fire-and-forget */
-      }
-    }
-
-    // Build shared sub-phase context
-    const ctx: EmbeddingSubPhaseContext = {
-      webPageId,
-      url,
-      job,
-      params,
-      effectiveToken,
-      effectiveLockDuration,
-      sharedLayoutEmbeddingService,
-      gpuResourceManager,
-      prisma,
-      result,
-      reportEmbeddingSubProgress,
-    };
-
-    // P0-A: Measurement point 1 — Phase 5 start (before text embedding)
-    logPhase5Memory("phase5-start");
-
-    try {
-      if (isDevelopment()) {
-        logger.info("[PageAnalyzeWorker] Starting embedding generation", {
-          sectionIdMappingSize: sectionSaveResult?.idMapping?.size ?? 0,
-          motionIdMappingSize: motionSaveResult?.idMapping?.size ?? 0,
-          jsIdMappingSize: jsSaveResult?.idMapping?.size ?? 0,
-          bgIdMappingSize: bgSaveResult?.idMapping?.size ?? 0,
-          scrollVisionIdMappingSize: scrollVisionSaveResult?.idMapping?.size ?? 0,
-        });
-      }
-
-      // 1. Section text embedding
-      await processSectionTextEmbeddingChunks(ctx, sectionSaveResult, layoutResultForNarrative);
-
-      // P0-A: Measurement point 2 — Section text embedding complete
-      logPhase5Memory("after-section-text-embedding");
-
-      // 2. Motion text embedding
-      await processMotionTextEmbeddingChunks(ctx, motionSaveResult, motionResultForEmbedding);
-
-      // 2.5. Vision Motion text embedding
-      await processVisionMotionEmbeddingChunks(
-        ctx,
-        scrollVisionSaveResult,
-        scrollVisionResultForEmbedding
-      );
-
-      // 3. Background text embedding
-      await processBackgroundTextEmbeddingChunks(ctx, bgSaveResult, layoutResultForNarrative);
-
-      // 4. JS Animation embedding
-      await processJsAnimationEmbeddingChunks(ctx, jsSaveResult, jsAnimationsForEmbedding);
-
-      // 5. Responsive embedding
-      await processResponsiveEmbeddingChunks(ctx, responsiveAnalysisId);
-
-      // 6. Part text embedding
-      await processPartTextEmbeddingChunks(ctx, partsSavedCount);
-
-      // 7. DINOv2 Visual Embedding (Section + Part)
-      const hasSections = (sectionSaveResult?.idMapping?.size ?? 0) > 0;
-      const hasParts = (partsSavedCount ?? 0) > 0;
-
-      // P0-B: screenshotBuffer を screenshotPngPath 優先で生成、base64 は早期 null 化
-      let screenshotBuffer: Buffer | null = null;
-      if (screenshotBase64 && (hasSections || hasParts)) {
-        if (screenshotPngPath && fs.existsSync(screenshotPngPath)) {
-          // P0-B: PNG ファイルベースで読み込み（Buffer.from(base64) 廃止）
-          screenshotBuffer = fs.readFileSync(screenshotPngPath);
-        } else if (screenshotBase64) {
-          // Fallback: PNG ファイルがない場合のみ従来の base64 デコード
-          screenshotBuffer = Buffer.from(screenshotBase64, "base64");
-        }
-
-        // P0-B: screenshotBase64 の早期 null 化（~200MB 解放）
-        screenshotBase64 = null;
-        tryGarbageCollect();
-      }
-
-      if (screenshotBuffer && (hasSections || hasParts)) {
-        await extendJobLock(job, effectiveToken, effectiveLockDuration, "embedding-visual-dinov2");
-
-        // Resolve part bounding boxes via Playwright
-        if (hasParts) {
-          try {
-            const bboxResult = await resolvePartBoundingBoxes({
-              webPageId,
-              url,
-              prisma: prisma as never,
-              sharedBrowser: params.sharedBrowser,
-              viewportWidth: job.data.options?.layoutOptions?.viewport?.width,
-              viewportHeight: job.data.options?.layoutOptions?.viewport?.height,
-            });
-            if (isDevelopment()) {
-              logger.info("[PageAnalyzeWorker] Resolved part bounding boxes via Playwright", {
-                resolved: bboxResult.resolvedCount,
-                skipped: bboxResult.skippedCount,
-              });
-            }
-          } catch (bboxError) {
-            logger.warn("[PageAnalyzeWorker] Part bounding box resolution failed (non-fatal)", {
-              error: bboxError instanceof Error ? bboxError.message : String(bboxError),
-            });
-          }
-        }
-
-        try {
-          // DINOv2 model path resolution
-          let dinov2ModelPath: string;
-          if (process.env["DINOV2_MODEL_PATH"]) {
-            dinov2ModelPath = process.env["DINOV2_MODEL_PATH"];
-          } else {
-            const mlMainPath = require.resolve("@reftrixmcp/ml");
-            const mlRoot = path.resolve(path.dirname(mlMainPath), "..");
-            dinov2ModelPath = path.join(mlRoot, "models", "dinov2-base", "model.onnx");
-          }
-
-          // GPU acquire for DINOv2
-          try {
-            const dinov2GpuResult = await gpuResourceManager.acquireForDINOv2();
-            if (isDevelopment()) {
-              logger.info("[PageAnalyzeWorker] GPU acquired for DINOv2 visual embedding", {
-                mode: dinov2GpuResult.mode,
-                message: dinov2GpuResult.message,
-              });
-            }
-          } catch (gpuError) {
-            logger.warn("[PageAnalyzeWorker] GPU acquire for DINOv2 failed, using CPU", {
-              error: gpuError instanceof Error ? gpuError.message : String(gpuError),
-            });
-          }
-
-          // P0-A: Measurement point 3 — Before DINOv2 initialize
-          logPhase5Memory("before-dinov2-init");
-
-          // DINOv2 Service initialize (shared for Section + Part)
-          const dinov2Service = new DINOv2Service({ modelPath: dinov2ModelPath });
-          await dinov2Service.initialize();
-
-          // P0-A: Measurement point 4 — After DINOv2 initialize
-          logPhase5Memory("after-dinov2-init");
-
-          // Get screenshot dimensions
-          const screenshotMeta = await sharp(screenshotBuffer).metadata();
-          const imgWidth = screenshotMeta.width ?? 0;
-          const imgHeight = screenshotMeta.height ?? 0;
-
-          // P0-A: Measurement point 5 — After screenshotBuffer metadata
-          logPhase5Memory("after-screenshot-metadata");
-
-          // RAW Decode Optimization
-          let rawScreenshotMeta: RawScreenshotMetadata | null = null;
-          let phase5TmpDir: string | null = null;
-
-          if (screenshotPngPath) {
-            try {
-              phase5TmpDir = path.dirname(screenshotPngPath);
-
-              // P0-B: Path Traversal defense
-              const resolvedPng = path.resolve(screenshotPngPath);
-              const resolvedTmp = path.resolve(phase5TmpDir);
-              if (!resolvedPng.startsWith(resolvedTmp)) {
-                logger.warn(
-                  "[PageAnalyzeWorker] Path traversal detected in screenshotPngPath, skipping RAW decode",
-                  { screenshotPngPath: "(redacted)" }
-                );
-              } else {
-                // P0-B: File size limit (500MB)
-                const pngStat = fs.statSync(screenshotPngPath);
-                const MAX_PNG_SIZE_BYTES = 500 * 1024 * 1024;
-                if (pngStat.size > MAX_PNG_SIZE_BYTES) {
-                  logger.warn(
-                    "[PageAnalyzeWorker] Screenshot PNG exceeds 500MB limit, skipping RAW decode",
-                    { sizeMb: Math.round(pngStat.size / 1024 / 1024) }
-                  );
-                } else {
-                  rawScreenshotMeta = await decodeToRawFile(screenshotPngPath, phase5TmpDir);
-
-                  if (rawScreenshotMeta && isDevelopment()) {
-                    logger.info(
-                      "[PageAnalyzeWorker] RAW decode completed for Phase 5 optimization",
-                      {
-                        rawPath: rawScreenshotMeta.rawPath,
-                        width: rawScreenshotMeta.width,
-                        height: rawScreenshotMeta.height,
-                      }
-                    );
-                  }
-                }
-              }
-            } catch (rawDecodeError) {
-              logger.warn(
-                "[PageAnalyzeWorker] RAW decode failed, falling back to legacy path (non-fatal)",
-                {
-                  error:
-                    rawDecodeError instanceof Error
-                      ? rawDecodeError.message
-                      : String(rawDecodeError),
-                }
-              );
-              rawScreenshotMeta = null;
-            }
-          }
-
-          // P0-A: Measurement point 6 — After RAW buffer load
-          logPhase5Memory("after-raw-decode");
-
-          try {
-            // Section Visual Embedding (DINOv2)
-            if (hasSections) {
-              await extendJobLock(
-                job,
-                effectiveToken,
-                effectiveLockDuration,
-                "embedding-sections-visual"
-              );
-
-              try {
-                const sectionsNeedingVisual = await prisma.$queryRawUnsafe<
-                  Array<{ id: string; section_pattern_id: string }>
-                >(
-                  `SELECT id, section_pattern_id
-                 FROM section_embeddings
-                 WHERE section_pattern_id IN (
-                   SELECT id FROM section_patterns WHERE web_page_id = $1::uuid
-                 )
-                 AND text_embedding IS NOT NULL
-                 AND vision_embedding IS NULL`,
-                  webPageId
-                );
-
-                if (sectionsNeedingVisual.length > 0) {
-                  if (isDevelopment()) {
-                    logger.info(
-                      "[PageAnalyzeWorker] Starting Section DINOv2 visual embedding generation",
-                      { totalSections: sectionsNeedingVisual.length }
-                    );
-                  }
-
-                  const sectionPatternIds = sectionsNeedingVisual.map((s) => s.section_pattern_id);
-                  const sectionPatterns = (await prisma.sectionPattern.findMany({
-                    where: { id: { in: sectionPatternIds } },
-                    select: { id: true, layoutInfo: true, sectionType: true },
-                  })) as Array<{ id: string; layoutInfo: unknown; sectionType: string }>;
-                  const sectionPositionMap = new Map<
-                    string,
-                    { startY: number; height: number; sectionType: string }
-                  >();
-                  for (const sp of sectionPatterns) {
-                    const info = sp.layoutInfo as Record<string, unknown> | null;
-                    const position = info?.position as
-                      | { startY?: number; height?: number }
-                      | undefined;
-                    sectionPositionMap.set(sp.id, {
-                      startY: position?.startY ?? 0,
-                      height: position?.height ?? 0,
-                      sectionType: sp.sectionType,
-                    });
-                  }
-
-                  // PII protection
-                  const highPiiSectionIds = await prisma.$queryRawUnsafe<
-                    Array<{ section_pattern_id: string }>
-                  >(
-                    `SELECT DISTINCT cp.section_pattern_id
-                   FROM component_parts cp
-                   WHERE cp.section_pattern_id IN (${sectionPatternIds.map((_, i) => `$${i + 1}::uuid`).join(", ")})
-                   AND cp.pii_risk_level = 'high'`,
-                    ...sectionPatternIds
-                  );
-                  const highPiiSectionIdSet = new Set(
-                    highPiiSectionIds.map((r) => r.section_pattern_id)
-                  );
-
-                  const sectionsFiltered =
-                    highPiiSectionIdSet.size > 0
-                      ? sectionsNeedingVisual.filter(
-                          (s) => !highPiiSectionIdSet.has(s.section_pattern_id)
-                        )
-                      : sectionsNeedingVisual;
-
-                  if (highPiiSectionIdSet.size > 0) {
-                    logger.warn(
-                      "[PageAnalyzeWorker] Skipped sections with high PII risk for visual embedding (GDPR Art. 5(1)(c))",
-                      {
-                        skippedCount: highPiiSectionIdSet.size,
-                        remainingCount: sectionsFiltered.length,
-                      }
-                    );
-                  }
-
-                  const sectionVisualResult = await processSectionVisualEmbeddingLoop({
-                    sectionsFiltered,
-                    sectionsNeedingVisual,
-                    sectionPositionMap,
-                    screenshotBufferRef: { value: screenshotBuffer },
-                    imgWidth,
-                    imgHeight,
-                    fallbackEnabled:
-                      (process.env["ENABLE_SECTION_SCREENSHOT_FALLBACK"] ?? "true") === "true",
-                    url,
-                    job,
-                    params,
-                    effectiveToken,
-                    effectiveLockDuration,
-                    dinov2Service,
-                    prisma,
-                    rawScreenshotMeta,
-                  });
-
-                  screenshotBuffer = sectionVisualResult.screenshotBuffer;
-                  result.sectionVisualEmbeddingsGenerated +=
-                    sectionVisualResult.sectionVisualEmbeddingsGenerated;
-                }
-              } catch (sectionVisualError) {
-                result.embeddingFailedChunks++;
-                logger.warn(
-                  "[PageAnalyzeWorker] Section DINOv2 visual embedding failed (non-fatal)",
-                  {
-                    error:
-                      sectionVisualError instanceof Error
-                        ? sectionVisualError.message
-                        : String(sectionVisualError),
-                  }
-                );
-              }
-
-              // P0-A: Measurement point 7 — After section visual embedding
-              logPhase5Memory("after-section-visual-embedding");
-
-              // Memory recovery between section and part visual embedding
-              // P0-C: Null out sectionRawBuffer intent — handled inside processSectionVisualEmbeddingLoop
-              tryGarbageCollect();
-            }
-
-            // Part Visual Embedding (DINOv2)
-            if (hasParts) {
-              // P0-C: Part visual embedding uses its own loadRawBuffer call (not shared with section)
-              await processPartVisualEmbeddingLoop(
-                ctx,
-                screenshotBuffer,
-                rawScreenshotMeta,
-                screenshotBase64 ?? null,
-                imgWidth,
-                imgHeight,
-                dinov2Service
-              );
-
-              // P0-A: Measurement point 8 — After part visual embedding
-              logPhase5Memory("after-part-visual-embedding");
-            }
-
-            screenshotBuffer = null;
-          } finally {
-            try {
-              await dinov2Service.dispose();
-            } catch {
-              // dispose failure is non-fatal
-            }
-            tryGarbageCollect();
-          }
-        } catch (visualEmbError) {
-          result.embeddingFailedChunks++;
-          logger.warn("[PageAnalyzeWorker] DINOv2 visual embedding failed (non-fatal)", {
-            error:
-              visualEmbError instanceof Error ? visualEmbError.message : String(visualEmbError),
-          });
-        }
-      }
-
-      result.completed = true;
-    } catch (embeddingError) {
-      result.embeddingFailedChunks++;
-      logger.warn("[PageAnalyzeWorker] Embedding generation failed (non-fatal)", {
-        error: embeddingError instanceof Error ? embeddingError.message : String(embeddingError),
-      });
-    }
-
-    if (result.embeddingFailedChunks > 0) {
-      logger.warn("[PageAnalyzeWorker] Embedding phase completed with failures", {
-        embeddingFailedChunks: result.embeddingFailedChunks,
-        sectionEmbeddingsGenerated: result.sectionEmbeddingsGenerated,
-        sectionVisualEmbeddingsGenerated: result.sectionVisualEmbeddingsGenerated,
-        motionEmbeddingsGenerated: result.motionEmbeddingsGenerated,
-        bgEmbeddingsGenerated: result.bgEmbeddingsGenerated,
-        jsAnimationEmbeddingsGenerated: result.jsAnimationEmbeddingsGenerated,
-        responsiveEmbeddingsGenerated: result.responsiveEmbeddingsGenerated,
-        partEmbeddingsGenerated: result.partEmbeddingsGenerated,
-        partVisualEmbeddingsGenerated: result.partVisualEmbeddingsGenerated,
-      });
-    }
-  } finally {
-    if (typeof previousCacheState === "boolean") {
-      sharp.cache(previousCacheState);
-    } else {
-      sharp.cache(true);
-    }
-    sharp.concurrency(previousConcurrency);
-  }
-
-  return result;
-}
-
 // ============================================================================
-// Extracted Text Embedding Sub-Phase Functions
+// Text Embedding Sub-Phase Functions
 // ============================================================================
 
 /**
@@ -1253,10 +763,20 @@ async function processResponsiveEmbeddingChunks(
 
 /**
  * 6. Part text embedding (chunked)
+ *
+ * @param options.limit - v0.4.0 PR4: 処理する Part 件数の上限。
+ *   100 件超のページで同期フェーズを 100 件に切り詰め、残りを Queue 経由で
+ *   バックフィルする。未指定 (undefined) / 0 以下 / 非有限値は無制限として扱う。
+ *
+ *   v0.4.0 PR4: cap the number of Parts processed. Used to truncate the
+ *   synchronous phase to 100 items when there are more than 100 Parts so the
+ *   remainder is backfilled via the queue. Undefined, zero, negative, or
+ *   non-finite values mean "no limit".
  */
 async function processPartTextEmbeddingChunks(
   ctx: EmbeddingSubPhaseContext,
-  partsSavedCount: number | undefined
+  partsSavedCount: number | undefined,
+  options?: { limit?: number | undefined }
 ): Promise<void> {
   if ((partsSavedCount ?? 0) <= 0) {
     // FIX(Bug-1): Part Extraction runs inside Promise.race with 30s timeout.
@@ -1275,8 +795,18 @@ async function processPartTextEmbeddingChunks(
 
   await extendJobLock(ctx.job, ctx.effectiveToken, ctx.effectiveLockDuration, "embedding-parts");
 
+  // v0.4.0 PR4: limit 検証（NaN/Infinity 防御 + 非正値の無効化）
+  // v0.4.0 PR4: limit validation (NaN/Infinity defense + reject non-positive)
+  const resolvedLimit =
+    options?.limit !== undefined &&
+    Number.isFinite(options.limit) &&
+    options.limit > 0 &&
+    Number.isInteger(options.limit)
+      ? options.limit
+      : undefined;
+
   try {
-    const partsForEmbedding = (await ctx.prisma.componentPart.findMany({
+    const findManyArgs: Record<string, unknown> = {
       where: { webPageId: ctx.webPageId, embedding: { is: null } },
       select: {
         id: true,
@@ -1287,7 +817,16 @@ async function processPartTextEmbeddingChunks(
         attributes: true,
         interactionInfo: true,
       },
-    })) as Array<{
+    };
+    // Prisma の findMany は take を指定すると DB レベルで件数制限する
+    // Prisma findMany applies `take` at the DB level to cap row count
+    if (resolvedLimit !== undefined) {
+      findManyArgs.take = resolvedLimit;
+      // 決定的な順序を保証するため id 昇順に固定
+      // Fix ordering for determinism when truncating
+      findManyArgs.orderBy = { id: "asc" };
+    }
+    const partsForEmbedding = (await ctx.prisma.componentPart.findMany(findManyArgs)) as Array<{
       id: string;
       partType: string;
       partSubtype: string | null;
@@ -1430,6 +969,12 @@ async function processPartTextEmbeddingChunks(
  * Part Visual Embedding loop (DINOv2) — extracted from orchestrator.
  *
  * P0-C: Loads partRawBuffer independently (not shared with section visual embedding).
+ *
+ * @param options.limit - v0.4.0 PR4: 処理する Part 件数の上限（`part_text` と同様）。
+ *   未指定 / 非有限値 / 非正値は無制限扱い。
+ *
+ *   v0.4.0 PR4: cap on the number of Parts processed (mirrors `part_text`).
+ *   Undefined / non-finite / non-positive values mean "no limit".
  */
 async function processPartVisualEmbeddingLoop(
   ctx: EmbeddingSubPhaseContext,
@@ -1438,8 +983,19 @@ async function processPartVisualEmbeddingLoop(
   screenshotBase64ForParts: string | null,
   imgWidth: number,
   imgHeight: number,
-  dinov2Service: InstanceType<typeof DINOv2Service>
+  dinov2Service: InstanceType<typeof DINOv2Service>,
+  options?: { limit?: number | undefined }
 ): Promise<void> {
+  // v0.4.0 PR4: limit 検証（NaN/Infinity 防御）
+  // v0.4.0 PR4: limit validation
+  const resolvedLimit =
+    options?.limit !== undefined &&
+    Number.isFinite(options.limit) &&
+    options.limit > 0 &&
+    Number.isInteger(options.limit)
+      ? options.limit
+      : undefined;
+
   const partsWithEmbeddings = (await ctx.prisma.componentPart.findMany({
     where: {
       webPageId: ctx.webPageId,
@@ -1452,6 +1008,9 @@ async function processPartVisualEmbeddingLoop(
       sectionPatternId: true,
       embedding: { select: { id: true } },
     },
+    // v0.4.0 PR4: limit 指定時は DB レベルで件数制限 + 決定的順序
+    // v0.4.0 PR4: DB-level cap + deterministic ordering when limit is set
+    ...(resolvedLimit !== undefined ? { take: resolvedLimit, orderBy: { id: "asc" } } : {}),
   })) as Array<{
     id: string;
     boundingBox: unknown;
@@ -2470,7 +2029,6 @@ async function processDynamicFallbackBatch(
 // Exported Interfaces and Functions for Fork Child Processes
 // ============================================================================
 
-import { PHASE5_FORK_ENABLED } from "./types";
 import type { ScrollVisionResult } from "../../services/vision/scroll-vision.analyzer";
 import type {
   LayoutServiceResult,
@@ -2498,6 +2056,17 @@ export interface TextEmbeddingSubPhaseParams {
   scrollVisionResultForEmbedding: ScrollVisionResult | null;
   responsiveAnalysisId?: string | undefined;
   partsSavedCount?: number | undefined;
+  /**
+   * v0.4.0 PR4: Part text embedding の同期フェーズで処理する上限件数。
+   * 100 件超のページで 100 に設定され、残余は embedding-backfill Queue 経由で処理する。
+   * undefined / 非正値 / 非有限値は無制限扱い。
+   *
+   * v0.4.0 PR4: Maximum number of Part text embeddings to process in the
+   * synchronous phase. Set to 100 when a page has more than 100 Parts so the
+   * remainder is processed via the embedding-backfill Queue. Undefined /
+   * non-positive / non-finite values mean "no limit".
+   */
+  partsLimit?: number | undefined;
   sharedLayoutEmbeddingService: LayoutEmbeddingService;
   prisma: EmbeddingPhasePrismaClient;
   onLockExtend: (label: string) => void;
@@ -2616,7 +2185,11 @@ export async function runTextEmbeddingSubPhases(
     textParams.jsAnimationsForEmbedding
   );
   await processResponsiveEmbeddingChunks(ctx, textParams.responsiveAnalysisId);
-  await processPartTextEmbeddingChunks(ctx, textParams.partsSavedCount);
+  // v0.4.0 PR4: 同期フェーズは partsLimit に従って DB レベルで件数制限する
+  // v0.4.0 PR4: sync phase respects partsLimit (DB-level cap)
+  await processPartTextEmbeddingChunks(ctx, textParams.partsSavedCount, {
+    limit: textParams.partsLimit,
+  });
 
   return {
     sectionEmbeddingsGenerated: textResult.sectionEmbeddingsGenerated,
@@ -2638,6 +2211,16 @@ export interface VisualEmbeddingSubPhaseParams {
   screenshotPngPath: string;
   sectionIdMapping: Map<string, string>;
   partsSavedCount: number;
+  /**
+   * v0.4.0 PR4: Part visual embedding の同期フェーズで処理する上限件数。
+   * 100 件超のページで 100 に設定され、残余は embedding-backfill Queue 経由で処理する。
+   * undefined / 非正値 / 非有限値は無制限扱い。
+   *
+   * v0.4.0 PR4: Maximum number of Part visual embeddings to process in the
+   * synchronous phase. Set to 100 when a page has more than 100 Parts so the
+   * remainder is processed via the embedding-backfill Queue.
+   */
+  partsLimit?: number | undefined;
   layoutResultJson: string | null;
   viewportWidth?: number | undefined;
   viewportHeight?: number | undefined;
@@ -2676,11 +2259,17 @@ export async function runVisualEmbeddingSubPhases(
   const hasSections = vParams.sectionIdMapping.size > 0;
   const hasParts = vParams.partsSavedCount > 0;
 
-  // Read screenshot buffer from file (SEC M-NEW-1: prefix check)
+  // Read screenshot buffer from file
+  // SEC: 許可されたルート配下のみを受け入れる（Path Traversal 防御）
+  //   - `<tmpdir>/reftrix-phase5-raw-*`: Phase 5 RAW decode 用短命ディレクトリ
+  //   - `<REFTRIX_SCREENSHOT_ROOT>/phase5/`: v0.4.0 永続化パス
+  // Accept only paths under the allowed roots:
+  //   - `<tmpdir>/reftrix-phase5-raw-*`: ephemeral Phase 5 RAW decode dir
+  //   - `<REFTRIX_SCREENSHOT_ROOT>/phase5/`: v0.4.0 persistence path
   let screenshotBuffer: Buffer | null = null;
   const resolvedPng = path.resolve(vParams.screenshotPngPath);
-  if (!resolvedPng.includes("reftrix-phase5")) {
-    logger.warn("[Phase5Visual] screenshotPngPath rejected by prefix check");
+  if (!(await isAllowedScreenshotPath(resolvedPng))) {
+    logger.warn("[Phase5Visual] screenshotPngPath rejected by allowlist check");
   } else if (fs.existsSync(resolvedPng)) {
     screenshotBuffer = fs.readFileSync(resolvedPng);
   }
@@ -2690,26 +2279,61 @@ export async function runVisualEmbeddingSubPhases(
   const dinov2Service = new DINOv2Service({ modelPath: vParams.dinov2ModelPath });
   await dinov2Service.initialize();
 
+  // v0.4.0 PR7d-2 (TDA LOW-1): lifted outside the try so the outer finally
+  // can reach it for unconditional cleanup.
+  // v0.4.0 PR7d-2 (TDA LOW-1): 外側 finally から unconditional cleanup
+  // できるよう try の外に lift。
+  let phase5TmpDir: string | null = null;
+
   try {
     const screenshotMeta = await sharp(screenshotBuffer).metadata();
     const imgWidth = screenshotMeta.width ?? 0;
     const imgHeight = screenshotMeta.height ?? 0;
 
     // RAW Decode Optimization
+    //
+    // v0.4.0 PR7d-2 (TDA LOW-1): write the RAW-decoded buffer into a fresh
+    // ephemeral `reftrix-phase5-raw-*` dir under `os.tmpdir()` (not into the
+    // persisted screenshot directory `<REFTRIX_SCREENSHOT_ROOT>/phase5/`).
+    //
+    // Rationale:
+    //   - The persisted screenshot dir is GDPR-sensitive storage with a 7d
+    //     TTL cron; mixing ephemeral RAW files in risks (a) leaking them past
+    //     the TTL reconciliation window and (b) re-introducing the PR7a..c
+    //     retention-over-deletion bug class if any cleanup path ever
+    //     widened its scope.
+    //   - `cleanupPhase5TempDir()` enforces a 3-stage whitelist that requires
+    //     the `reftrix-phase5-raw-` prefix under `os.tmpdir()`, so using the
+    //     persisted path would have rejected cleanup anyway.
+    //   - Exception paths now cleanly `cleanupPhase5TempDir(phase5TmpDir)` in
+    //     the outer `finally` below; `fs.unlinkSync(rawScreenshotMeta.rawPath)`
+    //     remains as double-defence for the happy path.
+    //
+    // v0.4.0 PR7d-2 (TDA LOW-1): RAW decode 出力先を永続化ディレクトリでは
+    // なく os.tmpdir() 配下の短命 `reftrix-phase5-raw-*` に切り替える。
+    //   - 永続化ディレクトリは GDPR の 7d TTL 管理下にあり、短命 RAW を
+    //     混入させると TTL 外でのリーク/破損リスクが発生する。
+    //   - `cleanupPhase5TempDir()` は prefix + os.tmpdir() 配下の 3 段 whitelist
+    //     検証を行うため、永続化パスは元々削除対象外。
+    //   - 例外経路は下の outer `finally` で `cleanupPhase5TempDir()` により
+    //     確実に回収される (happy path の `fs.unlinkSync` は二重防御として残置)。
     let rawScreenshotMeta: RawScreenshotMetadata | null = null;
-    const phase5TmpDir = path.dirname(vParams.screenshotPngPath);
 
     try {
-      const resolvedPng = path.resolve(vParams.screenshotPngPath);
-      const resolvedTmp = path.resolve(phase5TmpDir);
-      if (resolvedPng.startsWith(resolvedTmp)) {
-        const pngStat = fs.statSync(vParams.screenshotPngPath);
-        if (pngStat.size <= 500 * 1024 * 1024) {
-          rawScreenshotMeta = await decodeToRawFile(vParams.screenshotPngPath, phase5TmpDir);
-        }
+      phase5TmpDir = createPhase5TempDir();
+      const pngStat = fs.statSync(vParams.screenshotPngPath);
+      if (pngStat.size <= 500 * 1024 * 1024) {
+        rawScreenshotMeta = await decodeToRawFile(vParams.screenshotPngPath, phase5TmpDir);
       }
     } catch {
       rawScreenshotMeta = null;
+    }
+
+    // OOM-FIX-5: Release PNG buffer after RAW decode succeeds.
+    // RAW file on disk is the source of truth from here — PNG buffer is no longer needed.
+    if (rawScreenshotMeta) {
+      screenshotBuffer = null;
+      if (typeof globalThis.gc === "function") globalThis.gc();
     }
 
     const noOpJob = createNoOpJobProxy(vParams.onLockExtend);
@@ -2856,7 +2480,10 @@ export async function runVisualEmbeddingSubPhases(
           null,
           imgWidth,
           imgHeight,
-          dinov2Service
+          dinov2Service,
+          // v0.4.0 PR4: partsLimit を DINOv2 ループへ伝搬
+          // v0.4.0 PR4: propagate partsLimit to the DINOv2 loop
+          { limit: vParams.partsLimit }
         );
 
         vResult.partVisualEmbeddingsGenerated = partResultHolder.partVisualEmbeddingsGenerated;
@@ -2876,6 +2503,17 @@ export async function runVisualEmbeddingSubPhases(
       }
     }
   } finally {
+    // v0.4.0 PR7d-2 (TDA LOW-1): Guarantee cleanup of the ephemeral RAW decode
+    // tmp dir even if visual embedding throws mid-loop. `cleanupPhase5TempDir`
+    // applies a 3-stage whitelist so a mis-set path is silently rejected
+    // rather than accidentally nuking the persisted screenshot directory.
+    // v0.4.0 PR7d-2 (TDA LOW-1): visual embedding の途中例外でも RAW decode
+    // 用短命 tmp dir を確実に回収する。`cleanupPhase5TempDir` の 3 段
+    // whitelist により、誤ったパスは silent reject され永続化ディレクトリを
+    // 誤削除することはない。
+    if (phase5TmpDir) {
+      cleanupPhase5TempDir(phase5TmpDir);
+    }
     try {
       await dinov2Service.dispose();
     } catch {
@@ -2888,28 +2526,28 @@ export async function runVisualEmbeddingSubPhases(
 }
 
 // ============================================================================
-// Dispatch Function: Fork vs Legacy
+// Dispatch Function
 // ============================================================================
 
 /**
- * Dispatch Phase 5 embedding generation — fork mode or legacy in-process.
+ * Dispatch Phase 5 embedding generation via child_process.fork().
  *
- * When PHASE5_FORK_ENABLED is true (default), delegates to runPhase5ViaFork()
- * which spawns child processes. When false, falls back to processEmbeddingPhase()
- * which runs everything in-process.
+ * Delegates to runPhase5ViaFork() which spawns child processes for text
+ * and visual embedding, preventing ONNX Runtime glibc malloc fragmentation
+ * from accumulating in the parent worker.
  */
 export async function dispatchEmbeddingPhase(
   params: EmbeddingPhaseParams,
   deps: EmbeddingPhaseDeps
 ): Promise<EmbeddingPhaseResult> {
-  if (!PHASE5_FORK_ENABLED) {
-    return processEmbeddingPhase(params, deps);
-  }
-
-  // Dynamic import to avoid loading fork orchestrator when not needed
   const { runPhase5ViaFork } = await import("./phase-5-fork-orchestrator.js");
+  // v0.4.0 PR7c: Screenshot 削除は PR6 の TTL cron (`scheduleScreenshotCleanupCron`, 7d)
+  //   に一本化したため、Phase 5 dispatch では ScreenshotPersistenceService を注入しない。
+  //   GDPR `data.delete` 経路は `service-registrar-search.ts` 経由で引き続きサービスを使用する。
+  // v0.4.0 PR7c: Screenshot deletion is consolidated into PR6's TTL cron, so Phase 5
+  //   dispatch no longer injects ScreenshotPersistenceService. The GDPR `data.delete`
+  //   path continues to use it via `service-registrar-search.ts`.
 
-  // DINOv2 model path resolution (shared with legacy path)
   let dinov2ModelPath: string;
   if (process.env["DINOV2_MODEL_PATH"]) {
     dinov2ModelPath = process.env["DINOV2_MODEL_PATH"];
@@ -2946,7 +2584,10 @@ export async function dispatchEmbeddingPhase(
     }
   };
 
-  return runPhase5ViaFork(params, { resolvePartBboxFn, dinov2ModelPath });
+  return runPhase5ViaFork(params, {
+    resolvePartBboxFn,
+    dinov2ModelPath,
+  });
 }
 
 // ============================================================================

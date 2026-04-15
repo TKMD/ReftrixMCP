@@ -69,9 +69,12 @@ const CRITICAL_CAP_MB = 14336;
 const SELF_EXIT_RATIO = 0.7;
 const SELF_EXIT_CAP_MB = 12288;
 
-/** V8ヒープ上限: 50% of total, cap 8192MB */
+/** V8ヒープ上限: 50% of total, cap 4096MB
+ *  PR1 で ONNX 推論が fork 子プロセスに分離されたため、
+ *  親ワーカーは 4GB で十分。子プロセスも CHILD_MAX_OLD_SPACE_MB=4096。
+ *  V8 heap cap reduced: 8192 → 4096 (parent worker no longer runs ONNX in-process) */
 const MAX_OLD_SPACE_RATIO = 0.5;
-const MAX_OLD_SPACE_CAP_MB = 8192;
+const MAX_OLD_SPACE_CAP_MB = 4096;
 
 /** Embedding チャンク: 基準マシン 32768MB で 30 */
 const EMBED_CHUNK_BASE_MEMORY_MB = 32768;

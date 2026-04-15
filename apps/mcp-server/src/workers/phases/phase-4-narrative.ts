@@ -248,12 +248,21 @@ export async function processNarrativePhase(
   {
     const beforeRss = Math.round(process.memoryUsage().rss / 1024 / 1024);
     state.html = null;
-    // NOTE: screenshotBase64 is intentionally NOT released here.
-    // It is needed by Phase 5 for DINOv2 visual embedding crop generation.
-    // It will be released after processEmbeddingPhase() completes.
+
+    // OOM-5: screenshotBase64 の早期解放
+    // Phase 5 は screenshotPngPath 経由で PNG を読み込むため、
+    // 親プロセスの screenshotBase64 (100-400MB) は不要。
+    // OOM-5: Early release of screenshotBase64.
+    // Phase 5 reads PNG via screenshotPngPath in child,
+    // so parent's screenshotBase64 (100-400MB) is unnecessary.
+    if (state.screenshotPngPath) {
+      state.screenshotBase64 = undefined;
+    }
 
     // Trim layoutResultForNarrative: keep only sections + backgroundDesigns for embedding
     // Release large fields: externalCssContent, cssSnippet, visionFeatures, cssVariables, etc.
+    // Also strip htmlSnippet from each section — it is no longer needed after Phase 4
+    // and can be 10-50KB per section, adding up to significant memory on large pages.
     if (state.layoutResultForNarrative) {
       delete state.layoutResultForNarrative.html;
       delete state.layoutResultForNarrative.cssSnippet;
@@ -265,6 +274,13 @@ export async function processNarrativePhase(
       delete state.layoutResultForNarrative.visualFeatures;
       delete state.layoutResultForNarrative.cssVariables;
       delete state.layoutResultForNarrative.cssFramework;
+
+      // Release per-section htmlSnippet to reduce heap before Phase 5 fork JSON.stringify
+      if (state.layoutResultForNarrative.sections) {
+        for (const section of state.layoutResultForNarrative.sections) {
+          delete section.htmlSnippet;
+        }
+      }
     }
 
     tryGarbageCollect();
@@ -274,9 +290,10 @@ export async function processNarrativePhase(
         beforeRssMb: beforeRss,
         afterRssMb: afterRss,
         reclaimedMb: beforeRss - afterRss,
-        releasedRefs: ["html"],
-        retainedRefs: ["screenshotBase64 (for Phase 5 DINOv2 visual embedding)"],
-        trimmedRefs: ["layoutResultForNarrative (kept: sections, backgroundDesigns)"],
+        releasedRefs: ["html", "screenshotBase64 (released if screenshotPngPath exists)"],
+        trimmedRefs: [
+          "layoutResultForNarrative (kept: sections, backgroundDesigns; stripped: htmlSnippet)",
+        ],
       });
     }
   }

@@ -333,6 +333,47 @@ describe("ResponsivePersistenceService", () => {
       // create は呼ばれない
       expect(prisma.responsiveAnalysis.create).not.toHaveBeenCalled();
     });
+
+    // ========================================================================
+    // カスタム Prisma クライアント（トランザクション対応）
+    // ========================================================================
+
+    it("第3引数にprismaClientを渡した場合、そのクライアントで保存する", async () => {
+      const result = createMockResult();
+      const customClient = {
+        responsiveAnalysis: {
+          deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+          create: vi.fn().mockResolvedValue({ id: "custom-id" }),
+        },
+      };
+
+      const id = await service.save(MOCK_WEB_PAGE_ID, result, customClient as never);
+
+      expect(id).toBe("custom-id");
+      // カスタムクライアントのメソッドが呼ばれる
+      expect(customClient.responsiveAnalysis.deleteMany).toHaveBeenCalledWith({
+        where: { webPageId: MOCK_WEB_PAGE_ID },
+      });
+      expect(customClient.responsiveAnalysis.create).toHaveBeenCalledTimes(1);
+      // 共有prismaは呼ばれない
+      expect(prisma.responsiveAnalysis.deleteMany).not.toHaveBeenCalled();
+      expect(prisma.responsiveAnalysis.create).not.toHaveBeenCalled();
+    });
+
+    it("第3引数を省略した場合、共有prismaを使用する（後方互換性）", async () => {
+      const result = createMockResult();
+
+      vi.mocked(prisma.responsiveAnalysis.create).mockResolvedValue({
+        id: MOCK_RECORD_ID,
+      } as never);
+
+      const id = await service.save(MOCK_WEB_PAGE_ID, result);
+
+      expect(id).toBe(MOCK_RECORD_ID);
+      // 共有prismaが使用される
+      expect(prisma.responsiveAnalysis.deleteMany).toHaveBeenCalled();
+      expect(prisma.responsiveAnalysis.create).toHaveBeenCalled();
+    });
   });
 
   // ==========================================================================

@@ -2,9 +2,9 @@
 
 ## 概要 / Overview
 
-MCPツールハンドラーの包括的なテストスイート。現行<!-- gen:tool-count -->35<!-- /gen:tool-count -->ツールのツールハンドラーテストを収録しています。
+MCPツールハンドラーの包括的なテストスイート。現行<!-- gen:tool-count -->39<!-- /gen:tool-count -->ツールのツールハンドラーテストを収録しています。
 
-Comprehensive test suite for MCP tool handlers. Contains handler tests for the current <!-- gen:tool-count -->35<!-- /gen:tool-count --> tools.
+Comprehensive test suite for MCP tool handlers. Contains handler tests for the current <!-- gen:tool-count -->39<!-- /gen:tool-count --> tools.
 
 ## テストファイル構成 / Test File Structure
 

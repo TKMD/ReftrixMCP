@@ -159,8 +159,12 @@ export class ResponsiveAnalysisService {
           .sort((a, b) => a - b);
 
         if (candidateValues.length > 0) {
+          // getBrowserForPrecise が独自に launch() した場合のみ close() が必要
+          // sharedBrowser が渡された場合は呼び出し側の責任なので close() しない
+          const isOwnedBrowser = !sharedBrowser;
+          let browser: Browser | undefined;
           try {
-            const browser = await this.getBrowserForPrecise(sharedBrowser);
+            browser = await this.getBrowserForPrecise(sharedBrowser);
             const preciseResults = await multiViewportCaptureService.detectPreciseBreakpoints(
               browser,
               url,
@@ -193,6 +197,15 @@ export class ResponsiveAnalysisService {
             logger.warn("[ResponsiveAnalysis] Precise breakpoint detection failed", {
               error: error instanceof Error ? error.message : String(error),
             });
+          } finally {
+            // 独自に起動したブラウザのみ close() する（sharedBrowser は呼び出し側が管理）
+            if (isOwnedBrowser && browser) {
+              await browser.close().catch((closeError) => {
+                logger.warn("[ResponsiveAnalysis] Failed to close precise browser", {
+                  error: closeError instanceof Error ? closeError.message : String(closeError),
+                });
+              });
+            }
           }
         }
       }

@@ -127,6 +127,32 @@ enum AnalysisPhaseStatus {
   failed // 失敗（エラー発生）
 }
 
+/// Phase 5 embedding の backfill 状態を追跡（v0.4.0 PR2）
+/// Tracks the backfill state of Phase 5 embeddings per web_page (v0.4.0 PR2).
+///
+/// - `not_required`: すべての embedding が同期生成済み（通常パス）
+///   All embeddings were generated inline (normal happy path).
+/// - `queued` / `in_progress` / `completed`: Backfill Queue ライフサイクル
+///   （PR4 で使用） / Backfill queue lifecycle (used by PR4).
+/// - `failed`: Backfill が明確に失敗した / Backfill explicitly failed.
+/// - `skipped_memory_pressure`: V8 ヒープ/システムメモリ不足で Phase 5 をスキップ
+///   Phase 5 skipped due to V8 heap / system memory pressure.
+/// - `skipped_fork_error`: fork child プロセスのエラーで Phase 5 をスキップ
+///   Phase 5 skipped due to a fork child process error.
+/// - `skipped_screenshot_missing`: 永続化された screenshot が repair 時点で不在
+///   （PR7b-c 期間の retention-over-deletion bug で欠落した行の修復用、v0.4.0 PR7d-1）
+///   Persisted screenshot absent at repair time (repairs PR7b-c retention bug, v0.4.0 PR7d-1).
+enum EmbeddingBackfillStatus {
+  not_required
+  queued
+  in_progress
+  completed
+  failed
+  skipped_memory_pressure
+  skipped_fork_error
+  skipped_screenshot_missing
+}
+
 /// WebPage - 解析対象のWebページ基本情報
 /// sourceType: 'award_gallery' | 'user_provided'
 /// usageScope: 'inspiration_only' | 'owned_asset' | 'commercial_reuse_allowed'
@@ -156,6 +182,59 @@ model WebPage {
   screenshotDesktopUrl String? @map("screenshot_desktop_url") @db.Text
   screenshotMobileUrl  String? @map("screenshot_mobile_url") @db.Text
   screenshotFullUrl    String? @map("screenshot_full_url") @db.Text
+
+  // スクリーンショット永続化パス（Phase 5 Queue-based Backfill 用 / v0.4.0）
+  // Screenshot persistence path (for Phase 5 Queue-based Backfill / v0.4.0)
+  // ScreenshotPersistenceService.saveScreenshot() が設定、cleanupExpired() で NULL 化
+  // Set by ScreenshotPersistenceService.saveScreenshot(), nulled by cleanupExpired()
+  screenshotStoragePath String? @map("screenshot_storage_path") @db.Text
+
+  // Embedding backfill 状態（v0.4.0 PR2: サイレント skip 観測性）
+  // Embedding backfill status (v0.4.0 PR2: silent-skip observability)
+  // Phase 5 が skip/失敗した際に非 'not_required' に更新される
+  // Updated to non-'not_required' when Phase 5 is skipped or fails
+  embeddingBackfillStatus EmbeddingBackfillStatus @default(not_required) @map("embedding_backfill_status")
+
+  // Embedding backfill 開始時刻（v0.4.0 PR6: stale 判定用専用列）
+  // Embedding backfill start timestamp (v0.4.0 PR6: dedicated stale-detection column)
+  //
+  // backfill status を 'queued' / 'in_progress' に遷移させた時刻を保持する。
+  // backfill-reconciliation.service.ts の stale 判定が本列を用いるため、
+  // 他カラム更新による updatedAt の揺らぎから影響を受けない。
+  //
+  // Holds the timestamp when backfill status transitioned to 'queued' / 'in_progress'.
+  // Used by backfill-reconciliation.service.ts stale detection, making it immune to
+  // updatedAt fluctuations caused by unrelated column updates.
+  embeddingBackfillStartedAt DateTime? @map("embedding_backfill_started_at") @db.Timestamptz
+
+  // Embedding backfill 再投入回数（v0.4.0 PR7a: 無限ループ防御）
+  // Embedding backfill retry count (v0.4.0 PR7a: infinite-loop defense)
+  //
+  // skipped_fork_error / skipped_memory_pressure から Queue へ再投入するたびに
+  // インクリメントする。5 回超過で embedding_backfill_status を 'failed' に固定し、
+  // 永続的なメモリ不足 / fork 障害による無限再投入ループを防止する（SEC HIGH-1）。
+  //
+  // Incremented each time a page is re-enqueued from skipped_fork_error /
+  // skipped_memory_pressure. When the count exceeds 5, embedding_backfill_status
+  // is pinned to 'failed' to prevent infinite re-enqueue loops caused by
+  // persistent memory pressure / fork failures (SEC HIGH-1).
+  embeddingBackfillRetryCount Int @default(0) @map("embedding_backfill_retry_count")
+
+  // Embedding backfill skipped 遷移時刻（v0.4.0 PR7a: skipped_* stale 判定用）
+  // Embedding backfill skipped transition timestamp (v0.4.0 PR7a: skipped_* stale detection)
+  //
+  // status が skipped_fork_error / skipped_memory_pressure に遷移した時刻。
+  // cron による skip recovery は本列で経過時間を判定し、recovery 対象を特定する。
+  // embeddingBackfillStartedAt とは役割が分離されている（TPA H-1）:
+  //   - startedAt: queued / in_progress の stale 判定
+  //   - skippedAt: skipped_* からの recovery スケジューリング
+  //
+  // Timestamp when status transitioned to skipped_fork_error / skipped_memory_pressure.
+  // The cron-based skip recovery uses this column to compute elapsed time and identify
+  // recovery targets. Role-separated from embeddingBackfillStartedAt (TPA H-1):
+  //   - startedAt: stale detection for queued / in_progress
+  //   - skippedAt: recovery scheduling from skipped_*
+  embeddingBackfillSkippedAt DateTime? @map("embedding_backfill_skipped_at") @db.Timestamptz
 
   // 解析ステータス（後方互換性維持）
   analysisStatus  String    @default("pending") @map("analysis_status") // 'pending' | 'processing' | 'completed' | 'failed'

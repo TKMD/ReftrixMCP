@@ -540,7 +540,8 @@ describe("Universal Embedding Chunking", () => {
     let embeddingPhaseBody: string;
 
     beforeAll(() => {
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
+      // Sub-phase functions contain the chunk boundary patterns (legacy processEmbeddingPhase removed)
+      const fnStart = workerSource.indexOf("async function processSectionTextEmbeddingChunks");
       expect(fnStart).toBeGreaterThan(-1);
       embeddingPhaseBody = workerSource.slice(fnStart, fnStart + 35000);
     });

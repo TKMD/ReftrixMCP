@@ -62,7 +62,7 @@ Webページを「単なるスクリーンショット」ではなく、ベク�
 ### 🤖 MCP統合
 
 - **Model Context Protocol**: Claude等のAIエージェントと直接統合
-- **35のMCPツール**: WebDesign専用の分析・検索・評価ツール
+- **39のMCPツール**: WebDesign専用の分析・検索・評価ツール
 
 ### 🔍 Vision統合
 
@@ -75,7 +75,7 @@ Webページを「単なるスクリーンショット」ではなく、ベク�
 
 - **HTMLサニタイズ**: Webページ取得時のHTMLサニタイズ処理（DOMPurify 3.3.x）
 - **SSRF対策**: プライベートIP・メタデータサービスへのアクセスブロック
-- **レート制限**: Token Bucket + Redis Luaスクリプトによるアトミック制御（CWE-770 DoS対策）。3ティア構成: analysis 10RPM / search 120RPM / default 60RPM。Graceful Degradation: Redis未接続時はインメモリフォールバック。全35 MCPツールに自動適用
+- **レート制限**: Token Bucket + Redis Luaスクリプトによるアトミック制御（CWE-770 DoS対策）。3ティア構成: analysis 10RPM / search 120RPM / default 60RPM。Graceful Degradation: Redis未接続時はインメモリフォールバック。全39 MCPツールに自動適用
 - **入力検証**: Zodスキーマによる厳格な検証
 - **SBOM**: CycloneDX 1.6 JSON形式の自動生成（EU CRA 2026/9/11脆弱性報告義務対応）
 
@@ -281,7 +281,7 @@ const analysis = await mcp__reftrix__page_analyze({
 
 ## MCP ツール一覧
 
-Reftrixは**35のMCPツール**を提供しています（WebDesign専用）。
+Reftrixは**39のMCPツール**を提供しています（WebDesign専用）。
 
 ### レイアウト解析（5ツール）
 
@@ -375,7 +375,7 @@ Reftrixは**35のMCPツール**を提供しています（WebDesign専用）。
 ReftrixMCP/
 ├── apps/
 │   ├── cli/                          # スタンドアロンCLI（MCP非依存）
-│   └── mcp-server/                   # MCP Server（35ツール）
+│   └── mcp-server/                   # MCP Server（39ツール）
 │       └── src/
 │           └── tools/                # MCPツール定義
 │
@@ -443,14 +443,14 @@ pnpm db:seed
 
 ### ワーカー管理
 
-page.analyzeはBullMQキューとワーカープロセスで非同期実行されます。**WorkerSupervisor** が管理しますが、`start-workers.ts` の明示的な起動が必要です（`autorun=false`）。
+page.analyzeはBullMQキューとワーカープロセスで非同期実行されます。**WorkerSupervisor** が管理します。
+
+**v0.4.0 PR7d-2 以降**: MCP サーバー起動時に `WorkerSupervisor` が自動で page-analyze Worker を fork するため、通常運用では手動起動は不要です。手動起動は開発者/バッチスクリプト用途のみで、Redis-based dual-run guard により既存 Worker 検出時は `exit(1)` します。意図的な opt-out は `REFTRIX_ALLOW_MANUAL_WORKER=true` を設定してください（ADR-0011 参照）。
 
 ```bash
-# page.analyzeワーカー起動（WorkerSupervisor管理、start-workers.tsで明示的にrun()を呼び出し）
+# page.analyzeワーカー起動（開発者向け、MCP サーバー未起動時のみ）
+# Start page.analyze worker (developer-only, when MCP server is not running)
 pnpm --filter @reftrixmcp/mcp-server worker:start:page
-
-# quality評価ワーカー起動
-pnpm --filter @reftrixmcp/mcp-server worker:start:quality
 ```
 
 **WorkerSupervisor** は OOM クラッシュ防止のため、N 件のジョブ完了後にワーカープロセスを自動再起動します。デフォルトは 1 件ごとに再起動（`WORKER_MAX_JOBS_BEFORE_RESTART` 環境変数でオーバーライド可能）。計画的再起動時の新規ジョブ取得防止には **Pre-Return Pause パターン** を使用しています。
@@ -569,7 +569,7 @@ AGPL-3.0の条件が適合しないユースケース（プロプライエタリ
 | ガイド                                                               | 内容                                 |
 | -------------------------------------------------------------------- | ------------------------------------ |
 | [Getting Started](./users-guide/01-getting-started.md)               | インストール、セットアップ、初回分析 |
-| [MCP Tools Guide](./users-guide/02-mcp-tools-guide.md)               | 全35ツールの使用例                   |
+| [MCP Tools Guide](./users-guide/02-mcp-tools-guide.md)               | 全39ツールの使用例                   |
 | [page.analyze Deep Dive](./users-guide/03-page-analyze-deep-dive.md) | 非同期分析フローとデータ構造         |
 | [Troubleshooting](./users-guide/04-troubleshooting.md)               | よくある問題と解決方法               |
 

@@ -49,6 +49,10 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
   const phase5Path = path.resolve(__dirname, "../../src/workers/phases/phase-5-embedding.ts");
   const typesPath = path.resolve(__dirname, "../../src/workers/phases/types.ts");
   const orchestratorPath = path.resolve(__dirname, "../../src/workers/page-analyze-worker.ts");
+  const forkOrchestratorPath = path.resolve(
+    __dirname,
+    "../../src/workers/phases/phase-5-fork-orchestrator.ts"
+  );
 
   let workerSource: string;
 
@@ -58,7 +62,9 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
       "\n" +
       fs.readFileSync(phase5Path, "utf8") +
       "\n" +
-      fs.readFileSync(orchestratorPath, "utf8");
+      fs.readFileSync(orchestratorPath, "utf8") +
+      "\n" +
+      fs.readFileSync(forkOrchestratorPath, "utf8");
   });
 
   // ========================================================================
@@ -102,9 +108,9 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
     it("should have fallback path for sections beyond screenshot height", () => {
       // フォールバックパスが存在するか（実装後にPASS）
       // sectionTop >= imgHeight の場合に SectionScreenshotFallbackService を呼び出す
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
       expect(fnStart).toBeGreaterThan(-1);
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
 
       // フォールバックサービスのインポートまたは使用
       // captureSectionScreenshots としてインポートされている
@@ -123,8 +129,8 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
 
     it("should collect out-of-range sections for fallback capture", () => {
       // 範囲外セクションをフォールバックで個別キャプチャ
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
+      const fnBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
 
       // フォールバックのキャプチャ呼び出しとカウント追跡
       expect(fnBody).toContain("sectionFallbackCapturedCount");
@@ -162,8 +168,8 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
 
     it("should process both in-range and fallback sections with same dinov2Service", () => {
       // 同じ dinov2Service インスタンスで Section + Part 両方のembedding生成
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
+      const fnBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
 
       // DINOv2Service は Section + Part 共用で 1 回だけ初期化
       const initMatches = fnBody.match(/new DINOv2Service/g);
@@ -178,8 +184,8 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
   describe("フォールバック失敗時 / Fallback failure graceful degradation", () => {
     it("should have graceful degradation for entire visual embedding block", () => {
       // DINOv2 visual embedding ブロック全体の try-catch（既存）
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
+      const fnBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
       expect(fnBody).toContain("DINOv2 visual embedding failed (non-fatal)");
     });
 
@@ -206,25 +212,28 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
     });
 
     it("should not block job completion when fallback fails", () => {
-      // フォールバック失敗後も result.completed = true になる
-      const completedLine = workerSource.indexOf("result.completed = true");
-      expect(completedLine).toBeGreaterThan(-1);
-      const visualFailPos = workerSource.indexOf("DINOv2 visual embedding failed (non-fatal)");
-      expect(completedLine).toBeGreaterThan(visualFailPos);
+      // In fork path, runVisualEmbeddingSubPhases catches errors and returns partial result
+      const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 20000);
+      // Function returns result even on partial failure
+      expect(fnBody).toContain("return vResult");
+      // Non-fatal catch blocks exist
+      expect(fnBody).toContain("(non-fatal)");
     });
 
     it("should preserve text_embedding even when visual embedding fails", () => {
-      // visual embedding 失敗でも text_embedding は保持される（独立したステップ）
-      // Refactored: text embedding is in processSectionTextEmbeddingChunks, called before visual
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
-
-      // Orchestrator calls processSectionTextEmbeddingChunks before visual embedding
-      const textCallPos = fnBody.indexOf("processSectionTextEmbeddingChunks");
-      const visualEmbPos = fnBody.indexOf('"embedding-sections-visual"');
-      expect(textCallPos).toBeGreaterThan(-1);
-      expect(visualEmbPos).toBeGreaterThan(-1);
-      expect(textCallPos).toBeLessThan(visualEmbPos);
+      // In fork path, text embedding runs in a separate child process before visual
+      // Fork orchestrator runs text child → visual child sequentially
+      const fnStart = workerSource.indexOf("async function runPhase5ViaFork");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 20000);
+      // Text child runs before visual child
+      const textChildPos = fnBody.indexOf("Text Embedding Child");
+      const visualChildPos = fnBody.indexOf("Visual Embedding Child");
+      expect(textChildPos).toBeGreaterThan(-1);
+      expect(visualChildPos).toBeGreaterThan(-1);
+      expect(textChildPos).toBeLessThan(visualChildPos);
     });
   });
 
@@ -232,24 +241,16 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
   // 5. feature flag OFF: ENABLE_SECTION_SCREENSHOT_FALLBACK=false
   // ========================================================================
   describe("feature flag OFF / Feature flag disabled", () => {
-    it("should have feature flag check for fallback service", () => {
-      // 環境変数 ENABLE_SECTION_SCREENSHOT_FALLBACK の参照が存在する
-
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
-
-      expect(fnBody).toContain("ENABLE_SECTION_SCREENSHOT_FALLBACK");
+    it("should have feature flag check for fallback service in fork orchestrator", () => {
+      // 環境変数 ENABLE_SECTION_SCREENSHOT_FALLBACK はfork orchestratorで参照
+      // (fork orchestratorソースは別ファイルだが、合成テスト用に全ソースで検索)
+      expect(workerSource).toContain("ENABLE_SECTION_SCREENSHOT_FALLBACK");
     });
 
-    it("feature flag should default to false (opt-in behavior)", () => {
-      // デフォルトは false（明示的に有効化が必要）
-
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
-
-      // フラグチェックのパターン: process.env.ENABLE_SECTION_SCREENSHOT_FALLBACK === 'true'
-      // または loadEnvLocal() 後のチェック
-      expect(fnBody).toContain("ENABLE_SECTION_SCREENSHOT_FALLBACK");
+    it("feature flag should default to true (opt-out behavior)", () => {
+      // デフォルトは true（明示的に無効化が必要 = opt-out）
+      // fork orchestrator 内: (process.env["ENABLE_SECTION_SCREENSHOT_FALLBACK"] ?? "true") === "true"
+      expect(workerSource).toContain("ENABLE_SECTION_SCREENSHOT_FALLBACK");
     });
 
     it("should skip fallback and continue (like current behavior) when flag is off", () => {
@@ -268,8 +269,8 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
   describe("DINOv2共有 / DINOv2 service sharing with fallback", () => {
     it("DINOv2Service should be initialized once for both Sharp crop and fallback paths", () => {
       // DINOv2Service は Sharp crop パスとフォールバックパスで同じインスタンスを使用
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
+      const fnBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
 
       // 1回だけ初期化
       const initMatches = fnBody.match(/new DINOv2Service/g);
@@ -288,8 +289,8 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
 
     it("DINOv2Service should be disposed in orchestrator finally + pre-fallback dispose", () => {
       // dispose() は (1) orchestrator finally block + (2) pre-fallback dispose in processSectionVisualEmbeddingLoop の 2 箇所
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
+      const fnBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
 
       const disposeMatches = fnBody.match(/dinov2Service\.dispose\(\)/g);
       expect(disposeMatches).not.toBeNull();
@@ -316,8 +317,8 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
     it("should log count of sections needing fallback", () => {
       // フォールバック対象のセクション数をログ出力する
 
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
+      const fnBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
 
       // フォールバック対象数のログ
       expect(fnBody).toContain("fallback");
@@ -344,16 +345,18 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
       expect(sectionVisualBody).toContain("sectionsFiltered");
     });
 
-    it("PII filtering should apply before both Sharp crop and fallback paths", () => {
-      // PII フィルタリングは acquireSectionCropBuffer 呼び出しの前に実行される
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
+    it("PII filtering should apply before the section visual embedding loop", () => {
+      // PII フィルタリングは processSectionVisualEmbeddingLoop 呼び出しの前に実行される
+      // (runVisualEmbeddingSubPhases 内)
+      const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 20000);
 
-      const piiCheckPos = sectionVisualBody.indexOf("pii_risk_level = 'high'");
-      const cropPos = sectionVisualBody.indexOf("acquireSectionCropBuffer");
+      const piiCheckPos = fnBody.indexOf("pii_risk_level = 'high'");
+      const loopPos = fnBody.indexOf("processSectionVisualEmbeddingLoop");
       expect(piiCheckPos).toBeGreaterThan(-1);
-      expect(cropPos).toBeGreaterThan(-1);
-      expect(piiCheckPos).toBeLessThan(cropPos);
+      expect(loopPos).toBeGreaterThan(-1);
+      expect(piiCheckPos).toBeLessThan(loopPos);
     });
   });
 

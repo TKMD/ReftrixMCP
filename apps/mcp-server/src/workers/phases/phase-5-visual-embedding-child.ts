@@ -110,6 +110,9 @@ process.on("message", async (raw: unknown) => {
       screenshotPngPath: msg.screenshotPngPath,
       sectionIdMapping: deserializeIdMapping(msg.sectionIdMapping),
       partsSavedCount: msg.partsSavedCount ?? 0,
+      // v0.4.0 PR4: 同期フェーズの Part visual embedding 上限を子プロセスに伝搬
+      // v0.4.0 PR4: propagate sync-phase Part visual embedding cap to the child
+      partsLimit: msg.partsLimit,
       layoutResultJson: msg.layoutResultJson,
       viewportWidth: msg.viewportWidth,
       viewportHeight: msg.viewportHeight,

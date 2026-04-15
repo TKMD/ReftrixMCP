@@ -44,6 +44,9 @@ const WORKER_THREAD_TYPES_PATH = path.resolve(
 /** Worker Threadスクリプトソースコード */
 const WORKER_THREAD_PATH = path.resolve(__dirname_local, "../src/embeddings/worker-thread.ts");
 
+/** 共通ONNX Provider検出ユーティリティソースコード / Shared ONNX provider detection utility */
+const ONNX_PROVIDER_DETECT_PATH = path.resolve(__dirname_local, "../src/onnx-provider-detect.ts");
+
 /** EmbeddingServiceソースコード */
 const SERVICE_PATH = path.resolve(__dirname_local, "../src/embeddings/service.ts");
 
@@ -532,43 +535,47 @@ describe("P2-H: GPU推論サポート (CUDA/ROCm)", () => {
   // --------------------------------------------------------------------------
   // 1. GPU実行プロバイダー検出テスト
   // --------------------------------------------------------------------------
-  describe("detectExecutionProvider()", () => {
+  describe("detectExecutionProvider() — onnx-provider-detect.ts", () => {
+    let providerDetectSource: string;
     let workerSource: string;
 
     beforeEach(() => {
+      providerDetectSource = readSource(ONNX_PROVIDER_DETECT_PATH);
       workerSource = readSource(WORKER_THREAD_PATH);
     });
 
-    it("detectExecutionProvider()関数がworker-thread.tsに定義されていること", () => {
-      expect(workerSource).toContain("function detectExecutionProvider()");
+    it("detectExecutionProvider()関数がonnx-provider-detect.tsに定義されていること / should be defined in onnx-provider-detect.ts", () => {
+      expect(providerDetectSource).toContain("function detectExecutionProvider(");
+    });
+
+    it("worker-thread.tsがonnx-provider-detect.tsからインポートしていること / worker-thread.ts should import from onnx-provider-detect", () => {
+      expect(workerSource).toContain('from "../onnx-provider-detect.js"');
     });
 
     it("デフォルトでCPUを返すこと", () => {
       // 環境変数未設定時はcpuを返す
-      expect(workerSource).toContain('return "cpu"');
-      // 関数の末尾で 'cpu' がデフォルト返却値であることを確認
+      expect(providerDetectSource).toContain('return "cpu"');
       // detectExecutionProvider関数の閉じ括弧を探す
-      const funcStart = workerSource.indexOf("function detectExecutionProvider()");
-      // 関数末尾の独立した return "cpu" （if文の外）がデフォルト
-      // return "cpu" が2箇所以上存在する（catch内 + デフォルト）
-      const cpuReturns = workerSource.slice(funcStart).match(/return "cpu"/g);
+      const funcStart = providerDetectSource.indexOf("function detectExecutionProvider(");
+      // return "cpu" が2箇所以上存在する（フォールバック + デフォルト）
+      const cpuReturns = providerDetectSource.slice(funcStart).match(/return "cpu"/g);
       expect(cpuReturns).not.toBeNull();
       expect(cpuReturns!.length).toBeGreaterThanOrEqual(2);
     });
 
     it("ONNX_EXECUTION_PROVIDER環境変数を読み取ること", () => {
-      expect(workerSource).toContain("process.env.ONNX_EXECUTION_PROVIDER");
+      expect(providerDetectSource).toContain("process.env.ONNX_EXECUTION_PROVIDER");
     });
 
     it("cuda/rocm設定時にCUDA provider可用性を検証すること", () => {
-      expect(workerSource).toContain('envProvider === "cuda" || envProvider === "rocm"');
-      expect(workerSource).toContain("verifyCudaAvailability()");
+      expect(providerDetectSource).toContain('envProvider === "cuda" || envProvider === "rocm"');
+      expect(providerDetectSource).toContain("verifyCudaAvailability(");
     });
 
     it("CUDAプロバイダが利用可能な場合にcudaを返すこと", () => {
-      const funcBody = workerSource.slice(
-        workerSource.indexOf("function detectExecutionProvider()"),
-        workerSource.indexOf("function detectExecutionProvider()") + 500
+      const funcBody = providerDetectSource.slice(
+        providerDetectSource.indexOf("function detectExecutionProvider("),
+        providerDetectSource.indexOf("function detectExecutionProvider(") + 600
       );
       // verifyCudaAvailability() success → return "cuda"
       expect(funcBody).toContain('return "cuda"');
@@ -576,11 +583,15 @@ describe("P2-H: GPU推論サポート (CUDA/ROCm)", () => {
 
     it("CUDAプロバイダ未インストール時にCPUフォールバックすること", () => {
       // verifyCudaAvailability() false → 警告を出してcpuを返す
-      expect(workerSource).toContain("CUDA provider not available, falling back to CPU");
+      expect(providerDetectSource).toContain("CUDA provider not available, falling back to CPU");
     });
 
     it("ExecutionProvider型がcpuとcudaの2値であること", () => {
-      expect(workerSource).toContain('type ExecutionProvider = "cpu" | "cuda"');
+      expect(providerDetectSource).toContain('type ExecutionProvider = "cpu" | "cuda"');
+    });
+
+    it("logPrefix引数でログプレフィックスをカスタマイズできること / should accept logPrefix parameter", () => {
+      expect(providerDetectSource).toContain("logPrefix?: string");
     });
   });
 
@@ -637,7 +648,9 @@ describe("P2-H: GPU推論サポート (CUDA/ROCm)", () => {
     });
 
     it("initializePipeline()でdetectExecutionProvider()が呼ばれること", () => {
-      expect(workerSource).toContain("resolvedProvider = detectExecutionProvider()");
+      expect(workerSource).toContain(
+        'resolvedProvider = detectExecutionProvider("EmbeddingWorker")'
+      );
     });
 
     it("GPU検出結果がeffectiveDeviceに反映されること", () => {
@@ -648,13 +661,13 @@ describe("P2-H: GPU推論サポート (CUDA/ROCm)", () => {
   // --------------------------------------------------------------------------
   // 4. CUDA Provider検出テスト（onnxruntime-gpu削除後）
   // --------------------------------------------------------------------------
-  describe("CUDA Provider検出 (libonnxruntime_providers_cuda.so)", () => {
+  describe("CUDA Provider検出 (libonnxruntime_providers_cuda.so) — onnx-provider-detect.ts", () => {
     let packageJson: Record<string, unknown>;
-    let workerSource: string;
+    let providerDetectSource: string;
 
     beforeEach(() => {
       packageJson = JSON.parse(readSource(PACKAGE_JSON_PATH));
-      workerSource = readSource(WORKER_THREAD_PATH);
+      providerDetectSource = readSource(ONNX_PROVIDER_DETECT_PATH);
     });
 
     it("onnxruntime-gpuがoptionalDependenciesから削除されていること", () => {
@@ -671,22 +684,22 @@ describe("P2-H: GPU推論サポート (CUDA/ROCm)", () => {
     });
 
     it("verifyCudaAvailability()がlibonnxruntime_providers_cuda.soを検出すること", () => {
-      expect(workerSource).toContain("function verifyCudaAvailability()");
-      expect(workerSource).toContain("libonnxruntime_providers_cuda.so");
+      expect(providerDetectSource).toContain("function verifyCudaAvailability(");
+      expect(providerDetectSource).toContain("libonnxruntime_providers_cuda.so");
     });
 
     it("verifyCudaAvailability()がonnxruntime-nodeパスを基準にプロバイダを探すこと", () => {
-      expect(workerSource).toContain('esmRequire.resolve("onnxruntime-node")');
+      expect(providerDetectSource).toContain('esmRequire.resolve("onnxruntime-node")');
       // Dynamic napi version detection (v3, v6, etc.)
-      expect(workerSource).toContain('d.startsWith("napi-v")');
+      expect(providerDetectSource).toContain('d.startsWith("napi-v")');
     });
 
     it("verifyCudaAvailability()がfs.existsSyncでファイル存在を確認すること", () => {
-      expect(workerSource).toContain("fs.existsSync(cudaProviderPath)");
+      expect(providerDetectSource).toContain("fs.existsSync(cudaProviderPath)");
     });
 
     it("CUDAプロバイダ未検出時に警告メッセージにパスが含まれること", () => {
-      expect(workerSource).toContain("CUDA provider not found in:");
+      expect(providerDetectSource).toContain("CUDA provider not found in:");
     });
   });
 

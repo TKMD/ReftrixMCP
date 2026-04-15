@@ -80,7 +80,7 @@ pnpm start
 }
 ```
 
-## MCPツール一覧（<!-- gen:tool-count -->35<!-- /gen:tool-count -->ツール） / MCP Tool List (<!-- gen:tool-count -->35<!-- /gen:tool-count --> Tools)
+## MCPツール一覧（<!-- gen:tool-count -->39<!-- /gen:tool-count -->ツール） / MCP Tool List (<!-- gen:tool-count -->39<!-- /gen:tool-count --> Tools)
 
 ### Layoutツール（5ツール） / Layout Tools (5 Tools)
 
@@ -360,7 +360,7 @@ Webデザインの品質を3軸（独自性・技巧・文脈適合性）で評�
 
 ---
 
-### Pageツール（2ツール） / Page Tools (2 Tools)
+### Pageツール（4ツール） / Page Tools (4 Tools)
 
 #### `page.analyze` - 統合Web分析 / Unified Web Analysis
 
@@ -403,6 +403,36 @@ Performs unified Layout + Motion + Quality analysis for a given URL. Uses BullMQ
   progress: number;         // 進捗率（0-100）
   result?: object;          // 完了時の結果
   error?: string;           // 失敗時のエラー詳細
+}
+```
+
+#### `page.batch_analyze` - バッチ一括分析 / Batch Analysis (v0.4.0)
+
+複数URLを一括分析します。BullMQバッチジョブで並列処理。 / Analyzes multiple URLs in batch via BullMQ parallel jobs.
+
+**入力スキーマ**:
+
+```typescript
+{
+  urls: string[];           // 分析対象URL (1-50)
+  concurrency?: number;     // バッチ内並列数 (1-5, default: 3)
+  timeout?: number;         // バッチ全体タイムアウト (ms, default: 30分)
+  respect_robots_txt?: boolean; // robots.txt尊重 (default: true)
+  on_error?: "skip" | "abort"; // 失敗時動作 (default: "skip")
+}
+```
+
+**制限**: 最大50 URL、同時1バッチ（CWE-770）、analysis tier 10 RPM、全URLにSSRF事前検証。
+
+#### `page.getBatchStatus` - バッチステータス確認 / Batch Status Check (v0.4.0)
+
+`page.batch_analyze`で投入したバッチジョブの進捗確認。read-only、冪等。 / Check batch job progress. Read-only, idempotent.
+
+**入力スキーマ**:
+
+```typescript
+{
+  batch_id: string; // バッチジョブID（必須）
 }
 ```
 
@@ -703,12 +733,12 @@ pnpm backfill:embeddings
 
 ### レート制限 / Rate Limiting
 
-Token Bucket + Redis Lua（CWE-770 DoS対策）。全<!-- gen:tool-count -->35<!-- /gen:tool-count -->ツールに自動適用。
-Token Bucket + Redis Lua (CWE-770 DoS prevention). Auto-applied to all <!-- gen:tool-count -->35<!-- /gen:tool-count --> tools.
+Token Bucket + Redis Lua（CWE-770 DoS対策）。全<!-- gen:tool-count -->39<!-- /gen:tool-count -->ツールに自動適用。
+Token Bucket + Redis Lua (CWE-770 DoS prevention). Auto-applied to all <!-- gen:tool-count -->39<!-- /gen:tool-count --> tools.
 
 | ティア / Tier | RPM | 対象ツール / Target Tools                                                                                                                                                                     |
 | ------------- | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| analysis      | 10  | page.analyze, layout.ingest, layout.batch_ingest, accessibility.audit, performance.evaluate, design.track_changes                                                                             |
+| analysis      | 10  | page.analyze, page.batch_analyze, layout.ingest, layout.batch_ingest, accessibility.audit, performance.evaluate, design.track_changes, design.regression_test, report.generate                |
 | search        | 120 | layout.search, motion.search, narrative.search, background.search, responsive.search, part.search, search.unified, design.search_by_image, design.similar_site, design.compare, search.facets |
 | default       | 60  | その他すべて / All others                                                                                                                                                                     |
 
@@ -716,8 +746,8 @@ Graceful Degradation: Redis未接続時はインメモリフォールバック /
 
 ### エラーメッセージサニタイズ / Error Message Sanitization (CWE-209)
 
-`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。<!-- gen:sanitize-usage-count -->63<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->35<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->57<!-- /gen:sanitize-import-count -->ファイルでインポート）。
-`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to <!-- gen:sanitize-usage-count -->63<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->35<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->57<!-- /gen:sanitize-import-count --> import files).
+`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。<!-- gen:sanitize-usage-count -->85<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->39<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->79<!-- /gen:sanitize-import-count -->ファイルでインポート）。
+`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to <!-- gen:sanitize-usage-count -->85<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->39<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->79<!-- /gen:sanitize-import-count --> import files).
 
 ---
 
@@ -911,15 +941,16 @@ pnpm test:watch
 
 ### ワーカー単体起動 / Starting Workers Individually
 
+> **Note (v0.4.0 PR7d-2+)**: 通常運用では MCP サーバー起動時に `WorkerSupervisor` が自動で page-analyze Worker を fork するため、手動起動は開発者/バッチ用途のみ。手動起動するとデフォルトで Redis-based dual-run guard が作動し、既存 Worker 検出時は `exit(1)` する。意図的な opt-out は `REFTRIX_ALLOW_MANUAL_WORKER=true` を設定する。
+>
+> **Note (v0.4.0 PR7d-2+)**: In normal operation, the MCP server auto-forks a page-analyze Worker via `WorkerSupervisor` at startup. Manual startup is for development/batch use only. Without opt-out, the Redis-based dual-run guard will `exit(1)` on detecting an existing Worker. Set `REFTRIX_ALLOW_MANUAL_WORKER=true` to opt out explicitly.
+
 ```bash
-# 全ワーカー起動
+# 全ワーカー起動（開発者向け / developer-only）
 pnpm worker:start
 
-# PageAnalyzeWorkerのみ起動
+# PageAnalyzeWorkerのみ起動（開発者向け / developer-only）
 pnpm worker:start:page
-
-# BatchQualityWorkerのみ起動
-pnpm worker:start:quality
 ```
 
 ### ディレクトリ構造 / Directory Structure

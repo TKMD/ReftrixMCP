@@ -40,7 +40,7 @@
     "reftrix-mcp": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r src/templates dist/",
     "dev": "NODE_ENV=development tsx watch src/index.ts",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
@@ -61,7 +61,6 @@
     "bench:json": "vitest bench --config vitest.benchmark.config.ts --reporter=json --outputFile=./benchmark-results/results.json",
     "worker:start": "NODE_ENV=development NODE_OPTIONS='--max-old-space-size=4096' tsx src/scripts/start-workers.ts",
     "worker:start:page": "NODE_ENV=development NODE_OPTIONS='--max-old-space-size=4096' tsx src/scripts/start-workers.ts --page",
-    "worker:start:quality": "NODE_ENV=development NODE_OPTIONS='--max-old-space-size=4096' tsx src/scripts/start-workers.ts --quality",
     "check:embeddings": "tsx src/scripts/check-embedding-coverage.ts",
     "backfill:embeddings": "NODE_OPTIONS='--max-old-space-size=8192 --expose-gc' tsx src/scripts/backfill-embeddings.ts",
     "clean": "rm -rf dist node_modules .turbo"
@@ -80,6 +79,7 @@
     "culori": "^4.0.2",
     "dompurify": "^3.3.2",
     "express": "^5.2.1",
+    "handlebars": "^4.7.9",
     "ioredis": "^5.9.2",
     "jsdom": "^27.2.0",
     "lru-cache": "^11.2.7",

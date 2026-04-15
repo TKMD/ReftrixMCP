@@ -6,9 +6,9 @@
 
 ## テスト概要 / Test Overview
 
-Reftrix MCPサーバーのテストスイート。WebDesign専用の<!-- gen:tool-count -->35<!-- /gen:tool-count -->ツールをカバーしています。
+Reftrix MCPサーバーのテストスイート。WebDesign専用の<!-- gen:tool-count -->39<!-- /gen:tool-count -->ツールをカバーしています。
 
-Test suite for the Reftrix MCP server. Covers all <!-- gen:tool-count -->35<!-- /gen:tool-count --> WebDesign-dedicated tools.
+Test suite for the Reftrix MCP server. Covers all <!-- gen:tool-count -->39<!-- /gen:tool-count --> WebDesign-dedicated tools.
 
 ### 現行テストファイル構成 / Current Test File Structure
 
@@ -41,7 +41,7 @@ Test suite for the Reftrix MCP server. Covers all <!-- gen:tool-count -->35<!-- 
 
 **合計 / Total**: 約12,500テスト / Approximately 12,500 tests
 
-### 現行<!-- gen:tool-count -->35<!-- /gen:tool-count -->ツール / Current <!-- gen:tool-count -->35<!-- /gen:tool-count --> Tools
+### 現行<!-- gen:tool-count -->39<!-- /gen:tool-count -->ツール / Current <!-- gen:tool-count -->39<!-- /gen:tool-count --> Tools
 
 SVG機能は削除され、WebDesign専用ツールに移行しました。project.get/project.listはバックエンドAPI非依存のため削除されました。
 
@@ -113,12 +113,12 @@ pnpm test tests/smoke/
 
 ### 1. ツール登録テスト / Tool Registration Test (smoke/tool-registration.test.ts)
 
-**目的 / Purpose**: 全<!-- gen:tool-count -->35<!-- /gen:tool-count -->ツールが正しく登録されていることを確認 / Verify all <!-- gen:tool-count -->35<!-- /gen:tool-count --> tools are correctly registered
+**目的 / Purpose**: 全<!-- gen:tool-count -->39<!-- /gen:tool-count -->ツールが正しく登録されていることを確認 / Verify all <!-- gen:tool-count -->39<!-- /gen:tool-count --> tools are correctly registered
 
 ```typescript
 describe("MCP Tool Registration", () => {
-  it("toolHandlers に35ツールが登録されている");
-  it("allToolDefinitions に35ツール定義がある");
+  it("toolHandlers に39ツールが登録されている");
+  it("allToolDefinitions に39ツール定義がある");
   it("各ツールに対応するハンドラーが存在する");
 });
 ```

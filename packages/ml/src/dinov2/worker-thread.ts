@@ -32,6 +32,8 @@ import type {
 // =====================================================
 
 import { safeImportOnnx } from "../onnx-availability.js";
+import { detectExecutionProvider, isLdLibraryPathSetAtOsLevel } from "../onnx-provider-detect.js";
+import type { ExecutionProvider } from "../onnx-provider-detect.js";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 type OrtModule = typeof import("onnxruntime-node");
@@ -139,18 +141,71 @@ function l2Normalize(vec: Float32Array): Float32Array {
 // Session management
 // =====================================================
 
+/** Resolved execution provider for the current session. */
+let resolvedProvider: ExecutionProvider = "cpu";
+
 async function initializeSession(modelPath: string): Promise<void> {
   if (session) return;
 
+  const provider = detectExecutionProvider("DINOv2Worker");
+
+  // Safety check: if CUDA is requested but LD_LIBRARY_PATH was not set at
+  // the OS level (only set via loadEnvLocal at runtime), CUDA init will crash
+  // because dlopen() can't find CUDA shared libraries. Fall back to CPU.
+  let effectiveProvider = provider;
+  if (effectiveProvider === "cuda" && !isLdLibraryPathSetAtOsLevel()) {
+    console.warn(
+      "[DINOv2Worker] CUDA requested but LD_LIBRARY_PATH not set at OS level. " +
+        "dlopen() cannot find CUDA libraries. Falling back to CPU. " +
+        "To use CUDA, set LD_LIBRARY_PATH before starting the Node.js process."
+    );
+    effectiveProvider = "cpu";
+  }
+
+  const sessionOptions =
+    effectiveProvider === "cuda"
+      ? {
+          executionProviders: ["CUDAExecutionProvider", "CPUExecutionProvider"],
+          enableMemPattern: false,
+        }
+      : {
+          executionProviders: ["cpu"],
+          enableCpuMemArena: false,
+          enableMemPattern: false,
+        };
+
   const ortModule = await getOrt();
-  session = (await ortModule.InferenceSession.create(modelPath, {
-    executionProviders: ["cpu"],
-    enableCpuMemArena: false,
-    enableMemPattern: false,
-  })) as unknown as OrtSession;
+
+  // Attempt to create session with the resolved provider.
+  // If CUDA init fails (e.g. library not found), catch and retry with CPU.
+  try {
+    session = (await ortModule.InferenceSession.create(
+      modelPath,
+      sessionOptions
+    )) as unknown as OrtSession;
+    resolvedProvider = effectiveProvider;
+  } catch (providerError) {
+    if (effectiveProvider !== "cpu") {
+      // CUDA init failed — fallback to CPU
+      const errorMsg =
+        providerError instanceof Error ? providerError.message : String(providerError);
+      console.warn(
+        "[DINOv2Worker] CUDA session creation failed, falling back to CPU: %s",
+        errorMsg
+      );
+      session = (await ortModule.InferenceSession.create(modelPath, {
+        executionProviders: ["cpu"],
+        enableCpuMemArena: false,
+        enableMemPattern: false,
+      })) as unknown as OrtSession;
+      resolvedProvider = "cpu";
+    } else {
+      throw providerError;
+    }
+  }
 
   // eslint-disable-next-line no-console
-  console.log("[DINOv2Worker] Session initialized:", modelPath);
+  console.log("[DINOv2Worker] Session initialized (provider: %s):", resolvedProvider, modelPath);
 }
 
 async function disposeSession(): Promise<void> {
@@ -189,8 +244,18 @@ async function runInference(
   // Create input tensor [1, 3, height, width]
   const inputTensor = new ortModule.Tensor("float32", inputData, [1, 3, height, width]);
 
-  // Run inference
-  const output = await session.run({ pixel_values: inputTensor });
+  // Run inference — use try/finally to ensure tensor disposal (OOM-FIX-1)
+  // ONNX Tensor holds native C++ memory that V8 GC cannot reclaim.
+  // Without explicit dispose(), ~1.4MB/inference leaks as native memory.
+  let output: Record<string, { data: Float32Array; dims: readonly number[] }>;
+  try {
+    output = await session.run({ pixel_values: inputTensor });
+  } finally {
+    // Dispose input tensor immediately after inference completes
+    if (typeof (inputTensor as unknown as { dispose?: () => void }).dispose === "function") {
+      (inputTensor as unknown as { dispose: () => void }).dispose();
+    }
+  }
 
   // Extract CLS token from last_hidden_state [1, 257, 768]
   const lastHiddenState = output.last_hidden_state;
@@ -212,6 +277,14 @@ async function runInference(
   const clsToken = new Float32Array(DINOV2_EMBEDDING_DIMENSION);
   for (let i = 0; i < DINOV2_EMBEDDING_DIMENSION; i++) {
     clsToken[i] = data[i]!;
+  }
+
+  // Dispose output tensors after data extraction (OOM-FIX-1)
+  for (const key of Object.keys(output)) {
+    const tensor = output[key] as unknown as { dispose?: () => void };
+    if (typeof tensor?.dispose === "function") {
+      tensor.dispose();
+    }
   }
 
   // L2 normalize with NaN/Infinity defense

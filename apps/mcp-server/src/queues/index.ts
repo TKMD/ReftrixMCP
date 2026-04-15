@@ -10,4 +10,5 @@
  */
 
 export * from "./page-analyze-queue";
+export * from "./embedding-backfill-queue";
 // [REMOVED v0.3.0] batch-quality-queue — quality.batch_evaluate removed

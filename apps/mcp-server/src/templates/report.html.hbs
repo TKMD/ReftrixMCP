@@ -1,0 +1,245 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{title}}</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card: #1e293b;
+        --text: #e2e8f0;
+        --text-muted: #94a3b8;
+        --border: #334155;
+        --accent: #3b82f6;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 2rem;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 1.75rem;
+        margin-bottom: 0.5rem;
+      }
+      h2 {
+        font-size: 1.25rem;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.5rem;
+      }
+      h3 {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+        color: var(--text-muted);
+      }
+      .meta {
+        color: var(--text-muted);
+        font-size: 0.875rem;
+        margin-bottom: 2rem;
+      }
+      .card {
+        background: var(--card);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid var(--border);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1rem;
+      }
+      .stat {
+        text-align: center;
+      }
+      .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+      }
+      .stat-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .badge {
+        display: inline-block;
+        padding: 0.125rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+      th {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .screenshot {
+        max-width: 100%;
+        border-radius: 0.5rem;
+        border: 1px solid var(--border);
+      }
+      .score-bar {
+        height: 8px;
+        border-radius: 4px;
+        background: var(--border);
+        overflow: hidden;
+        margin-top: 0.25rem;
+      }
+      .score-bar-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.3s;
+      }
+      .footer {
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        margin-top: 3rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>{{title}}</h1>
+      <div class="meta">
+        <p>URL:
+          <a href="{{data.webPage.url}}" style="color: var(--accent);">{{data.webPage.url}}</a></p>
+        {{#if data.webPage.analyzedAt}}<p>Analyzed: {{data.webPage.analyzedAt}}</p>{{/if}}
+        <p>Generated: {{data.generatedAt}}</p>
+      </div>
+
+      {{#if data.quality}}
+        <div class="card">
+          <h2>Quality Score</h2>
+          <div class="grid">
+            <div class="stat">
+              <div
+                class="stat-value"
+                style="color: {{scoreColor data.quality.overallScore}}"
+              >{{round data.quality.overallScore 1}}</div>
+              <div class="stat-label">Overall Score</div>
+              <div
+                class="badge"
+                style="background: {{scoreColor data.quality.overallScore}}; color: #000;"
+              >{{data.quality.grade}}</div>
+            </div>
+            {{#if data.quality.designQuality}}
+              <div class="stat">
+                <div
+                  class="stat-value"
+                  style="color: {{scoreColor data.quality.designQuality}}"
+                >{{round data.quality.designQuality 1}}</div>
+                <div class="stat-label">Design Quality</div>
+              </div>
+            {{/if}}
+            {{#if data.quality.technicalQuality}}
+              <div class="stat">
+                <div
+                  class="stat-value"
+                  style="color: {{scoreColor data.quality.technicalQuality}}"
+                >{{round data.quality.technicalQuality 1}}</div>
+                <div class="stat-label">Technical Quality</div>
+              </div>
+            {{/if}}
+            {{#if data.quality.antiAiCliche}}
+              <div class="stat">
+                <div
+                  class="stat-value"
+                  style="color: {{scoreColor data.quality.antiAiCliche}}"
+                >{{round data.quality.antiAiCliche 1}}</div>
+                <div class="stat-label">Anti-AI Cliché</div>
+              </div>
+            {{/if}}
+          </div>
+        </div>
+      {{/if}}
+
+      {{#if data.webPage.screenshotBase64}}
+        <div class="card">
+          <h2>Screenshot</h2>
+          <img
+            src="data:image/png;base64,{{data.webPage.screenshotBase64}}"
+            alt="Page screenshot"
+            class="screenshot"
+          />
+        </div>
+      {{/if}}
+
+      <div class="card">
+        <h2>Sections ({{data.sections.length}})</h2>
+        <table>
+          <thead>
+            <tr><th>#</th><th>Type</th><th>Name</th><th>Layout</th><th>Components</th></tr>
+          </thead>
+          <tbody>
+            {{#each data.sections}}
+              <tr>
+                <td>{{add positionIndex 1}}</td>
+                <td><span
+                    class="badge"
+                    style="background: var(--accent); color: #fff;"
+                  >{{type}}</span></td>
+                <td>{{truncate name 40}}</td>
+                <td>{{layoutType}}</td>
+                <td>{{componentCount}}</td>
+              </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+
+      {{#if data.motionPatterns.length}}
+        <div class="card">
+          <h2>Motion Patterns ({{data.motionPatterns.length}})</h2>
+          <table>
+            <thead>
+              <tr><th>Type</th><th>Name</th><th>Category</th><th>Trigger</th><th>Duration</th><th
+                >Easing</th></tr>
+            </thead>
+            <tbody>
+              {{#each data.motionPatterns}}
+                <tr>
+                  <td>{{type}}</td>
+                  <td>{{truncate name 30}}</td>
+                  <td>{{category}}</td>
+                  <td>{{trigger}}</td>
+                  <td>{{#if duration}}{{duration}}ms{{else}}—{{/if}}</td>
+                  <td>{{#if easing}}{{easing}}{{else}}—{{/if}}</td>
+                </tr>
+              {{/each}}
+            </tbody>
+          </table>
+        </div>
+      {{/if}}
+
+      <div class="footer">
+        Generated by Reftrix — Web Design Analysis Platform
+      </div>
+    </div>
+  </body>
+</html>

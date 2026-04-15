@@ -268,8 +268,8 @@ describe("MCP Tool Annotations", () => {
   // preference.hear, preference.get, preference.reset ツール追加
   // =========================================================================
   describe("ツール数", () => {
-    it("allToolDefinitionsが35ツール（WebDesign専用 + v0.3.0 Tier 2全11ツール、project削除済み、quality.batch_evaluate/getJobStatus削除済み）を含むこと", () => {
-      expect(allToolDefinitions).toHaveLength(35);
+    it("allToolDefinitionsが39ツール（WebDesign専用 + v0.3.0 Tier 2全11ツール + batch 3ツール + report.generate、project削除済み、quality.batch_evaluate/getJobStatus削除済み）を含むこと", () => {
+      expect(allToolDefinitions).toHaveLength(39);
     });
   });
 });

@@ -132,21 +132,6 @@ export let DINOV2_RECYCLE_THRESHOLD = 15;
 // ============================================================================
 
 /**
- * Feature flag: Phase 5 fork() mode.
- *
- * When enabled (default), Phase 5 embedding runs in child_process.fork() children
- * instead of in-process. This allows OS-level memory reclamation after each child
- * exits, preventing ONNX Runtime glibc malloc fragmentation from accumulating.
- *
- * Set PHASE5_FORK_ENABLED=false to fall back to legacy in-process mode.
- *
- * Retirement criteria: Remove this flag and the legacy in-process path
- * (processEmbeddingPhase direct call) after 2 stable releases with
- * PHASE5_FORK_ENABLED=true (default) and zero fork-related incidents.
- */
-export const PHASE5_FORK_ENABLED = (process.env.PHASE5_FORK_ENABLED ?? "true") !== "false";
-
-/**
  * Default worker concurrency
  *
  * Note: Set to 1 to avoid race condition with singleton browser instance.
@@ -295,6 +280,17 @@ export interface EmbeddingPhaseParams {
   responsiveAnalysisId?: string | undefined;
   /** Phase 1.1でDB保存されたパーツ数（0の場合はPartEmbeddingスキップ） */
   partsSavedCount?: number | undefined;
+  /**
+   * v0.4.0 PR4: Phase 5 同期フェーズで処理する Part text / visual embedding の上限件数。
+   * 100 件超のページで 100 に設定され、残余は embedding-backfill Queue 経由で処理する。
+   * undefined の場合は無制限（全件同期処理）。
+   *
+   * v0.4.0 PR4: Cap on the number of Part text / visual embeddings processed
+   * in the Phase 5 synchronous flow. Set to 100 when a page has more than 100
+   * Parts so the remainder is processed via the embedding-backfill Queue.
+   * Undefined means "no limit" (process all Parts synchronously).
+   */
+  partsLimit?: number | undefined;
   /** Base64エンコードされたフルページスクリーンショット（visual embedding用） */
   screenshotBase64?: string | undefined;
   /** Screenshot PNG ファイルパス（Phase 0 で保存、Phase 5 RAW デコード最適化用、TMP-5: Optional） */
@@ -303,6 +299,90 @@ export interface EmbeddingPhaseParams {
   sharedBrowser?: Browser | undefined;
   /** Granular progress callback for embedding sub-phases */
   onProgress?: ((completed: number, total: number) => void) | undefined;
+}
+
+/**
+ * Embedding phase スキップ理由の列挙体
+ * Reasons an embedding phase can be skipped.
+ *
+ * PR2 (v0.4.0): page.analyze の「サイレント skip」バグを解消するため、
+ * Phase 5 が部分的/全面的にスキップされた場合は必ずどれか一つの理由を
+ * {@link EmbeddingPhaseResult.skipReason} に設定する。
+ *
+ * PR2 (v0.4.0): Introduced to eliminate the "silent skip" bug in
+ * `page.analyze`. Whenever Phase 5 is skipped (fully or partially), exactly
+ * one of these values must be set on {@link EmbeddingPhaseResult.skipReason}.
+ */
+export const EMBEDDING_SKIP_REASONS = [
+  // V8 ヒープ残量不足（< 512MB） / V8 heap headroom below 512MB
+  "v8_heap_headroom_low",
+  // システム MemAvailable 不足（< 8GB） / System MemAvailable below 8GB
+  "system_memavailable_low",
+  // Text child fork 失敗（例外） / Text child fork threw
+  "text_fork_failed",
+  // Text child がエラーメッセージを返信 / Text child reported an error via IPC
+  "text_child_error",
+  // Text child 異常終了（非ゼロ exit / シグナル） / Text child abnormal exit
+  "text_child_abnormal_exit",
+  // Text child IPC race（exit 0 だが結果メッセージ未受信） / Text IPC race
+  "text_ipc_race",
+  // Visual child fork 失敗（例外） / Visual child fork threw
+  "visual_fork_failed",
+  // Visual child がエラーメッセージを返信 / Visual child reported an error via IPC
+  "visual_child_error",
+  // Visual child 異常終了 / Visual child abnormal exit
+  "visual_child_abnormal_exit",
+  // Visual child IPC race / Visual IPC race
+  "visual_ipc_race",
+  // Embedding 対象件数が 0（正常ケース） / No embeddable items (normal case)
+  "no_embeddable_items",
+  // dispatchEmbeddingPhase 全体の予期せぬ例外（text/visual 固有の reason に
+  // 分類できないケース）。TDA MEDIUM 1 (v0.4.0 PR2 監査): 外側 catch での
+  // text_fork_failed 誤分類を避けるための汎用分類。
+  // Generic catch-all for unexpected exceptions in `dispatchEmbeddingPhase`
+  // that cannot be attributed to text/visual specific reasons. Added to avoid
+  // mis-classifying Visual-path exceptions as `text_fork_failed` in the outer
+  // catch (TDA MEDIUM 1, v0.4.0 PR2 audit).
+  "dispatch_phase_failed",
+] as const;
+
+/**
+ * Embedding phase スキップ理由の型 / Type of embedding phase skip reason
+ */
+export type EmbeddingSkipReason = (typeof EMBEDDING_SKIP_REASONS)[number];
+
+/**
+ * `EmbeddingPhaseResult.skipDetail` の最大長（文字数）。
+ * 将来 URL / スタックトレース / PII が誤って混入した場合でも DB / ログ /
+ * MCP レスポンスへの漏洩を 200 文字で打ち切るための型レベルガード。
+ * LCC 推奨 (v0.4.0 PR2 監査)。
+ *
+ * Maximum length (in characters) of `EmbeddingPhaseResult.skipDetail`.
+ * Acts as a type-level guard so that URLs, stack traces, or PII that may
+ * accidentally reach this field are truncated to 200 chars before they leak
+ * into the DB, logs, or MCP responses. LCC recommendation (v0.4.0 PR2 audit).
+ */
+export const SKIP_DETAIL_MAX_LENGTH = 200;
+
+/**
+ * `skipDetail` 文字列を {@link SKIP_DETAIL_MAX_LENGTH} 文字以内に切り詰める。
+ * 既に収まっていれば入力をそのまま返す。機微情報（PII / stack trace / URL）の
+ * 混入が将来発生しても露出を最小化する目的で使用する。
+ *
+ * Truncates a `skipDetail` string to at most {@link SKIP_DETAIL_MAX_LENGTH}
+ * characters; returns the input unchanged when it already fits. Guards
+ * against PII / stack trace / URL accidentally reaching this field.
+ *
+ * @param detail 生の skipDetail 文字列 / raw skipDetail string
+ * @returns 切り詰め済み文字列 / truncated string
+ */
+export function truncateSkipDetail(detail: string): string {
+  if (detail.length <= SKIP_DETAIL_MAX_LENGTH) {
+    return detail;
+  }
+  // 末尾 3 文字は "..." の余白として確保する。
+  // Reserve 3 chars for the "..." suffix marker.
+  return `${detail.slice(0, SKIP_DETAIL_MAX_LENGTH - 3)}...`;
 }
 
 /**
@@ -329,6 +409,21 @@ export interface EmbeddingPhaseResult {
   embeddingFailedChunks: number;
   /** Embedding phase が完了したか */
   completed: boolean;
+  /**
+   * Phase 5 が部分的/全面的にスキップされた理由（PR2 v0.4.0）。
+   * `completed === false` かつ生成カウント合計が 0 のときは **必ず** 設定される。
+   * `completed === true` の場合でも、一部サブステップがスキップされた場合は設定されうる。
+   *
+   * Reason Phase 5 was skipped (PR2 v0.4.0). When `completed === false` and
+   * every embedding count is 0, this **must** be set. It may also be set when
+   * `completed === true` but a sub-step was skipped.
+   */
+  skipReason?: EmbeddingSkipReason | undefined;
+  /**
+   * `skipReason` の補足情報（数値・閾値など）。機微情報は含めないこと。
+   * Additional context for `skipReason` (numbers, thresholds). Must not contain PII.
+   */
+  skipDetail?: string | undefined;
 }
 
 /** Phase progress percentages

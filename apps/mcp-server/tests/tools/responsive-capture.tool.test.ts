@@ -28,6 +28,9 @@ vi.mock("../../src/utils/url-validator", () => ({
     .mockReturnValue({ valid: true, normalizedUrl: "https://example.com" }),
 }));
 
+import { validateExternalUrl } from "../../src/utils/url-validator";
+const mockValidateExternalUrl = vi.mocked(validateExternalUrl);
+
 // Mock checkMemoryPressure
 vi.mock("../../src/workers/phases/types", () => ({
   checkMemoryPressure: vi.fn().mockReturnValue({
@@ -304,6 +307,107 @@ describe("responsive.capture MCPツール", () => {
         // 内部構造が漏洩していないことを確認
         expect(result.error.message).not.toContain("Prisma");
         expect(result.error.message).not.toContain("section_patterns");
+      }
+    });
+  });
+
+  // ============================================================================
+  // SSRF防御の検証（Defense-in-Depth: ツールハンドラー層）
+  // ============================================================================
+  describe("SSRF防御（ツールハンドラー層）", () => {
+    it("プライベートIP（127.0.0.1）をブロックする", async () => {
+      mockValidateExternalUrl.mockReturnValueOnce({
+        valid: false,
+        error: "Blocked host: IP address 127.0.0.1 is in a private/reserved range",
+      });
+
+      const result = (await responsiveCaptureHandler({
+        url: "http://127.0.0.1:8080",
+      })) as ResponsiveCaptureOutput;
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe(RESPONSIVE_CAPTURE_ERROR_CODES.SSRF_BLOCKED);
+        expect(result.error.message).toContain("Blocked host");
+      }
+      expect(mockValidateExternalUrl).toHaveBeenCalledWith("http://127.0.0.1:8080");
+    });
+
+    it("プライベートIP（10.x）をブロックする", async () => {
+      mockValidateExternalUrl.mockReturnValueOnce({
+        valid: false,
+        error: "Blocked host: IP address 10.0.0.1 is in a private/reserved range",
+      });
+
+      const result = (await responsiveCaptureHandler({
+        url: "http://10.0.0.1",
+      })) as ResponsiveCaptureOutput;
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe(RESPONSIVE_CAPTURE_ERROR_CODES.SSRF_BLOCKED);
+      }
+    });
+
+    it("プライベートIP（172.16.x）をブロックする", async () => {
+      mockValidateExternalUrl.mockReturnValueOnce({
+        valid: false,
+        error: "Blocked host: IP address 172.16.0.1 is in a private/reserved range",
+      });
+
+      const result = (await responsiveCaptureHandler({
+        url: "http://172.16.0.1",
+      })) as ResponsiveCaptureOutput;
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe(RESPONSIVE_CAPTURE_ERROR_CODES.SSRF_BLOCKED);
+      }
+    });
+
+    it("プライベートIP（192.168.x）をブロックする", async () => {
+      mockValidateExternalUrl.mockReturnValueOnce({
+        valid: false,
+        error: "Blocked host: IP address 192.168.1.1 is in a private/reserved range",
+      });
+
+      const result = (await responsiveCaptureHandler({
+        url: "http://192.168.1.1",
+      })) as ResponsiveCaptureOutput;
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe(RESPONSIVE_CAPTURE_ERROR_CODES.SSRF_BLOCKED);
+      }
+    });
+
+    it("メタデータサービス（169.254.169.254）をブロックする", async () => {
+      mockValidateExternalUrl.mockReturnValueOnce({
+        valid: false,
+        error: "Blocked host: IP address 169.254.169.254 is in a private/reserved range",
+      });
+
+      const result = (await responsiveCaptureHandler({
+        url: "http://169.254.169.254/latest/meta-data/",
+      })) as ResponsiveCaptureOutput;
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe(RESPONSIVE_CAPTURE_ERROR_CODES.SSRF_BLOCKED);
+      }
+    });
+
+    it("有効な外部URLは通過する", async () => {
+      // デフォルトモックは valid: true なので追加設定不要
+      // ただしサービスファクトリー未設定のため SERVICE_UNAVAILABLE になる
+      const result = (await responsiveCaptureHandler({
+        url: "https://example.com",
+      })) as ResponsiveCaptureOutput;
+
+      expect(mockValidateExternalUrl).toHaveBeenCalledWith("https://example.com");
+      // SSRF_BLOCKED ではないことを確認（サービスファクトリー未設定による別エラー）
+      if (!result.success) {
+        expect(result.error.code).not.toBe(RESPONSIVE_CAPTURE_ERROR_CODES.SSRF_BLOCKED);
       }
     });
   });

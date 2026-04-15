@@ -8,9 +8,15 @@
  * @module services/responsive/responsive-persistence.service
  */
 
-import { prisma, Prisma } from "@reftrixmcp/database";
+import { prisma, Prisma, type PrismaClient } from "@reftrixmcp/database";
 import { isDevelopment, logger } from "../../utils/logger";
 import type { ResponsiveAnalysisResult, ViewportDiffResult } from "./types";
+
+/**
+ * ResponsivePersistenceService が使用する Prisma クライアントの最小インターフェース。
+ * PrismaClient および Prisma.TransactionClient の両方を受け入れる。
+ */
+type ResponsivePrismaClient = Pick<PrismaClient, "responsiveAnalysis">;
 
 /**
  * DB保存用の入力型
@@ -45,9 +51,16 @@ export class ResponsivePersistenceService {
    *
    * @param webPageId - 対象WebPageのID
    * @param result - レスポンシブ解析結果
+   * @param prismaClient - オプショナルな Prisma クライアント（トランザクション内で使用する場合に渡す）
+   *                       未指定時は共有 prisma シングルトンを使用（後方互換性維持）
    * @returns 保存されたレコードのID
    */
-  async save(webPageId: string, result: ResponsiveAnalysisResult): Promise<string> {
+  async save(
+    webPageId: string,
+    result: ResponsiveAnalysisResult,
+    prismaClient?: ResponsivePrismaClient
+  ): Promise<string> {
+    const db = prismaClient ?? prisma;
     if (isDevelopment()) {
       logger.info("[ResponsivePersistence] Saving responsive analysis", {
         webPageId,
@@ -71,7 +84,7 @@ export class ResponsivePersistenceService {
       : Prisma.DbNull;
 
     // clean-slate: 同一webPageIdの既存レコードを削除（CASCADE DELETEでembeddingも削除）
-    const deleted = await prisma.responsiveAnalysis.deleteMany({
+    const deleted = await db.responsiveAnalysis.deleteMany({
       where: { webPageId },
     });
 
@@ -87,7 +100,7 @@ export class ResponsivePersistenceService {
     // result.viewportsAnalyzed は ResponsiveViewport[] なのでそのまま渡す
     // NOTE: width/height はプリセット値（RESPONSIVE_VIEWPORTS定義）であり、
     // 実際のユーザーデバイス解像度ではない。フィンガープリンティングリスクなし。
-    const record = await prisma.responsiveAnalysis.create({
+    const record = await db.responsiveAnalysis.create({
       data: {
         webPageId,
         viewportsAnalyzed: result.viewportsAnalyzed.map((v) => ({

@@ -8,9 +8,9 @@
 
 ## はじめに / Introduction
 
-Reftrixは **WebDesign専用プラットフォーム** です。このガイドでは、**<!-- gen:tool-count -->35<!-- /gen:tool-count -->のWebDesign専用MCPツール**を活用して、Webページの解析・品質評価・コード生成・嗜好プロファイリング・横断検索・画像類似検索・アクセシビリティ監査・パフォーマンス評価・デザイン変更追跡を行う方法を解説します。
+Reftrixは **WebDesign専用プラットフォーム** です。このガイドでは、**<!-- gen:tool-count -->39<!-- /gen:tool-count -->のWebDesign専用MCPツール**を活用して、Webページの解析・品質評価・コード生成・嗜好プロファイリング・横断検索・画像類似検索・アクセシビリティ監査・パフォーマンス評価・デザイン変更追跡を行う方法を解説します。
 
-Reftrix is a **WebDesign-specialized platform**. This guide explains how to use **<!-- gen:tool-count -->35<!-- /gen:tool-count --> WebDesign-focused MCP tools** to analyze web pages, evaluate design quality, generate code, personalize search results through preference profiling, perform unified cross-service search, find visually similar designs, audit accessibility, evaluate performance, and track design changes.
+Reftrix is a **WebDesign-specialized platform**. This guide explains how to use **<!-- gen:tool-count -->39<!-- /gen:tool-count --> WebDesign-focused MCP tools** to analyze web pages, evaluate design quality, generate code, personalize search results through preference profiling, perform unified cross-service search, find visually similar designs, audit accessibility, evaluate performance, and track design changes.
 
 > **重要 / Important**: v0.1.0でSVG機能は削除されました。本ガイドはWebDesign専用ツールのみを扱います。
 > All SVG features were removed in v0.1.0. This guide covers WebDesign-only tools.
@@ -105,7 +105,7 @@ const result = await page.analyze({
 
 ## 2. ツールカテゴリ概要 / Tool Category Overview
 
-### WebDesign MCPツール（<!-- gen:tool-count -->35<!-- /gen:tool-count -->ツール） / WebDesign MCP Tools (<!-- gen:tool-count -->35<!-- /gen:tool-count --> Tools)
+### WebDesign MCPツール（<!-- gen:tool-count -->39<!-- /gen:tool-count -->ツール） / WebDesign MCP Tools (<!-- gen:tool-count -->39<!-- /gen:tool-count --> Tools)
 
 | カテゴリ / Category | ツール数 / Count | 主な用途 / Primary Purpose                                                                                                                   |
 | ------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1091,6 +1091,45 @@ async function waitForCompletion(jobId: string, maxWait = 120000): Promise<unkno
 
 - 非同期モードを使用するにはRedis（BullMQ）が必要
 - ジョブは24時間後に自動削除されます
+
+### 8.3 page.batch_analyze - バッチ一括分析 / Batch Analysis (v0.4.0)
+
+**用途 / Purpose**: 複数URLを一括分析する（競合調査、デザインシステム監査等）/ Analyze multiple URLs in batch (competitive research, design system audits, etc.)
+
+```typescript
+// 複数URLの一括分析
+const batch = await page.batch_analyze({
+  urls: ["https://example.com", "https://example.org", "https://example.net"],
+  concurrency: 3, // バッチ内並列数 (1-5, default: 3)
+  timeout: 1800000, // バッチ全体タイムアウト (default: 30分)
+  respect_robots_txt: true, // robots.txt尊重 (default: true)
+  on_error: "skip", // 失敗時はスキップして継続 (default: "skip")
+});
+// → { success: true, data: { batchId: "...", totalUrls: 3, jobIds: [...] } }
+```
+
+**制限事項 / Limits**:
+
+- 最大50 URL/バッチ / Max 50 URLs per batch
+- 同時1バッチ制限（CWE-770 DoS対策）/ Max 1 concurrent batch (CWE-770)
+- analysis tier (10 RPM) レート制御 / analysis tier rate limiting
+- 全URLにSSRF事前検証 / SSRF pre-validation on all URLs
+
+### 8.4 page.getBatchStatus - バッチステータス確認 / Batch Status Check (v0.4.0)
+
+**用途 / Purpose**: `page.batch_analyze` で投入したバッチジョブの進捗確認・結果取得 / Check progress and retrieve results of batch jobs submitted via `page.batch_analyze`
+
+```typescript
+const status = await page.getBatchStatus({
+  batch_id: batch.data.batchId,
+});
+// → { success: true, data: { state: "completed", progress: 100, summary: {...}, jobs: [...] } }
+```
+
+**注意事項**:
+
+- read-only、冪等（何度呼んでも同じ結果）/ Read-only, idempotent
+- バッチメタデータは48時間後にRedisから自動削除 / Batch metadata auto-expires after 48h
 
 ---
 
@@ -2509,9 +2548,9 @@ await page.analyze({
 
 ## まとめ / Summary
 
-このガイドでは、Reftrixの<!-- gen:tool-count -->35<!-- /gen:tool-count --> WebDesign MCPツールを活用してWebページの解析・品質評価・コード生成・嗜好プロファイリング・アクセシビリティ監査・パフォーマンス評価・デザイン変更追跡を行う方法を解説しました。
+このガイドでは、Reftrixの<!-- gen:tool-count -->39<!-- /gen:tool-count --> WebDesign MCPツールを活用してWebページの解析・品質評価・コード生成・嗜好プロファイリング・アクセシビリティ監査・パフォーマンス評価・デザイン変更追跡を行う方法を解説しました。
 
-This guide explained how to use Reftrix's <!-- gen:tool-count -->35<!-- /gen:tool-count --> WebDesign MCP tools for web page analysis, quality evaluation, code generation, preference profiling, accessibility auditing, performance evaluation, and design change tracking.
+This guide explained how to use Reftrix's <!-- gen:tool-count -->39<!-- /gen:tool-count --> WebDesign MCP tools for web page analysis, quality evaluation, code generation, preference profiling, accessibility auditing, performance evaluation, and design change tracking.
 
 ### 次のステップ / Next Steps
 

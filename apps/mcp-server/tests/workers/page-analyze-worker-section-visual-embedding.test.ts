@@ -63,17 +63,17 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
   describe("正常系: Section visual embedding 生成", () => {
     it("should have Section Visual Embedding step in processEmbeddingPhase", () => {
       // processEmbeddingPhase 関数内に Section Visual Embedding セクションが存在する
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
       expect(fnStart).toBeGreaterThan(-1);
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
       expect(fnBody).toContain("Section Visual Embedding");
       expect(fnBody).toContain("DINOv2");
     });
 
     it("should query section_embeddings with null vision_embedding via raw SQL", () => {
       // vision_embedding が NULL のレコードを raw SQL で取得する
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
+      const fnBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
       expect(fnBody).toContain("vision_embedding IS NULL");
       expect(fnBody).toContain("text_embedding IS NOT NULL");
       expect(fnBody).toContain("section_embeddings");
@@ -160,12 +160,12 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
   // 2. スキップ: screenshotBase64 が存在しない場合
   // ========================================================================
   describe("スキップ: screenshotBase64 が存在しない場合", () => {
-    it("should guard section visual embedding with screenshotBase64 check", () => {
-      // screenshotBase64 が存在しない場合、DINOv2 visual embedding全体をスキップする
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
-      // screenshotBase64 && (hasSections || hasParts) の条件分岐がある
-      expect(fnBody).toContain("screenshotBase64 && (hasSections || hasParts)");
+    it("should guard visual embedding with screenshotBuffer null check in runVisualEmbeddingSubPhases", () => {
+      // screenshotBuffer が null の場合、runVisualEmbeddingSubPhases は早期 return
+      const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 5000);
+      expect(fnBody).toContain("if (!screenshotBuffer) return vResult");
     });
 
     it("sectionVisualEmbeddingsGenerated should initialize to 0", () => {
@@ -221,32 +221,35 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
     it("should have outer try-catch for entire visual embedding block", () => {
       // DINOv2 初期化（new DINOv2Service + initialize()）が失敗しても
       // processEmbeddingPhase 全体は成功する（Graceful Degradation）
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
+      const fnBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
       // visual embedding 失敗は non-fatal
       expect(fnBody).toContain("DINOv2 visual embedding failed (non-fatal)");
     });
 
-    it("should increment embeddingFailedChunks on visual embedding outer failure", () => {
+    it("should increment embeddingFailedChunks on visual embedding failure in fork child", () => {
       // DINOv2 初期化失敗時に embeddingFailedChunks をインクリメント
-      const fnStart = workerSource.indexOf("DINOv2 visual embedding failed (non-fatal)");
-      const catchBody = workerSource.slice(fnStart - 200, fnStart + 300);
-      expect(catchBody).toContain("result.embeddingFailedChunks++");
+      // In fork path, this happens in runVisualEmbeddingSubPhases
+      const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 20000);
+      expect(fnBody).toContain("embeddingFailedChunks++");
     });
 
-    it("should not set result.completed = false when visual embedding fails", () => {
-      // Graceful Degradation: visual embedding 失敗後も result.completed = true になる
-      const completedLine = workerSource.indexOf("result.completed = true");
-      expect(completedLine).toBeGreaterThan(-1);
-      // result.completed = true は visual embedding の try-catch の外にある
-      const visualFailPos = workerSource.indexOf("DINOv2 visual embedding failed (non-fatal)");
-      expect(completedLine).toBeGreaterThan(visualFailPos);
+    it("should mark embedding phase as completed even when visual embedding fails", () => {
+      // Graceful Degradation: Phase 5 overall failure is caught in page-analyze-worker.ts
+      // and marked as partialSuccess. The fork orchestrator handles errors per-child.
+      const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 20000);
+      // The function returns a result even on partial failure (non-fatal catch blocks)
+      expect(fnBody).toContain("return vResult");
     });
 
     it("should have separate try-catch for section visual embedding vs part visual embedding", () => {
       // section visual embedding 固有の Graceful Degradation
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
+      const fnBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
       expect(fnBody).toContain("Section DINOv2 visual embedding failed (non-fatal)");
     });
   });
@@ -343,33 +346,32 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
   // 7. DINOv2 共用: Section + Part 両方で使用（1回だけ init / dispose）
   // ========================================================================
   describe("DINOv2 共用: Section + Part 両方で使用", () => {
-    it("DINOv2Service should be initialized once before both Section and Part visual embedding", () => {
-      // DINOv2Service は Section + Part 共用で 1 回だけ初期化される
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+    it("DINOv2Service should be initialized once in runVisualEmbeddingSubPhases", () => {
+      // DINOv2Service は runVisualEmbeddingSubPhases 内で 1 回だけ初期化される
+      const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 20000);
 
-      // 「Section + Partで共用」コメントが存在する
-      expect(fnBody).toContain("Section + Part");
-
-      // DINOv2Service の初期化
       expect(fnBody).toContain("new DINOv2Service");
       expect(fnBody).toContain("await dinov2Service.initialize()");
     });
 
-    it("DINOv2Service should be disposed once in finally block after both Section and Part", () => {
+    it("DINOv2Service should be disposed in finally block after visual embedding", () => {
       // DINOv2 dispose は finally ブロックで 1 回だけ実行される
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 20000);
 
       expect(fnBody).toContain("await dinov2Service.dispose()");
-      // finally ブロック内に dispose がある（Section + Part完了後）
-      expect(fnBody).toContain("Section + Part");
     });
 
     it("Section Visual Embedding should appear before Part Visual Embedding in source", () => {
       // Section visual -> Part visual の順に実行される
-      const sectionVisualPos = workerSource.indexOf("Section Visual Embedding (DINOv2)");
-      const partVisualPos = workerSource.indexOf("Part Visual Embedding (DINOv2)");
+      const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 20000);
+      const sectionVisualPos = fnBody.indexOf("Section Visual Embedding");
+      const partVisualPos = fnBody.indexOf("Part Visual Embedding");
       expect(sectionVisualPos).toBeGreaterThan(-1);
       expect(partVisualPos).toBeGreaterThan(-1);
       expect(sectionVisualPos).toBeLessThan(partVisualPos);
@@ -377,48 +379,45 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
 
     it("should use same dinov2Service instance for both Section and Part", () => {
       // Section と Part で同じ dinov2Service インスタンスを使用する
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 20000);
 
-      // dinov2Service は try ブロックの先頭で初期化され、
-      // Section と Part 両方の generateVisualEmbedding に渡される
-      // acquireSectionCropBuffer 抽出後は cropResult.rawCropBuffer を渡す
       const initPos = fnBody.indexOf("const dinov2Service = new DINOv2Service");
-      const sectionUsePos = fnBody.indexOf("generateVisualEmbedding(");
-      // Prettier formats multi-line: generateVisualEmbedding(\n  dinov2Service,
-      const partUsePos = fnBody.lastIndexOf("generateVisualEmbedding(");
+      const sectionUsePos = fnBody.indexOf("processSectionVisualEmbeddingLoop");
+      const partUsePos = fnBody.indexOf("processPartVisualEmbeddingLoop");
 
       expect(initPos).toBeGreaterThan(-1);
       expect(sectionUsePos).toBeGreaterThan(initPos);
-      // partUsePos is the LAST occurrence, must be at or after sectionUsePos (the first)
-      expect(partUsePos).toBeGreaterThanOrEqual(sectionUsePos);
+      expect(partUsePos).toBeGreaterThan(sectionUsePos);
     });
 
-    it("DINOv2Service initialization count should be exactly 1 in the embedding phase", () => {
-      // new DINOv2Service(...) の出現回数が processEmbeddingPhase 内で 1 回のみ
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+    it("DINOv2Service initialization count should be exactly 1 in runVisualEmbeddingSubPhases", () => {
+      const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 20000);
 
       const initMatches = fnBody.match(/new DINOv2Service/g);
       expect(initMatches).not.toBeNull();
       expect(initMatches!.length).toBe(1);
     });
 
-    it("dinov2Service.dispose() should be called exactly 1 time in finally block", () => {
-      // dispose() が processEmbeddingPhase 内で呼ばれる（Phase 5終了時 + 動的Fallback前の一時dispose）
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+    it("dinov2Service.dispose() should be called in runVisualEmbeddingSubPhases", () => {
+      const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 20000);
 
       const disposeMatches = fnBody.match(/dinov2Service\.dispose\(\)/g);
       expect(disposeMatches).not.toBeNull();
       expect(disposeMatches!.length).toBeGreaterThanOrEqual(1);
     });
 
-    it("should have memory recovery between section and part visual embedding", () => {
-      // section visual 完了後、part visual の前に GC を挟む
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
-      expect(fnBody).toContain("Memory recovery between section and part visual embedding");
+    it("should have GC call between section and part visual embedding", () => {
+      // fork path: runVisualEmbeddingSubPhases has tryGarbageCollect between section and part
+      const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 20000);
+      expect(fnBody).toContain("tryGarbageCollect()");
     });
   });
 
@@ -505,10 +504,12 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
       expect(paramsSection).toContain("screenshotBase64");
     });
 
-    it("should destructure screenshotBase64 from params in processEmbeddingPhase", () => {
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + 700);
-      expect(fnBody).toContain("screenshotBase64");
+    it("should include screenshotPngPath for fork-based visual embedding", () => {
+      // In fork path, visual embedding child reads screenshot from screenshotPngPath
+      const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 2000);
+      expect(fnBody).toContain("screenshotPngPath");
     });
   });
 
@@ -516,19 +517,19 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
   // 追加: hasSections 条件分岐
   // ========================================================================
   describe("hasSections 条件分岐", () => {
-    it("should define hasSections from sectionSaveResult.idMapping.size", () => {
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+    it("should define hasSections from sectionIdMapping.size in runVisualEmbeddingSubPhases", () => {
+      const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 20000);
       expect(fnBody).toContain("hasSections");
-      expect(fnBody).toContain("sectionSaveResult");
-      expect(fnBody).toContain("idMapping");
+      expect(fnBody).toContain("sectionIdMapping");
     });
 
     it("should only execute Section Visual Embedding when hasSections is true", () => {
-      const fnStart = workerSource.indexOf("Section Visual Embedding");
-      // hasSections ガードが Section Visual Embedding コメントの後に来る
-      const sectionVisualBody = workerSource.slice(fnStart, fnStart + 600);
-      expect(sectionVisualBody).toContain("hasSections");
+      const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 20000);
+      expect(fnBody).toContain("if (hasSections)");
     });
   });
 
@@ -538,8 +539,8 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
   describe("screenshotMeta（画像サイズ）の Section + Part 共有", () => {
     it("should retrieve screenshot dimensions via sharp metadata before Section visual embedding", () => {
       // screenshotMeta は Section + Part の両方で使用される
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
+      const fnBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
       expect(fnBody).toContain("screenshotMeta");
       expect(fnBody).toContain("sharp(screenshotBuffer).metadata()");
       expect(fnBody).toContain("imgWidth");
@@ -554,11 +555,13 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
       expect(sectionVisualBody).toContain("imgHeight");
     });
 
-    it("screenshot metadata retrieval should appear before Section Visual Embedding", () => {
-      const metadataPos = workerSource.indexOf(
-        "screenshotMeta = await sharp(screenshotBuffer).metadata()"
-      );
-      const sectionVisualPos = workerSource.indexOf("Section Visual Embedding (DINOv2)");
+    it("screenshot metadata retrieval should appear before Section Visual Embedding in runVisualEmbeddingSubPhases", () => {
+      // In fork path, metadata is retrieved in runVisualEmbeddingSubPhases
+      const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
+      expect(fnStart).toBeGreaterThan(-1);
+      const fnBody = workerSource.slice(fnStart, fnStart + 20000);
+      const metadataPos = fnBody.indexOf("sharp(screenshotBuffer).metadata()");
+      const sectionVisualPos = fnBody.indexOf("processSectionVisualEmbeddingLoop");
       expect(metadataPos).toBeGreaterThan(-1);
       expect(sectionVisualPos).toBeGreaterThan(-1);
       expect(metadataPos).toBeLessThan(sectionVisualPos);
@@ -590,9 +593,10 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
     });
 
     it("PII check should appear before the section visual embedding processing loop", () => {
-      // PII check は processEmbeddingPhase 内、ループ呼び出し前に実行される
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
-      const embeddingBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      // PII check は runVisualEmbeddingSubPhases 内、processSectionVisualEmbeddingLoop 呼び出し前に実行される
+      const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
+      expect(fnStart).toBeGreaterThan(-1);
+      const embeddingBody = workerSource.slice(fnStart, fnStart + 20000);
       const piiCheckPos = embeddingBody.indexOf("pii_risk_level = 'high'");
       expect(piiCheckPos).toBeGreaterThan(-1);
       // processSectionVisualEmbeddingLoop 呼び出しがPII check より後にある

@@ -775,8 +775,8 @@ describe("SectionDetector - Tailwind CSS Sites", () => {
       // 最低限、セクションとして検出されることを確認
       expect(sections.length).toBeGreaterThanOrEqual(1);
 
-      // TODO: contact検出の改善後、以下を有効化
-      // expect(contactSections.length).toBeGreaterThanOrEqual(1);
+      // contact検出改善済み（SD-1: cta/generic→contact補正）
+      expect(contactSections.length).toBeGreaterThanOrEqual(1);
     });
   });
 });

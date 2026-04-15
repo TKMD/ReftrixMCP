@@ -898,7 +898,8 @@ function classifySectionType(
   }
 
   // Special case: Form elements indicate contact
-  if ($el.find("form").length > 0 && bestType === "unknown") {
+  // Form + email/textarea indicators strongly suggest contact, even if initially classified as cta
+  if ($el.find("form").length > 0 && (bestType === "unknown" || bestType === "cta")) {
     const contactIndicators = $el.find(
       'input[type="email"], textarea, input[name*="email"], input[name*="message"]'
     ).length;

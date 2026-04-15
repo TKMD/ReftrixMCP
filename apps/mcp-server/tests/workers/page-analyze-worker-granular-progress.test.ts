@@ -353,16 +353,14 @@ describe("processEmbeddingPhase compound progress", () => {
     expect(interfaceMatch![0]).toContain("onProgress?:");
   });
 
-  it("should calculate totalEmbeddingItems from all sub-phases", () => {
-    expect(workerSource).toContain("totalEmbeddingItems");
-    expect(workerSource).toContain(
-      "sectionCount + motionCount + visionMotionCount + bgCount + jsCount"
-    );
+  it("should calculate totalItems from all sub-phases via estimateTotalItems", () => {
+    expect(workerSource).toContain("estimateTotalItems");
+    expect(workerSource).toContain("totalItems");
   });
 
-  it("should track completedEmbeddingItems across sub-phases", () => {
-    expect(workerSource).toContain("completedEmbeddingItems");
-    expect(workerSource).toContain("completedEmbeddingItems++");
+  it("should track completedItems across sub-phases", () => {
+    expect(workerSource).toContain("completedItems");
+    expect(workerSource).toContain("completedItems++");
   });
 
   it("should pass onProgress to section embedding generation", () => {
@@ -373,7 +371,7 @@ describe("processEmbeddingPhase compound progress", () => {
     expect(workerSource).toContain("onProgress: ctx.reportEmbeddingSubProgress,");
   });
 
-  it("should pass createPhaseProgressInterpolator to processEmbeddingPhase call", () => {
+  it("should pass createPhaseProgressInterpolator to dispatchEmbeddingPhase call", () => {
     // Prettier formats multi-line: createPhaseProgressInterpolator(\n  job,\n  ...START,\n  ...COMPLETE\n)
     expect(workerSource).toContain("onProgress: createPhaseProgressInterpolator(");
     expect(workerSource).toContain("PHASE_PROGRESS.EMBEDDING_START,");

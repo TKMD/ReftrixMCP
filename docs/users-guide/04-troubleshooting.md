@@ -709,7 +709,12 @@ page.analyze returns a job ID, but data is not saved to the database
 
 `page.analyze` runs asynchronously. Without the worker running, jobs remain queued and are not saved to the database.
 
+**v0.4.0 PR7d-2 以降**: MCP サーバー起動時に `WorkerSupervisor` がワーカーを自動 fork するため、通常は追加起動不要です。ワーカーが稼働していないことを確認してから手動起動してください（同時起動時は Redis-based dual-run guard により後発側が `exit(1)` します）。手動起動時に MCP サーバーも動いている場合は、`REFTRIX_ALLOW_MANUAL_WORKER=true` を設定して opt-out してください。
+
+**v0.4.0 PR7d-2+**: The MCP server auto-forks the worker via `WorkerSupervisor`, so manual start is normally unnecessary. Confirm no existing worker is running before manual start (dual-run guard will `exit(1)` on the later process). If the MCP server is also running, set `REFTRIX_ALLOW_MANUAL_WORKER=true` to opt out.
+
 ```bash
+# 開発者向け手動起動 / Developer-only manual start
 pnpm --filter @reftrixmcp/mcp-server worker:start:page
 ```
 

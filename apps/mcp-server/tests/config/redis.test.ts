@@ -4,7 +4,10 @@
 /**
  * Redis Configuration Tests
  *
- * Tests for Redis connection configuration module
+ * Tests for Redis connection configuration module, including:
+ * - BullMQ-compliant defaults (maxRetriesPerRequest: null)
+ * - Purpose-aware client creation (worker / queue / client)
+ * - REDIS_MAX_RETRIES_PER_REQUEST env var validation
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -22,6 +25,8 @@ describe("Redis Configuration", () => {
     // Reset environment for each test
     vi.resetModules();
     process.env = { ...originalEnv };
+    // Ensure tests start from a clean slate for the newly-introduced env var.
+    delete process.env.REDIS_MAX_RETRIES_PER_REQUEST;
   });
 
   afterEach(() => {
@@ -32,7 +37,9 @@ describe("Redis Configuration", () => {
     it("should have correct default values with port offset", () => {
       expect(DEFAULT_REDIS_CONFIG.host).toBe("localhost");
       expect(DEFAULT_REDIS_CONFIG.port).toBe(27379); // 6379 + 21000
-      expect(DEFAULT_REDIS_CONFIG.maxRetriesPerRequest).toBe(3);
+      // BullMQ 公式必須: maxRetriesPerRequest は null がデフォルト
+      // BullMQ requires maxRetriesPerRequest to be null by default
+      expect(DEFAULT_REDIS_CONFIG.maxRetriesPerRequest).toBe(null);
       expect(DEFAULT_REDIS_CONFIG.connectTimeout).toBe(5000);
       expect(DEFAULT_REDIS_CONFIG.lazyConnect).toBe(true);
     });
@@ -54,7 +61,7 @@ describe("Redis Configuration", () => {
 
       expect(config.host).toBe("localhost");
       expect(config.port).toBe(27379);
-      expect(config.maxRetriesPerRequest).toBe(3);
+      expect(config.maxRetriesPerRequest).toBe(null);
     });
 
     it("should parse REDIS_URL environment variable", () => {
@@ -150,8 +157,52 @@ describe("Redis Configuration", () => {
     });
   });
 
-  describe("createRedisClient", () => {
-    it("should create a Redis client with default config", () => {
+  describe("REDIS_MAX_RETRIES_PER_REQUEST env var (BullMQ compliance)", () => {
+    it("should default to null when env var is unset", () => {
+      delete process.env.REDIS_MAX_RETRIES_PER_REQUEST;
+      const config = getRedisConfig();
+      expect(config.maxRetriesPerRequest).toBe(null);
+    });
+
+    it("should coerce empty string to null", () => {
+      process.env.REDIS_MAX_RETRIES_PER_REQUEST = "";
+      const config = getRedisConfig();
+      expect(config.maxRetriesPerRequest).toBe(null);
+    });
+
+    it("should coerce literal 'null' to null", () => {
+      process.env.REDIS_MAX_RETRIES_PER_REQUEST = "null";
+      const config = getRedisConfig();
+      expect(config.maxRetriesPerRequest).toBe(null);
+    });
+
+    it("should accept explicit numeric values", () => {
+      process.env.REDIS_MAX_RETRIES_PER_REQUEST = "5";
+      const config = getRedisConfig();
+      expect(config.maxRetriesPerRequest).toBe(5);
+    });
+
+    it("should accept 0 (unlimited retries semantics in ioredis)", () => {
+      process.env.REDIS_MAX_RETRIES_PER_REQUEST = "0";
+      const config = getRedisConfig();
+      expect(config.maxRetriesPerRequest).toBe(0);
+    });
+
+    it("should fall back to null on non-numeric garbage", () => {
+      process.env.REDIS_MAX_RETRIES_PER_REQUEST = "not-a-number";
+      const config = getRedisConfig();
+      expect(config.maxRetriesPerRequest).toBe(null);
+    });
+
+    it("should fall back to null on negative values", () => {
+      process.env.REDIS_MAX_RETRIES_PER_REQUEST = "-1";
+      const config = getRedisConfig();
+      expect(config.maxRetriesPerRequest).toBe(null);
+    });
+  });
+
+  describe("createRedisClient (purpose-aware)", () => {
+    it("should create a Redis client with default config (client purpose)", () => {
       const client = createRedisClient();
 
       expect(client).toBeDefined();
@@ -186,15 +237,6 @@ describe("Redis Configuration", () => {
       client.disconnect();
     });
 
-    it("should have offline queue disabled for fail-fast behavior", () => {
-      const client = createRedisClient();
-
-      expect(client.options.enableOfflineQueue).toBe(false);
-
-      // Cleanup
-      client.disconnect();
-    });
-
     it("should have retry strategy configured", () => {
       const client = createRedisClient();
 
@@ -204,6 +246,98 @@ describe("Redis Configuration", () => {
 
       // Cleanup
       client.disconnect();
+    });
+
+    // ===============================================================
+    // Purpose-aware configuration — BullMQ compliance
+    // ===============================================================
+
+    it("purpose='worker' should enable offline queue and force maxRetries=null (BullMQ required)", () => {
+      const client = createRedisClient({ purpose: "worker" });
+      try {
+        // BullMQ required: offline queue enabled + maxRetriesPerRequest null
+        expect(client.options.enableOfflineQueue).toBe(true);
+        expect(client.options.maxRetriesPerRequest).toBe(null);
+      } finally {
+        client.disconnect();
+      }
+    });
+
+    it("purpose='queue' should enable offline queue and force maxRetries=null (BullMQ required)", () => {
+      const client = createRedisClient({ purpose: "queue" });
+      try {
+        expect(client.options.enableOfflineQueue).toBe(true);
+        expect(client.options.maxRetriesPerRequest).toBe(null);
+      } finally {
+        client.disconnect();
+      }
+    });
+
+    it("purpose='client' should preserve fail-fast behaviour (maxRetries=3, offline queue off)", () => {
+      const client = createRedisClient({ purpose: "client" });
+      try {
+        // Fail-fast for short-lived clients (rate limiters, ad-hoc readers)
+        expect(client.options.enableOfflineQueue).toBe(false);
+        expect(client.options.maxRetriesPerRequest).toBe(3);
+      } finally {
+        client.disconnect();
+      }
+    });
+
+    it("default purpose should be 'client' (backward compatibility)", () => {
+      const client = createRedisClient();
+      try {
+        expect(client.options.enableOfflineQueue).toBe(false);
+        expect(client.options.maxRetriesPerRequest).toBe(3);
+      } finally {
+        client.disconnect();
+      }
+    });
+
+    it("purpose='worker' retryStrategy should return finite ms and never null (retry forever)", () => {
+      const client = createRedisClient({ purpose: "worker" });
+      try {
+        const strategy = client.options.retryStrategy as (t: number) => number | null;
+        expect(strategy).toBeDefined();
+        // Sample a few attempt counts — none should return null
+        for (const attempt of [1, 10, 100, 1000]) {
+          const delay = strategy(attempt);
+          expect(delay).not.toBeNull();
+          expect(typeof delay).toBe("number");
+          expect(delay).toBeGreaterThan(0);
+          expect(delay).toBeLessThanOrEqual(30_000);
+        }
+      } finally {
+        client.disconnect();
+      }
+    });
+
+    it("purpose='client' retryStrategy should return null after 3 attempts (fail-fast)", () => {
+      const client = createRedisClient({ purpose: "client" });
+      try {
+        const strategy = client.options.retryStrategy as (t: number) => number | null;
+        expect(strategy).toBeDefined();
+        // First 3 attempts return numeric delays
+        expect(strategy(1)).toBeGreaterThan(0);
+        expect(strategy(2)).toBeGreaterThan(0);
+        expect(strategy(3)).toBeGreaterThan(0);
+        // 4th attempt returns null (give up)
+        expect(strategy(4)).toBeNull();
+      } finally {
+        client.disconnect();
+      }
+    });
+
+    it("purpose='worker' should honour explicit numeric maxRetriesPerRequest override (tests only)", () => {
+      // Escape hatch for tests that want finite retries on a worker-purpose client.
+      const client = createRedisClient({ purpose: "worker", maxRetriesPerRequest: 7 });
+      try {
+        expect(client.options.maxRetriesPerRequest).toBe(7);
+        // offlineQueue is still enabled regardless of maxRetries override
+        expect(client.options.enableOfflineQueue).toBe(true);
+      } finally {
+        client.disconnect();
+      }
     });
   });
 

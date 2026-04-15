@@ -304,19 +304,19 @@ export class OllamaVisionClient {
    * @returns 接続可能な場合はtrue
    */
   async isAvailable(): Promise<boolean> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
       const response = await fetch(`${this.ollamaUrl}/api/tags`, {
         method: "GET",
         signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
       return response.ok;
     } catch {
       return false;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -409,8 +409,9 @@ export class OllamaVisionClient {
    */
   private async executeWithRetry<T>(fn: () => Promise<T>): Promise<T> {
     let lastError: Error | undefined;
+    const effectiveMaxRetries = this.enableRetry ? this.maxRetries : 0;
 
-    for (let attempt = 0; attempt <= (this.enableRetry ? this.maxRetries : 0); attempt++) {
+    for (let attempt = 0; attempt <= effectiveMaxRetries; attempt++) {
       try {
         return await fn();
       } catch (error) {
@@ -421,8 +422,17 @@ export class OllamaVisionClient {
           throw error;
         }
 
+        // 接続拒否エラーはリトライしても復旧しないため即座にthrow
+        if (
+          error instanceof VisionAnalysisError &&
+          error.code === "OLLAMA_UNAVAILABLE" &&
+          error.message.includes("Cannot connect")
+        ) {
+          throw error;
+        }
+
         // 最後の試行でも失敗した場合
-        if (attempt >= this.maxRetries) {
+        if (attempt >= effectiveMaxRetries) {
           break;
         }
 

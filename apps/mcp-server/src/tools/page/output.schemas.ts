@@ -9,6 +9,13 @@
  */
 import { z } from "zod";
 import { gradeSchema, sourceTypeSchema, usageScopeSchema } from "./shared.schemas";
+// v0.4.0 PR7b (ADR-0008 #7): `backfillPending` discriminated union の SSOT 参照
+// v0.4.0 PR7b (ADR-0008 #7): SSOT references for the `backfillPending` discriminated union
+import {
+  EMBEDDING_BACKFILL_CATEGORIES,
+  SKIP_RECOVERY_RETRY_CAP,
+} from "../../queues/embedding-backfill-queue";
+import { EMBEDDING_SKIP_REASONS } from "../../workers/phases/types";
 
 // ============================================================================
 // Output Schemas - Layout
@@ -1537,6 +1544,112 @@ export const jobStateSchema = z.enum([
 ]);
 export type JobState = z.infer<typeof jobStateSchema>;
 
+// ============================================================================
+// Embedding Backfill Pending — Discriminated Union (PR7b v0.4.0 / ADR-0008 #7)
+// ============================================================================
+
+/**
+ * `backfillPending` の `sync_overflow` ソース（PR5 v0.4.0）。
+ * Phase 5 が 100 件閾値を超過し、残余を async backfill に回した場合。
+ *
+ * `sync_overflow` source of `backfillPending` (PR5 v0.4.0).
+ * When Phase 5 exceeded the 100-item sync cap and tailed the remainder to async backfill.
+ */
+export const backfillPendingSyncOverflowSchema = z.object({
+  source: z.literal("sync_overflow"),
+  partTextPending: z.number().int().nonnegative(),
+  partVisualPending: z.number().int().nonnegative(),
+  /**
+   * v0.4.0 PR7e-α (バグ⑥): section_visual backfill pending 件数。
+   * Backward-compat のため optional (未 enqueue の場合 undefined)。
+   *
+   * v0.4.0 PR7e-α (bug ⑥): section_visual backfill pending count. Optional
+   * for backward compatibility; undefined when not enqueued.
+   */
+  sectionVisualPending: z.number().int().nonnegative().optional(),
+  jobIds: z.array(z.string()),
+  estimatedCompletionAt: z.string().datetime().optional(),
+});
+export type BackfillPendingSyncOverflow = z.infer<typeof backfillPendingSyncOverflowSchema>;
+
+/**
+ * `backfillPending` の `skip_recovery` ソース（PR7b v0.4.0 / ADR-0008 #2）。
+ * Phase 5 全体 skip 時に全 7 カテゴリを recovery enqueue した場合。
+ *
+ * `skip_recovery` source of `backfillPending` (PR7b v0.4.0 / ADR-0008 #2).
+ * When Phase 5 was entirely skipped and all 7 categories were enqueued for recovery.
+ */
+export const backfillPendingSkipRecoverySchema = z.object({
+  source: z.literal("skip_recovery"),
+  // SSOT `EMBEDDING_SKIP_REASONS` は許容値として `superRefine` で検証する。
+  // source 型側（`EmbeddingBackfillPendingSkipRecovery.skipReason: string`）が
+  // `string` になっている理由は、`phases/types.ts → queues/page-analyze-queue.ts`
+  // の既存 import 方向と衝突する循環依存を避けるため。runtime では builder 側が
+  // `EmbeddingSkipReason` 型で受け取るので値は enum に限定される。
+  //
+  // Validate SSOT `EMBEDDING_SKIP_REASONS` values via `superRefine`. The source
+  // type (`EmbeddingBackfillPendingSkipRecovery.skipReason: string`) is `string`
+  // to avoid a circular dependency with the existing
+  // `phases/types.ts → queues/page-analyze-queue.ts` import direction. At
+  // runtime the builder only accepts `EmbeddingSkipReason`, so the value is
+  // constrained.
+  skipReason: z.string().superRefine((value, ctx) => {
+    if (!EMBEDDING_SKIP_REASONS.includes(value as (typeof EMBEDDING_SKIP_REASONS)[number])) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Invalid skipReason: ${value}. Must be one of EMBEDDING_SKIP_REASONS.`,
+      });
+    }
+  }),
+  // SSOT `EMBEDDING_BACKFILL_CATEGORIES` と同じ理由で `z.array(z.string())` +
+  // `superRefine` を使う（source 型 `enqueuedCategories: string[]` との整合性のため）。
+  // Uses `z.array(z.string())` + `superRefine` for the same SSOT reason (matches
+  // source type `enqueuedCategories: string[]`).
+  enqueuedCategories: z.array(z.string()).superRefine((values, ctx) => {
+    for (const [idx, value] of values.entries()) {
+      if (
+        !EMBEDDING_BACKFILL_CATEGORIES.includes(
+          value as (typeof EMBEDDING_BACKFILL_CATEGORIES)[number]
+        )
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [idx],
+          message: `Invalid backfill category: ${value}.`,
+        });
+      }
+    }
+  }),
+  // PR7b-convergence (TDA M-3): SSOT `SKIP_RECOVERY_RETRY_CAP` (= 5) を max に
+  // 使用する。以前は `.max(10)` と不整合であり、Worker / Cron が cap=5 で
+  // `failed` 固定する一方 Zod は retryCount=6..10 を受け入れてしまう drift が
+  // あった。SSOT 化で常に一致するようになる。
+  //
+  // PR7b-convergence (TDA M-3): Uses the SSOT `SKIP_RECOVERY_RETRY_CAP` (= 5)
+  // as `max`. Previously `.max(10)` drifted from the Worker/Cron enforcement
+  // at cap=5, which meant the Zod schema would accept retryCount=6..10 even
+  // though those values cannot be produced at runtime. SSOT'd to stay aligned.
+  retryCount: z.number().int().min(0).max(SKIP_RECOVERY_RETRY_CAP),
+  enqueuedAt: z.string().datetime(),
+});
+export type BackfillPendingSkipRecovery = z.infer<typeof backfillPendingSkipRecoverySchema>;
+
+/**
+ * `backfillPending` discriminated union（source で判別）。
+ *
+ * ADR-0008 Semantics Table: `sync_overflow` と `skip_recovery` は両立不能
+ * （Phase 5 が途中まで成功 = sync_overflow、全体 skip = skip_recovery）。
+ *
+ * Discriminated union of `backfillPending`, switched on `source`.
+ * Per ADR-0008 Semantics Table, `sync_overflow` and `skip_recovery` are mutually
+ * exclusive.
+ */
+export const backfillPendingSchema = z.discriminatedUnion("source", [
+  backfillPendingSyncOverflowSchema,
+  backfillPendingSkipRecoverySchema,
+]);
+export type BackfillPending = z.infer<typeof backfillPendingSchema>;
+
 /**
  * ジョブ結果サマリー（完了時）
  */
@@ -1588,6 +1701,14 @@ export const jobResultSummarySchema = z.object({
           sectionEmbeddingsGenerated: z.number().nonnegative().optional(),
           motionEmbeddingsGenerated: z.number().nonnegative().optional(),
           backgroundDesignEmbeddingsGenerated: z.number().nonnegative().optional(),
+          // PR2 v0.4.0 / PR7b ADR-0008 #7: silent-skip 観測性 + backfill pending
+          // PR2 v0.4.0 / PR7b ADR-0008 #7: silent-skip observability + backfill pending
+          // source 型が `string`（phases/types.ts → queues/page-analyze-queue.ts
+          // の循環依存回避のため）なので Zod も `z.string()` を受け入れ、
+          // SSOT 検証は `backfillPendingSkipRecoverySchema` の `superRefine` に委譲。
+          skipReason: z.string().optional(),
+          skipDetail: z.string().max(200).optional(),
+          backfillPending: backfillPendingSchema.optional(),
         })
         .optional(),
     })

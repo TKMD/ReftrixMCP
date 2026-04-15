@@ -20,11 +20,16 @@
  * RAW file persistence is used to release the RAW buffer from memory between
  * Phase 5 sub-phases (section visual → part visual) and reload when needed.
  *
- * TMP-1: fs.mkdtempSync(path.join(os.tmpdir(), 'reftrix-phase5-')) でジョブ固有ディレクトリ
+ * v0.4.0 変更 / v0.4.0 change:
+ *   Screenshot PNG 自体の永続化は ScreenshotPersistenceService が担当する。
+ *   本モジュールは RAW decode 用の **短命な** 一時ディレクトリのみを管理する。
+ *   Screenshot PNG persistence is now owned by ScreenshotPersistenceService.
+ *   This module only manages the **ephemeral** temp directory for RAW decode.
+ *
+ * TMP-1: fs.mkdtempSync(path.join(os.tmpdir(), 'reftrix-phase5-raw-')) でジョブ固有ディレクトリ
  * TMP-2: finally ブロックで fs.rmSync(tmpDir, {recursive: true, force: true}) 確実実行
  * TMP-3: ファイル作成時 mode: 0o600
  * TMP-4: パスはユーザー入力から構成しない（内部生成のみ）
- * TMP-5: PipelineState への追加フィールドは Optional 型
  *
  * @module workers/phases/phase-5-raw-decode
  */
@@ -36,6 +41,7 @@ import sharp from "sharp";
 
 import { isBlankImage } from "../../utils/blank-image-detector";
 import { logger } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 
 // ============================================================================
 // Types
@@ -104,69 +110,107 @@ export interface RawCropResult {
 // ============================================================================
 
 /**
- * Phase 5 用のジョブ固有一時ディレクトリを作成する (TMP-1)
+ * Phase 5 RAW decode 用のジョブ固有一時ディレクトリを作成する (TMP-1)
  *
- * Creates a job-specific temp directory for Phase 5 (TMP-1).
+ * v0.4.0: `reftrix-phase5-raw-` プレフィックス（旧 `reftrix-phase5-` は
+ * ScreenshotPersistenceService 配下の永続パスと衝突するため改名）。
+ *
+ * Creates a job-specific temp directory for Phase 5 RAW decode (TMP-1).
+ * v0.4.0: renamed from `reftrix-phase5-` to `reftrix-phase5-raw-` to avoid
+ * collision with the persisted screenshot path under ScreenshotPersistenceService.
+ *
  * Directory permissions are 0o700 (owner rwx only).
  * Path is constructed from internal prefix only (TMP-4: no user input).
  *
  * @returns 作成されたディレクトリパス / Created directory path
  */
 export function createPhase5TempDir(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reftrix-phase5-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reftrix-phase5-raw-"));
   // mkdtempSync uses process umask; explicitly set to 0o700 for security
   fs.chmodSync(dir, 0o700);
   return dir;
 }
 
 /**
- * Phase 5 用の一時ディレクトリを削除する (TMP-2)
+ * Phase 5 RAW decode 用のジョブ固有一時ディレクトリを削除する (TMP-2)
  *
- * Removes the Phase 5 temp directory and all its contents (TMP-2).
+ * Removes the Phase 5 **RAW-decode** temp directory (TMP-2).
  * Designed to be called in a finally block for guaranteed cleanup.
- * Silently ignores errors (e.g., directory already removed).
+ * Silently ignores errors (e.g., directory already removed) — never throws.
+ *
+ * v0.4.0 PR7d-1 (SEC A-1): 3 段 whitelist 防御
+ * v0.4.0 PR7d-1 (SEC A-1): 3-stage whitelist defense to prevent the
+ * persisted screenshot directory (`<REFTRIX_SCREENSHOT_ROOT>/phase5/`)
+ * from being accidentally deleted — which was the PR7b/PR7c carry-over
+ * bug that broke Queue-based Backfill visual embeddings:
+ *   1. Input normalization + null-byte rejection
+ *   2. realpath() resolution (defeats symlink attacks; silent return on ENOENT)
+ *   3. Whitelist verification — must be under os.tmpdir() AND basename must
+ *      start with `reftrix-phase5-raw-`
+ *
+ * **永続化パス `<REFTRIX_SCREENSHOT_ROOT>/phase5/` は絶対に渡さないこと。**
+ * **Never pass the persisted screenshot path (`<REFTRIX_SCREENSHOT_ROOT>/phase5/`).**
+ * Persisted-screenshot deletion is consolidated into exactly two paths:
+ *   (a) PR6 TTL cron (`scheduleScreenshotCleanupCron()`, 7d)
+ *   (b) GDPR `data.delete` (Art. 17 synchronous, via
+ *       `ScreenshotPersistenceService.deleteScreenshot()`)
+ * See ADR-0010 and `DATA_RETENTION.md` §9 for the full deletion-path matrix.
+ *
+ * Note on the fork orchestrator helper:
+ *   `cleanupPhase5TmpDirOnly()` in `phase-5-fork-orchestrator.ts` used to
+ *   duplicate a subset of this whitelist. After PR7d-1 it delegates directly
+ *   to this function (see A-3 in PR7d-1). A future refactor may rename this
+ *   to `cleanupPhase5RawDecodeTmpDir` for clarity.
  *
  * @param tmpDir - 削除対象のディレクトリパス / Directory path to remove
  */
 export function cleanupPhase5TempDir(tmpDir: string): void {
+  // Stage 1: input normalization + null-byte defense.
+  if (typeof tmpDir !== "string" || tmpDir.length === 0 || tmpDir.includes("\0")) {
+    logger.warn("[Phase5RawDecode] cleanupPhase5TempDir rejected invalid input (non-fatal)");
+    return;
+  }
+
+  // Stage 2: realpath resolution. Defeats symlink attacks and silently
+  // returns on ENOENT (path already cleaned up by a previous call).
+  let realTmp: string;
+  let realOsTmp: string;
   try {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    realTmp = fs.realpathSync(tmpDir);
+  } catch {
+    // ENOENT / EACCES / ELOOP — treat as no-op.
+    return;
+  }
+  try {
+    realOsTmp = fs.realpathSync(os.tmpdir());
+  } catch {
+    // If we cannot resolve os.tmpdir(), we cannot enforce the whitelist —
+    // fail closed (do nothing).
+    return;
+  }
+
+  // Stage 3: whitelist — must be under os.tmpdir() AND have the expected prefix.
+  const underOsTmp = realTmp.startsWith(realOsTmp + path.sep);
+  const hasPrefix = path.basename(realTmp).startsWith("reftrix-phase5-raw-");
+  if (!underOsTmp || !hasPrefix) {
+    // Truncate the logged path to 80 chars for PII safety / log hygiene.
+    const truncated = realTmp.slice(0, 80);
+    logger.warn(
+      "[Phase5RawDecode] cleanupPhase5TempDir rejected path outside whitelist (non-fatal)",
+      { pathPrefix: truncated, underOsTmp, hasPrefix }
+    );
+    return;
+  }
+
+  try {
+    fs.rmSync(realTmp, { recursive: true, force: true });
   } catch (cleanupError) {
-    // Best-effort cleanup: log but do not throw
+    // Best-effort cleanup: log but do not throw.
     logger.warn("[Phase5RawDecode] Failed to cleanup temp directory (non-fatal)", {
-      tmpDir,
-      error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+      pathPrefix: realTmp.slice(0, 80),
+      error: sanitizeErrorMessage(cleanupError),
     });
   }
-}
-
-// ============================================================================
-// PNG Save (Phase 0 → Phase 5 Bridge)
-// ============================================================================
-
-/**
- * screenshotBase64 を PNG ファイルとして保存する
- *
- * Phase 0 で取得した screenshotBase64 を一時ディレクトリに PNG ファイルとして保存。
- * Phase 5 で RAW デコードに使用する。ファイルパーミッションは 0o600 (TMP-3)。
- *
- * Saves screenshotBase64 as a PNG file in the temp directory.
- * Used by Phase 5 for RAW decode. File permissions set to 0o600 (TMP-3).
- *
- * @param tmpDir - 一時ディレクトリパス / Temp directory path
- * @param base64Data - Base64 エンコードされた PNG データ / Base64-encoded PNG data
- * @returns 保存された PNG ファイルのパス / Saved PNG file path
- * @throws Error if base64Data is empty
- */
-export function saveScreenshotAsPng(tmpDir: string, base64Data: string): string {
-  if (!base64Data || base64Data.length === 0) {
-    throw new Error("[Phase5RawDecode] Cannot save empty base64 data as PNG");
-  }
-
-  const pngPath = path.join(tmpDir, "screenshot.png");
-  const buffer = Buffer.from(base64Data, "base64");
-  fs.writeFileSync(pngPath, buffer, { mode: 0o600 }); // TMP-3
-  return pngPath;
 }
 
 // ============================================================================
@@ -193,11 +237,30 @@ export async function decodeToRawFile(
   tmpDir: string
 ): Promise<RawScreenshotMetadata | null> {
   try {
-    // P0-B: Path Traversal defense — ensure pngPath is within tmpDir
-    const resolvedPng = path.resolve(pngPath);
+    // P0-B: Path Traversal defense.
+    //
+    // v0.4.0 PR7d-2 (TDA LOW-1): The original guard required `pngPath` to sit
+    // inside `tmpDir`. That assumption is no longer valid because RAW output
+    // is now written to an ephemeral `reftrix-phase5-raw-*` dir distinct from
+    // the persisted screenshot dir. Callers MUST pre-validate `pngPath`
+    // (e.g. `isAllowedScreenshotPath()`). Here we instead require `tmpDir` to
+    // be an ephemeral Phase 5 RAW dir under `os.tmpdir()` with the known
+    // `reftrix-phase5-raw-` prefix — same whitelist shape enforced by
+    // `cleanupPhase5TempDir()`. This prevents RAW writes into unexpected
+    // locations even if a caller mis-constructs the destination dir.
+    //
+    // v0.4.0 PR7d-2 (TDA LOW-1): 従来ガード (pngPath が tmpDir 配下である必要)
+    // は RAW 出力先を短命 `reftrix-phase5-raw-*` に分離した結果不成立。
+    // 代わりに `tmpDir` が os.tmpdir() 配下の `reftrix-phase5-raw-` 接頭辞を
+    // 持つディレクトリであることを要求する (`cleanupPhase5TempDir` と同一
+    // whitelist 形状)。pngPath 自体の検証は呼び出し側の責務
+    // (`isAllowedScreenshotPath` 等で事前検証すること)。
     const resolvedTmp = path.resolve(tmpDir);
-    if (!resolvedPng.startsWith(resolvedTmp)) {
-      logger.warn("[Phase5RawDecode] Path traversal detected, skipping RAW decode");
+    const resolvedOsTmp = path.resolve(os.tmpdir());
+    const underOsTmp = resolvedTmp.startsWith(resolvedOsTmp + path.sep);
+    const hasPrefix = path.basename(resolvedTmp).startsWith("reftrix-phase5-raw-");
+    if (!underOsTmp || !hasPrefix) {
+      logger.warn("[Phase5RawDecode] tmpDir outside ephemeral whitelist, skipping RAW decode");
       return null;
     }
 

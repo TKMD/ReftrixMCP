@@ -5,21 +5,22 @@
  * MCP Tools Export
  * WebDesign専用ツールハンドラーとツール定義のエクスポート
  *
- * Total: 35 tools
+ * Total: 39 tools
  * - Style: style.get_palette
  * - System: system.health
  * - Layout: layout.inspect, layout.ingest, layout.search, layout.generate_code, layout.batch_ingest
  * - Quality: quality.evaluate
  * - Motion: motion.detect, motion.search
  * - Brief: brief.validate
- * - Page: page.analyze, page.getJobStatus
+ * - Page: page.analyze, page.getJobStatus, page.batch_analyze, page.getBatchStatus
  * - Narrative: narrative.search
  * - Background: background.search
  * - Responsive: responsive.search, responsive.capture
  * - Preference: preference.hear, preference.get, preference.reset
  * - Part: part.search, part.inspect, part.compare
  * - Search: search.unified, search.facets
- * - Design: design.search_by_image, design.similar_site, design.compare, design.track_changes
+ * - Design: design.search_by_image, design.similar_site, design.compare, design.track_changes, design.regression_test
+ * - Report: report.generate
  * - Data: data.delete, data.export
  * - Audit: audit.query
  * - Embedding: embedding.quality
@@ -290,6 +291,24 @@ export {
   pageGetJobStatusHandler,
   pageGetJobStatusToolDefinition,
   GET_JOB_STATUS_ERROR_CODES,
+} from "./page";
+
+// page.batch_analyze ツール（バッチ一括分析、v0.4.0）
+export {
+  pageBatchAnalyzeHandler,
+  pageBatchAnalyzeToolDefinition,
+  BATCH_ANALYZE_ERROR_CODES,
+  type BatchAnalyzeInput,
+  type BatchAnalyzeOutput,
+} from "./page";
+
+// page.getBatchStatus ツール（バッチステータス確認、v0.4.0）
+export {
+  pageGetBatchStatusHandler,
+  pageGetBatchStatusToolDefinition,
+  GET_BATCH_STATUS_ERROR_CODES,
+  type GetBatchStatusInput,
+  type GetBatchStatusCombinedOutput,
 } from "./page";
 
 // narrative.search ツール（世界観・レイアウト構成セマンティック検索）
@@ -589,7 +608,12 @@ import { qualityEvaluateToolDefinition } from "./quality/evaluate.tool";
 import { motionDetectToolDefinition } from "./motion/detect.tool";
 import { motionSearchToolDefinition } from "./motion/search.tool";
 import { briefValidateToolDefinition } from "./brief";
-import { pageAnalyzeToolDefinition, pageGetJobStatusToolDefinition } from "./page";
+import {
+  pageAnalyzeToolDefinition,
+  pageGetJobStatusToolDefinition,
+  pageBatchAnalyzeToolDefinition,
+  pageGetBatchStatusToolDefinition,
+} from "./page";
 import { narrativeSearchToolDefinition } from "./narrative/search.tool";
 import { backgroundSearchToolDefinition } from "./background/search.tool";
 import { responsiveSearchToolDefinition } from "./responsive/search.tool";
@@ -613,6 +637,8 @@ import { accessibilityAuditToolDefinition } from "./accessibility/audit.tool";
 import { performanceEvaluateToolDefinition } from "./performance/evaluate.tool";
 import { responsiveCaptureToolDefinition } from "./responsive/capture.tool";
 import { designTrackChangesToolDefinition } from "./design/track-changes.tool";
+import { designRegressionTestToolDefinition } from "./design/regression-test.tool";
+import { reportGenerateToolDefinition } from "./report/generate.tool";
 
 export const allToolDefinitions = [
   // style.get_palette（ブランドパレット取得）
@@ -688,6 +714,14 @@ export const allToolDefinitions = [
   responsiveCaptureToolDefinition,
   // design.track_changes（デザイン変更時系列追跡、v0.3.0 T2-DCT）
   designTrackChangesToolDefinition,
+  // design.regression_test（ビジュアル回帰テスト、v0.4.0）
+  designRegressionTestToolDefinition,
+  // page.batch_analyze（バッチ一括分析、v0.4.0）
+  pageBatchAnalyzeToolDefinition,
+  // page.getBatchStatus（バッチステータス確認、v0.4.0）
+  pageGetBatchStatusToolDefinition,
+  // report.generate（HTML/PDFレポート生成、v0.4.0）
+  reportGenerateToolDefinition,
 ];
 
 // tool-names.ts の TOOL_NAMES/ALL_TOOL_NAMES を初期化
@@ -710,7 +744,12 @@ import { qualityEvaluateHandler } from "./quality/evaluate.tool";
 import { motionDetectHandler } from "./motion/detect.tool";
 import { motionSearchHandler } from "./motion/search.tool";
 import { briefValidateHandler } from "./brief";
-import { pageAnalyzeHandler, pageGetJobStatusHandler } from "./page";
+import {
+  pageAnalyzeHandler,
+  pageGetJobStatusHandler,
+  pageBatchAnalyzeHandler,
+  pageGetBatchStatusHandler,
+} from "./page";
 import { narrativeSearchHandler } from "./narrative/search.tool";
 import { backgroundSearchHandler } from "./background/search.tool";
 import { responsiveSearchHandler } from "./responsive/search.tool";
@@ -730,6 +769,8 @@ import { accessibilityAuditHandler } from "./accessibility/audit.tool";
 import { performanceEvaluateHandler } from "./performance/evaluate.tool";
 import { responsiveCaptureHandler } from "./responsive/capture.tool";
 import { designTrackChangesHandler } from "./design/track-changes.tool";
+import { designRegressionTestHandler } from "./design/regression-test.tool";
+import { reportGenerateHandler } from "./report/generate.tool";
 
 export const toolHandlers: Record<string, (input: unknown) => Promise<unknown>> = {
   // style.get_palette（ブランドパレット取得）
@@ -805,6 +846,14 @@ export const toolHandlers: Record<string, (input: unknown) => Promise<unknown>> 
   "responsive.capture": responsiveCaptureHandler,
   // design.track_changes（デザイン変更時系列追跡、v0.3.0 T2-DCT）
   "design.track_changes": designTrackChangesHandler,
+  // design.regression_test（ビジュアル回帰テスト、v0.4.0）
+  "design.regression_test": designRegressionTestHandler,
+  // page.batch_analyze（バッチ一括分析、v0.4.0）
+  "page.batch_analyze": pageBatchAnalyzeHandler,
+  // page.getBatchStatus（バッチステータス確認、v0.4.0）
+  "page.getBatchStatus": pageGetBatchStatusHandler,
+  // report.generate（HTML/PDFレポート生成、v0.4.0）
+  "report.generate": reportGenerateHandler,
 };
 
 /**

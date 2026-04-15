@@ -24,6 +24,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import type { DINOv2WorkerMessage, DINOv2WorkerResponse } from "./worker-thread-types.js";
 import { safeImportOnnx } from "../onnx-availability.js";
+import { detectExecutionProvider, isLdLibraryPathSetAtOsLevel } from "../onnx-provider-detect.js";
 
 // =====================================================
 // Constants
@@ -281,14 +282,63 @@ export class DINOv2Service {
   // =====================================================
 
   private async initializeInProcess(): Promise<void> {
+    const provider = detectExecutionProvider("DINOv2");
+
+    // Safety check: LD_LIBRARY_PATH must be set at OS level for CUDA
+    let effectiveProvider = provider;
+    if (effectiveProvider === "cuda" && !isLdLibraryPathSetAtOsLevel()) {
+      console.warn(
+        "[DINOv2] CUDA requested but LD_LIBRARY_PATH not set at OS level. " + "Falling back to CPU."
+      );
+      effectiveProvider = "cpu";
+    }
+
+    const sessionOptions =
+      effectiveProvider === "cuda"
+        ? {
+            executionProviders: ["CUDAExecutionProvider", "CPUExecutionProvider"],
+            enableMemPattern: false,
+          }
+        : {
+            executionProviders: ["cpu"],
+            enableCpuMemArena: false,
+            enableMemPattern: false,
+          };
+
     const ortModule = await safeImportOnnx();
-    this.inProcessSession = await ortModule.InferenceSession.create(this.modelPath, {
-      executionProviders: ["cpu"],
-      enableCpuMemArena: false,
-      enableMemPattern: false,
-    });
+
+    // Attempt session creation with resolved provider.
+    // If CUDA init fails, catch and retry with CPU.
+    try {
+      this.inProcessSession = await ortModule.InferenceSession.create(
+        this.modelPath,
+        sessionOptions
+      );
+    } catch (providerError) {
+      if (effectiveProvider !== "cpu") {
+        const errorMsg =
+          providerError instanceof Error ? providerError.message : String(providerError);
+        console.warn(
+          "[DINOv2] CUDA in-process session creation failed, falling back to CPU: %s",
+          errorMsg
+        );
+        this.inProcessSession = await ortModule.InferenceSession.create(this.modelPath, {
+          executionProviders: ["cpu"],
+          enableCpuMemArena: false,
+          enableMemPattern: false,
+        });
+        effectiveProvider = "cpu";
+      } else {
+        throw providerError;
+      }
+    }
+
     // eslint-disable-next-line no-console
-    console.log("[DINOv2] Session initialized in-process:", this.modelPath);
+    console.log(
+      "[DINOv2] Session initialized in-process (provider: %s):",
+      effectiveProvider,
+      this.modelPath
+    );
   }
 
   private async generateInProcess(imageBuffer: Buffer): Promise<number[]> {
@@ -320,7 +370,18 @@ export class DINOv2Service {
     }
 
     const inputTensor = new ortModule.Tensor("float32", float32, [1, 3, height, width]);
-    const output = await sess.run({ pixel_values: inputTensor });
+
+    // OOM-FIX-1: Use try/finally to ensure ONNX tensor disposal.
+    // ONNX Tensor holds native C++ memory that V8 GC cannot reclaim.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let output: any;
+    try {
+      output = await sess.run({ pixel_values: inputTensor });
+    } finally {
+      if (typeof inputTensor.dispose === "function") {
+        inputTensor.dispose();
+      }
+    }
 
     const lastHiddenState = output.last_hidden_state;
     if (!lastHiddenState) {
@@ -333,6 +394,15 @@ export class DINOv2Service {
     const clsToken = new Float32Array(DINOV2_EMBEDDING_DIMENSION);
     for (let i = 0; i < DINOV2_EMBEDDING_DIMENSION; i++) {
       clsToken[i] = data[i]!;
+    }
+
+    // OOM-FIX-1: Dispose output tensors after data extraction
+    for (const key of Object.keys(output)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tensor = output[key] as any;
+      if (typeof tensor?.dispose === "function") {
+        tensor.dispose();
+      }
     }
 
     // L2 normalize

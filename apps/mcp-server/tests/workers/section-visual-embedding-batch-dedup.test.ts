@@ -214,9 +214,9 @@ describe("PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection", () =
       // Arrange & Act: ソースコード構造解析
       // フォールバック対象をfor文の前に事前収集し、
       // 1回のcaptureSectionScreenshots呼び出しでN件渡す
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
+      const fnStart = workerSource.indexOf("async function collectFallbackScreenshots");
       expect(fnStart).toBeGreaterThan(-1);
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnBody = workerSource.slice(fnStart, fnStart + 5000);
 
       // Assert: バッチ収集パターンが存在する
       // fallbackSections 配列に事前収集される
@@ -269,17 +269,17 @@ describe("PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection", () =
 
     it("バッチ呼び出し失敗でGraceful Degradation（text_embeddingのみで続行）", () => {
       // Arrange & Act: ソースコード構造解析
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
+      const fnStart = workerSource.indexOf("async function collectFallbackScreenshots");
       expect(fnStart).toBeGreaterThan(-1);
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnBody = workerSource.slice(fnStart, fnStart + 5000);
 
       // Assert: バッチフォールバック失敗時のcatchブロック
       expect(fnBody).toContain("Batch section screenshot fallback failed (non-fatal)");
 
-      // フォールバック失敗後も処理が続行される（result.completed = trueになる）
+      // フォールバック失敗後も処理が続行される
       const batchFailPos = fnBody.indexOf("Batch section screenshot fallback failed");
       expect(batchFailPos).toBeGreaterThan(-1);
-      // catch後にbreak/returnがない（処理続行）
+      // catch後にthrowがない（処理続行）
       const afterCatch = fnBody.slice(batchFailPos, batchFailPos + 500);
       expect(afterCatch).not.toContain("throw");
     });
@@ -331,9 +331,9 @@ describe("PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection", () =
 
     it("DUPLICATE_VECTOR_THRESHOLD環境変数による閾値変更", () => {
       // Arrange & Act: ソースコード構造解析
-      const fnStart = workerSource.indexOf("async function processEmbeddingPhase");
+      const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
       expect(fnStart).toBeGreaterThan(-1);
-      const fnBody = workerSource.slice(fnStart, fnStart + EMBEDDING_PHASE_SLICE);
+      const fnBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
 
       // Assert: 環境変数から閾値を読み取る
       expect(fnBody).toContain('process.env["DUPLICATE_VECTOR_THRESHOLD"]');

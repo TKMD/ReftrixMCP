@@ -17,6 +17,7 @@
 import { ZodError } from "zod";
 import { logger, isDevelopment } from "../../utils/logger";
 import { sanitizeErrorMessage } from "../../utils/sanitize-error";
+import { validateExternalUrl } from "../../utils/url-validator";
 import {
   responsiveCaptureInputSchema,
   RESPONSIVE_CAPTURE_ERROR_CODES,
@@ -163,6 +164,22 @@ export async function responsiveCaptureHandler(input: unknown): Promise<Responsi
       };
     }
     throw error;
+  }
+
+  // SSRF検証（ツールハンドラー層 Defense-in-Depth）/ SSRF validation (tool handler layer Defense-in-Depth)
+  const urlValidation = validateExternalUrl(validated.url);
+  if (!urlValidation.valid) {
+    logger.warn("[MCP Tool] responsive.capture SSRF blocked", {
+      url: validated.url,
+      error: urlValidation.error,
+    });
+    return {
+      success: false,
+      error: {
+        code: RESPONSIVE_CAPTURE_ERROR_CODES.SSRF_BLOCKED,
+        message: urlValidation.error ?? "URL validation failed",
+      },
+    };
   }
 
   // サービスファクトリーチェック / Service factory check

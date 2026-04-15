@@ -20,11 +20,14 @@
  */
 
 import { parentPort } from "node:worker_threads";
-import { createRequire } from "node:module";
-import fs from "node:fs";
-import nodePath from "node:path";
 import type { WorkerMessage, WorkerResponse, WorkerErrorResponse } from "./worker-thread-types.js";
 import { OnnxRuntimeUnavailableError } from "../onnx-availability.js";
+import {
+  detectExecutionProvider,
+  verifyCudaAvailability,
+  isLdLibraryPathSetAtOsLevel,
+} from "../onnx-provider-detect.js";
+import type { ExecutionProvider } from "../onnx-provider-detect.js";
 
 // =====================================================
 // Pipeline types (mirrors service.ts DisposablePipeline)
@@ -37,83 +40,6 @@ interface DisposablePipeline {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any>;
   dispose?: () => Promise<unknown[]>;
-}
-
-// =====================================================
-// GPU execution provider detection
-// =====================================================
-
-type ExecutionProvider = "cpu" | "cuda";
-
-/**
- * Detect the ONNX execution provider based on environment configuration.
- *
- * Checks ONNX_EXECUTION_PROVIDER env var and verifies that the CUDA
- * provider shared library is available on disk. Falls back to CPU
- * gracefully if the provider is not installed.
- */
-function detectExecutionProvider(): ExecutionProvider {
-  const envProvider = process.env.ONNX_EXECUTION_PROVIDER;
-
-  if (envProvider === "cuda" || envProvider === "rocm") {
-    const cudaAvailable = verifyCudaAvailability();
-    if (cudaAvailable) {
-      return "cuda";
-    }
-    console.warn(
-      "[EmbeddingWorker] ONNX_EXECUTION_PROVIDER=%s but CUDA provider not available, falling back to CPU",
-      envProvider
-    );
-    return "cpu";
-  }
-
-  return "cpu";
-}
-
-/**
- * Verify that CUDA provider (libonnxruntime_providers_cuda.so) is available.
- *
- * onnxruntime-node can download the CUDA provider shared library via
- * `ONNXRUNTIME_NODE_INSTALL_CUDA=v12 node .../install.js`. This function
- * checks for its presence on disk rather than trying to resolve a
- * non-existent npm package (onnxruntime-gpu is Python-only).
- */
-function verifyCudaAvailability(): boolean {
-  try {
-    const esmRequire = createRequire(import.meta.url);
-    const ortNodePath = esmRequire.resolve("onnxruntime-node");
-    // require.resolve returns e.g. .../onnxruntime-node/dist/index.js
-    // Walk up to package root by finding the directory containing package.json
-    let packageDir = nodePath.dirname(ortNodePath);
-    for (let i = 0; i < 5; i++) {
-      if (fs.existsSync(nodePath.join(packageDir, "package.json"))) break;
-      packageDir = nodePath.dirname(packageDir);
-    }
-
-    // Search across napi versions (v3, v6, etc.) for CUDA provider
-    const binDir = nodePath.join(packageDir, "bin");
-    if (fs.existsSync(binDir)) {
-      const napiDirs = fs.readdirSync(binDir).filter((d) => d.startsWith("napi-v"));
-      for (const napiDir of napiDirs) {
-        const cudaProviderPath = nodePath.join(
-          binDir,
-          napiDir,
-          "linux",
-          "x64",
-          "libonnxruntime_providers_cuda.so"
-        );
-        if (fs.existsSync(cudaProviderPath)) {
-          return true;
-        }
-      }
-    }
-
-    console.warn("[EmbeddingWorker] CUDA provider not found in: %s", binDir);
-    return false;
-  } catch {
-    console.warn("[EmbeddingWorker] Cannot verify CUDA provider: onnxruntime-node not found");
-    return false;
-  }
 }
 
 // =====================================================
@@ -147,26 +73,6 @@ function normalizeVector(vector: number[]): number[] {
   return vector.map((val) => val / norm);
 }
 
-/**
- * Verify that LD_LIBRARY_PATH is set at the OS level (not just process.env).
- *
- * dlopen() reads LD_LIBRARY_PATH from the kernel environment (/proc/self/environ),
- * NOT from process.env modifications made at runtime. If LD_LIBRARY_PATH was set
- * after process startup (e.g. by loadEnvLocal()), dlopen() cannot find CUDA
- * libraries and ONNX Runtime CUDA provider initialization will segfault or throw.
- *
- * Returns true only if LD_LIBRARY_PATH was present in the original process environment.
- */
-function isLdLibraryPathSetAtOsLevel(): boolean {
-  try {
-    const procEnv = fs.readFileSync("/proc/self/environ", "utf-8");
-    return procEnv.includes("LD_LIBRARY_PATH");
-  } catch {
-    // /proc/self/environ not available (non-Linux) — assume set
-    return true;
-  }
-}
-
 async function initializePipeline(): Promise<void> {
   if (pipeline) return;
   if (initPromise) return initPromise;
@@ -176,7 +82,7 @@ async function initializePipeline(): Promise<void> {
       // Only auto-detect from env on first init. If provider was explicitly
       // set by a switch-provider message, respect that setting.
       if (!providerExplicitlySet) {
-        resolvedProvider = detectExecutionProvider();
+        resolvedProvider = detectExecutionProvider("EmbeddingWorker");
       }
 
       // Safety check: if CUDA is requested but LD_LIBRARY_PATH was not set at
@@ -451,7 +357,7 @@ async function handleMessage(message: WorkerMessage): Promise<void> {
 
       // If switching to CUDA, verify availability first
       if (targetProvider === "cuda") {
-        const canUseCuda = verifyCudaAvailability();
+        const canUseCuda = verifyCudaAvailability("EmbeddingWorker");
         if (!canUseCuda) {
           // Cannot switch to CUDA — respond with current (cpu) provider
           sendResponse({

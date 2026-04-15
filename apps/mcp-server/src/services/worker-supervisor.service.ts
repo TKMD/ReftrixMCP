@@ -18,10 +18,13 @@
  */
 
 import { fork, type ChildProcess } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { logger, isDevelopment } from "../utils/logger";
 import { computeMemoryProfile } from "./worker-memory-profile";
+import { LOCK_HEARTBEAT_INTERVAL_MS, WorkerActiveLockService } from "./worker-active-lock.service";
+import { sanitizeErrorMessage } from "../utils/sanitize-error";
 
 // ============================================================================
 // CUDA Library Path Auto-Detection
@@ -203,12 +206,54 @@ export class WorkerSupervisor {
   private restartCount = 0;
   private isShuttingDown = false;
   private pendingRestart = false;
+  /**
+   * v0.4.0 PR7d-2: Per-supervisor boot token. Generated once at construction
+   * time and propagated to every fork child via env so that child processes
+   * can self-identify as "supervised" and skip the Redis-based dual-run
+   * guard in start-workers.ts.
+   *
+   * v0.4.0 PR7d-2: supervisor 固有の boot token。構築時に 1 回だけ生成され、
+   * 全 fork 子プロセスに env 経由で伝播する。子プロセスは自身を "supervised"
+   * と識別し、start-workers.ts の Redis ベース二重起動ガードを skip する。
+   */
+  private readonly bootToken: string = randomUUID();
+
+  /**
+   * v0.4.0 PR7d-2: Lock service used to publish our boot token to Redis so
+   * that manual `pnpm worker:start:page` invocations can detect us and refuse
+   * to start. Lazily created on first `ensureWorkerRunning()` call.
+   *
+   * v0.4.0 PR7d-2: boot token を Redis へ publish するための lock サービス。
+   * 手動 `pnpm worker:start:page` 起動時に検出・拒否させるために使う。
+   */
+  private lockService: WorkerActiveLockService | null = null;
+  private lockAcquired = false;
+  private lockHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  /**
+   * v0.4.0 PR7d-3 (TPA LOW-1): guard against re-entrant acquisition attempts.
+   * Without this flag, rapid successive `ensureWorkerRunning()` calls could
+   * fire multiple concurrent `acquireLock()` invocations against Redis (one
+   * would succeed, others would waste round-trips and log warnings).
+   *
+   * v0.4.0 PR7d-3 (TPA LOW-1): 連続 `ensureWorkerRunning()` 呼び出しで
+   * `acquireLock()` が多重実行されることを防止する inflight フラグ。
+   */
+  private lockAcquireInflight = false;
 
   constructor(options: WorkerSupervisorOptions) {
     this.config = {
       ...options,
       restartDelayMs: options.restartDelayMs ?? DEFAULT_RESTART_DELAY_MS,
     };
+  }
+
+  /**
+   * Boot token for this supervisor. Exposed for test assertions only.
+   *
+   * @internal exposed for tests
+   */
+  getBootToken(): string {
+    return this.bootToken;
   }
 
   /**
@@ -232,6 +277,19 @@ export class WorkerSupervisor {
     if (this.state === "restarting") {
       return;
     }
+
+    // v0.4.0 PR7d-2: Publish our boot token to Redis on first spawn so that
+    // manual Worker invocations can detect us. Best-effort: failure to
+    // acquire the lock does NOT block supervised worker startup — we still
+    // own the fork path, and a manual Worker running concurrently with us
+    // will collide on BullMQ itself (which is the bug we're working around,
+    // not preventing here). The guard lives in start-workers.ts where it
+    // can early-exit cleanly.
+    // v0.4.0 PR7d-2: 初回 spawn 時に boot token を Redis に publish し、手動
+    // Worker 起動時に検出させる。ベストエフォート: lock 取得失敗は supervisor
+    // 起動を妨げない (fork 経路は我々が握っており、手動 Worker との衝突は
+    // start-workers.ts の guard が対処する)。
+    this.acquireRedisLockBestEffort();
 
     // crashed状態からの自動復旧: 新しいジョブ投入時にリセット
     // maxRestartAttempts超過でcrashedになった後でも、根本原因（swap枯渇等）が
@@ -305,6 +363,18 @@ export class WorkerSupervisor {
    */
   async shutdown(): Promise<void> {
     this.isShuttingDown = true;
+
+    // v0.4.0 PR7d-2: Release the Redis active-worker lock so any subsequent
+    // manual Worker invocation can start without collision. Fire-and-forget —
+    // do NOT await here, otherwise the IPC 'shutdown' / SIGTERM sequence below
+    // is delayed by a microtask and breaks tests that assert on synchronous
+    // send() call ordering (and adds latency to real shutdowns without benefit
+    // since the lock release is best-effort anyway).
+    // v0.4.0 PR7d-2: Redis active-worker lock を解放する。fire-and-forget で
+    // 実行 — await すると下の IPC shutdown / SIGTERM シーケンスが microtask
+    // 分だけ遅延し、同期的な send() 呼び出し順を前提としたテストが壊れる
+    // (かつ lock 解放は best-effort なので待つ意義がない)。
+    void this.releaseRedisLockBestEffort();
 
     // ワーカー未起動の場合
     if (this.worker === null) {
@@ -395,6 +465,108 @@ export class WorkerSupervisor {
   // ==========================================================================
 
   /**
+   * v0.4.0 PR7d-2: Publish our boot token to Redis so that manual
+   * `pnpm worker:start:page` processes can detect us. Best-effort —
+   * failures are logged as warnings, never thrown.
+   *
+   * v0.4.0 PR7d-2: 手動 Worker から検出可能にするため boot token を Redis に
+   * 書き込む。ベストエフォート (失敗は warn のみで throw しない)。
+   */
+  private acquireRedisLockBestEffort(): void {
+    if (this.lockAcquired) return;
+    // v0.4.0 PR7d-3 (TPA LOW-1): prevent re-entrant acquires. Without this
+    // flag, rapid successive `ensureWorkerRunning()` calls would fire
+    // concurrent `acquireLock()` invocations; this flag serialises them.
+    // v0.4.0 PR7d-3 (TPA LOW-1): 同時多重 acquire を防止する。
+    if (this.lockAcquireInflight) return;
+    // Skip entirely in test mode — Vitest's maxWorkers parallelism would
+    // race on the same Redis key across test processes.
+    // テストモード (NODE_ENV=test) では skip。Vitest の並列実行で
+    // 同一 Redis key を奪い合うことを避ける。
+    if (process.env.NODE_ENV === "test") return;
+
+    try {
+      if (!this.lockService) {
+        this.lockService = new WorkerActiveLockService();
+      }
+      this.lockAcquireInflight = true;
+      // Fire-and-forget — we don't block spawn on Redis availability.
+      // Fire-and-forget: Redis 可用性で spawn をブロックしない。
+      void this.lockService
+        .acquireLock("page", this.bootToken)
+        .then((ok) => {
+          if (ok) {
+            this.lockAcquired = true;
+            this.startLockHeartbeat();
+            if (isDevelopment()) {
+              logger.info("[WorkerSupervisor] Published active-worker lock to Redis", {
+                workerType: "page",
+              });
+            }
+          } else {
+            logger.warn(
+              "[WorkerSupervisor] Could not acquire active-worker lock (another owner present)"
+            );
+          }
+        })
+        .catch((error) => {
+          logger.warn("[WorkerSupervisor] acquireLock failed (non-fatal)", {
+            error: sanitizeErrorMessage(error),
+          });
+        })
+        .finally(() => {
+          this.lockAcquireInflight = false;
+        });
+    } catch (error) {
+      this.lockAcquireInflight = false;
+      logger.warn("[WorkerSupervisor] Lock service init failed (non-fatal)", {
+        error: sanitizeErrorMessage(error),
+      });
+    }
+  }
+
+  /**
+   * Start the lock-heartbeat interval so the TTL is refreshed every
+   * LOCK_HEARTBEAT_INTERVAL_MS. No-op if heartbeat already running.
+   *
+   * lock TTL を延長する heartbeat interval を起動する。既に稼働中なら no-op。
+   */
+  private startLockHeartbeat(): void {
+    if (this.lockHeartbeatTimer !== null || !this.lockService) return;
+    this.lockHeartbeatTimer = setInterval(() => {
+      if (!this.lockService) return;
+      void this.lockService.extendLock("page", this.bootToken).catch(() => {
+        /* non-fatal */
+      });
+    }, LOCK_HEARTBEAT_INTERVAL_MS);
+    // Don't block event loop shutdown on this timer.
+    this.lockHeartbeatTimer.unref?.();
+  }
+
+  /**
+   * Release the Redis active-worker lock during shutdown. Best-effort.
+   *
+   * Shutdown 時に Redis の active-worker lock を解放する (ベストエフォート)。
+   */
+  private async releaseRedisLockBestEffort(): Promise<void> {
+    if (this.lockHeartbeatTimer !== null) {
+      clearInterval(this.lockHeartbeatTimer);
+      this.lockHeartbeatTimer = null;
+    }
+    if (!this.lockService) return;
+    try {
+      if (this.lockAcquired) {
+        await this.lockService.releaseLock("page", this.bootToken);
+      }
+      await this.lockService.close();
+    } catch {
+      /* best-effort */
+    }
+    this.lockAcquired = false;
+    this.lockService = null;
+  }
+
+  /**
    * ワーカーを fork で起動する
    */
   private spawnWorker(): void {
@@ -414,6 +586,26 @@ export class WorkerSupervisor {
       for (const [key, value] of Object.entries(workerEnv)) {
         env[key] = value;
       }
+    }
+
+    // v0.4.0 PR7d-2: Mark fork children so they skip start-workers.ts
+    // Redis-based dual-run guard. Without this flag a fork child would
+    // detect its own supervisor parent's lock and refuse to start.
+    // v0.4.0 PR7d-2: fork 子プロセスに識別フラグを付与。これが無いと
+    // 子が親 supervisor の lock を自己検出して起動拒否ループに陥る。
+    env.REFTRIX_WORKER_IS_CHILD = "1";
+    env.REFTRIX_WORKER_SUPERVISOR_BOOT_TOKEN = this.bootToken;
+
+    // OOM-1: glibc malloc arena 断片化を防止
+    // デフォルトの 8 * num_cpus ではマルチコアマシンで大量の arena が生成され、
+    // Sharp/libvips や Node.js Buffer の確保/解放サイクルで RSS が膨張する。
+    // MALLOC_ARENA_MAX=2 で arena 数を制限し、解放メモリの OS 返却を促進。
+    // OOM-1: Prevent glibc malloc arena fragmentation.
+    // Default 8 * num_cpus creates excessive arenas on multi-core machines,
+    // causing RSS bloat from Sharp/libvips and Node.js Buffer alloc/free cycles.
+    // MALLOC_ARENA_MAX=2 limits arenas and promotes OS memory return.
+    if (!env.MALLOC_ARENA_MAX) {
+      env.MALLOC_ARENA_MAX = "2";
     }
 
     // V8ヒープ上限を動的に設定（workerEnvから取得、未設定時はcomputeMemoryProfile()で算出）

@@ -125,8 +125,9 @@ describe("computeMemoryProfile", () => {
       expect(profile.selfExitThresholdMb).toBe(Math.floor(16384 * 0.7));
     });
 
-    it("maxOldSpaceSizeMb = min(16384 * 0.50, 8192) = 8192", () => {
-      expect(profile.maxOldSpaceSizeMb).toBe(Math.min(Math.floor(16384 * 0.5), 8192));
+    it("maxOldSpaceSizeMb = min(16384 * 0.50, 4096) = 4096 (PR3: cap 8192→4096)", () => {
+      // PR3: MAX_OLD_SPACE_CAP_MB reduced from 8192 to 4096 (fork children isolate ONNX)
+      expect(profile.maxOldSpaceSizeMb).toBe(Math.min(Math.floor(16384 * 0.5), 4096));
     });
 
     it("embeddingChunkSize = clamp(round(16384/32768*30), 5, 30) = 15", () => {
@@ -185,9 +186,10 @@ describe("computeMemoryProfile", () => {
       expect(profile.selfExitThresholdMb).toBe(12288);
     });
 
-    it("maxOldSpaceSizeMb = min(32768 * 0.50, 8192) = 8192 (キャップ到達)", () => {
-      // 32768 * 0.50 = 16384 → min(16384, 8192) = 8192
-      expect(profile.maxOldSpaceSizeMb).toBe(8192);
+    it("maxOldSpaceSizeMb = min(32768 * 0.50, 4096) = 4096 (キャップ到達、PR3で 8192→4096)", () => {
+      // PR3: MAX_OLD_SPACE_CAP_MB reduced from 8192 to 4096 (fork children isolate ONNX)
+      // 32768 * 0.50 = 16384 → min(16384, 4096) = 4096
+      expect(profile.maxOldSpaceSizeMb).toBe(4096);
     });
 
     it("embeddingChunkSize = clamp(round(32768/32768*30), 5, 30) = 30", () => {
@@ -242,9 +244,10 @@ describe("computeMemoryProfile", () => {
       expect(profile.selfExitThresholdMb).toBe(12288);
     });
 
-    it("maxOldSpaceSizeMb がキャップ 8192 に制限される", () => {
-      // 65536 * 0.50 = 32768 → min(32768, 8192) = 8192
-      expect(profile.maxOldSpaceSizeMb).toBe(8192);
+    it("maxOldSpaceSizeMb がキャップ 4096 に制限される (PR3: 8192→4096)", () => {
+      // PR3: MAX_OLD_SPACE_CAP_MB reduced from 8192 to 4096 (fork children isolate ONNX)
+      // 65536 * 0.50 = 32768 → min(32768, 4096) = 4096
+      expect(profile.maxOldSpaceSizeMb).toBe(4096);
     });
 
     it("embeddingChunkSize がキャップ 30 に制限される", () => {

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 TKMD and Reftrix Contributors
+// SPDX-FileCopyrightText: 2025-2026 Reftrix Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
@@ -1134,6 +1134,210 @@ function dbPartToEmbeddingInput(row: MissingPartRow): ComponentPartForEmbedding 
   };
 }
 
+// =====================================================
+// v0.4.0 PR4: Queue-based Backfill Entry Points
+// =====================================================
+
+/**
+ * Per-category backfill result shape (shared by all 6 Queue-based wrappers).
+ * 6 つの Queue-based wrapper が共通で返す per-category バックフィル結果型。
+ */
+export interface PerCategoryBackfillResult {
+  generated: number;
+  failed: number;
+  memorySkips: number;
+  errors: string[];
+}
+
+/**
+ * v0.4.0 PR7a-3: Generic per-category backfill core shared by all 6 Queue-based wrappers.
+ *
+ * 6 つの Queue-based per-category wrapper（part_text / section_visual / motion /
+ * background / js_animation / responsive）が共通で持つ 99% 同一の骨組み
+ * （EmbeddingService 生成 → missing 行取得 → 0 件早期 return → chunk loop →
+ * finally で dispose + GC）をジェネリックに集約する。TDA High-1 で指摘された
+ * 重複率 6.0% を解消するため、PR7a 収束修正で導入。
+ *
+ * `part_visual` は DINOv2 管理（Playwright browser + DINOv2 pipeline）が必要な
+ * ため本ジェネリックの対象外。Worker 内で `runVisualEmbeddingSubPhases` を直接
+ * 呼ぶ設計（`countPartVisualBackfillTargets` のみを service に残す）。
+ *
+ * Generic core shared by all 6 Queue-based per-category wrappers (part_text /
+ * section_visual / motion / background / js_animation / responsive). Extracted
+ * to resolve the 6.0% duplication flagged by TDA High-1 in the PR7a audit.
+ *
+ * `part_visual` is out of scope because DINOv2 management (Playwright browser
+ * + DINOv2 pipeline) lives in the Worker via `runVisualEmbeddingSubPhases`;
+ * the service only exposes `countPartVisualBackfillTargets` for it.
+ *
+ * @param params.webPageId - 対象ページの UUID / Target page UUID
+ * @param params.options - BackfillOptions（chunkSize / rssThreshold / callbacks） /
+ *   BackfillOptions (chunkSize / rssThreshold / callbacks)
+ * @param params.getMissingRows - `embedding IS NULL` 行を取得する関数 /
+ *   Function returning rows with `embedding IS NULL`
+ * @param params.runChunkLoop - category 固有の chunk runner（embedding 生成 + 保存） /
+ *   Category-specific chunk runner (embedding generation + persistence)
+ */
+async function backfillCategoryForPage<TRow>(params: {
+  webPageId: string;
+  options: BackfillOptions | undefined;
+  getMissingRows: (webPageId: string) => Promise<TRow[]>;
+  runChunkLoop: (
+    rows: TRow[],
+    embeddingService: LayoutEmbeddingService,
+    chunkSize: number,
+    rssThreshold: number,
+    errors: string[],
+    onProgress?: BackfillOptions["onProgress"],
+    onMemoryPressure?: BackfillOptions["onMemoryPressure"]
+  ) => Promise<ChunkResult>;
+}): Promise<PerCategoryBackfillResult> {
+  const { webPageId, options, getMissingRows, runChunkLoop } = params;
+  const chunkSize = Math.max(1, Math.min(options?.chunkSize ?? DEFAULT_BACKFILL_CHUNK_SIZE, 100));
+  const rssThreshold = resolveRssThreshold(options);
+  const errors: string[] = [];
+  const embeddingService = new LayoutEmbeddingService({ cacheEnabled: false });
+
+  try {
+    const missing = await getMissingRows(webPageId);
+    if (missing.length === 0) {
+      return { generated: 0, failed: 0, memorySkips: 0, errors: [] };
+    }
+    const result = await runChunkLoop(
+      missing,
+      embeddingService,
+      chunkSize,
+      rssThreshold,
+      errors,
+      options?.onProgress,
+      options?.onMemoryPressure
+    );
+    return {
+      generated: result.backfilled,
+      failed: missing.length - result.backfilled,
+      memorySkips: result.memorySkips,
+      errors,
+    };
+  } finally {
+    try {
+      await embeddingService.disposeEmbeddingPipeline();
+    } catch {
+      /* non-fatal during cleanup */
+    }
+    tryGarbageCollect();
+  }
+}
+
+/**
+ * Part text embedding を 1 ページ分バックフィルする（Queue Worker 用）
+ * Backfill Part text embeddings for a single page (for the Queue Worker).
+ *
+ * v0.4.0 PR4: embedding-backfill Queue の Worker から呼び出される。
+ * DB self-discovery で `embedding IS NULL` のパーツを一括取得し、
+ * e5-base で text embedding を生成して保存する。
+ * Phase 5 同期フェーズで使われる `processPartTextEmbeddingChunks` と
+ * 同じ表現生成ロジックを使う（`buildPartTextRepresentation`）。
+ *
+ * v0.4.0 PR7a-3: TDA High-1 の重複解消のため共通ジェネリック
+ * `backfillCategoryForPage` への薄いラッパーに変更。public signature は維持。
+ *
+ * v0.4.0 PR4: Invoked by the embedding-backfill Queue Worker.
+ * Uses DB self-discovery (`embedding IS NULL`) to fetch target Parts,
+ * generates text embeddings via e5-base, and saves them.
+ *
+ * v0.4.0 PR7a-3: Refactored into a thin wrapper over the generic
+ * `backfillCategoryForPage` core to resolve TDA High-1 duplication.
+ * Public signature preserved.
+ */
+export async function backfillPartTextForPage(
+  webPageId: string,
+  options?: BackfillOptions
+): Promise<PerCategoryBackfillResult> {
+  return backfillCategoryForPage({
+    webPageId,
+    options,
+    getMissingRows: getMissingPartEmbeddings,
+    runChunkLoop: backfillParts,
+  });
+}
+
+/**
+ * Part visual embedding (DINOv2) を 1 ページ分バックフィルする（Queue Worker 用）
+ * Backfill Part visual embeddings (DINOv2) for a single page (for the Queue Worker).
+ *
+ * v0.4.0 PR4: 永続化された screenshot (PR1) を使って DINOv2 ViT-B/14 で visual
+ * embedding を生成する。screenshot が無い / bbox 未解決の場合は 0 件を返す
+ * （Graceful Degradation）。
+ *
+ * 注: DINOv2 / bbox 再解決 / Playwright ブラウザ起動は複雑かつ重い処理であり、
+ * 本 PR では Worker 実装側で DB から `visual_embedding IS NULL` のパーツを
+ * 抽出・処理する。本関数はその入口を提供する薄いラッパー（DB カウントのみ
+ * を行い、実際の DINOv2 処理は呼び出し側の Worker で実行する）。
+ *
+ * v0.4.0 PR4: Uses the persisted screenshot (PR1) to generate DINOv2 ViT-B/14
+ * visual embeddings. Returns 0 when no screenshot is available or bbox has
+ * not been resolved (Graceful Degradation).
+ *
+ * Note: DINOv2 / bbox re-resolution / Playwright browser startup are heavy
+ * and the actual DINOv2 loop runs in the Worker process. This function is a
+ * thin entry point that only counts pending targets; the Worker executes
+ * the DINOv2 pipeline directly via `runVisualEmbeddingSubPhases`.
+ *
+ * @param webPageId - 対象ページの UUID / Target page UUID
+ * @returns `pendingCount` が 0 でない場合のみ実際のバックフィルが必要
+ */
+export async function countPartVisualBackfillTargets(
+  webPageId: string
+): Promise<{ pendingCount: number }> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ count: string }>>(
+    `SELECT COUNT(*) as count FROM component_parts cp
+     JOIN component_part_embeddings cpe ON cp.id = cpe.component_part_id
+     WHERE cp.web_page_id = $1::uuid
+       AND cp.pii_risk_level != 'high'
+       AND cpe.visual_embedding IS NULL`,
+    webPageId
+  );
+  const countStr = rows[0]?.count ?? "0";
+  const pendingCount = Number.parseInt(countStr, 10);
+  return { pendingCount: Number.isFinite(pendingCount) && pendingCount > 0 ? pendingCount : 0 };
+}
+
+/**
+ * Section vision embedding（DINOv2）のバックフィル候補件数を返す（Queue Worker 用）
+ * Count Section vision embedding (DINOv2) backfill candidates (for the Queue Worker).
+ *
+ * v0.4.0 PR7b: `section_embeddings.text_embedding IS NOT NULL AND vision_embedding IS NULL`
+ * の section を対象とする。Phase 5 の section visual embedding ループと同じ条件
+ * （`runVisualEmbeddingSubPhases` 内 `sectionsNeedingVisual` クエリ）に揃える。
+ * PII フィルタ（piiRiskLevel='high' を含む section の除外）は DINOv2 ループ側で
+ * 既に行われるため、ここでは pendingCount のみ集計する。
+ *
+ * v0.4.0 PR7b: Targets sections where
+ * `section_embeddings.text_embedding IS NOT NULL AND vision_embedding IS NULL`,
+ * matching the same condition used by the Phase 5 visual embedding loop
+ * (`sectionsNeedingVisual` inside `runVisualEmbeddingSubPhases`). PII filtering
+ * (excluding sections containing piiRiskLevel='high' parts) is already applied
+ * inside the DINOv2 loop, so this helper only returns the raw pendingCount.
+ *
+ * @param webPageId - 対象ページの UUID / Target page UUID
+ * @returns `pendingCount` が 0 でない場合のみ実際のバックフィルが必要
+ */
+export async function countSectionVisualBackfillTargets(
+  webPageId: string
+): Promise<{ pendingCount: number }> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ count: string }>>(
+    `SELECT COUNT(*) as count FROM section_embeddings se
+     JOIN section_patterns sp ON se.section_pattern_id = sp.id
+     WHERE sp.web_page_id = $1::uuid
+       AND se.text_embedding IS NOT NULL
+       AND se.vision_embedding IS NULL`,
+    webPageId
+  );
+  const countStr = rows[0]?.count ?? "0";
+  const pendingCount = Number.parseInt(countStr, 10);
+  return { pendingCount: Number.isFinite(pendingCount) && pendingCount > 0 ? pendingCount : 0 };
+}
+
 async function backfillParts(
   rows: MissingPartRow[],
   embeddingService: LayoutEmbeddingService,
@@ -1202,4 +1406,121 @@ async function backfillParts(
   }
 
   return { backfilled, memorySkips };
+}
+
+// =====================================================
+// v0.4.0 PR7a-2: Per-category Backfill Entry Points
+// =====================================================
+//
+// Strategy Pattern (`embedding-backfill-processors.ts`) から呼び出される per-category
+// wrapper。各 wrapper は `backfillPartTextForPage` と同じ形で EmbeddingService の
+// ライフサイクル（init → dispose）を完結させる。Skip recovery enqueue パス
+// （PR7b）からこれらを直接 invoke する。
+//
+// Per-category wrappers invoked by the Strategy Pattern in
+// `embedding-backfill-processors.ts`. Each wrapper mirrors `backfillPartTextForPage`:
+// it owns the EmbeddingService lifecycle (init → dispose). PR7b's skip-recovery
+// enqueue path will invoke these directly.
+
+/**
+ * Section text embedding を 1 ページ分バックフィルする
+ * Backfill section text embeddings for a single page
+ *
+ * 注: `backfillSections()` は内部で section の text embedding を生成する。
+ * Vision embedding は現状 Phase 5 同期フェーズの DINOv2 ループが持つため、
+ * 本 wrapper は text embedding の復旧のみを担当する。
+ *
+ * Note: `backfillSections()` generates section text embeddings. Vision embeddings
+ * are owned by the Phase 5 synchronous DINOv2 loop; this wrapper covers text
+ * embedding recovery only.
+ *
+ * v0.4.0 PR7a-3: ジェネリック `backfillCategoryForPage` への薄いラッパーに統一。
+ * v0.4.0 PR7a-3: Unified as a thin wrapper over the generic `backfillCategoryForPage`.
+ */
+export async function backfillSectionVisualsForPage(
+  webPageId: string,
+  options?: BackfillOptions
+): Promise<PerCategoryBackfillResult> {
+  return backfillCategoryForPage({
+    webPageId,
+    options,
+    getMissingRows: getMissingSectionEmbeddings,
+    runChunkLoop: backfillSections,
+  });
+}
+
+/**
+ * Motion embedding を 1 ページ分バックフィルする
+ * Backfill motion embeddings for a single page
+ *
+ * v0.4.0 PR7a-3: ジェネリック `backfillCategoryForPage` への薄いラッパーに統一。
+ * v0.4.0 PR7a-3: Unified as a thin wrapper over the generic `backfillCategoryForPage`.
+ */
+export async function backfillMotionsForPage(
+  webPageId: string,
+  options?: BackfillOptions
+): Promise<PerCategoryBackfillResult> {
+  return backfillCategoryForPage({
+    webPageId,
+    options,
+    getMissingRows: getMissingMotionEmbeddings,
+    runChunkLoop: backfillMotions,
+  });
+}
+
+/**
+ * Background embedding を 1 ページ分バックフィルする
+ * Backfill background embeddings for a single page
+ *
+ * v0.4.0 PR7a-3: ジェネリック `backfillCategoryForPage` への薄いラッパーに統一。
+ * v0.4.0 PR7a-3: Unified as a thin wrapper over the generic `backfillCategoryForPage`.
+ */
+export async function backfillBackgroundsForPage(
+  webPageId: string,
+  options?: BackfillOptions
+): Promise<PerCategoryBackfillResult> {
+  return backfillCategoryForPage({
+    webPageId,
+    options,
+    getMissingRows: getMissingBackgroundEmbeddings,
+    runChunkLoop: backfillBackgrounds,
+  });
+}
+
+/**
+ * JS Animation embedding を 1 ページ分バックフィルする
+ * Backfill JS animation embeddings for a single page
+ *
+ * v0.4.0 PR7a-3: ジェネリック `backfillCategoryForPage` への薄いラッパーに統一。
+ * v0.4.0 PR7a-3: Unified as a thin wrapper over the generic `backfillCategoryForPage`.
+ */
+export async function backfillJsAnimationsForPage(
+  webPageId: string,
+  options?: BackfillOptions
+): Promise<PerCategoryBackfillResult> {
+  return backfillCategoryForPage({
+    webPageId,
+    options,
+    getMissingRows: getMissingJsAnimationEmbeddings,
+    runChunkLoop: backfillJsAnimations,
+  });
+}
+
+/**
+ * Responsive analysis embedding を 1 ページ分バックフィルする
+ * Backfill responsive analysis embeddings for a single page
+ *
+ * v0.4.0 PR7a-3: ジェネリック `backfillCategoryForPage` への薄いラッパーに統一。
+ * v0.4.0 PR7a-3: Unified as a thin wrapper over the generic `backfillCategoryForPage`.
+ */
+export async function backfillResponsiveForPage(
+  webPageId: string,
+  options?: BackfillOptions
+): Promise<PerCategoryBackfillResult> {
+  return backfillCategoryForPage({
+    webPageId,
+    options,
+    getMissingRows: getMissingResponsiveEmbeddings,
+    runChunkLoop: backfillResponsive,
+  });
 }

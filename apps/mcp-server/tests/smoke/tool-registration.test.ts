@@ -4,11 +4,11 @@
 /**
  * MCP Tool Registration Smoke Test
  *
- * 目的: 全35ツールが正しく登録されていることを確認
+ * 目的: 全39ツールが正しく登録されていることを確認
  *
  * このテストは以下を検証:
- * - toolHandlers に35ツールが登録されている
- * - allToolDefinitions に35ツール定義がある
+ * - toolHandlers に39ツールが登録されている
+ * - allToolDefinitions に39ツール定義がある
  * - 各ツールに対応するハンドラーが存在する
  * - ツール名の形式が正しい（{category}.{action}）
  *
@@ -24,7 +24,7 @@ import {
 } from "../../src/tools/index";
 
 /**
- * 現行35ツールの定義
+ * 現行39ツールの定義
  * v0.1.0: SVG機能削除、WebDesign専用
  * v0.1.0: narrative.search, background.search 追加
  * v0.1.1: responsive.search 追加
@@ -51,9 +51,11 @@ const EXPECTED_TOOLS = [
   "motion.search",
   // Brief (1)
   "brief.validate",
-  // Page (2)
+  // Page (4)
   "page.analyze",
   "page.getJobStatus",
+  "page.batch_analyze",
+  "page.getBatchStatus",
   // Narrative (1)
   "narrative.search",
   // Background (1)
@@ -71,11 +73,12 @@ const EXPECTED_TOOLS = [
   // Search (2)
   "search.unified",
   "search.facets",
-  // Design (4)
+  // Design (5)
   "design.search_by_image",
   "design.similar_site",
   "design.compare",
   "design.track_changes",
+  "design.regression_test",
   // Audit (1) — v0.3.0
   "audit.query",
   // Data (2) — v0.3.0 GDPR
@@ -89,9 +92,11 @@ const EXPECTED_TOOLS = [
   "performance.evaluate",
   // Responsive Capture (1) — v0.3.0 T2-10
   "responsive.capture",
+  // Report (1) — v0.4.0
+  "report.generate",
 ] as const;
 
-const EXPECTED_TOOL_COUNT = 35;
+const EXPECTED_TOOL_COUNT = 39;
 
 describe("MCP Tool Registration Smoke Test", () => {
   describe("ツール数の検証", () => {
@@ -203,9 +208,9 @@ describe("MCP Tool Registration Smoke Test", () => {
       expect(briefTools.length).toBe(1);
     });
 
-    it("Page カテゴリに2ツールがある", () => {
+    it("Page カテゴリに4ツールがある", () => {
       const pageTools = Object.keys(toolHandlers).filter((name) => name.startsWith("page."));
-      expect(pageTools.length).toBe(2);
+      expect(pageTools.length).toBe(4);
     });
 
     it("Narrative カテゴリに1ツールがある", () => {

@@ -723,7 +723,7 @@ import {
   type PerformanceRecommendation,
 } from "../../../src/services/motion/animation-metrics-collector.service";
 
-import type { MotionPattern, LighthouseMetrics } from "../../../src/tools/motion/schemas";
+import type { MotionPattern } from "../../../src/tools/motion/schemas";
 
 // =====================================================
 // AnimationMetricsCollector テストデータ

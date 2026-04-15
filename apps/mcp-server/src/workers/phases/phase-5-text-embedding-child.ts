@@ -207,6 +207,9 @@ process.on("message", async (raw: unknown) => {
       scrollVisionResultForEmbedding,
       responsiveAnalysisId: msg.responsiveAnalysisId,
       partsSavedCount: msg.partsSavedCount,
+      // v0.4.0 PR4: 同期フェーズの Part text embedding 上限を子プロセスに伝搬
+      // v0.4.0 PR4: propagate sync-phase Part text embedding cap to the child
+      partsLimit: msg.partsLimit,
       sharedLayoutEmbeddingService,
       prisma: prisma as never,
       onLockExtend: (label: string) => {

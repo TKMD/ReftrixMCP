@@ -4,10 +4,10 @@
 /**
  * MCP-RESP-08: McpResponse統一形式 統合テスト
  *
- * 目的: McpResponse統一後の全35ツールレスポンス形式検証
+ * 目的: McpResponse統一後の全39ツールレスポンス形式検証
  *
  * テスト対象:
- * 1. 全35ツールがMcpResponse形式で返却
+ * 1. 全39ツールがMcpResponse形式で返却
  * 2. metadata.request_idが含まれている
  * 3. success/error構造が正しい
  * 4. handleToolCall経由でのLightResponse適用
@@ -28,10 +28,10 @@ import { toolHandlers, allToolDefinitions } from "../../src/tools/index";
 import { resetRateLimiter } from "../../src/middleware/rate-limiter";
 
 // =============================================================================
-// テスト用の35ツールリスト
+// テスト用の39ツールリスト
 // =============================================================================
 
-const ALL_35_TOOLS = [
+const ALL_39_TOOLS = [
   "style.get_palette",
   "system.health",
   "layout.inspect",
@@ -67,6 +67,10 @@ const ALL_35_TOOLS = [
   "responsive.capture",
   "design.compare",
   "design.track_changes",
+  "design.regression_test",
+  "page.batch_analyze",
+  "page.getBatchStatus",
+  "report.generate",
 ] as const;
 
 // =============================================================================
@@ -126,10 +130,10 @@ function hasRequestId(response: unknown): boolean {
 }
 
 // =============================================================================
-// 全35ツールのMcpResponse形式検証テスト
+// 全39ツールのMcpResponse形式検証テスト
 // =============================================================================
 
-describe("MCP-RESP-08: All 35 Tools McpResponse Format Verification", () => {
+describe("MCP-RESP-08: All 39 Tools McpResponse Format Verification", () => {
   beforeEach(() => {
     clearToolHandlers();
     resetToolMetrics();
@@ -142,23 +146,23 @@ describe("MCP-RESP-08: All 35 Tools McpResponse Format Verification", () => {
     resetRateLimiter();
   });
 
-  describe("35 tools registered correctly", () => {
-    it("should have exactly 35 tools defined in allToolDefinitions", () => {
-      expect(allToolDefinitions.length).toBe(35);
+  describe("39 tools registered correctly", () => {
+    it("should have exactly 39 tools defined in allToolDefinitions", () => {
+      expect(allToolDefinitions.length).toBe(39);
     });
 
-    it("should have exactly 35 tools in toolHandlers", () => {
-      expect(Object.keys(toolHandlers).length).toBe(35);
+    it("should have exactly 39 tools in toolHandlers", () => {
+      expect(Object.keys(toolHandlers).length).toBe(39);
     });
 
-    it.each(ALL_35_TOOLS)("%s is registered in toolHandlers", (toolName) => {
+    it.each(ALL_39_TOOLS)("%s is registered in toolHandlers", (toolName) => {
       expect(toolHandlers[toolName]).toBeDefined();
       expect(typeof toolHandlers[toolName]).toBe("function");
     });
   });
 
   describe("McpResponse success structure for mock handlers", () => {
-    it.each(ALL_35_TOOLS)("%s returns valid McpResponse structure on success", async (toolName) => {
+    it.each(ALL_39_TOOLS)("%s returns valid McpResponse structure on success", async (toolName) => {
       // モックハンドラーを登録（成功レスポンス）
       registerTool(toolName, async () => ({
         success: true,
@@ -173,7 +177,7 @@ describe("MCP-RESP-08: All 35 Tools McpResponse Format Verification", () => {
       expect(isSuccessResponse(result as { success: true; data: unknown })).toBe(true);
     });
 
-    it.each(ALL_35_TOOLS)("%s returns valid McpResponse structure on error", async (toolName) => {
+    it.each(ALL_39_TOOLS)("%s returns valid McpResponse structure on error", async (toolName) => {
       // モックハンドラーを登録（エラーレスポンス）
       registerTool(toolName, async () => ({
         success: false,
@@ -592,8 +596,13 @@ describe("MCP-RESP-08: Category-based Tool Verification", () => {
     });
   });
 
-  describe("Page category (2 tools)", () => {
-    const pageTools = ["page.analyze", "page.getJobStatus"];
+  describe("Page category (4 tools)", () => {
+    const pageTools = [
+      "page.analyze",
+      "page.getJobStatus",
+      "page.batch_analyze",
+      "page.getBatchStatus",
+    ];
 
     it.each(pageTools)("%s returns valid McpResponse", async (toolName) => {
       registerTool(toolName, async () => ({

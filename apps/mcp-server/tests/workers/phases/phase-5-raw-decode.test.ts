@@ -37,7 +37,6 @@ import sharp from "sharp";
 
 import {
   createPhase5TempDir,
-  saveScreenshotAsPng,
   decodeToRawFile,
   acquireSectionCropBufferFromRaw,
   cleanupPhase5TempDir,
@@ -49,7 +48,15 @@ describe("Phase 5: RAW Decode Optimization", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "reftrix-test-raw-decode-"));
+    // v0.4.0 PR7d-2 (TDA LOW-1): decodeToRawFile() now enforces a whitelist
+    // that requires tmpDir to be under os.tmpdir() AND have the
+    // `reftrix-phase5-raw-` prefix (mirroring cleanupPhase5TempDir). Using
+    // `createPhase5TempDir()` is the simplest way to produce a valid tmpDir
+    // in tests; fallback to mkdtempSync with the exact prefix is equivalent.
+    // v0.4.0 PR7d-2 (TDA LOW-1): decodeToRawFile() は `reftrix-phase5-raw-`
+    // prefix whitelist を要求する。テストでは createPhase5TempDir() 同等の
+    // prefix を使用する。
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "reftrix-phase5-raw-test-"));
   });
 
   afterEach(() => {
@@ -61,38 +68,21 @@ describe("Phase 5: RAW Decode Optimization", () => {
   });
 
   // ========================================================================
-  // 1. PNGファイルが一時ディレクトリに保存されること
+  // 1. Temp directory creation (v0.4.0: `reftrix-phase5-raw-` prefix)
+  //    Screenshot PNG 保存は ScreenshotPersistenceService が担当するため
+  //    このファイルでは RAW decode 用の短命ディレクトリ作成のみを検証する。
+  //    Screenshot PNG persistence moved to ScreenshotPersistenceService;
+  //    this file only verifies the ephemeral tmp dir for RAW decode.
   // ========================================================================
-  describe("PNGファイル保存 / PNG file save", () => {
-    it("should create a job-specific temp directory with reftrix-phase5- prefix", () => {
+  describe("Temp directory creation (v0.4.0)", () => {
+    it("should create a job-specific temp directory with reftrix-phase5-raw- prefix", () => {
       const dir = createPhase5TempDir();
       try {
         expect(fs.existsSync(dir)).toBe(true);
-        expect(path.basename(dir)).toMatch(/^reftrix-phase5-/);
+        expect(path.basename(dir)).toMatch(/^reftrix-phase5-raw-/);
       } finally {
         fs.rmSync(dir, { recursive: true, force: true });
       }
-    });
-
-    it("should save screenshot Base64 as PNG file with mode 0o600 (TMP-3)", async () => {
-      // 2x2 red PNG
-      const pngBuffer = await sharp({
-        create: { width: 2, height: 2, channels: 4, background: { r: 255, g: 0, b: 0, alpha: 1 } },
-      })
-        .png()
-        .toBuffer();
-      const base64 = pngBuffer.toString("base64");
-
-      const pngPath = saveScreenshotAsPng(tmpDir, base64);
-
-      expect(fs.existsSync(pngPath)).toBe(true);
-      expect(path.extname(pngPath)).toBe(".png");
-      expect(path.dirname(pngPath)).toBe(tmpDir);
-
-      // TMP-3: パーミッション確認
-      const stat = fs.statSync(pngPath);
-      // Owner read/write only (0o600 = 384 in decimal)
-      expect(stat.mode & 0o777).toBe(0o600);
     });
   });
 
@@ -290,10 +280,6 @@ describe("Phase 5: RAW Decode Optimization", () => {
       const nonExistentPath = path.join(tmpDir, "nonexistent.png");
       const result = await decodeToRawFile(nonExistentPath, tmpDir);
       expect(result).toBeNull();
-    });
-
-    it("saveScreenshotAsPng should throw on empty base64", () => {
-      expect(() => saveScreenshotAsPng(tmpDir, "")).toThrow();
     });
   });
 
@@ -517,5 +503,118 @@ describe("TDA audit: Graceful Degradation edge cases", () => {
 
     const result = loadRawBuffer(fakeMeta);
     expect(result).toBeNull();
+  });
+});
+
+// ==========================================================================
+// 12. PR7d-1 SEC A-1: cleanupPhase5TempDir whitelist 3段防御
+//     cleanupPhase5TempDir must reject paths outside os.tmpdir() AND
+//     paths whose basename does not start with reftrix-phase5-raw-.
+//     This prevents the PR7b/PR7c carry-over bug where page-analyze-worker
+//     accidentally deleted `<REFTRIX_SCREENSHOT_ROOT>/phase5/` (persisted
+//     screenshot dir), which broke Queue-based Backfill visual embedding.
+// ==========================================================================
+describe("PR7d-1: cleanupPhase5TempDir whitelist defense (SEC A-1)", () => {
+  const realOsTmp = fs.realpathSync(os.tmpdir());
+
+  it("(1) should NOT delete a persisted screenshot path (`<root>/phase5/`)", () => {
+    // Simulate a persisted screenshot directory that happens to live under /tmp
+    // but lacks the `reftrix-phase5-raw-` prefix.
+    const persistedDir = fs.mkdtempSync(path.join(realOsTmp, "reftrix-screenshots-phase5-"));
+    const persistedFile = path.join(persistedDir, "webpage.png");
+    fs.writeFileSync(persistedFile, Buffer.alloc(100), { mode: 0o600 });
+    try {
+      cleanupPhase5TempDir(persistedDir);
+      expect(fs.existsSync(persistedDir)).toBe(true);
+      expect(fs.existsSync(persistedFile)).toBe(true);
+    } finally {
+      fs.rmSync(persistedDir, { recursive: true, force: true });
+    }
+  });
+
+  it("(2) should NOT follow a symlink that points at a non-whitelisted directory", () => {
+    // Attack: symlink named `reftrix-phase5-raw-attack` pointing at a persisted dir.
+    // realpath resolution should detect that the real basename is NOT
+    // `reftrix-phase5-raw-*` and reject the deletion.
+    const persistedDir = fs.mkdtempSync(path.join(realOsTmp, "reftrix-screenshots-phase5-"));
+    const persistedMarker = path.join(persistedDir, "precious.png");
+    fs.writeFileSync(persistedMarker, Buffer.alloc(50), { mode: 0o600 });
+
+    const symlinkPath = path.join(realOsTmp, `reftrix-phase5-raw-symlink-attack-${process.pid}`);
+    // Ensure no leftover
+    try {
+      fs.unlinkSync(symlinkPath);
+    } catch {
+      /* ignore */
+    }
+    fs.symlinkSync(persistedDir, symlinkPath, "dir");
+
+    try {
+      cleanupPhase5TempDir(symlinkPath);
+      // Symlink target must not have been deleted
+      expect(fs.existsSync(persistedMarker)).toBe(true);
+    } finally {
+      try {
+        fs.unlinkSync(symlinkPath);
+      } catch {
+        /* ignore */
+      }
+      fs.rmSync(persistedDir, { recursive: true, force: true });
+    }
+  });
+
+  it("(3) should NOT delete a relative path escaping os.tmpdir() (`../etc`)", () => {
+    // The helper must reject anything that does not resolve under os.tmpdir()
+    // AND whose basename does not match the prefix.
+    // A relative path like "../etc" or "/etc" should be a silent no-op.
+    // We assert by ensuring no exception is thrown AND /etc still has contents.
+    // (We are not actually going to try to delete /etc — realpath rejection
+    //  prevents entry into the rmSync branch.)
+    expect(() => {
+      cleanupPhase5TempDir("../etc");
+    }).not.toThrow();
+    expect(() => {
+      cleanupPhase5TempDir("/etc");
+    }).not.toThrow();
+  });
+
+  it("(4) should reject null-byte injection", () => {
+    // Null byte in path must be rejected before any realpath / rmSync call.
+    const maliciousPath = "/tmp/reftrix-phase5-raw-\0../etc";
+    expect(() => {
+      cleanupPhase5TempDir(maliciousPath);
+    }).not.toThrow();
+    // /etc should remain intact (sanity check: rerun and ensure no crash).
+  });
+
+  it("(5) should DELETE a legitimate reftrix-phase5-raw-xxx tmp dir (regression)", () => {
+    // Positive case: the happy path must still work.
+    const dir = createPhase5TempDir();
+    expect(fs.existsSync(dir)).toBe(true);
+    fs.writeFileSync(path.join(dir, "test.raw"), Buffer.alloc(100), { mode: 0o600 });
+
+    cleanupPhase5TempDir(dir);
+    expect(fs.existsSync(dir)).toBe(false);
+  });
+
+  it("(6) should silently no-op on non-existent path (ENOENT via realpath)", () => {
+    const ghost = path.join(realOsTmp, `reftrix-phase5-raw-ghost-${process.pid}-${Date.now()}`);
+    // Must not throw even though realpath would ENOENT.
+    expect(() => {
+      cleanupPhase5TempDir(ghost);
+    }).not.toThrow();
+    expect(fs.existsSync(ghost)).toBe(false);
+  });
+
+  it("(7) should reject non-string input (defensive)", () => {
+    // Type-level safety via TS, but runtime defense still exercised.
+    expect(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      cleanupPhase5TempDir(123 as any);
+    }).not.toThrow();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(() => cleanupPhase5TempDir(null as any)).not.toThrow();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(() => cleanupPhase5TempDir(undefined as any)).not.toThrow();
   });
 });

@@ -19,6 +19,7 @@ import type { IngestAdapterOptions, IngestResult } from "../../services/page-ing
 import { sanitizeHtml } from "../../utils/html-sanitizer";
 import { logger, isDevelopment } from "../../utils/logger";
 import { normalizeUrlForStorage } from "../../utils/url-normalizer";
+import type { IScreenshotPersistenceService } from "../../services/screenshot-persistence.service";
 
 import {
   type PipelineState,
@@ -28,7 +29,6 @@ import {
   HTML_HUGE_THRESHOLD,
   tryGarbageCollect,
 } from "./types";
-import { createPhase5TempDir, saveScreenshotAsPng } from "./phase-5-raw-decode";
 
 // ============================================================================
 // Types
@@ -51,6 +51,17 @@ export interface IngestPhaseDeps {
       upsert: (args: any) => Promise<{ id: string }>;
     };
   };
+  /**
+   * Screenshot 永続化サービス（v0.4.0）
+   * Screenshot persistence service (v0.4.0)
+   *
+   * Phase 0 で取得した fullPage screenshot を `<REFTRIX_SCREENSHOT_ROOT>/phase5/`
+   * に保存し、Phase 5 Queue-based Backfill から参照可能にする。
+   *
+   * Persists the fullPage screenshot to `<REFTRIX_SCREENSHOT_ROOT>/phase5/`
+   * so Phase 5 Queue-based Backfill jobs can access it asynchronously.
+   */
+  screenshotPersistenceService: IScreenshotPersistenceService;
 }
 
 // ============================================================================
@@ -127,34 +138,6 @@ export async function processIngestPhase(
   // Store in pipeline state
   state.html = html;
   state.screenshotBase64 = screenshotBase64;
-
-  // =====================================================
-  // Phase 0 PNG ファイル保存: Phase 5 RAW デコード最適化用
-  // screenshotBase64 を PNG ファイルに保存し、Phase 5 で1回だけ RAW デコードする。
-  // screenshotBase64 はまだ Phase 2/2.5 で使用されるため、メモリから解放しない。
-  // =====================================================
-  if (screenshotBase64) {
-    try {
-      const phase5TmpDir = createPhase5TempDir();
-      const pngPath = saveScreenshotAsPng(phase5TmpDir, screenshotBase64);
-      state.screenshotPngPath = pngPath;
-
-      if (isDevelopment()) {
-        logger.debug("[PageAnalyzeWorker] Screenshot saved as PNG for Phase 5 RAW decode", {
-          pngPath,
-          tmpDir: phase5TmpDir,
-        });
-      }
-    } catch (pngSaveError) {
-      // Graceful Degradation: PNG保存失敗時はPhase 5で従来パスを使用
-      logger.warn(
-        "[PageAnalyzeWorker] Failed to save screenshot PNG (non-fatal, Phase 5 will use legacy path)",
-        {
-          error: pngSaveError instanceof Error ? pngSaveError.message : String(pngSaveError),
-        }
-      );
-    }
-  }
 
   // =====================================================
   // Browser sharing: PageIngestAdapterのブラウザを再利用（4→1プロセス削減）
@@ -258,6 +241,52 @@ export async function processIngestPhase(
         url,
         error: errorMessage,
       });
+    }
+  }
+
+  // =====================================================
+  // Phase 0.7: Screenshot 永続化（v0.4.0）
+  // =====================================================
+  // Screenshot を `<REFTRIX_SCREENSHOT_ROOT>/phase5/<webPageId>.png` に保存。
+  // Phase 5 Queue-based Backfill が非同期に参照できるよう、page.analyze 完了後も保持する。
+  // actualWebPageId (Phase 0.5 upsert 結果) を使うことで FK 整合性を保証する。
+  // state.screenshotPngPath は永続化パスを指す（Phase 5 RAW decode もこれを読む）。
+  // screenshotBase64 は Phase 2/2.5 で使用されるため、このタイミングでは解放しない。
+  //
+  // Persist screenshot to `<REFTRIX_SCREENSHOT_ROOT>/phase5/<webPageId>.png` so that
+  // Phase 5 Queue-based Backfill jobs can access it asynchronously (preserved beyond
+  // page.analyze completion). Using actualWebPageId (Phase 0.5 upsert result)
+  // guarantees FK integrity. state.screenshotPngPath points to this persisted path
+  // (Phase 5 RAW decode reads from the same location). screenshotBase64 stays in
+  // memory because Phases 2/2.5 still need it.
+  if (screenshotBase64) {
+    try {
+      const pngBuffer = Buffer.from(screenshotBase64, "base64");
+      const persistedPath = await deps.screenshotPersistenceService.saveScreenshot(
+        state.actualWebPageId,
+        pngBuffer
+      );
+      state.screenshotPngPath = persistedPath;
+
+      if (isDevelopment()) {
+        logger.debug("[PageAnalyzeWorker] Screenshot persisted for Phase 5 and backfill", {
+          webPageId: state.actualWebPageId,
+          persistedPath,
+          bytes: pngBuffer.length,
+        });
+      }
+    } catch (persistError) {
+      // Graceful Degradation: 永続化失敗時は Phase 5 visual embedding は
+      // backfill 側で再キャプチャされる前提でスキップする。
+      // Graceful Degradation: on persistence failure, Phase 5 visual embedding
+      // is skipped; backfill will recapture the screenshot later.
+      logger.warn(
+        "[PageAnalyzeWorker] Failed to persist screenshot (non-fatal, Phase 5 visual skipped)",
+        {
+          webPageId: state.actualWebPageId,
+          error: persistError instanceof Error ? persistError.message : String(persistError),
+        }
+      );
     }
   }
 

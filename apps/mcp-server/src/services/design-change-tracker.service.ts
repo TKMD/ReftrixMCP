@@ -340,8 +340,16 @@ export async function createSnapshot(webPageId: string): Promise<CreateSnapshotR
   try {
     // 1. ページ存在確認
     const pages = await prisma.$queryRawUnsafe<
-      Array<{ id: string; url: string; analysis_version?: string }>
-    >(`SELECT id, url, analysis_version FROM web_pages WHERE id = $1::uuid`, webPageId);
+      Array<{
+        id: string;
+        url: string;
+        analysis_version?: string;
+        screenshot_full_url?: string | null;
+      }>
+    >(
+      `SELECT id, url, analysis_version, screenshot_full_url FROM web_pages WHERE id = $1::uuid`,
+      webPageId
+    );
 
     const pageRecord = pages[0];
     if (!pageRecord) {
@@ -381,7 +389,10 @@ export async function createSnapshot(webPageId: string): Promise<CreateSnapshotR
       webPageId,
       sections.length,
       overallScore,
-      JSON.stringify({ analysis_version: pageRecord.analysis_version ?? null })
+      JSON.stringify({
+        analysis_version: pageRecord.analysis_version ?? null,
+        screenshot_full_url: pageRecord.screenshot_full_url ?? null,
+      })
     );
 
     const firstSnapshot = snapshotRows[0];

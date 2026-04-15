@@ -191,6 +191,19 @@ describe("ThemeAnalyzer", () => {
       expect(result?.confidence).toBeGreaterThanOrEqual(0.9);
     });
 
+    test("should pass image as first argument and prompt as second to generateJSON (OV-4)", async () => {
+      // OV-4: generateJSON(image, prompt)のシグネチャに合った引数順で呼ばれること
+      mockGenerateJSON.mockResolvedValue(EA_FINANCIAL_DARK_RESPONSE);
+
+      await analyzer.analyze(VALID_BASE64_IMAGE);
+
+      expect(mockGenerateJSON).toHaveBeenCalledTimes(1);
+      const [firstArg, secondArg] = mockGenerateJSON.mock.calls[0] as [string, string];
+      // 第1引数はBase64画像（英数字/+/=/のみ）、第2引数はプロンプト文字列（英文テキスト）
+      expect(firstArg).toBe(VALID_BASE64_IMAGE);
+      expect(secondArg).toContain("theme");
+    });
+
     test("should correctly detect white background as LIGHT theme", async () => {
       mockGenerateJSON.mockResolvedValue(LIGHT_THEME_RESPONSE);
 

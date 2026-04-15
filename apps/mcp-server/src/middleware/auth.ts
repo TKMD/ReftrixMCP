@@ -240,6 +240,12 @@ export const TOOL_PERMISSIONS: Record<string, string[]> = {
   // ページ系（統合Web分析）
   "page.analyze": [PERMISSIONS.LAYOUT_READ, PERMISSIONS.MOTION_READ, PERMISSIONS.QUALITY_READ],
   "page.getJobStatus": [PERMISSIONS.LAYOUT_READ],
+  "page.batch_analyze": [
+    PERMISSIONS.LAYOUT_READ,
+    PERMISSIONS.MOTION_READ,
+    PERMISSIONS.QUALITY_READ,
+  ],
+  "page.getBatchStatus": [PERMISSIONS.LAYOUT_READ],
 
   // 横断検索系（Unified Search）
   "search.unified": [PERMISSIONS.LAYOUT_READ],
@@ -277,6 +283,11 @@ export const TOOL_PERMISSIONS: Record<string, string[]> = {
 
   // デザイン変更追跡系（v0.3.0 T2-DCT）
   "design.track_changes": [PERMISSIONS.DESIGN_WRITE],
+  // ビジュアル回帰テスト（v0.4.0）
+  "design.regression_test": [PERMISSIONS.DESIGN_WRITE],
+
+  // レポート生成系（v0.4.0）
+  "report.generate": [PERMISSIONS.LAYOUT_READ],
 
   // システム系（公開ツール）
   "system.health": [PERMISSIONS.SYSTEM_HEALTH],
@@ -409,8 +420,23 @@ export async function validateApiKey(apiKey: string | undefined): Promise<AuthCo
         expiresAt?: string;
       }>;
 
+      // SEC: M-4 — reject env keys shorter than reftrix_ + 32 chars (40 total)
+      // セキュリティ: 鍵長不足のenvキーをスキップ（テスト用キーは対象外）
+      const MIN_ENV_KEY_LENGTH = 40; // "reftrix_" (8) + 32 chars
+      const validKeys = keys.filter((k) => {
+        if (k.key.length < MIN_ENV_KEY_LENGTH) {
+          logger.warn("[Auth] Env API key too short, skipping", {
+            keyPrefix: k.key.slice(0, 12) + "...",
+            length: k.key.length,
+            minRequired: MIN_ENV_KEY_LENGTH,
+          });
+          return false;
+        }
+        return true;
+      });
+
       // 定数時間比較で全てのキーをチェック
-      const keyConfig = keys.find((k) => safeCompareApiKey(apiKey, k.key));
+      const keyConfig = validKeys.find((k) => safeCompareApiKey(apiKey, k.key));
       if (keyConfig) {
         // 有効期限チェック
         if (keyConfig.expiresAt) {

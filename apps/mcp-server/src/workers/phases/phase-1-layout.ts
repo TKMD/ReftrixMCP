@@ -13,6 +13,8 @@
  * @module workers/phases/phase-1-layout
  */
 
+import fs from "node:fs";
+import sharp from "sharp";
 import { logger, isDevelopment } from "../../utils/logger";
 import type { LayoutServiceResult } from "../../tools/page/handlers/types";
 import type {
@@ -423,9 +425,24 @@ export async function processLayoutPhase(
 
               const sections = state.layoutResultForNarrative!.sections!;
 
-              // Convert screenshot from base64 to Buffer if available
+              // OOM-2: screenshotPngPath から直接読み込み（Base64 二重デコード廃止）
+              // Phase 0 で保存した PNG ファイルから直接 Buffer を読み込む。
+              // Buffer.from(state.screenshotBase64, "base64") は ~80-150MB の
+              // ネイティブメモリを確保し、glibc arena 断片化の原因となる。
+              // OOM-2: Read directly from screenshotPngPath (eliminates double Base64 decode).
+              // Phase 0 saved PNG file is read directly to avoid ~80-150MB native
+              // memory allocation from Buffer.from(base64) that causes glibc arena fragmentation.
               let screenshotBuffer: Buffer | undefined;
-              if (state.screenshotBase64) {
+              if (state.screenshotPngPath && fs.existsSync(state.screenshotPngPath)) {
+                try {
+                  screenshotBuffer = fs.readFileSync(state.screenshotPngPath);
+                } catch {
+                  logger.warn(
+                    "[PageAnalyzeWorker] Failed to read screenshot PNG for part extraction"
+                  );
+                }
+              } else if (state.screenshotBase64) {
+                // Fallback: PNG ファイルがない場合のみ従来パス
                 try {
                   screenshotBuffer = Buffer.from(state.screenshotBase64, "base64");
                 } catch {
@@ -584,4 +601,13 @@ export async function processLayoutPhase(
       }
     }
   }
+
+  // OOM-4: Phase 1 完了後に Sharp (libvips) のキャッシュをクリア
+  // Layout Analysis と Part Extraction で使用された libvips の内部キャッシュを解放し、
+  // ネイティブメモリの蓄積を防止する。Phase 5 では独自に sharp.cache(false) を設定する。
+  // OOM-4: Clear Sharp (libvips) cache after Phase 1 completion.
+  // Releases libvips internal cache used by Layout Analysis and Part Extraction
+  // to prevent native memory accumulation. Phase 5 sets sharp.cache(false) independently.
+  sharp.cache(false);
+  sharp.cache(true);
 }

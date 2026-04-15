@@ -119,6 +119,7 @@ describe.skipIf(!isDatabaseAvailable)("Vision Embedding Migration", () => {
 
     it("should have correct HNSW parameters (m=16, ef_construction=64)", async () => {
       // Query index definition to verify parameters
+      // Note: '%vision_embedding vector%' で halfvec インデックス (vision_embedding_hv) を除外
       const result = await prisma.$queryRaw<
         Array<{
           indexdef: string;
@@ -128,7 +129,7 @@ describe.skipIf(!isDatabaseAvailable)("Vision Embedding Migration", () => {
         FROM pg_indexes
         WHERE tablename = 'motion_embeddings'
           AND indexdef LIKE '%hnsw%'
-          AND indexdef LIKE '%vision_embedding%'
+          AND indexdef LIKE '%vision_embedding vector%'
       `;
 
       expect(result).toHaveLength(1);
