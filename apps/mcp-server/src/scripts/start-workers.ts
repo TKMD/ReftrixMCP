@@ -29,8 +29,7 @@
 
 /* eslint-disable no-console */
 
-import fs from "node:fs";
-import path from "node:path";
+import { loadEnvLocal as loadEnvLocalShared } from "@reftrixmcp/core";
 import { computeMemoryProfile, logMemoryProfile } from "../services/worker-memory-profile";
 // v0.4.0 PR7d-2: Redis-based dual-run detection.
 // v0.4.0 PR7d-2: Redis ベース二重起動検出。
@@ -58,8 +57,17 @@ import {
   initializeAllServices,
   type ServiceInitializerConfig,
 } from "../services/service-initializer";
-import { createPageAnalyzeQueue } from "../queues/page-analyze-queue";
-import { createEmbeddingBackfillQueue } from "../queues/embedding-backfill-queue";
+import {
+  createPageAnalyzeQueue,
+  createQueueEvents as createPageAnalyzeQueueEvents,
+  registerPageAnalyzeDuplicatedListener,
+} from "../queues/page-analyze-queue";
+import {
+  createEmbeddingBackfillQueue,
+  createEmbeddingBackfillQueueEvents,
+  registerEmbeddingBackfillDuplicatedListener,
+} from "../queues/embedding-backfill-queue";
+import type { QueueEvents } from "bullmq";
 import { categorizeByProgress } from "../services/orphaned-job-utils";
 // v0.4.0 PR6: Cron jobs for screenshot TTL + backfill reconciliation
 // v0.4.0 PR6: Screenshot TTL + backfill reconciliation の定期タスク
@@ -71,10 +79,24 @@ import {
   scheduleBackfillReconciliationCron,
   type BackfillReconciliationCronHandle,
 } from "../cron/backfill-reconciliation-cron";
+// PR-B (v0.4.0 PR7e P4 / LCC-M3-03): Phase 0 stale row cleanup cron
+// PR-B (v0.4.0 PR7e P4 / LCC-M3-03): Phase 0 stale 行 cleanup cron
+import {
+  schedulePhase0CleanupCron,
+  type Phase0CleanupCronHandle,
+} from "../cron/phase0-cleanup-cron";
 import { createScreenshotPersistenceService } from "../services/screenshot-persistence.service";
+import { createPhase0CleanupService } from "../services/phase0-cleanup.service";
 // v0.4.0 PR7d-3 (SEC L-1): sanitize error messages before logging.
 // v0.4.0 PR7d-3 (SEC L-1): 生 error.message は出力せず必ず sanitize する。
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
+// SEC-M1-02 (ADR-0016 § Test-only Env Var Guard, deadline 2026-05-15):
+// worker entry point (3rd of 3 entry points) で test-only env var leak を遮断する。
+// loadEnvLocal() 直後に呼ぶことで .env.local 経由のリーク (誤って
+// EMBEDDING_MODEL_MOCK=true を本番 .env に書いた場合等) も検出可能。
+// SEC-M1-02: enforce guard at the worker entry point right after loadEnvLocal()
+// so that even leaks via .env.local are caught fail-fast.
+import { assertNoTestOnlyEnvLeak } from "../config/test-env-guard";
 // NOTE: Startup embedding backfill was removed (caused 33GB RSS bloat blocking Worker init).
 // Missing embeddings are repaired via:
 //   1. Post-Embedding Backfill in page-analyze-worker.ts (per-job, after Phase 5)
@@ -84,14 +106,18 @@ import { sanitizeErrorMessage } from "../utils/sanitize-error";
 // Constants
 // ============================================================================
 
-const WORKER_TYPES = {
-  PAGE_ANALYZE: "page-analyze",
-  // v0.4.0 PR4: Embedding backfill worker
-  EMBEDDING_BACKFILL: "embedding-backfill",
-  ALL: "all",
-} as const;
-
-type WorkerType = (typeof WORKER_TYPES)[keyof typeof WORKER_TYPES];
+// PR-D-8 Phase 2 (§3.2.1 / TDA-01 H resolution): WorkerType SSOT migration.
+// Pre-PR-D-8 start-workers.ts declared its own `WORKER_TYPES` const with
+// legacy CLI flag name `"page-analyze"`. Post-migration, internal code uses
+// the SSOT `WorkerType` union (`"page" | "embedding-backfill"`), the CLI
+// boundary still accepts legacy `"page-analyze"` via `START_WORKERS_CLI_MAPPING`,
+// and the `"all"` pseudo-value is represented via the orthogonal `StartMode`
+// type.
+// PR-D-8 Phase 2 (§3.2.1 / TDA-01 H): WorkerType SSOT へ統合。CLI 境界は
+// legacy `"page-analyze"` flag を 1-cycle 互換維持 (START_WORKERS_CLI_MAPPING
+// 経由) する。
+import type { StartMode, WorkerType } from "../types/worker-type";
+import { WORKER_TYPES as SSOT_WORKER_TYPES } from "../types/worker-type";
 
 // ============================================================================
 // Worker Instances
@@ -101,45 +127,35 @@ let pageAnalyzeWorker: PageAnalyzeWorkerInstance | null = null;
 // v0.4.0 PR4: Embedding backfill worker instance
 // v0.4.0 PR4: Embedding バックフィルワーカーのインスタンス
 let embeddingBackfillWorker: EmbeddingBackfillWorkerInstance | null = null;
+// PR-D-6 Registry v4 §15.2 Patch Binding B (FIND-TPA-IMPL-02): observability-only
+// QueueEvents "duplicated" listener pair + detach callbacks + QueueEvents handles
+// for shutdown lifecycle tear-down.
+// PR-D-6 Registry v4 §15.2: `duplicated` listener の wiring と cleanup 用の状態。
+let pageAnalyzeQueueEvents: QueueEvents | null = null;
+let embeddingBackfillQueueEvents: QueueEvents | null = null;
+let embeddingBackfillDuplicatedDetach: (() => void) | null = null;
 // v0.4.0 PR6: Cron job handles
 // v0.4.0 PR6: Cron タスクのハンドル
 let screenshotCleanupCron: ScreenshotCleanupCronHandle | null = null;
 let backfillReconciliationCron: BackfillReconciliationCronHandle | null = null;
+// PR-B (v0.4.0 PR7e P4): Phase 0 stale row cleanup cron handle
+let phase0CleanupCron: Phase0CleanupCronHandle | null = null;
 
 // ============================================================================
 // Initialization
 // ============================================================================
 
+/**
+ * Load .env.local via the shared `@reftrixmcp/core` helper.
+ *
+ * PR7e-β1: replaced the local implementation with the shared helper so that
+ * start-workers / CLI scripts / repair scripts share identical semantics
+ * (SEC-β-01 maxDepth, SEC-β-07 verbose=false, existing env preserved).
+ */
 function loadEnvLocal(): void {
-  let dir = process.cwd();
-  while (true) {
-    const candidate = path.join(dir, ".env.local");
-    if (fs.existsSync(candidate)) {
-      const raw = fs.readFileSync(candidate, "utf8");
-      raw.split(/\r?\n/).forEach((line) => {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith("#")) return;
-        const normalized = trimmed.startsWith("export ") ? trimmed.slice(7) : trimmed;
-        const eqIndex = normalized.indexOf("=");
-        if (eqIndex === -1) return;
-        const key = normalized.slice(0, eqIndex).trim();
-        let value = normalized.slice(eqIndex + 1).trim();
-        if (
-          (value.startsWith('"') && value.endsWith('"')) ||
-          (value.startsWith("'") && value.endsWith("'"))
-        ) {
-          value = value.slice(1, -1);
-        }
-        if (!process.env[key]) {
-          process.env[key] = value;
-        }
-      });
-      console.log(`[WorkerStartup] Loaded .env.local from ${candidate}`);
-      return;
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
+  const result = loadEnvLocalShared({ verbose: false });
+  if (result.loaded && result.path) {
+    console.log(`[WorkerStartup] Loaded .env.local from ${result.path}`);
   }
 }
 
@@ -323,10 +339,10 @@ async function recoverOrphanedEmbeddingBackfillJobs(): Promise<void> {
           recoveredCount++;
         }
       } catch (error) {
+        // PR-D-7 Wave 4: sanitize error.message via SSOT mapping (CWE-209 closure).
+        // PR-D-7 Wave 4: SSOT マッピング経由でサニタイズ（CWE-209 対応）。
         console.warn(
-          `[WorkerStartup]     -> recovery failed (non-fatal): ${
-            error instanceof Error ? error.message : error
-          }`
+          `[WorkerStartup]     -> recovery failed (non-fatal): ${sanitizeErrorMessage(error)}`
         );
       }
     }
@@ -336,9 +352,11 @@ async function recoverOrphanedEmbeddingBackfillJobs(): Promise<void> {
       `[WorkerStartup] Embedding-backfill recovery complete: ${recoveredCount} recovered, ${retriedCount} retried`
     );
   } catch (error) {
+    // PR-D-7 Wave 4: sanitize error.message via SSOT mapping (CWE-209 closure).
+    // PR-D-7 Wave 4: SSOT マッピング経由でサニタイズ（CWE-209 対応）。
     console.warn(
       "[WorkerStartup] Orphaned embedding-backfill recovery failed (non-fatal):",
-      error instanceof Error ? error.message : error
+      sanitizeErrorMessage(error)
     );
   }
 }
@@ -455,10 +473,10 @@ async function recoverOrphanedPageAnalyzeJobs(): Promise<void> {
           }
         }
       } catch (error) {
+        // PR-D-7 Wave 4: sanitize error.message via SSOT mapping (CWE-209 closure).
+        // PR-D-7 Wave 4: SSOT マッピング経由でサニタイズ（CWE-209 対応）。
         console.warn(
-          `[WorkerStartup]     -> recovery failed (non-fatal): ${
-            error instanceof Error ? error.message : error
-          }`
+          `[WorkerStartup]     -> recovery failed (non-fatal): ${sanitizeErrorMessage(error)}`
         );
       }
     }
@@ -469,9 +487,11 @@ async function recoverOrphanedPageAnalyzeJobs(): Promise<void> {
     );
   } catch (error) {
     // 回復失敗はワーカー起動を妨げない（Graceful Degradation）
+    // PR-D-7 Wave 4: sanitize error.message via SSOT mapping (CWE-209 closure).
+    // PR-D-7 Wave 4: SSOT マッピング経由でサニタイズ（CWE-209 対応）。
     console.warn(
       "[WorkerStartup] Orphaned job recovery failed (non-fatal):",
-      error instanceof Error ? error.message : error
+      sanitizeErrorMessage(error)
     );
   }
 }
@@ -499,9 +519,11 @@ function setupIpcShutdownHandler(): void {
         try {
           await shutdownWorkers();
         } catch (error) {
+          // PR-D-7 Wave 4: sanitize error.message via SSOT mapping (CWE-209 closure).
+          // PR-D-7 Wave 4: SSOT マッピング経由でサニタイズ（CWE-209 対応）。
           console.error(
             "[WorkerStartup] Error during IPC-triggered shutdown:",
-            error instanceof Error ? error.message : error
+            sanitizeErrorMessage(error)
           );
           process.exit(1);
         }
@@ -513,46 +535,73 @@ function setupIpcShutdownHandler(): void {
 /**
  * Start workers based on type
  */
-async function startWorkers(type: WorkerType): Promise<void> {
+async function startWorkers(mode: StartMode): Promise<void> {
   // Initialize services first
   await initializeServices();
 
   // Check Redis
   await checkRedis();
 
-  // Recover orphaned jobs from previous crashes before starting new workers
-  if (type === WORKER_TYPES.PAGE_ANALYZE || type === WORKER_TYPES.ALL) {
+  // Recover orphaned jobs from previous crashes before starting new workers.
+  // PR-D-8 §3.2.1: StartMode semantics — "all" means every WorkerType,
+  // specific WorkerType values target only that worker.
+  const includesPage = mode === "page" || mode === "all";
+  const includesBackfill = mode === "embedding-backfill" || mode === "all";
+
+  if (includesPage) {
     await recoverOrphanedPageAnalyzeJobs();
   }
-  if (type === WORKER_TYPES.EMBEDDING_BACKFILL || type === WORKER_TYPES.ALL) {
+  if (includesBackfill) {
     await recoverOrphanedEmbeddingBackfillJobs();
   }
 
   // Start workers
-  switch (type) {
-    case WORKER_TYPES.PAGE_ANALYZE:
-      pageAnalyzeWorker = startPageAnalyzeWorker();
-      break;
+  if (includesPage) {
+    pageAnalyzeWorker = startPageAnalyzeWorker();
+  }
+  if (includesBackfill) {
+    // v0.4.0 PR4: 同一プロセスで両 Worker を起動する場合、BullMQ の active 取得は
+    // Queue 単位で独立し、互いに干渉しない (concurrency=1)。PR-D-8 ではこのヘルパー
+    // は "all" および "embedding-backfill" 単独モードの両方で呼ばれる。
+    // v0.4.0 PR4: When both workers run in the same process, BullMQ's active
+    // acquisition is independent per Queue (concurrency=1). PR-D-8 invokes this
+    // for both "all" and the dedicated "embedding-backfill" mode.
+    embeddingBackfillWorker = startEmbeddingBackfillWorker();
+  }
 
-    case WORKER_TYPES.EMBEDDING_BACKFILL:
-      embeddingBackfillWorker = startEmbeddingBackfillWorker();
-      break;
-
-    case WORKER_TYPES.ALL:
-    default:
-      pageAnalyzeWorker = startPageAnalyzeWorker();
-      // v0.4.0 PR4: 同一プロセスで両 Worker を起動する。concurrency=1 なので
-      // BullMQ の active 取得は Queue 単位で独立し、互いに干渉しない。
-      // v0.4.0 PR4: Start both workers in the same process. With concurrency=1,
-      // BullMQ's active job acquisition is independent per Queue and they do
-      // not interfere with each other.
-      embeddingBackfillWorker = startEmbeddingBackfillWorker();
-      break;
+  // PR-D-6 Registry v4 §15.2 Patch Binding B (FIND-TPA-IMPL-02 +
+  // FIND-SEC-04 co-close): wire observability-only `"duplicated"` listeners on
+  // both Queue's QueueEvents instances so a BullMQ jobId collision (case (a)(b)
+  // (c) in Plan §2.2) emits a correlated `logger.warn` in addition to the
+  // `*_collision_resolved` audit_logs row. Register only for Queue types that
+  // were actually started to avoid unnecessary Redis pubsub connections.
+  // PR-D-6 Registry v4 §15.2: 両 Queue の "duplicated" listener を wire して
+  // observability を確保する。起動していない Queue には register しない。
+  try {
+    if (includesPage) {
+      pageAnalyzeQueueEvents = createPageAnalyzeQueueEvents();
+      registerPageAnalyzeDuplicatedListener(pageAnalyzeQueueEvents);
+      console.log("[WorkerStartup] page-analyze QueueEvents duplicated listener registered");
+    }
+    if (includesBackfill) {
+      embeddingBackfillQueueEvents = createEmbeddingBackfillQueueEvents();
+      embeddingBackfillDuplicatedDetach = registerEmbeddingBackfillDuplicatedListener(
+        embeddingBackfillQueueEvents
+      );
+      console.log("[WorkerStartup] embedding-backfill QueueEvents duplicated listener registered");
+    }
+  } catch (error) {
+    // Observability-only path: listener failure must not block Worker startup.
+    // observability-only path: listener wiring の失敗は Worker 起動を妨げない。
+    console.warn(
+      "[WorkerStartup] Failed to register duplicated listener (non-fatal):",
+      sanitizeErrorMessage(error)
+    );
   }
 
   // v0.4.0 PR6: Schedule periodic maintenance cron jobs alongside workers.
   // v0.4.0 PR6: Worker と並行して定期メンテナンス cron を起動する。
-  if (type === WORKER_TYPES.ALL || type === WORKER_TYPES.EMBEDDING_BACKFILL) {
+  if (includesBackfill) {
     try {
       const screenshotService = createScreenshotPersistenceService({
         prisma: prisma as unknown as Parameters<
@@ -580,9 +629,11 @@ async function startWorkers(type: WorkerType): Promise<void> {
       screenshotCleanupCron = scheduleScreenshotCleanupCron(screenshotOpts);
       console.log("[WorkerStartup] Screenshot TTL cleanup cron scheduled");
     } catch (error) {
+      // PR-D-7 Wave 4: sanitize error.message via SSOT mapping (CWE-209 closure).
+      // PR-D-7 Wave 4: SSOT マッピング経由でサニタイズ（CWE-209 対応）。
       console.warn(
         "[WorkerStartup] Failed to schedule screenshot cleanup cron (non-fatal):",
-        error instanceof Error ? error.message : error
+        sanitizeErrorMessage(error)
       );
     }
 
@@ -601,6 +652,16 @@ async function startWorkers(type: WorkerType): Promise<void> {
       };
       const reconcileInterval = parseIntEnv(process.env.BACKFILL_RECONCILIATION_INTERVAL_MS);
       if (reconcileInterval !== undefined) reconcileOpts.intervalMs = reconcileInterval;
+      // Item 2 / CO-30: cron polling cadence default 5min (was 1h pre-CO-30 closure).
+      // Override via BACKFILL_RECONCILIATION_INTERVAL_MS for ops tuning.
+      // Note: effective reconciliation upper bound = max(staleThresholdMs=1h,
+      // intervalMs=5min) = 1h+5min worst-tail. True 12x SLO improvement requires
+      // staleThresholdMs reduction, deferred to CO-30-FOLLOWUP M 2026-Q4.
+      //
+      // Item 2 / CO-30: cron ポーリング間隔のデフォルトは 5min (CO-30 closure 前は 1h)。
+      // 運用チューニングは BACKFILL_RECONCILIATION_INTERVAL_MS で override。
+      // 注: 実 reconciliation 上限 = max(staleThresholdMs=1h, intervalMs=5min) = 1h+5min worst-tail。
+      // 真の 12x SLO 改善は staleThresholdMs 短縮が必要、CO-30-FOLLOWUP M 2026-Q4 へ繰越。
       const reconcileStale = parseIntEnv(process.env.BACKFILL_RECONCILIATION_STALE_THRESHOLD_MS);
       if (reconcileStale !== undefined) reconcileOpts.staleThresholdMs = reconcileStale;
       const reconcileBatch = parseIntEnv(process.env.BACKFILL_RECONCILIATION_BATCH_LIMIT);
@@ -608,9 +669,43 @@ async function startWorkers(type: WorkerType): Promise<void> {
       backfillReconciliationCron = scheduleBackfillReconciliationCron(reconcileOpts);
       console.log("[WorkerStartup] Backfill reconciliation cron scheduled");
     } catch (error) {
+      // PR-D-7 Wave 4: sanitize error.message via SSOT mapping (CWE-209 closure).
+      // PR-D-7 Wave 4: SSOT マッピング経由でサニタイズ（CWE-209 対応）。
       console.warn(
         "[WorkerStartup] Failed to schedule reconciliation cron (non-fatal):",
-        error instanceof Error ? error.message : error
+        sanitizeErrorMessage(error)
+      );
+    }
+
+    // PR-B (v0.4.0 PR7e P4 / LCC-M3-03): Phase 0 stale row cleanup cron.
+    // PHASE0_EARLY_INSERT=true で生成される failed row (robots.txt / SSRF /
+    // DNS fail 等) を TTL ベース (default 7d) で掃除する。screenshot cleanup
+    // と同じ cadence (24h) で動作し、runOnStart は default false。
+    //
+    // PR-B (v0.4.0 PR7e P4 / LCC-M3-03): Phase 0 stale row cleanup. Deletes
+    // failed rows generated by PHASE0_EARLY_INSERT=true (robots.txt / SSRF /
+    // DNS failures) on a TTL basis (default 7d). Same cadence as screenshot
+    // cleanup (24h); runOnStart defaults to false.
+    try {
+      const phase0Service = createPhase0CleanupService({
+        prisma: prisma as unknown as Parameters<typeof createPhase0CleanupService>[0]["prisma"],
+      });
+      const phase0Opts: Parameters<typeof schedulePhase0CleanupCron>[0] = {
+        service: phase0Service,
+        runOnStart: process.env.PHASE0_CLEANUP_RUN_ON_START === "true",
+      };
+      const phase0Interval = parseIntEnv(process.env.PHASE0_CLEANUP_INTERVAL_MS);
+      if (phase0Interval !== undefined) phase0Opts.intervalMs = phase0Interval;
+      const phase0OlderThan = parseIntEnv(process.env.PHASE0_CLEANUP_OLDER_THAN_MS);
+      if (phase0OlderThan !== undefined) phase0Opts.olderThanMs = phase0OlderThan;
+      const phase0Batch = parseIntEnv(process.env.PHASE0_CLEANUP_MAX_BATCH_SIZE);
+      if (phase0Batch !== undefined) phase0Opts.maxBatchSize = phase0Batch;
+      phase0CleanupCron = schedulePhase0CleanupCron(phase0Opts);
+      console.log("[WorkerStartup] Phase 0 stale row cleanup cron scheduled");
+    } catch (error) {
+      console.warn(
+        "[WorkerStartup] Failed to schedule Phase 0 cleanup cron (non-fatal):",
+        sanitizeErrorMessage(error)
       );
     }
   }
@@ -649,9 +744,11 @@ async function shutdownWorkers(): Promise<void> {
     try {
       screenshotCleanupCron.stop();
     } catch (error) {
+      // PR-D-7 Wave 4: sanitize error.message via SSOT mapping (CWE-209 closure).
+      // PR-D-7 Wave 4: SSOT マッピング経由でサニタイズ（CWE-209 対応）。
       console.warn(
         "[WorkerStartup] Error stopping screenshot cleanup cron:",
-        error instanceof Error ? error.message : error
+        sanitizeErrorMessage(error)
       );
     }
     screenshotCleanupCron = null;
@@ -660,12 +757,66 @@ async function shutdownWorkers(): Promise<void> {
     try {
       backfillReconciliationCron.stop();
     } catch (error) {
+      // PR-D-7 Wave 4: sanitize error.message via SSOT mapping (CWE-209 closure).
+      // PR-D-7 Wave 4: SSOT マッピング経由でサニタイズ（CWE-209 対応）。
       console.warn(
         "[WorkerStartup] Error stopping backfill reconciliation cron:",
-        error instanceof Error ? error.message : error
+        sanitizeErrorMessage(error)
       );
     }
     backfillReconciliationCron = null;
+  }
+  // PR-B (v0.4.0 PR7e P4): Stop Phase 0 cleanup cron alongside other cron handles.
+  if (phase0CleanupCron) {
+    try {
+      phase0CleanupCron.stop();
+    } catch (error) {
+      console.warn(
+        "[WorkerStartup] Error stopping Phase 0 cleanup cron:",
+        sanitizeErrorMessage(error)
+      );
+    }
+    phase0CleanupCron = null;
+  }
+
+  // PR-D-6 Registry v4 §15.2 Patch Binding B (FIND-TPA-IMPL-02 +
+  // FIND-SEC-04 lifecycle closure): detach `"duplicated"` listeners and close
+  // the QueueEvents instances BEFORE Worker.close() so no new Redis pubsub
+  // events arrive mid-shutdown. Best-effort; failures never block shutdown.
+  // PR-D-6 Registry v4 §15.2: Worker.close() 前に listener を detach + QueueEvents
+  // を close して、shutdown 中の新規 pubsub event 到着を防ぐ。
+  if (embeddingBackfillDuplicatedDetach) {
+    try {
+      embeddingBackfillDuplicatedDetach();
+    } catch (error) {
+      console.warn(
+        "[WorkerStartup] Error detaching embedding-backfill duplicated listener:",
+        sanitizeErrorMessage(error)
+      );
+    }
+    embeddingBackfillDuplicatedDetach = null;
+  }
+  if (pageAnalyzeQueueEvents) {
+    try {
+      await pageAnalyzeQueueEvents.close();
+    } catch (error) {
+      console.warn(
+        "[WorkerStartup] Error closing page-analyze QueueEvents:",
+        sanitizeErrorMessage(error)
+      );
+    }
+    pageAnalyzeQueueEvents = null;
+  }
+  if (embeddingBackfillQueueEvents) {
+    try {
+      await embeddingBackfillQueueEvents.close();
+    } catch (error) {
+      console.warn(
+        "[WorkerStartup] Error closing embedding-backfill QueueEvents:",
+        sanitizeErrorMessage(error)
+      );
+    }
+    embeddingBackfillQueueEvents = null;
   }
 
   const shutdownPromises: Promise<void>[] = [];
@@ -706,6 +857,15 @@ async function shutdownWorkers(): Promise<void> {
 let standaloneLockService: WorkerActiveLockService | null = null;
 let standaloneLockToken: string | null = null;
 let standaloneLockHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
+/**
+ * PR-D-8 Phase 2 MF-06: workerType currently held by the standalone lock.
+ * Required so that {@link releaseStandaloneLock} releases the correct per-type
+ * Redis key namespace.
+ *
+ * PR-D-8 Phase 2 MF-06: standalone lock を保持している workerType。release で
+ * 正しい per-type Redis key を解放するために必要。
+ */
+let standaloneLockWorkerType: WorkerType | null = null;
 
 /**
  * Check existing worker lock and either exit (dual-run detected) or acquire
@@ -717,7 +877,7 @@ let standaloneLockHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
  * Redis 失敗時は warning のみで起動継続 (Redis 障害時に operator を締め出さない
  * ため fail-open; PR7d-2 以前と同等の挙動を維持)。
  */
-async function evaluateDualRunGuard(): Promise<void> {
+async function evaluateDualRunGuard(workerType: WorkerType): Promise<void> {
   // 1. Test mode — skip entirely to avoid Vitest's maxWorkers parallelism
   //    racing on the same Redis key across test processes.
   //    テストモード — Vitest 並列実行で同一 Redis key を奪い合わないよう skip。
@@ -732,7 +892,7 @@ async function evaluateDualRunGuard(): Promise<void> {
   if (process.env.REFTRIX_WORKER_IS_CHILD === "1") {
     if (process.env.REFTRIX_WORKER_SUPERVISOR_BOOT_TOKEN) {
       console.log(
-        "[WorkerStartup] Detected fork-child mode (REFTRIX_WORKER_IS_CHILD=1), skipping dual-run guard"
+        `[WorkerStartup] Detected fork-child mode (REFTRIX_WORKER_IS_CHILD=1, type=${workerType}), skipping dual-run guard`
       );
     }
     return;
@@ -745,31 +905,29 @@ async function evaluateDualRunGuard(): Promise<void> {
   //    ライフサイクルを所有するケース用。
   if (process.env.REFTRIX_ALLOW_MANUAL_WORKER === "true") {
     console.warn(
-      "[WorkerStartup] REFTRIX_ALLOW_MANUAL_WORKER=true — bypassing dual-run guard. " +
-        "Ensure no other Worker is consuming the page-analyze Queue."
+      `[WorkerStartup] REFTRIX_ALLOW_MANUAL_WORKER=true — bypassing dual-run guard for ${workerType}. ` +
+        "Ensure no other Worker is consuming the same Queue."
     );
     return;
   }
 
   // 4. Default path — consult Redis via discriminated union APIs so that
   //    Redis-unreachable fails open (warn + continue), while a real dual-run
-  //    (existing owner or race-lost acquire) fails closed (exit 1). This
-  //    matches ADR-0011's documented intent: "On Redis failure, warn-and-
-  //    continue (fail-open, preserves pre-PR7d-2 behaviour)".
+  //    (existing owner or race-lost acquire) fails closed (exit 1).
   //
-  //    v0.4.0 PR7d-3 (SEC M-1): 従来は `checkExistingLock()` が Redis 障害時に
-  //    null を返していたため、outer try/catch が Redis 例外を捕捉できず常に
-  //    fail-closed で `process.exit(1)` になっていた。discriminated union API
-  //    で race-lost と Redis 不可到達を明示的に区別する。
+  //    PR-D-8 Phase 2 MF-06 (TPA-IMPL-V11-07): the `workerType` argument is
+  //    now resolved from the parsed startMode (`--page` / `--backfill`) so
+  //    that each worker type has its own independent dual-run guard. Pre
+  //    PR-D-8 the call hardcoded `"page"` which made the embedding-backfill
+  //    standalone mode collide with the page-analyze lock namespace.
+  //    PR-D-8 Phase 2 MF-06: workerType を startMode から解決。
   const lockService = new WorkerActiveLockService();
   try {
-    const probe = await lockService.probeExistingLock("page");
+    const probe = await lockService.probeExistingLock(workerType);
     if (probe.unavailable) {
-      // Redis unreachable — fail-open. Matches pre-PR7d-2 behaviour so that
-      // a Redis outage doesn't block legitimate single-Worker operation.
-      // Redis 不到達 — fail-open で起動継続 (Redis 障害時に正当な単一 Worker
-      // 起動を妨げないため)。
-      console.warn(`[WorkerStartup] Redis dual-run guard unavailable (non-fatal): ${probe.error}`);
+      console.warn(
+        `[WorkerStartup] Redis dual-run guard unavailable for ${workerType} (non-fatal): ${probe.error}`
+      );
       try {
         await lockService.close();
       } catch {
@@ -780,8 +938,8 @@ async function evaluateDualRunGuard(): Promise<void> {
 
     if (probe.exists) {
       console.error(
-        "[WorkerStartup] DUAL-RUN DETECTED: another Worker process already holds the " +
-          "page-analyze active-worker lock in Redis. This typically means the MCP server " +
+        `[WorkerStartup] DUAL-RUN DETECTED: another Worker process already holds the ` +
+          `${workerType} active-worker lock in Redis. This typically means the MCP server ` +
           "is running and managing its own fork-supervised Worker."
       );
       console.error(
@@ -794,15 +952,12 @@ async function evaluateDualRunGuard(): Promise<void> {
       process.exit(1);
     }
 
-    // No existing lock — attempt to acquire one for this standalone process.
     const token = generateBootToken();
-    const acquire = await lockService.tryAcquireLock("page", token);
+    const acquire = await lockService.tryAcquireLock(workerType, token);
     if (!acquire.ok) {
       if (acquire.reason === "redis_unavailable") {
-        // Redis became unreachable between probe and acquire — fail-open.
-        // probe 以降に Redis 障害が発生 — fail-open で起動継続。
         console.warn(
-          `[WorkerStartup] Redis dual-run guard unavailable during acquireLock (non-fatal): ${acquire.error}`
+          `[WorkerStartup] Redis dual-run guard unavailable during acquireLock for ${workerType} (non-fatal): ${acquire.error}`
         );
         try {
           await lockService.close();
@@ -811,10 +966,8 @@ async function evaluateDualRunGuard(): Promise<void> {
         }
         return;
       }
-      // race-lost — another process acquired between probe and acquire.
-      // race 敗北 — probe と acquire の間に他プロセスが取得 — 二重起動として扱う。
       console.error(
-        "[WorkerStartup] DUAL-RUN DETECTED (race condition during acquireLock). Exiting."
+        `[WorkerStartup] DUAL-RUN DETECTED for ${workerType} (race condition during acquireLock). Exiting.`
       );
       await lockService.close();
       process.exit(1);
@@ -822,19 +975,18 @@ async function evaluateDualRunGuard(): Promise<void> {
 
     standaloneLockService = lockService;
     standaloneLockToken = token;
-    console.log("[WorkerStartup] Acquired active-worker lock (standalone mode)");
+    standaloneLockWorkerType = workerType;
+    console.log(
+      `[WorkerStartup] Acquired active-worker lock (standalone mode, type=${workerType})`
+    );
 
-    // Refresh lock TTL on a heartbeat so long-running standalone workers
-    // don't lose ownership mid-job. v0.4.0 PR7d-3 (SEC L-2): wrap each
-    // extendLock call in Promise.race with a 10s timeout so that a hung
-    // Redis call doesn't block the heartbeat cadence.
-    // long-running standalone worker が lock を失わないよう heartbeat で
-    // TTL を延長する。SEC L-2: extendLock が hang した場合に heartbeat
-    // setInterval 自体が詰まらないよう 10s タイムアウトで保護する。
     standaloneLockHeartbeatTimer = setInterval(() => {
-      if (!standaloneLockService || !standaloneLockToken) return;
+      if (!standaloneLockService || !standaloneLockToken || !standaloneLockWorkerType) return;
       const EXTEND_TIMEOUT_MS = 10_000;
-      const extendPromise = standaloneLockService.extendLock("page", standaloneLockToken);
+      const extendPromise = standaloneLockService.extendLock(
+        standaloneLockWorkerType,
+        standaloneLockToken
+      );
       void Promise.race([
         extendPromise,
         new Promise<never>((_, reject) =>
@@ -848,12 +1000,8 @@ async function evaluateDualRunGuard(): Promise<void> {
     }, LOCK_HEARTBEAT_INTERVAL_MS);
     standaloneLockHeartbeatTimer.unref?.();
   } catch (error) {
-    // Unexpected error (not a Redis transport error — those are returned via
-    // discriminated unions now). Log and fail-open — operator can inspect.
-    // 予期しないエラー (Redis transport エラーは discriminated union で返る
-    // ため、ここに到達するのは API 使用ミスや型不整合など)。fail-open。
     console.warn(
-      `[WorkerStartup] Dual-run guard encountered unexpected error (non-fatal): ${sanitizeErrorMessage(error)}`
+      `[WorkerStartup] Dual-run guard encountered unexpected error for ${workerType} (non-fatal): ${sanitizeErrorMessage(error)}`
     );
     try {
       await lockService.close();
@@ -873,9 +1021,14 @@ async function releaseStandaloneLock(): Promise<void> {
     clearInterval(standaloneLockHeartbeatTimer);
     standaloneLockHeartbeatTimer = null;
   }
-  if (standaloneLockService && standaloneLockToken) {
+  if (standaloneLockService && standaloneLockToken && standaloneLockWorkerType) {
     try {
-      await standaloneLockService.releaseLock("page", standaloneLockToken);
+      // PR-D-8 Phase 2 MF-06: release the per-type Redis key matching the
+      // workerType we acquired. Pre-PR-D-8 always released `"page"` which
+      // would silently no-op for embedding-backfill standalone runs.
+      // PR-D-8 Phase 2 MF-06: 取得した workerType に対応する per-type Redis
+      // key を解放する。pre-PR-D-8 は常に "page" を release していた。
+      await standaloneLockService.releaseLock(standaloneLockWorkerType, standaloneLockToken);
       await standaloneLockService.close();
     } catch {
       /* best-effort */
@@ -883,6 +1036,7 @@ async function releaseStandaloneLock(): Promise<void> {
   }
   standaloneLockService = null;
   standaloneLockToken = null;
+  standaloneLockWorkerType = null;
 }
 
 // ============================================================================
@@ -892,6 +1046,13 @@ async function releaseStandaloneLock(): Promise<void> {
 async function main(): Promise<void> {
   loadEnvLocal();
 
+  // SEC-M1-02 (ADR-0016 § Test-only Env Var Guard): enforce guard immediately
+  // after loadEnvLocal() so that any test-only env var leaked via .env.local or
+  // an inherited parent env fails fast before NODE_ENV defaulting / Worker spawn.
+  // SEC-M1-02: loadEnvLocal() 直後に guard を呼び、.env.local 経由のリークや
+  // 親プロセスから継承された test-only env var を fail-fast で検出する。
+  assertNoTestOnlyEnvLeak();
+
   // Validate environment
   if (!process.env.NODE_ENV) {
     process.env.NODE_ENV = "development";
@@ -900,24 +1061,65 @@ async function main(): Promise<void> {
 
   console.log(`[WorkerStartup] Starting workers (NODE_ENV: ${process.env.NODE_ENV})`);
 
-  // v0.4.0 PR7d-2: Check for dual-run BEFORE doing any heavy init work.
-  // v0.4.0 PR7d-2: 重い初期化に入る前に二重起動チェックを実施する。
-  await evaluateDualRunGuard();
+  // Parse command line arguments BEFORE the dual-run guard so we know which
+  // workerType to consult (PR-D-8 Phase 2 MF-06 / TPA-IMPL-V11-07).
+  // PR-D-8 §3.2.1: argv → StartMode (SSOT). Default "all" starts every
+  // WorkerType; --page / --backfill target individual WorkerType values.
+  // PR-D-8 Phase 2 MF-06: dual-run guard 前に startMode を parse し、
+  // workerType ベースの per-type lock 取得を行う。
+  const args = process.argv.slice(2);
+  let startMode: StartMode = "all";
+
+  if (args.includes("--page") || args.includes("-p")) {
+    startMode = "page";
+  } else if (args.includes("--backfill") || args.includes("-b")) {
+    startMode = "embedding-backfill";
+  }
+
+  // PR-D-8 Phase 2 MF-06: dual-run guard now per-type. When startMode is
+  // "all" we acquire the page lock as a placeholder so the standalone fail-
+  // closed semantics still apply (manually starting both workers via "all"
+  // would be unusual but not broken). embedding-backfill standalone now has
+  // its own lock namespace and never collides with the page-analyze lock.
+  // PR-D-8 Phase 2 MF-06: dual-run guard を per-type 化。`all` の場合は page
+  // を代表として acquire する (現行運用の単一 worker pattern を尊重)。
+  // backfill standalone は独立した lock namespace を持つ。
+  const guardWorkerType: WorkerType =
+    startMode === "embedding-backfill" ? "embedding-backfill" : "page";
+  await evaluateDualRunGuard(guardWorkerType);
 
   // Log memory profile at startup
   const memProfile = computeMemoryProfile();
   logMemoryProfile(memProfile);
 
-  // Parse command line arguments
-  const args = process.argv.slice(2);
-  let workerType: WorkerType = WORKER_TYPES.ALL;
-
-  if (args.includes("--page") || args.includes("-p")) {
-    workerType = WORKER_TYPES.PAGE_ANALYZE;
-  } else if (args.includes("--backfill") || args.includes("-b")) {
-    // v0.4.0 PR4: Embedding backfill worker のみを起動するオプション
-    // v0.4.0 PR4: option to start only the embedding-backfill worker
-    workerType = WORKER_TYPES.EMBEDDING_BACKFILL;
+  // PR-D-8 §3.2.4 Rule 4 (SEC-02 H resolution): CHILD_TYPE argv-env match.
+  // When the supervisor forks a child, it injects REFTRIX_WORKER_CHILD_TYPE
+  // ∈ { "page", "embedding-backfill" } and the corresponding --page /
+  // --backfill argv. If the two disagree, the child MUST refuse to start
+  // BEFORE any BullMQ connection (prevents spoofing: a child launched with
+  // --page env but CHILD_TYPE=embedding-backfill could otherwise consume
+  // page-analyze jobs while presenting itself as embedding-backfill to the
+  // supervisor). Fail-closed.
+  // PR-D-8 §3.2.4 Rule 4 (SEC-02 H): CHILD_TYPE と argv が不一致の場合は
+  // BullMQ 接続前に exit(1) で fail-closed 終了する。
+  const childTypeEnv = process.env.REFTRIX_WORKER_CHILD_TYPE;
+  if (childTypeEnv !== undefined && childTypeEnv !== "") {
+    // Only enforce when set (fork children get it; standalone/batch do not).
+    const knownChildType = SSOT_WORKER_TYPES.find((t) => t === childTypeEnv);
+    if (knownChildType === undefined) {
+      console.error(
+        "[WorkerStartup] REFTRIX_WORKER_CHILD_TYPE set to unknown value; exiting fail-closed"
+      );
+      process.exit(1);
+    }
+    // startMode === "all" in a child is not allowed — children always run a
+    // single WorkerType. startMode MUST equal CHILD_TYPE.
+    if (startMode === "all" || startMode !== knownChildType) {
+      console.error(
+        "[WorkerStartup] REFTRIX_WORKER_CHILD_TYPE does not match argv; exiting fail-closed"
+      );
+      process.exit(1);
+    }
   }
 
   // Setup signal handlers
@@ -966,16 +1168,18 @@ async function main(): Promise<void> {
   // so we fire-and-forget via releaseLock (no await).
   // v0.4.0 PR7d-3 (TPA LOW-3): crash 時の lock リーク防止。
   process.on("exit", () => {
-    if (standaloneLockService && standaloneLockToken) {
+    if (standaloneLockService && standaloneLockToken && standaloneLockWorkerType) {
       // fire-and-forget; exit handler is synchronous so we cannot await.
-      standaloneLockService.releaseLock("page", standaloneLockToken).catch(() => {
+      // PR-D-8 Phase 2 MF-06: release the workerType-specific lock.
+      // PR-D-8 Phase 2 MF-06: 取得した workerType の lock を解放する。
+      standaloneLockService.releaseLock(standaloneLockWorkerType, standaloneLockToken).catch(() => {
         /* best-effort */
       });
     }
   });
 
   try {
-    await startWorkers(workerType);
+    await startWorkers(startMode);
   } catch (error) {
     // v0.4.0 PR7d-3 (SEC L-1): sanitize error before logging.
     // v0.4.0 PR7d-3 (SEC L-1): 生 error.message を出力しないよう sanitize する。

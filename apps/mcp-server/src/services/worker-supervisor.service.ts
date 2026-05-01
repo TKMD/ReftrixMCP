@@ -13,39 +13,55 @@
  * - クラッシュ時の自動再起動（exit code/signal 両対応）
  * - graceful shutdown（SIGTERM → タイムアウト → SIGKILL エスカレーション）
  * - maxRestartAttempts による連続クラッシュ時の停止
+ * - [TDA-V11-02 / FIND-IMPL-TDA-D1b-01 L, deadline 2026-05-25, Registry §13.17.7] ESLint max-lines=1500 file at-cap; extract new logic to `worker-supervisor-helpers.ts` (PR-D-8 helper convention) before adding here. Cross-ref: Registry §13.16.4 + §13.17.5 + INV-EMBEDDING-MOTION-WORKER-SIGABRT-006.
  *
  * @module services/worker-supervisor
  */
 
 import { fork, type ChildProcess } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { logger, isDevelopment } from "../utils/logger";
 import { computeMemoryProfile } from "./worker-memory-profile";
 import { LOCK_HEARTBEAT_INTERVAL_MS, WorkerActiveLockService } from "./worker-active-lock.service";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
+// PR-D-8 Phase 2 — WorkerType SSOT (§3.2.1 / TDA-01 H) and IPC schema SSOT
+// (§3.2.2 / TPA-02 H). `assertNeverWorkerType` powers the exhaustive-switch
+// contract that makes future WorkerType additions fail compile in every
+// consuming callsite rather than silently ignoring the new type.
+// PR-D-8 Phase 2: WorkerType / IPC スキーマ SSOT と exhaustive-switch 契約。
+import { WORKER_TYPES, type WorkerType } from "../types/worker-type";
+import type { WorkerIpcMessage } from "../schemas/worker-ipc.schema";
+// Helpers extracted to worker-supervisor-helpers.ts for max-lines (TDA-V11-02).
+// Bottom re-exports keep external importer compat (tests, consumers).
+import {
+  buildBootTokens,
+  buildDefaultWorkerTypeConfigs,
+  clearLockHeartbeatTimer,
+  emitWorkerRestartAudit,
+  executeSelfChainedRespawn,
+  processSigabrtSignal,
+  runAcquireLockWithRetryOrchestrator,
+  scheduleSigabrtAwareRespawn,
+  verifyWorkerIpcMessage,
+} from "./worker-supervisor-helpers";
+import { verifyVisionUnloadPrecondition } from "./vision/vision-unload-handshake";
 
 // ============================================================================
 // CUDA Library Path Auto-Detection
 // ============================================================================
 
 /**
- * CUDA 12 ライブラリの既知パスから LD_LIBRARY_PATH を構築する。
- *
- * pip install nvidia-cudnn-cu12 等でインストールされたライブラリと
- * Ollama の CUDA v12 ライブラリを自動検出する。
- * LD_LIBRARY_PATH が未設定の場合にのみ使用される。
- *
- * SEC: ファイルシステム読み取りのみ。パスは固定リストからの検証済みディレクトリ。
+ * CUDA 12 ライブラリの既知パスから LD_LIBRARY_PATH を構築する (pip install
+ * nvidia-cudnn-cu12 + Ollama CUDA v12 自動検出)。LD_LIBRARY_PATH 未設定時のみ。
+ * SEC: ファイルシステム読み取りのみ、パスは固定リスト。
+ * CC=16 — pre-existing pre-PR-D-8 code; refactor tracked in FIND-TDA-07 Q3-2026.
  */
+// eslint-disable-next-line complexity
 function detectCudaLibPaths(): string | null {
-  // Python site-packages のベースパス候補（pip install 先）
   const pythonVersions = ["python3.10", "python3.11", "python3.12", "python3.8", "python3.9"];
   const homeDir = process.env.HOME ?? "/tmp";
   const baseDirs = pythonVersions.map((v) => `${homeDir}/.local/lib/${v}/site-packages/nvidia`);
-
-  // CUDA 12 サブパッケージ名
   const cudaSubPackages = [
     "cudnn/lib",
     "cublas/lib",
@@ -54,17 +70,10 @@ function detectCudaLibPaths(): string | null {
     "curand/lib",
     "cuda_nvrtc/lib",
   ];
-
-  // Ollama CUDA v12
   const ollamaCudaPath = "/usr/local/lib/ollama/cuda_v12";
-
   const foundPaths: string[] = [];
 
-  // onnxruntime-node の CUDA provider ディレクトリ検出
-  // IMPORTANT: onnxruntime-node のバージョンが複数存在する場合（例: 直接依存と
-  // @huggingface/transformers 経由の間接依存）、LD_LIBRARY_PATH にバージョン不一致の
-  // shared library を含めると ABI エラー（VERS_x.y.z not found）が発生する。
-  // require.resolve で解決されたパッケージの bin/ ディレクトリのみを使用する。
+  // onnxruntime-node CUDA provider — require.resolve で version mismatch を回避。
   try {
     const ortNodePath = require.resolve("onnxruntime-node");
     let packageDir = path.dirname(ortNodePath);
@@ -72,8 +81,6 @@ function detectCudaLibPaths(): string | null {
       if (fs.existsSync(path.join(packageDir, "package.json"))) break;
       packageDir = path.dirname(packageDir);
     }
-    // Verify the resolved package version matches by checking that
-    // libonnxruntime.so.1 exists alongside the CUDA provider
     const binDir = path.join(packageDir, "bin");
     if (fs.existsSync(binDir)) {
       const napiDirs = fs.readdirSync(binDir).filter((d: string) => d.startsWith("napi-v"));
@@ -90,40 +97,26 @@ function detectCudaLibPaths(): string | null {
       }
     }
   } catch {
-    // onnxruntime-node not found — skip
+    /* onnxruntime-node not found */
   }
 
-  // pip パッケージからの検出
+  // pip パッケージから一致 Python バージョンを採用。
   for (const baseDir of baseDirs) {
     let allFound = true;
     const candidatePaths: string[] = [];
-
     for (const subPkg of cudaSubPackages) {
       const fullPath = path.join(baseDir, subPkg);
-      if (fs.existsSync(fullPath)) {
-        candidatePaths.push(fullPath);
-      } else {
-        allFound = false;
-      }
+      if (fs.existsSync(fullPath)) candidatePaths.push(fullPath);
+      else allFound = false;
     }
-
-    // すべてのサブパッケージが見つかった場合のみ採用
     if (allFound && candidatePaths.length === cudaSubPackages.length) {
       foundPaths.push(...candidatePaths);
-      break; // 最初に見つかった Python バージョンを使用
+      break;
     }
   }
 
-  // Ollama CUDA
-  if (fs.existsSync(ollamaCudaPath)) {
-    foundPaths.push(ollamaCudaPath);
-  }
-
-  if (foundPaths.length === 0) {
-    return null;
-  }
-
-  return foundPaths.join(":");
+  if (fs.existsSync(ollamaCudaPath)) foundPaths.push(ollamaCudaPath);
+  return foundPaths.length === 0 ? null : foundPaths.join(":");
 }
 
 // ============================================================================
@@ -156,14 +149,85 @@ export interface WorkerSupervisorOptions {
 export type WorkerState = "idle" | "running" | "restarting" | "stopped" | "crashed";
 
 /**
- * ワーカーからスーパーバイザーへのIPCメッセージ型
+ * ワーカーからスーパーバイザーへのIPCメッセージ型 (legacy alias for back-compat)
  *
  * P1-D: job-completed — BullMQ Worker.on('completed') で送信。
  *       maxJobsBeforeRestart カウンタの駆動に使用。
+ *
+ * PR-D-8: the authoritative IPC message type is {@link WorkerIpcMessage}
+ * (SSOT: `apps/mcp-server/src/schemas/worker-ipc.schema.ts`). This alias
+ * is retained for pre-PR-D-8 consumers and will be removed once internal
+ * callers are migrated.
+ *
+ * PR-D-8 以降、IPC メッセージ型の SSOT は {@link WorkerIpcMessage}。
+ * 本 alias は旧 consumer 互換用で、移行完了後に削除される。
+ *
+ * @deprecated Use {@link WorkerIpcMessage} (schemas/worker-ipc.schema).
  */
-export interface WorkerMessage {
-  type: "job-completed";
-  jobId?: string;
+export type WorkerMessage = WorkerIpcMessage;
+
+// ============================================================================
+// PR-D-8 Phase 2 — Multi-WorkerType config + per-child state (§3.2.3 / §3.2.4)
+// ============================================================================
+
+/**
+ * Per-{@link WorkerType} supervisor configuration. One entry per supported
+ * WorkerType; keys must be exhaustive against the SSOT union.
+ *
+ * PR-D-8 §3.2.3: WorkerType ごとの supervisor 設定。SSOT union に対して網羅的。
+ */
+export interface WorkerTypeConfig {
+  /** Path to the fork target (`start-workers.js` entry point). */
+  workerScript: string;
+  /** Additional argv passed to the fork child (e.g. `["--page"]`). */
+  workerArgs: string[];
+  /** Planned-restart threshold (N jobs → graceful restart). */
+  maxJobsBeforeRestart: number;
+  /** RSS-delta kill threshold in MB (Phase 5 style). */
+  rssKillDeltaMB: number;
+  /**
+   * Env var name used to propagate this type's boot token to the child.
+   * Rule 2 (Plan v1.1 §3.2.4) — distinct env var per type prevents token
+   * reuse across types.
+   */
+  bootTokenEnv: string;
+  /**
+   * Env var name the child reads to self-identify its WorkerType. Rule 4
+   * (§3.2.4) forces the child to exit(1) if argv disagrees with
+   * `REFTRIX_WORKER_CHILD_TYPE`.
+   */
+  childTypeEnv: string;
+  /**
+   * Staggered-spawn priority. TPA-01 H: `primary` spawns first; `secondary`
+   * waits for primary's first heartbeat (or 10s timeout) before spawning.
+   */
+  schedulingPriority: "primary" | "secondary";
+}
+
+/**
+ * Per-child runtime state held by the supervisor. One entry per live child
+ * in `Map<WorkerType, WorkerChildState>`. TDA-V11-02: extracted as a helper
+ * type to keep `WorkerSupervisor` class body focused on lifecycle logic.
+ *
+ * PR-D-8 §3.2.3: supervisor が保持する per-child 状態。TDA-V11-02 の
+ * helper 型抽出。
+ */
+export interface WorkerChildState {
+  child: ChildProcess;
+  workerType: WorkerType;
+  pid: number;
+  /** Nonce published to Redis via WorkerActiveLockService. */
+  lockNonce: string;
+  /** Independent per-type UUID (Rule 1) — must NOT reuse another type's token. */
+  bootToken: string;
+  jobsProcessed: number;
+  startedAt: number;
+  lastHeartbeatAt: number;
+  /**
+   * SEC-02 Rule 5 spoofing / TTL fallback suppression deadline (epoch ms).
+   * When set, supervisor refuses to respawn this type until this timestamp.
+   */
+  restartSuppressUntil: number | null;
 }
 
 /** IPC 'shutdown' メッセージ送信後、SIGTERMまでの猶予（ms） */
@@ -192,261 +256,397 @@ function safeParseInt(value: string | undefined, defaultValue: number, min: numb
 // ============================================================================
 
 /**
- * ワーカープロセスの監視・再起動を行うスーパーバイザー
+ * Per-type WorkerSupervisor (Plan v1.1 §3.2.3 / PR-D-8 Phase 2 re-impl).
  *
- * child_process.fork で子プロセスとしてワーカーを起動し、
- * OOMクラッシュや計画的なメモリリフレッシュのためにプロセスを自動再起動する。
+ * Manages independent fork-supervised children per WorkerType
+ * (`Map<WorkerType, WorkerChildState>`) with: per-type boot tokens (§3.2.4
+ * Rule 1, MF-03), Rule 5 IPC binding via `verifyWorkerIpcMessage` (MF-02 /
+ * SEC-IMPL-01), self-chained respawn protocol from `handleWorkerExit`
+ * (MF-04 / SEC-IMPL-03), `worker_supervisor_restart` audit_logs emit at
+ * every restart (MF-08 / LCC-IMPL-01), and `sanitizeErrorMessage` at child
+ * error handler (MF-09 / SEC-IMPL-05).
+ *
+ * Backward-compat: legacy `getWorkerSupervisor()` / `notifyJobCompleted()` /
+ * `getWorkerProcess()` API defaults to the `page` WorkerType so existing
+ * call sites (analyze.tool, batch-analyze.tool, MCP index) need no churn.
  */
 export class WorkerSupervisor {
-  private readonly config: Required<Omit<WorkerSupervisorOptions, "workerArgs" | "workerEnv">> &
-    Pick<WorkerSupervisorOptions, "workerArgs" | "workerEnv">;
-  private worker: ChildProcess | null = null;
-  private state: WorkerState = "idle";
-  private completedJobCount = 0;
-  private restartCount = 0;
-  private isShuttingDown = false;
-  private pendingRestart = false;
+  // --------------------------------------------------------------------------
+  // Per-type child state (PR-D-8 §3.2.3 MF-01)
+  // --------------------------------------------------------------------------
+
+  /** Per-type 設定 — コンストラクタで `WORKER_TYPES` 網羅性を確認。 */
+  private readonly typeConfigs: Record<WorkerType, WorkerTypeConfig>;
+  /** Per-type 子プロセス state。各 WorkerType は最大 1 子を保持。 */
+  private readonly children: Map<WorkerType, WorkerChildState> = new Map();
   /**
-   * v0.4.0 PR7d-2: Per-supervisor boot token. Generated once at construction
-   * time and propagated to every fork child via env so that child processes
-   * can self-identify as "supervised" and skip the Redis-based dual-run
-   * guard in start-workers.ts.
-   *
-   * v0.4.0 PR7d-2: supervisor 固有の boot token。構築時に 1 回だけ生成され、
-   * 全 fork 子プロセスに env 経由で伝播する。子プロセスは自身を "supervised"
-   * と識別し、start-workers.ts の Redis ベース二重起動ガードを skip する。
+   * pid → WorkerType binding (§3.2.4 Rule 5)。fork() 直後に同期登録し、子の
+   * 初回 IPC が到着する前に entry を確立する。
    */
-  private readonly bootToken: string = randomUUID();
+  private readonly bindingTable: Map<number, WorkerType> = new Map();
+  /**
+   * Per-type 独立 boot token (§3.2.4 Rule 1)。2 回 `randomUUID()` を独立に
+   * 呼ぶことで CWE-290 cross-type impersonation を防ぐ。single reuse 禁止。
+   */
+  private readonly bootTokens: Record<WorkerType, string>;
 
   /**
-   * v0.4.0 PR7d-2: Lock service used to publish our boot token to Redis so
-   * that manual `pnpm worker:start:page` invocations can detect us and refuse
-   * to start. Lazily created on first `ensureWorkerRunning()` call.
-   *
-   * v0.4.0 PR7d-2: boot token を Redis へ publish するための lock サービス。
-   * 手動 `pnpm worker:start:page` 起動時に検出・拒否させるために使う。
+   * Legacy WorkerSupervisorOptions config — `page` の per-type 既定値および
+   * `maxRestartAttempts` / `shutdownTimeoutMs` の全 type 共通源。
    */
+  private readonly config: Required<Omit<WorkerSupervisorOptions, "workerArgs" | "workerEnv">> &
+    Pick<WorkerSupervisorOptions, "workerArgs" | "workerEnv">;
+
+  /** Per-type 独立 restart counter / state。 */
+  private readonly perTypeState: Map<
+    WorkerType,
+    {
+      state: WorkerState;
+      completedJobCount: number;
+      restartCount: number;
+      pendingRestart: boolean;
+    }
+  > = new Map();
+
+  private isShuttingDown = false;
+
+  // Redis active-worker lock (per-type, ADR-0011 Amendment)
   private lockService: WorkerActiveLockService | null = null;
-  private lockAcquired = false;
-  private lockHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
-  /**
-   * v0.4.0 PR7d-3 (TPA LOW-1): guard against re-entrant acquisition attempts.
-   * Without this flag, rapid successive `ensureWorkerRunning()` calls could
-   * fire multiple concurrent `acquireLock()` invocations against Redis (one
-   * would succeed, others would waste round-trips and log warnings).
-   *
-   * v0.4.0 PR7d-3 (TPA LOW-1): 連続 `ensureWorkerRunning()` 呼び出しで
-   * `acquireLock()` が多重実行されることを防止する inflight フラグ。
-   */
-  private lockAcquireInflight = false;
+  private readonly lockAcquired: Map<WorkerType, boolean> = new Map();
+  private readonly lockHeartbeatTimers: Map<WorkerType, ReturnType<typeof setInterval>> = new Map();
+  private readonly lockAcquireInflight: Map<WorkerType, boolean> = new Map();
+
+  // Fix-3 (INFRA-EMBEDDING-MOTION-SIGABRT-001): SIGABRT count + audit rate-limit (helper-driven).
+  private readonly sigabrtCountByWorkerType: Map<WorkerType, number> = new Map();
+  private readonly lastSigabrtAuditByWorkerType: Map<WorkerType, number> = new Map();
 
   constructor(options: WorkerSupervisorOptions) {
     this.config = {
       ...options,
       restartDelayMs: options.restartDelayMs ?? DEFAULT_RESTART_DELAY_MS,
     };
+
+    // PR-D-8 §3.2.3 MF-01: per-type config map. Default per-type values are
+    // sourced from `buildDefaultWorkerTypeConfigs(workerScript)`; the `page`
+    // entry is then overridden so the legacy `WorkerSupervisorOptions`-based
+    // constructor surface continues to drive `page` lifecycle.
+    // PR-D-8 §3.2.3 MF-01: per-type config map。`page` は legacy options で
+    // 上書きすることで既存呼び出しサイトとの互換を維持する。
+    const defaults = buildDefaultWorkerTypeConfigs(options.workerScript);
+    this.typeConfigs = {
+      page: {
+        ...defaults.page,
+        workerArgs: options.workerArgs ?? defaults.page.workerArgs,
+        maxJobsBeforeRestart: options.maxJobsBeforeRestart,
+      },
+      "embedding-backfill": defaults["embedding-backfill"],
+    };
+
+    // §3.2.4 Rule 1: independent per-type tokens (helper for max-lines compliance).
+    this.bootTokens = buildBootTokens();
+
+    for (const workerType of WORKER_TYPES) {
+      this.perTypeState.set(workerType, {
+        state: "idle",
+        completedJobCount: 0,
+        restartCount: 0,
+        pendingRestart: false,
+      });
+      this.lockAcquired.set(workerType, false);
+      this.lockAcquireInflight.set(workerType, false);
+    }
   }
 
   /**
-   * Boot token for this supervisor. Exposed for test assertions only.
+   * Boot token for the `page` WorkerType. Exposed for test assertions only.
    *
-   * @internal exposed for tests
+   * @internal exposed for tests (legacy single-token interface; tests asserting
+   * on multi-type behaviour should use {@link getBootTokenForType}).
    */
   getBootToken(): string {
-    return this.bootToken;
+    return this.bootTokens.page;
   }
 
   /**
-   * ワーカーが起動していなければ起動する
+   * Per-type boot token accessor for tests.
    *
-   * 冪等操作: 既にrunning状態なら何もしない。
-   * crashed/idle 状態なら新しいワーカーを fork する。
+   * @internal Test-only.
+   */
+  getBootTokenForType(workerType: WorkerType): string {
+    return this.bootTokens[workerType];
+  }
+
+  /**
+   * Per-type config accessor for tests.
+   *
+   * @internal Test-only.
+   */
+  getTypeConfig(workerType: WorkerType): WorkerTypeConfig {
+    return this.typeConfigs[workerType];
+  }
+
+  /**
+   * Get the live child state for a WorkerType (or `null` if no live child).
+   *
+   * @internal Test-only.
+   */
+  getChildState(workerType: WorkerType): WorkerChildState | null {
+    return this.children.get(workerType) ?? null;
+  }
+
+  /**
+   * pid → WorkerType binding accessor for tests asserting on Rule 5.
+   *
+   * @internal Test-only.
+   */
+  getBindingTableSnapshot(): ReadonlyMap<number, WorkerType> {
+    return this.bindingTable;
+  }
+
+  /**
+   * ワーカーが起動していなければ起動する (legacy single-worker API; defaults to
+   * `page`). For multi-type spawn use {@link ensureWorkerRunningForType}.
+   *
+   * 冪等操作。legacy 互換 API として `page` をデフォルト起動する。
    */
   ensureWorkerRunning(): void {
-    // 既に起動中なら何もしない
-    if (this.state === "running" && this.worker !== null) {
-      return;
-    }
-
-    // shutdown済みの場合は再起動しない
-    if (this.state === "stopped") {
-      return;
-    }
-
-    // 再起動中の場合は何もしない（再起動タイマーが処理する）
-    if (this.state === "restarting") {
-      return;
-    }
-
-    // v0.4.0 PR7d-2: Publish our boot token to Redis on first spawn so that
-    // manual Worker invocations can detect us. Best-effort: failure to
-    // acquire the lock does NOT block supervised worker startup — we still
-    // own the fork path, and a manual Worker running concurrently with us
-    // will collide on BullMQ itself (which is the bug we're working around,
-    // not preventing here). The guard lives in start-workers.ts where it
-    // can early-exit cleanly.
-    // v0.4.0 PR7d-2: 初回 spawn 時に boot token を Redis に publish し、手動
-    // Worker 起動時に検出させる。ベストエフォート: lock 取得失敗は supervisor
-    // 起動を妨げない (fork 経路は我々が握っており、手動 Worker との衝突は
-    // start-workers.ts の guard が対処する)。
-    this.acquireRedisLockBestEffort();
-
-    // crashed状態からの自動復旧: 新しいジョブ投入時にリセット
-    // maxRestartAttempts超過でcrashedになった後でも、根本原因（swap枯渇等）が
-    // 解消されていれば再起動可能にする
-    if (this.state === "crashed") {
-      logger.info("[WorkerSupervisor] Auto-resetting from crashed state for new job submission", {
-        previousRestartCount: this.restartCount,
-      });
-      this.restartCount = 0;
-      this.state = "idle";
-    }
-
-    this.spawnWorker();
+    this.ensureWorkerRunningForType("page");
   }
 
   /**
-   * 現在のワーカー状態を取得
+   * Per-type ensure-running entry point (PR-D-8 MF-01). Idempotent: if the
+   * type's child is already running, no-op.
+   *
+   * Per-type の起動エントリポイント。既に running 中の type は no-op。
+   */
+  ensureWorkerRunningForType(workerType: WorkerType): void {
+    const state = this.requirePerTypeState(workerType);
+
+    // 既に起動中・shutdown済み・再起動中なら何もしない
+    if (state.state === "running" && this.children.has(workerType)) return;
+    if (state.state === "stopped") return;
+    if (state.state === "restarting") return;
+
+    // PR7d-2: Publish boot token to Redis so manual Worker invocations can
+    // detect us. Best-effort; failure does not block fork-supervised spawn.
+    this.acquireRedisLockBestEffort(workerType);
+
+    // crashed 状態からの自動復旧 (legacy semantics retained)
+    if (state.state === "crashed") {
+      logger.info("[WorkerSupervisor] Auto-resetting from crashed state for new job submission", {
+        workerType,
+        previousRestartCount: state.restartCount,
+      });
+      state.restartCount = 0;
+      state.state = "idle";
+    }
+
+    this.spawnWorker(workerType);
+  }
+
+  /**
+   * PR-D-8 MF-07 (TPA-IMPL-V11-08): staggered multi-type spawn. Spawns `primary`,
+   * awaits first IPC heartbeat (or 10s timeout), then spawns `secondary` — prevents
+   * allocation spike from concurrent DINOv2 + e5-base ONNX init (Plan v1.1 §3.3).
+   *
+   * Multi-type 起動 API。primary heartbeat (最大 10s) 受信後に secondary 起動で
+   * 両子同時 ML モデル初期化の RSS spike を回避 (Plan v1.1 §3.3)。
+   *
+   * @param heartbeatTimeoutMs Override default 10s heartbeat wait (test injection)
+   */
+  async ensureAllWorkersRunningStaggered(heartbeatTimeoutMs: number = 10_000): Promise<void> {
+    const primary = this.firstWorkerTypeOfPriority("primary");
+    const secondary = this.firstWorkerTypeOfPriority("secondary");
+    if (!primary || !secondary) {
+      logger.warn("[WorkerSupervisor] ensureAllWorkersRunningStaggered: missing priority", {
+        primary,
+        secondary,
+      });
+      return;
+    }
+    this.ensureWorkerRunningForType(primary);
+    await this.waitForFirstHeartbeat(primary, heartbeatTimeoutMs);
+    // ADR-0011 Amendment 2 §A2.2.3: fail-closed Vision unload precondition
+    if ((await verifyVisionUnloadPrecondition()).status === "vision_unloaded")
+      this.ensureWorkerRunningForType(secondary);
+  }
+
+  /** Find the first WorkerType whose schedulingPriority matches; null if none. */
+  private firstWorkerTypeOfPriority(priority: "primary" | "secondary"): WorkerType | null {
+    for (const workerType of WORKER_TYPES) {
+      if (this.typeConfigs[workerType].schedulingPriority === priority) return workerType;
+    }
+    return null;
+  }
+
+  /**
+   * Wait until the live child for `workerType` reports its first heartbeat,
+   * or `timeoutMs` elapses. Resolves silently on timeout (non-fatal).
+   * 子の first heartbeat 待機 — timeout 時は静かに resolve。
+   */
+  private async waitForFirstHeartbeat(workerType: WorkerType, timeoutMs: number): Promise<void> {
+    const childState = this.children.get(workerType);
+    if (!childState) return;
+    const startedAt = childState.startedAt;
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const current = this.children.get(workerType);
+      // first heartbeat = lastHeartbeatAt が startedAt から進んだ瞬間。
+      if (current && current.lastHeartbeatAt > startedAt) return;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    logger.warn("[WorkerSupervisor] First heartbeat timeout (continuing)", {
+      workerType,
+      timeoutMs,
+    });
+  }
+
+  /**
+   * 現在のワーカー状態を取得 (legacy alias for `page`).
    */
   getState(): WorkerState {
-    return this.state;
+    return this.getStateForType("page");
   }
 
   /**
-   * 完了ジョブカウントを取得
+   * Per-type state accessor.
+   */
+  getStateForType(workerType: WorkerType): WorkerState {
+    return this.requirePerTypeState(workerType).state;
+  }
+
+  /**
+   * 完了ジョブカウントを取得 (legacy alias for `page`).
    */
   getCompletedJobCount(): number {
-    return this.completedJobCount;
+    return this.getCompletedJobCountForType("page");
   }
 
   /**
-   * 再起動回数を取得
+   * Per-type completed-job count accessor.
+   */
+  getCompletedJobCountForType(workerType: WorkerType): number {
+    return this.requirePerTypeState(workerType).completedJobCount;
+  }
+
+  /**
+   * 再起動回数を取得 (legacy alias for `page`).
    */
   getRestartCount(): number {
-    return this.restartCount;
+    return this.getRestartCountForType("page");
   }
 
   /**
-   * ジョブ完了を通知
+   * Per-type restart-count accessor.
+   */
+  getRestartCountForType(workerType: WorkerType): number {
+    return this.requirePerTypeState(workerType).restartCount;
+  }
+
+  /**
+   * ジョブ完了を通知 (legacy single-worker API; defaults to `page`).
    *
-   * 内部カウンタをインクリメントし、maxJobsBeforeRestart に達したら
-   * ワーカーを graceful restart する。
+   * Legacy 互換 API。`page` のジョブ完了として扱う。
    */
   notifyJobCompleted(): void {
-    this.completedJobCount++;
+    this.notifyJobCompletedForType("page");
+  }
+
+  /**
+   * Per-type notification (Rule 5 verification dispatches here on valid IPC).
+   *
+   * 内部カウンタをインクリメントし、maxJobsBeforeRestart に達したら計画的再起動。
+   */
+  notifyJobCompletedForType(workerType: WorkerType): void {
+    const state = this.requirePerTypeState(workerType);
+    state.completedJobCount++;
 
     if (isDevelopment()) {
       logger.debug("[WorkerSupervisor] Job completed", {
-        completedJobCount: this.completedJobCount,
-        maxJobsBeforeRestart: this.config.maxJobsBeforeRestart,
+        workerType,
+        completedJobCount: state.completedJobCount,
+        maxJobsBeforeRestart: this.typeConfigs[workerType].maxJobsBeforeRestart,
       });
     }
 
-    // N件到達で計画的再起動
-    if (this.completedJobCount >= this.config.maxJobsBeforeRestart) {
-      this.initiateRestart("job_count_threshold");
+    if (state.completedJobCount >= this.typeConfigs[workerType].maxJobsBeforeRestart) {
+      this.initiateRestart(workerType, "job_count_threshold");
     }
   }
 
   /**
-   * graceful shutdown
+   * graceful shutdown — terminates every live child and releases every per-type
+   * Redis lock. 3-Phase Shutdown Protocol per child.
    *
-   * 3段階のシャットダウンプロトコル:
-   * 1. IPCメッセージ 'shutdown' を送信 → BullMQ Worker.close() を先行実行させる
-   * 2. SIGTERM を送信 → プロセスレベルの graceful shutdown
-   * 3. shutdownTimeoutMs 超過時 → SIGKILL エスカレーション
-   *
-   * IPCメッセージ送信により、BullMQ Workerがclose()を完了してからプロセスが
-   * 終了する機会を確保する。これにより、処理中のジョブがorphanedになるリスクを軽減する。
-   *
-   * ワーカー未起動時はエラーなしで即座に完了する。
+   * 全 type を順次 graceful shutdown する。各 child に 3-Phase プロトコル適用。
    */
   async shutdown(): Promise<void> {
     this.isShuttingDown = true;
 
-    // v0.4.0 PR7d-2: Release the Redis active-worker lock so any subsequent
-    // manual Worker invocation can start without collision. Fire-and-forget —
-    // do NOT await here, otherwise the IPC 'shutdown' / SIGTERM sequence below
-    // is delayed by a microtask and breaks tests that assert on synchronous
-    // send() call ordering (and adds latency to real shutdowns without benefit
-    // since the lock release is best-effort anyway).
-    // v0.4.0 PR7d-2: Redis active-worker lock を解放する。fire-and-forget で
-    // 実行 — await すると下の IPC shutdown / SIGTERM シーケンスが microtask
-    // 分だけ遅延し、同期的な send() 呼び出し順を前提としたテストが壊れる
-    // (かつ lock 解放は best-effort なので待つ意義がない)。
-    void this.releaseRedisLockBestEffort();
-
-    // ワーカー未起動の場合
-    if (this.worker === null) {
-      this.state = "stopped";
-      return;
+    // Per-type Redis lock release (fire-and-forget for each type).
+    for (const workerType of WORKER_TYPES) {
+      void this.releaseRedisLockBestEffort(workerType);
     }
 
-    const workerToKill = this.worker;
+    const shutdownPromises: Array<Promise<void>> = [];
+    for (const workerType of WORKER_TYPES) {
+      shutdownPromises.push(this.shutdownChild(workerType));
+    }
+    await Promise.all(shutdownPromises);
+  }
+
+  /**
+   * Per-type child shutdown — 3-Phase Protocol: IPC 'shutdown' → SIGTERM
+   * (after IPC_SHUTDOWN_GRACE_MS) → SIGKILL escalation (after shutdownTimeoutMs).
+   */
+  private async shutdownChild(workerType: WorkerType): Promise<void> {
+    const childState = this.children.get(workerType);
+    const state = this.requirePerTypeState(workerType);
+    if (!childState) {
+      state.state = "stopped";
+      return;
+    }
+    const workerToKill = childState.child;
+    const childPid = childState.pid;
 
     return new Promise<void>((resolve) => {
       let killTimerId: ReturnType<typeof setTimeout> | null = null;
       let sigTermTimerId: ReturnType<typeof setTimeout> | null = null;
-
       const onExit = (): void => {
-        if (killTimerId !== null) {
-          clearTimeout(killTimerId);
-          killTimerId = null;
-        }
-        if (sigTermTimerId !== null) {
-          clearTimeout(sigTermTimerId);
-          sigTermTimerId = null;
-        }
-        this.worker = null;
-        this.state = "stopped";
+        if (killTimerId !== null) clearTimeout(killTimerId);
+        if (sigTermTimerId !== null) clearTimeout(sigTermTimerId);
+        killTimerId = null;
+        sigTermTimerId = null;
+        this.children.delete(workerType);
+        this.bindingTable.delete(childPid);
+        state.state = "stopped";
         resolve();
       };
-
-      // exit イベントを一度だけリッスン
       workerToKill.once("exit", onExit);
-
-      // Phase 1: IPC 'shutdown' メッセージを送信
-      // BullMQ Worker.close() を先行呼び出しさせ、ロック解放を保証
       try {
         if (workerToKill.connected && workerToKill.send) {
           workerToKill.send({ type: "shutdown" });
-          if (isDevelopment()) {
-            logger.debug("[WorkerSupervisor] Sent IPC shutdown message", {
-              pid: workerToKill.pid,
-            });
-          }
         }
       } catch {
-        // IPC送信失敗は致命的でない（SIGTERMにフォールバック）
-        logger.warn("[WorkerSupervisor] IPC shutdown message failed (non-fatal)");
+        logger.warn("[WorkerSupervisor] IPC shutdown message failed (non-fatal)", { workerType });
       }
-
-      // Phase 2: 2秒後にSIGTERMを送信（BullMQ close()に時間を与える）
       sigTermTimerId = setTimeout(() => {
-        sigTermTimerId = null;
         try {
           workerToKill.kill("SIGTERM");
         } catch {
-          // プロセスが既に終了している場合
           onExit();
-          return;
         }
-      }, 2000);
-
-      // Phase 3: タイムアウト後に SIGKILL エスカレーション
+      }, IPC_SHUTDOWN_GRACE_MS);
       killTimerId = setTimeout(() => {
-        killTimerId = null;
         if (isDevelopment()) {
           logger.warn("[WorkerSupervisor] Shutdown timeout, sending SIGKILL", {
-            pid: workerToKill.pid,
-            timeoutMs: this.config.shutdownTimeoutMs,
+            workerType,
+            pid: childPid,
           });
         }
-
         try {
           workerToKill.kill("SIGKILL");
         } catch {
-          // プロセスが既に終了している場合
           onExit();
         }
       }, this.config.shutdownTimeoutMs);
@@ -454,372 +654,755 @@ export class WorkerSupervisor {
   }
 
   /**
-   * ワーカーの ChildProcess を取得（テスト/モニタリング用）
+   * ワーカーの ChildProcess を取得 (legacy alias for `page`).
+   *
+   * Legacy 互換 API。新規コードは {@link getWorkerProcessForType} を使用する。
    */
   getWorkerProcess(): ChildProcess | null {
-    return this.worker;
+    return this.getWorkerProcessForType("page");
+  }
+
+  /**
+   * Per-type child process accessor (test/monitoring use).
+   */
+  getWorkerProcessForType(workerType: WorkerType): ChildProcess | null {
+    return this.children.get(workerType)?.child ?? null;
   }
 
   // ==========================================================================
-  // Private Methods
+  // Private — Spawn lifecycle (PR-D-8 §3.2.3 MF-01)
   // ==========================================================================
 
   /**
-   * v0.4.0 PR7d-2: Publish our boot token to Redis so that manual
-   * `pnpm worker:start:page` processes can detect us. Best-effort —
-   * failures are logged as warnings, never thrown.
+   * Per-type fork. PR-D-8 §3.2.3 MF-01 — replaces legacy single-worker
+   * `spawnWorker()`. Establishes:
+   *   - per-type env injection (`bootTokenEnv`, `childTypeEnv`) per §3.2.4 MF-03
+   *   - `bindingTable` entry **before** the child can possibly send IPC
+   *   - `children.set(workerType, ...)` with a fresh `WorkerChildState`
    *
-   * v0.4.0 PR7d-2: 手動 Worker から検出可能にするため boot token を Redis に
-   * 書き込む。ベストエフォート (失敗は warn のみで throw しない)。
+   * Per-type fork。Plan v1.1 §3.2.3 MF-01 に準拠。
    */
-  private acquireRedisLockBestEffort(): void {
-    if (this.lockAcquired) return;
-    // v0.4.0 PR7d-3 (TPA LOW-1): prevent re-entrant acquires. Without this
-    // flag, rapid successive `ensureWorkerRunning()` calls would fire
-    // concurrent `acquireLock()` invocations; this flag serialises them.
-    // v0.4.0 PR7d-3 (TPA LOW-1): 同時多重 acquire を防止する。
-    if (this.lockAcquireInflight) return;
-    // Skip entirely in test mode — Vitest's maxWorkers parallelism would
-    // race on the same Redis key across test processes.
-    // テストモード (NODE_ENV=test) では skip。Vitest の並列実行で
-    // 同一 Redis key を奪い合うことを避ける。
-    if (process.env.NODE_ENV === "test") return;
-
-    try {
-      if (!this.lockService) {
-        this.lockService = new WorkerActiveLockService();
-      }
-      this.lockAcquireInflight = true;
-      // Fire-and-forget — we don't block spawn on Redis availability.
-      // Fire-and-forget: Redis 可用性で spawn をブロックしない。
-      void this.lockService
-        .acquireLock("page", this.bootToken)
-        .then((ok) => {
-          if (ok) {
-            this.lockAcquired = true;
-            this.startLockHeartbeat();
-            if (isDevelopment()) {
-              logger.info("[WorkerSupervisor] Published active-worker lock to Redis", {
-                workerType: "page",
-              });
-            }
-          } else {
-            logger.warn(
-              "[WorkerSupervisor] Could not acquire active-worker lock (another owner present)"
-            );
-          }
-        })
-        .catch((error) => {
-          logger.warn("[WorkerSupervisor] acquireLock failed (non-fatal)", {
-            error: sanitizeErrorMessage(error),
-          });
-        })
-        .finally(() => {
-          this.lockAcquireInflight = false;
-        });
-    } catch (error) {
-      this.lockAcquireInflight = false;
-      logger.warn("[WorkerSupervisor] Lock service init failed (non-fatal)", {
-        error: sanitizeErrorMessage(error),
-      });
-    }
-  }
-
-  /**
-   * Start the lock-heartbeat interval so the TTL is refreshed every
-   * LOCK_HEARTBEAT_INTERVAL_MS. No-op if heartbeat already running.
-   *
-   * lock TTL を延長する heartbeat interval を起動する。既に稼働中なら no-op。
-   */
-  private startLockHeartbeat(): void {
-    if (this.lockHeartbeatTimer !== null || !this.lockService) return;
-    this.lockHeartbeatTimer = setInterval(() => {
-      if (!this.lockService) return;
-      void this.lockService.extendLock("page", this.bootToken).catch(() => {
-        /* non-fatal */
-      });
-    }, LOCK_HEARTBEAT_INTERVAL_MS);
-    // Don't block event loop shutdown on this timer.
-    this.lockHeartbeatTimer.unref?.();
-  }
-
-  /**
-   * Release the Redis active-worker lock during shutdown. Best-effort.
-   *
-   * Shutdown 時に Redis の active-worker lock を解放する (ベストエフォート)。
-   */
-  private async releaseRedisLockBestEffort(): Promise<void> {
-    if (this.lockHeartbeatTimer !== null) {
-      clearInterval(this.lockHeartbeatTimer);
-      this.lockHeartbeatTimer = null;
-    }
-    if (!this.lockService) return;
-    try {
-      if (this.lockAcquired) {
-        await this.lockService.releaseLock("page", this.bootToken);
-      }
-      await this.lockService.close();
-    } catch {
-      /* best-effort */
-    }
-    this.lockAcquired = false;
-    this.lockService = null;
-  }
-
-  /**
-   * ワーカーを fork で起動する
-   */
-  private spawnWorker(): void {
-    const { workerScript, workerArgs, workerEnv } = this.config;
+  private spawnWorker(workerType: WorkerType): void {
+    const config = this.typeConfigs[workerType];
+    const state = this.requirePerTypeState(workerType);
+    // PR-E-1 Option A (ADR-0011 Amendment 4 §A): lockNonce = bootToken (per-supervisor immutable). INV-007.
+    const lockNonce = this.bootTokens[workerType];
 
     if (isDevelopment()) {
       logger.info("[WorkerSupervisor] Spawning worker", {
-        script: workerScript,
-        args: workerArgs,
-        restartCount: this.restartCount,
+        workerType,
+        script: config.workerScript,
+        args: config.workerArgs,
+        restartCount: state.restartCount,
       });
     }
 
-    // 環境変数を構築（process.env + workerEnv でマージ）
-    const env: Record<string, string | undefined> = { ...process.env };
-    if (workerEnv) {
-      for (const [key, value] of Object.entries(workerEnv)) {
-        env[key] = value;
-      }
-    }
-
-    // v0.4.0 PR7d-2: Mark fork children so they skip start-workers.ts
-    // Redis-based dual-run guard. Without this flag a fork child would
-    // detect its own supervisor parent's lock and refuse to start.
-    // v0.4.0 PR7d-2: fork 子プロセスに識別フラグを付与。これが無いと
-    // 子が親 supervisor の lock を自己検出して起動拒否ループに陥る。
-    env.REFTRIX_WORKER_IS_CHILD = "1";
-    env.REFTRIX_WORKER_SUPERVISOR_BOOT_TOKEN = this.bootToken;
-
-    // OOM-1: glibc malloc arena 断片化を防止
-    // デフォルトの 8 * num_cpus ではマルチコアマシンで大量の arena が生成され、
-    // Sharp/libvips や Node.js Buffer の確保/解放サイクルで RSS が膨張する。
-    // MALLOC_ARENA_MAX=2 で arena 数を制限し、解放メモリの OS 返却を促進。
-    // OOM-1: Prevent glibc malloc arena fragmentation.
-    // Default 8 * num_cpus creates excessive arenas on multi-core machines,
-    // causing RSS bloat from Sharp/libvips and Node.js Buffer alloc/free cycles.
-    // MALLOC_ARENA_MAX=2 limits arenas and promotes OS memory return.
-    if (!env.MALLOC_ARENA_MAX) {
-      env.MALLOC_ARENA_MAX = "2";
-    }
-
-    // V8ヒープ上限を動的に設定（workerEnvから取得、未設定時はcomputeMemoryProfile()で算出）
+    const env = this.buildSpawnEnv(workerType);
     const maxOldSpace =
       env.WORKER_MAX_OLD_SPACE_MB ?? String(computeMemoryProfile().maxOldSpaceSizeMb);
     const execArgv = [`--max-old-space-size=${maxOldSpace}`, "--expose-gc"];
 
-    const child = fork(workerScript, workerArgs ?? [], {
+    const child = fork(config.workerScript, config.workerArgs, {
       execArgv,
       stdio: ["ignore", "pipe", "pipe", "ipc"],
       env,
-      // ワーカープロセスのcwdをmcp-serverのdist/ルートに設定
-      // __dirnameはビルド後 apps/mcp-server/dist/services/ なので、
-      // ../.. で apps/mcp-server/dist/ を指す
       cwd: path.resolve(__dirname, "../.."),
     });
 
-    this.worker = child;
-    this.state = "running";
-
-    // stdout/stderr をログに接続
-    if (child.stdout) {
-      child.stdout.on("data", (data: Buffer) => {
-        if (isDevelopment()) {
-          logger.debug(`[WorkerSupervisor:stdout] ${data.toString().trimEnd()}`);
-        }
-      });
+    // Establish bindingTable entry SYNCHRONOUSLY so Rule 5 IPC verification
+    // never races with first-message arrival. fork() returns synchronously
+    // and the child cannot have sent any IPC before we register here.
+    // bindingTable を SYNCHRONOUS に確立 — fork() は同期返却し、子は登録前に
+    // IPC を送信できないため Rule 5 検証の race を防げる。
+    if (child.pid !== undefined) {
+      this.bindingTable.set(child.pid, workerType);
     }
 
-    if (child.stderr) {
-      child.stderr.on("data", (data: Buffer) => {
-        const message = data.toString().trimEnd();
-        // stderr からのログは warn レベルで出力
-        logger.warn(`[WorkerSupervisor:stderr] ${message}`);
-      });
-    }
+    const childState: WorkerChildState = {
+      child,
+      workerType,
+      pid: child.pid ?? -1,
+      lockNonce,
+      bootToken: this.bootTokens[workerType],
+      jobsProcessed: 0,
+      startedAt: Date.now(),
+      lastHeartbeatAt: Date.now(),
+      restartSuppressUntil: null,
+    };
+    this.children.set(workerType, childState);
+    state.state = "running";
 
-    // exit イベントハンドラー
-    child.on("exit", (code: number | null, signal: string | null) => {
-      this.handleWorkerExit(code, signal);
-    });
-
-    // P1-D: IPC message handler for job-completed notifications
-    child.on("message", (message: unknown) => {
-      if (typeof message === "object" && message !== null && "type" in message) {
-        const msg = message as { type: string; jobId?: string };
-        if (msg.type === "job-completed") {
-          this.notifyJobCompleted();
-        }
-      }
-    });
-
-    // error イベントハンドラー（spawn失敗など）
-    child.on("error", (error: Error) => {
-      logger.error("[WorkerSupervisor] Worker process error", {
-        error: error.message,
-        pid: child.pid,
-      });
-    });
+    this.attachChildEventHandlers(workerType, child);
 
     if (isDevelopment()) {
       logger.info("[WorkerSupervisor] Worker spawned", {
+        workerType,
         pid: child.pid,
-        state: this.state,
+        state: state.state,
       });
     }
   }
 
   /**
-   * ワーカーの exit イベントを処理する
+   * Build the env block for `fork()` per WorkerType. Centralises the per-type
+   * env injection (PR-D-8 §3.2.4 MF-03) so {@link spawnWorker} stays small.
    *
-   * shutdown 中でなければ自動再起動を試みる。
-   * maxRestartAttempts を超過した場合は crashed 状態に遷移する。
+   * Per-type env 構築。`spawnWorker` から分離して complexity を抑える。
    */
-  private handleWorkerExit(code: number | null, signal: string | null): void {
-    if (isDevelopment()) {
-      logger.info("[WorkerSupervisor] Worker exited", {
-        code,
-        signal,
-        isShuttingDown: this.isShuttingDown,
-        restartCount: this.restartCount,
-        pendingRestart: this.pendingRestart,
+  private buildSpawnEnv(workerType: WorkerType): Record<string, string | undefined> {
+    const config = this.typeConfigs[workerType];
+    const env: Record<string, string | undefined> = { ...process.env };
+
+    if (this.config.workerEnv && workerType === "page") {
+      // Legacy `workerEnv` only applies to the `page` WorkerType to preserve
+      // pre-PR-D-8 behaviour.
+      // Legacy `workerEnv` は `page` のみに適用 (PR-D-8 以前の挙動を保持)。
+      for (const [key, value] of Object.entries(this.config.workerEnv)) {
+        env[key] = value;
+      }
+    }
+
+    // PR7d-2: identify fork children. PR-D-8 §3.2.4 Rule 3: legacy env var
+    // continues to be set for 1-cycle backward compatibility.
+    // PR7d-2 + Rule 3: legacy env var を 1 cycle 互換目的で継続注入。
+    env.REFTRIX_WORKER_IS_CHILD = "1";
+    env.REFTRIX_WORKER_SUPERVISOR_BOOT_TOKEN = this.bootTokens[workerType];
+
+    // PR-D-8 §3.2.4 Rule 2 (MF-03): per-type env vars.
+    // Both vars are written so `start-workers.ts` can read either depending
+    // on the resolved WorkerType — harmless because each child only USES the
+    // var matching its own type.
+    // Rule 2 (MF-03): per-type env var を全 type 分注入。
+    env[this.typeConfigs.page.bootTokenEnv] = this.bootTokens.page;
+    env[this.typeConfigs["embedding-backfill"].bootTokenEnv] =
+      this.bootTokens["embedding-backfill"];
+
+    // Rule 4 (MF-03): CHILD_TYPE で自己識別。
+    env[config.childTypeEnv] = workerType;
+
+    // OOM-1: glibc malloc arena 断片化を防止。
+    if (!env.MALLOC_ARENA_MAX) {
+      env.MALLOC_ARENA_MAX = "2";
+    }
+    return env;
+  }
+
+  /**
+   * Attach exit / message / error / stdio handlers for a freshly forked child.
+   * Centralised so {@link spawnWorker} stays under cyclomatic complexity 10.
+   *
+   * fork 直後の子に各種 event handler を付ける helper。
+   */
+  private attachChildEventHandlers(workerType: WorkerType, child: ChildProcess): void {
+    if (child.stdout) {
+      child.stdout.on("data", (data: Buffer) => {
+        if (isDevelopment()) {
+          logger.debug(`[WorkerSupervisor:${workerType}:stdout] ${data.toString().trimEnd()}`);
+        }
+      });
+    }
+    if (child.stderr) {
+      child.stderr.on("data", (data: Buffer) => {
+        const message = data.toString().trimEnd();
+        logger.warn(`[WorkerSupervisor:${workerType}:stderr] ${message}`);
       });
     }
 
-    this.worker = null;
+    child.on("exit", (code: number | null, signal: string | null) => {
+      this.handleWorkerExit(workerType, code, signal);
+    });
 
-    // shutdown 中なら再起動しない（shutdown() のPromiseが解決する）
+    // PR-D-8 §3.2.4 Rule 5 (MF-02 / SEC-IMPL-01 / SEC-IMPL-04): IPC dispatch
+    // via {@link verifyWorkerIpcMessage}. Rejects schema-invalid messages,
+    // workerType mismatches, and unknown senderPid; on spoofing emits
+    // `worker_type_spoofing_detected` audit_logs and SIGTERMs the child.
+    // PR-D-8 §3.2.4 Rule 5 (MF-02): verifyWorkerIpcMessage 経由で IPC dispatch。
+    child.on("message", (raw: unknown) => {
+      this.dispatchVerifiedIpc(raw, child.pid);
+    });
+
+    // MF-09 SEC-IMPL-05: sanitizeErrorMessage SSOT used to prevent CWE-209
+    // leakage of internal stacks / token-adjacent context.
+    // MF-09 SEC-IMPL-05: sanitizeErrorMessage で CWE-209 漏洩を防止。
+    child.on("error", (error: Error) => {
+      logger.error("[WorkerSupervisor] Worker process error", {
+        workerType,
+        error: sanitizeErrorMessage(error),
+        pid: child.pid,
+      });
+    });
+  }
+
+  /**
+   * IPC dispatch entry — verifies the message via {@link verifyWorkerIpcMessage}
+   * (Rule 5 / MF-02), then routes to the appropriate per-message handler.
+   *
+   * Verifier failure paths (per Plan §3.2.4 Rule 5 + §3.2.2 line 187):
+   *   - schema-invalid / unknown-workerType (parse failure) → SIGTERM offending
+   *     child + 60s suppress + audit_logs `worker_ipc_spoofing_detected`
+   *   - pid binding mismatch → SIGTERM offending child + 60s suppress +
+   *     audit_logs `worker_type_spoofing_detected`
+   *
+   * Verifier 失敗時の挙動: parse 失敗 (schema-invalid / unknown-workerType) は
+   * `worker_ipc_spoofing_detected`、binding mismatch は `worker_type_spoofing_detected`
+   * を audit emit。両者とも sender pid が bindingTable に存在する場合は
+   * SIGTERM + 60s respawn suppress に escalate される。
+   */
+  private dispatchVerifiedIpc(raw: unknown, senderPid: number | undefined): void {
+    const verified = verifyWorkerIpcMessage(raw, senderPid, this.bindingTable);
+    if (verified === null) {
+      // Verifier already logged + emitted audit_logs (either
+      // `worker_ipc_spoofing_detected` for parse failure or
+      // `worker_type_spoofing_detected` for binding mismatch). If sender pid
+      // is known, escalate SIGTERM + 60s respawn suppress per Plan §3.2.2/§3.2.4.
+      // Verifier が null 返却 + 既知 pid → SIGTERM + 60s suppress に escalate。
+      if (senderPid !== undefined && this.bindingTable.has(senderPid)) {
+        this.escalateSpoofing(senderPid);
+      }
+      return;
+    }
+    // Schema-valid + binding-consistent. Dispatch by message type.
+    if (verified.type === "job-completed") {
+      this.notifyJobCompletedForType(verified.workerType);
+    } else if (verified.type === "heartbeat") {
+      const childState = this.children.get(verified.workerType);
+      if (childState) childState.lastHeartbeatAt = Date.now();
+    } else if (verified.type === "planned-restart-request") {
+      this.initiateRestart(verified.workerType, "child_request");
+    } else if (verified.type === "fatal-error") {
+      logger.error("[WorkerSupervisor] Child reported fatal error", {
+        workerType: verified.workerType,
+        jobId: verified.jobId,
+      });
+      this.initiateRestart(verified.workerType, "fatal_error");
+    }
+  }
+
+  /**
+   * SEC-02 spoofing escalation: SIGTERM offending child + 60s respawn suppress.
+   * audit_logs emit happens inside `verifyWorkerIpcMessage`.
+   *
+   * SEC-02: 当該 child を SIGTERM、60s 再起動抑制 (audit_logs は verifier 側)。
+   */
+  private escalateSpoofing(senderPid: number): void {
+    const workerType = this.bindingTable.get(senderPid);
+    if (!workerType) return;
+    const childState = this.children.get(workerType);
+    if (!childState) return;
+    try {
+      childState.child.kill("SIGTERM");
+    } catch {
+      /* child already gone */
+    }
+    childState.restartSuppressUntil = Date.now() + 60_000;
+    logger.error("[WorkerSupervisor] Spoofing detected — SIGTERM + 60s suppress", {
+      workerType,
+      pid: senderPid,
+    });
+  }
+
+  /**
+   * Per-type exit handler. PR-D-8 MF-04: invokes
+   * {@link executeSelfChainedRespawn} before re-spawning, ensuring the
+   * exiting child's lock has been released (or detected as foreign / stale).
+   *
+   * Per-type exit handler。`executeSelfChainedRespawn` を必ず call し、
+   * lock の release 完了を確認してから respawn する。
+   */
+  private handleWorkerExit(
+    workerType: WorkerType,
+    code: number | null,
+    signal: string | null
+  ): void {
+    const state = this.requirePerTypeState(workerType);
+    const childState = this.children.get(workerType);
+    this.logExitEvent(workerType, code, signal, state);
+    this.cleanupExitedChild(workerType, childState?.pid);
+
     if (this.isShuttingDown) {
-      this.state = "stopped";
+      state.state = "stopped";
       return;
     }
 
-    // 計画的再起動（notifyJobCompletedトリガー）の場合
-    if (this.pendingRestart) {
-      this.pendingRestart = false;
-      // Planned restarts are healthy lifecycle churn, not crash accumulation.
-      this.restartCount = 0;
-      this.scheduleRestart();
+    // §3.2.4 Rule 5: spoofing suppression window — refuse to respawn until
+    // restartSuppressUntil has elapsed.
+    // Spoofing 検出時の suppress window — 期限内は respawn 拒否。
+    if (this.shouldSuppressRespawn(workerType, childState)) {
+      state.state = "crashed";
       return;
     }
 
-    // maxRestartAttempts チェック
-    if (this.restartCount >= this.config.maxRestartAttempts) {
+    const exitedPid = childState?.pid;
+    const exitedNonce = childState?.lockNonce;
+    const jobsProcessed = childState?.jobsProcessed ?? 0;
+
+    if (state.pendingRestart) {
+      this.handlePlannedRestart(workerType, code, signal, exitedPid, jobsProcessed, exitedNonce);
+      return;
+    }
+    this.handleUnexpectedExit(workerType, code, signal, exitedPid, jobsProcessed, exitedNonce);
+  }
+
+  /**
+   * Emit dev-only structured log of the exit event.
+   */
+  private logExitEvent(
+    workerType: WorkerType,
+    code: number | null,
+    signal: string | null,
+    state: { restartCount: number; pendingRestart: boolean }
+  ): void {
+    if (!isDevelopment()) return;
+    logger.info("[WorkerSupervisor] Worker exited", {
+      workerType,
+      code,
+      signal,
+      isShuttingDown: this.isShuttingDown,
+      restartCount: state.restartCount,
+      pendingRestart: state.pendingRestart,
+    });
+  }
+
+  /**
+   * Drop the exited child from `children` and `bindingTable`.
+   */
+  private cleanupExitedChild(workerType: WorkerType, exitedPid: number | undefined): void {
+    if (exitedPid !== undefined && exitedPid >= 0) {
+      this.bindingTable.delete(exitedPid);
+    }
+    this.children.delete(workerType);
+  }
+
+  /**
+   * Spoofing suppression window check — extracted from {@link handleWorkerExit}
+   * to keep complexity ≤ 10.
+   */
+  private shouldSuppressRespawn(
+    workerType: WorkerType,
+    childState: WorkerChildState | undefined
+  ): boolean {
+    const suppressUntil = childState?.restartSuppressUntil ?? null;
+    if (suppressUntil === null) return false;
+    const now = Date.now();
+    if (now >= suppressUntil) return false;
+    logger.warn("[WorkerSupervisor] Restart suppressed due to spoofing window", {
+      workerType,
+      suppressRemainingMs: suppressUntil - now,
+    });
+    return true;
+  }
+
+  /**
+   * Planned-restart path — emits audit_logs and chains into the self-chained
+   * respawn protocol.
+   */
+  private handlePlannedRestart(
+    workerType: WorkerType,
+    code: number | null,
+    signal: string | null,
+    exitedPid: number | undefined,
+    jobsProcessed: number,
+    exitedNonce: string | undefined
+  ): void {
+    const state = this.requirePerTypeState(workerType);
+    state.pendingRestart = false;
+    state.restartCount = 0;
+    // MF-08 LCC-IMPL-01: audit_logs emit for planned restart.
+    emitWorkerRestartAudit(
+      workerType,
+      "planned",
+      jobsProcessed,
+      code,
+      signal,
+      exitedPid,
+      state.restartCount,
+      "success"
+    );
+    void this.runSelfChainedRespawnAndSchedule(workerType, exitedNonce);
+  }
+
+  /**
+   * Unexpected-exit path — applies maxRestartAttempts gate and emits the
+   * matching audit_logs entry (success vs failure).
+   */
+  private handleUnexpectedExit(
+    workerType: WorkerType,
+    code: number | null,
+    signal: string | null,
+    exitedPid: number | undefined,
+    jobsProcessed: number,
+    exitedNonce: string | undefined
+  ): void {
+    // Fix-3 (INFRA-EMBEDDING-MOTION-SIGABRT-001): SIGABRT detection + suppress.
+    const sigabrtSuppress = processSigabrtSignal(
+      workerType,
+      signal,
+      exitedPid,
+      this.sigabrtCountByWorkerType,
+      this.lastSigabrtAuditByWorkerType
+    );
+    const state = this.requirePerTypeState(workerType);
+    if (state.restartCount >= this.config.maxRestartAttempts) {
       logger.error("[WorkerSupervisor] Max restart attempts reached, giving up", {
-        restartCount: this.restartCount,
+        workerType,
+        restartCount: state.restartCount,
         maxRestartAttempts: this.config.maxRestartAttempts,
         lastExitCode: code,
         lastSignal: signal,
       });
-      this.state = "crashed";
+      state.state = "crashed";
+      clearLockHeartbeatTimer(workerType, this.lockHeartbeatTimers); // PR-E-1 NF-6 (CWE-770)
+      emitWorkerRestartAudit(
+        workerType,
+        "crash_max_attempts",
+        jobsProcessed,
+        code,
+        signal,
+        exitedPid,
+        state.restartCount,
+        "failure"
+      );
       return;
     }
-
-    // 予期しないクラッシュ: 自動再起動をスケジュール
-    this.restartCount++;
-    this.scheduleRestart();
+    state.restartCount++;
+    emitWorkerRestartAudit(
+      workerType,
+      "unexpected_exit",
+      jobsProcessed,
+      code,
+      signal,
+      exitedPid,
+      state.restartCount,
+      "success"
+    );
+    // Fix-3: gate respawn behind a 60s suppress timer on N consecutive SIGABRTs.
+    scheduleSigabrtAwareRespawn(
+      sigabrtSuppress,
+      () => this.isShuttingDown,
+      () => void this.runSelfChainedRespawnAndSchedule(workerType, exitedNonce)
+    );
   }
 
   /**
-   * 計画的再起動を開始する
+   * Run the self-chained respawn protocol (MF-04 / SEC-IMPL-03) and schedule
+   * the actual respawn based on its outcome.
    *
-   * P1-E: shutdown() と同じ3-Phase Shutdown Protocol を適用。
-   * 直接SIGTERMを送信するのではなく、IPC shutdown → 猶予 → SIGTERM → タイムアウト → SIGKILL
-   * の順序でワーカーを停止し、BullMQ Worker.close() によるロック解放を保証する。
-   * exit ハンドラーで pendingRestart フラグを検出して再起動をスケジュールする。
+   * `executeSelfChainedRespawn` の戻り値により respawn 戦略を切り替える:
+   *   - `released` / `probe_failed` → 通常 delay で respawn
+   *   - `ttl_fallback` → 60s 後に respawn (TTL 自然失効待ち)
+   *   - `foreign_lock` → respawn 中止 (他 host の lock を尊重)
    */
-  private initiateRestart(reason: string): void {
-    if (isDevelopment()) {
-      logger.info("[WorkerSupervisor] Initiating restart", {
-        reason,
-        completedJobCount: this.completedJobCount,
-      });
-    }
+  private async runSelfChainedRespawnAndSchedule(
+    workerType: WorkerType,
+    exitedNonce: string | undefined
+  ): Promise<void> {
+    const state = this.requirePerTypeState(workerType);
+    state.state = "restarting";
+    state.completedJobCount = 0;
 
-    if (this.worker === null) {
+    // If we never had a valid nonce (child died before WorkerChildState was
+    // populated) we cannot run release; just delegate to the legacy delay.
+    // 子が生成途中で exit した場合 (nonce なし) は通常 delay で respawn。
+    if (!exitedNonce) {
+      this.scheduleRespawn(workerType, this.config.restartDelayMs);
       return;
     }
 
-    this.state = "restarting";
-    this.pendingRestart = true;
+    const lockService = this.ensureLockServiceInstance();
+    if (!lockService) {
+      this.scheduleRespawn(workerType, this.config.restartDelayMs);
+      return;
+    }
 
-    const workerToRestart = this.worker;
+    let outcome: Awaited<ReturnType<typeof executeSelfChainedRespawn>>;
+    try {
+      outcome = await executeSelfChainedRespawn(lockService, workerType, exitedNonce);
+    } catch (error) {
+      logger.warn("[WorkerSupervisor] executeSelfChainedRespawn threw (non-fatal)", {
+        workerType,
+        error: sanitizeErrorMessage(error),
+      });
+      outcome = "probe_failed";
+    }
 
-    // Note: Phase 0 (IPC pause) は削除済み。
-    // Pre-return pause パターンにより、Processor内で worker.pause(true) が呼ばれ
-    // BullMQ moveToCompleted の fetchNext=false が保証されている。
-    // IPC経由のpauseは moveToCompleted Lua実行後に到着するため効果がなかった。
+    switch (outcome) {
+      case "released":
+      case "probe_failed":
+        this.scheduleRespawn(workerType, this.config.restartDelayMs);
+        break;
+      case "ttl_fallback":
+        // 60s natural expiry wait (TTL_FALLBACK_MS in plan §3.2.5).
+        this.scheduleRespawn(workerType, 60_000);
+        break;
+      case "foreign_lock":
+        // Foreign owner — fail-closed; do not respawn this type.
+        logger.error("[WorkerSupervisor] Foreign lock detected — refusing respawn", {
+          workerType,
+        });
+        state.state = "crashed";
+        clearLockHeartbeatTimer(workerType, this.lockHeartbeatTimers); // PR-E-1 NF-6 (CWE-770)
+        break;
+      default:
+        // Unreachable; fall back to default delay.
+        this.scheduleRespawn(workerType, this.config.restartDelayMs);
+    }
+  }
 
-    // Phase 1: IPC 'shutdown' メッセージを送信
-    // BullMQ Worker.close() を先行呼び出しさせ、ロック解放を保証
+  /**
+   * Calculate restart delay deterministically per-type and re-spawn after the
+   * timeout. shutdown 中なら respawn しない。
+   */
+  private scheduleRespawn(workerType: WorkerType, delayMs: number): void {
+    const state = this.requirePerTypeState(workerType);
+    state.state = "restarting";
+    setTimeout(() => {
+      if (this.isShuttingDown) {
+        state.state = "stopped";
+        return;
+      }
+      this.spawnWorker(workerType);
+    }, delayMs);
+  }
+
+  /**
+   * Per-type initiateRestart. PR-D-8 MF-08: emits `worker_supervisor_restart`
+   * audit_log indirectly via {@link handleWorkerExit} after the actual exit
+   * arrives; here we only set `pendingRestart` + send IPC shutdown.
+   *
+   * Per-type の initiateRestart。`pendingRestart` フラグをセットし IPC
+   * shutdown を送信する。実際の audit_logs emit は exit handler 側で行う。
+   */
+  private initiateRestart(workerType: WorkerType, reason: string): void {
+    const state = this.requirePerTypeState(workerType);
+    const childState = this.children.get(workerType);
+    if (isDevelopment()) {
+      logger.info("[WorkerSupervisor] Initiating restart", {
+        workerType,
+        reason,
+        completedJobCount: state.completedJobCount,
+      });
+    }
+    if (!childState) return;
+
+    state.state = "restarting";
+    state.pendingRestart = true;
+    const workerToRestart = childState.child;
+    const childPid = childState.pid;
+
     try {
       if (workerToRestart.connected && workerToRestart.send) {
         workerToRestart.send({ type: "shutdown" });
-        if (isDevelopment()) {
-          logger.debug("[WorkerSupervisor] Sent IPC shutdown message for restart", {
-            pid: workerToRestart.pid,
-          });
-        }
       }
     } catch {
-      // IPC送信失敗は致命的でない（SIGTERMにフォールバック）
-      logger.warn("[WorkerSupervisor] IPC shutdown message failed during restart (non-fatal)");
+      logger.warn("[WorkerSupervisor] IPC shutdown message failed during restart (non-fatal)", {
+        workerType,
+      });
     }
 
-    // Phase 2: 猶予後にSIGTERMを送信（BullMQ close()に時間を与える）
     const sigTermTimerId = setTimeout(() => {
       try {
         workerToRestart.kill("SIGTERM");
       } catch {
-        // プロセスが既に終了している場合 — exit ハンドラーが処理する
+        /* exit handler will handle */
       }
     }, IPC_SHUTDOWN_GRACE_MS);
 
-    // Phase 3: タイムアウト後に SIGKILL エスカレーション
     const killTimerId = setTimeout(() => {
       if (isDevelopment()) {
         logger.warn("[WorkerSupervisor] Restart shutdown timeout, sending SIGKILL", {
-          pid: workerToRestart.pid,
-          timeoutMs: this.config.shutdownTimeoutMs,
+          workerType,
+          pid: childPid,
         });
       }
-
       try {
         workerToRestart.kill("SIGKILL");
       } catch {
-        // プロセスが既に終了している場合 — exit ハンドラーが処理する
+        /* exit handler will handle */
       }
     }, this.config.shutdownTimeoutMs);
 
-    // exit イベントでタイマーをクリア（handleWorkerExit前に実行される）
     workerToRestart.once("exit", () => {
       clearTimeout(sigTermTimerId);
       clearTimeout(killTimerId);
     });
   }
 
-  /**
-   * 遅延後にワーカーを再起動する
-   */
-  private scheduleRestart(): void {
-    this.state = "restarting";
-    this.completedJobCount = 0;
+  // ==========================================================================
+  // Private — Redis active-worker lock (per-type, ADR-0011 Amendment)
+  // ==========================================================================
 
-    setTimeout(() => {
-      // shutdown が呼ばれていたら再起動しない
-      if (this.isShuttingDown) {
-        this.state = "stopped";
-        return;
-      }
-
-      this.spawnWorker();
-    }, this.config.restartDelayMs);
+  private ensureLockServiceInstance(): WorkerActiveLockService | null {
+    if (this.lockService) return this.lockService;
+    if (process.env.NODE_ENV === "test") return null;
+    try {
+      this.lockService = instantiateLockServiceForSupervisor();
+      return this.lockService;
+    } catch (error) {
+      logger.warn("[WorkerSupervisor] Lock service init failed (non-fatal)", {
+        error: sanitizeErrorMessage(error),
+      });
+      return null;
+    }
   }
+
+  /**
+   * Per-type Redis lock acquisition. Best-effort. Item 3 (CO-31) / ADR-0011
+   * Amendment 5 §A5.1: retry orchestration is delegated to the helper which
+   * consumes `tryAcquireLock` discriminated union and retries
+   * `redis_unavailable` on 100/200/400ms backoff (max 3, 700ms total).
+   */
+  private acquireRedisLockBestEffort(workerType: WorkerType): void {
+    if (this.lockAcquired.get(workerType)) return;
+    if (this.lockAcquireInflight.get(workerType)) return;
+    if (process.env.NODE_ENV === "test") return;
+    const lockService = this.ensureLockServiceInstance();
+    if (!lockService) return;
+    this.lockAcquireInflight.set(workerType, true);
+    runAcquireLockWithRetryOrchestrator(lockService, workerType, this.bootTokens[workerType], {
+      onAcquired: () => {
+        this.lockAcquired.set(workerType, true);
+        this.startLockHeartbeat(workerType);
+        if (isDevelopment()) {
+          logger.info("[WorkerSupervisor] Published active-worker lock to Redis", { workerType });
+        }
+      },
+      onHeldByOther: () => {
+        logger.warn("[WorkerSupervisor] active-worker lock held by another owner", { workerType });
+      },
+      onExhausted: () => {
+        logger.warn("[WorkerSupervisor] acquireLock exhausted (fail-open final)", { workerType });
+      },
+      onError: (error) => {
+        logger.warn("[WorkerSupervisor] acquireLock failed (non-fatal)", {
+          workerType,
+          error: sanitizeErrorMessage(error),
+        });
+      },
+      onSettled: () => this.lockAcquireInflight.set(workerType, false),
+    });
+  }
+
+  /**
+   * Per-type heartbeat to refresh the Redis TTL.
+   */
+  private startLockHeartbeat(workerType: WorkerType): void {
+    if (this.lockHeartbeatTimers.has(workerType) || !this.lockService) return;
+    const timer = setInterval(() => {
+      if (!this.lockService) return;
+      void this.lockService.extendLock(workerType, this.bootTokens[workerType]).catch(() => {
+        /* non-fatal */
+      });
+    }, LOCK_HEARTBEAT_INTERVAL_MS);
+    timer.unref?.();
+    this.lockHeartbeatTimers.set(workerType, timer);
+  }
+
+  /**
+   * Per-type Redis lock release on shutdown.
+   */
+  private async releaseRedisLockBestEffort(workerType: WorkerType): Promise<void> {
+    const heartbeatTimer = this.lockHeartbeatTimers.get(workerType);
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      this.lockHeartbeatTimers.delete(workerType);
+    }
+    if (!this.lockService) return;
+    try {
+      if (this.lockAcquired.get(workerType)) {
+        await this.lockService.releaseLock(workerType, this.bootTokens[workerType]);
+      }
+    } catch {
+      /* best-effort */
+    }
+    this.lockAcquired.set(workerType, false);
+
+    // Close service only when no other type still owns a heartbeat.
+    // 他 type が heartbeat 継続中なら service close しない。
+    if (this.lockHeartbeatTimers.size === 0) {
+      try {
+        await this.lockService.close();
+      } catch {
+        /* best-effort */
+      }
+      this.lockService = null;
+    }
+  }
+
+  // ==========================================================================
+  // Private — utility
+  // ==========================================================================
+
+  private requirePerTypeState(workerType: WorkerType): {
+    state: WorkerState;
+    completedJobCount: number;
+    restartCount: number;
+    pendingRestart: boolean;
+  } {
+    const s = this.perTypeState.get(workerType);
+    if (!s) {
+      // Defensive: should never happen because constructor seeds entries for
+      // every WORKER_TYPES value.
+      // 防御的: コンストラクタで必ず seed されているため到達不能。
+      throw new Error(`WorkerSupervisor: missing per-type state for ${workerType}`);
+    }
+    return s;
+  }
+}
+
+// PR-D-8 Phase 2 helper re-exports (TDA-V11-02 max-lines: helpers extracted).
+export {
+  buildDefaultWorkerTypeConfigs,
+  cliFlagForWorkerType,
+  emitSupervisorAuditLog,
+  executeSelfChainedRespawn,
+  verifyWorkerIpcMessage,
+} from "./worker-supervisor-helpers";
+
+// ============================================================================
+// Lock Service Factory (DI for tests, ADR-0016 § Service DI Refactor Plan)
+// ============================================================================
+
+/**
+ * Optional factory for the WorkerActiveLockService used by the supervisor.
+ *
+ * Tests (e.g., standing regression `worker-lifecycle` domain) can inject a
+ * factory that returns a `WorkerActiveLockService` constructed with a
+ * testcontainer-backed `Redis` client. When unset, the supervisor instantiates
+ * `new WorkerActiveLockService()` lazily — preserving v0.4.0 production
+ * behavior bit-for-bit.
+ *
+ * テスト (standing regression `worker-lifecycle` domain) が testcontainer
+ * 由来 Redis を注入できるようにするための任意 factory。未設定時は production
+ * 挙動 (lazy `new WorkerActiveLockService()`) を完全保持する。
+ *
+ * @see ADR-0016 § Service DI Refactor Plan (TDA-Plan-08)
+ */
+let lockServiceFactory: (() => WorkerActiveLockService) | null = null;
+
+/**
+ * Set the WorkerActiveLockService factory used by the supervisor.
+ * @see ADR-0016 § Service DI Refactor Plan
+ */
+export function setWorkerSupervisorLockServiceFactory(
+  factory: () => WorkerActiveLockService
+): void {
+  lockServiceFactory = factory;
+}
+
+/**
+ * Reset the WorkerActiveLockService factory (default `new WorkerActiveLockService()`).
+ * @see ADR-0016 § Service DI Refactor Plan
+ */
+export function resetWorkerSupervisorLockServiceFactory(): void {
+  lockServiceFactory = null;
+}
+
+/**
+ * @internal Used by `WorkerSupervisor.ensureWorkerRunning()` to obtain a lock
+ * service via the factory if set, otherwise via direct construction.
+ */
+export function instantiateLockServiceForSupervisor(): WorkerActiveLockService {
+  return lockServiceFactory ? lockServiceFactory() : new WorkerActiveLockService();
 }
 
 // ============================================================================
@@ -855,31 +1438,26 @@ export function getWorkerSupervisor(): WorkerSupervisor {
           String(profile.jsAnimationEmbeddingChunkSize),
         WORKER_MAX_OLD_SPACE_MB:
           process.env.WORKER_MAX_OLD_SPACE_MB ?? String(profile.maxOldSpaceSizeMb),
-        // GPU/ONNX settings: forward env vars, or auto-detect CUDA library paths.
-        // LD_LIBRARY_PATH must be set at fork() time so the dynamic linker can find
-        // CUDA 12 libraries (cudnn, cublas, etc.) when dlopen() is called by ONNX Runtime.
+        // GPU/ONNX: forward ONNX_EXECUTION_PROVIDER + LD_LIBRARY_PATH (explicit
+        // env or auto-detected CUDA paths) so dlopen() can find CUDA 12 libs.
         ...(process.env.ONNX_EXECUTION_PROVIDER
           ? { ONNX_EXECUTION_PROVIDER: process.env.ONNX_EXECUTION_PROVIDER }
           : {}),
         ...((): Record<string, string> => {
-          // Prefer explicit LD_LIBRARY_PATH from environment
           if (process.env.LD_LIBRARY_PATH) {
             return { LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH };
           }
-          // Auto-detect CUDA library paths from pip packages and Ollama
           const detected = detectCudaLibPaths();
           if (detected) {
             if (isDevelopment()) {
-              logger.info(
-                "[WorkerSupervisor] Auto-detected CUDA library paths for LD_LIBRARY_PATH"
-              );
+              logger.info("[WorkerSupervisor] Auto-detected CUDA library paths");
             }
             return { LD_LIBRARY_PATH: detected };
           }
           return {};
         })(),
       },
-      // OOM防止: 1ジョブごとにプロセス再起動でRSSを完全リセット (env varでオーバーライド可)
+      // OOM防止: 1ジョブごとにプロセス再起動 (env varでオーバーライド可)
       maxJobsBeforeRestart: safeParseInt(process.env.WORKER_MAX_JOBS_BEFORE_RESTART, 1),
       maxRestartAttempts: safeParseInt(process.env.WORKER_MAX_RESTART_ATTEMPTS, 10),
       shutdownTimeoutMs: safeParseInt(process.env.WORKER_SHUTDOWN_TIMEOUT_MS, 10000, 1000),
@@ -889,31 +1467,16 @@ export function getWorkerSupervisor(): WorkerSupervisor {
   return supervisorInstance;
 }
 
-/**
- * シングルトンインスタンスをリセットする（テスト用）
- */
+/** シングルトンインスタンスをリセット (テスト用)。 */
 export function resetWorkerSupervisor(): void {
   supervisorInstance = null;
 }
 
 /**
- * ワーカースクリプトの絶対パスを取得する
- *
- * 環境変数 WORKER_SCRIPT_PATH が設定されていればそれを使用し、
- * なければ __dirname から相対パスで解決する。
- *
- * __dirname はビルド後 apps/mcp-server/dist/services/ になるため、
- * path.resolve(__dirname, '../scripts/start-workers.js') で
- * apps/mcp-server/dist/scripts/start-workers.js を指す。
- *
- * 重要: fork先は start-workers.js（エントリーポイント）でなければならない。
- * page-analyze-worker.js は BullMQ Worker のファクトリ関数を定義したモジュールであり、
- * fork しても createPageAnalyzeWorker() が呼ばれないため、ワーカーは起動しない。
- * start-workers.js はサービス初期化（Prisma, Embedding, Redis接続確認）を行い、
- * --page 引数で PageAnalyzeWorker のみを起動するエントリーポイントである。
- *
- * これにより、MCPサーバーのcwdがプロジェクトルートであっても
- * 正しいワーカースクリプトパスが解決される。
+ * ワーカースクリプトの絶対パスを取得。env `WORKER_SCRIPT_PATH` 優先、未設定時
+ * は `__dirname/../scripts/start-workers.js` (dist/services/ 起点)。fork先は
+ * `start-workers.js` (entrypoint) のみ — `page-analyze-worker.js` は factory
+ * 関数 module で fork しても worker が起動しない。
  */
 function getWorkerScriptPath(): string {
   const envPath = process.env.WORKER_SCRIPT_PATH;

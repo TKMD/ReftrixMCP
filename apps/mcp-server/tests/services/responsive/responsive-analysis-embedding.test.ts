@@ -329,9 +329,13 @@ describe("generateResponsiveAnalysisEmbeddings", () => {
     expect(result.generatedCount).toBe(2);
     expect(result.failedCount).toBe(1);
     expect(result.errors).toHaveLength(1);
+    // PR-D-7 Wave 7.1 (UB-TPA-IMPL-02 / CWE-209): client-facing error は
+    // `sanitizeErrorMessage()` 経由で汎用化される。"Embedding generation timeout"
+    // は "timeout" キーワードで CATEGORY_MESSAGES.timeout に丸められる。
+    // PR-D-7 Wave 7.1 (UB-TPA-IMPL-02 / CWE-209): "timeout" → "Operation timed out"。
     expect(result.errors[0]).toEqual({
       id: "ra-002",
-      error: "Embedding generation timeout",
+      error: "Operation timed out",
     });
   });
 

@@ -82,6 +82,7 @@ process.on("message", async (raw: unknown) => {
     responsiveEmbeddingsGenerated: 0,
     partEmbeddingsGenerated: 0,
     partVisualEmbeddingsGenerated: 0,
+    partVisualSkippedBboxInvalid: 0,
     sectionVisualEmbeddingsGenerated: 0,
     embeddingFailedChunks: 0,
     completed: false,
@@ -98,6 +99,7 @@ process.on("message", async (raw: unknown) => {
         type: "visual-result",
         sectionVisualEmbeddingsGenerated: 0,
         partVisualEmbeddingsGenerated: 0,
+        partVisualSkippedBboxInvalid: 0,
         embeddingFailedChunks: 0,
       });
       return;
@@ -129,6 +131,7 @@ process.on("message", async (raw: unknown) => {
 
     result.sectionVisualEmbeddingsGenerated = subResult.sectionVisualEmbeddingsGenerated;
     result.partVisualEmbeddingsGenerated = subResult.partVisualEmbeddingsGenerated;
+    result.partVisualSkippedBboxInvalid = subResult.partVisualSkippedBboxInvalid;
     result.embeddingFailedChunks = subResult.embeddingFailedChunks;
     result.completed = true;
 
@@ -137,6 +140,7 @@ process.on("message", async (raw: unknown) => {
       type: "visual-result",
       sectionVisualEmbeddingsGenerated: result.sectionVisualEmbeddingsGenerated,
       partVisualEmbeddingsGenerated: result.partVisualEmbeddingsGenerated,
+      partVisualSkippedBboxInvalid: result.partVisualSkippedBboxInvalid,
       embeddingFailedChunks: result.embeddingFailedChunks,
     });
   } catch (error) {

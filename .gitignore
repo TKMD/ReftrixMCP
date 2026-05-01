@@ -104,6 +104,9 @@ playwright/.cache/
 # Frame capture output (motion analysis runtime output)
 captured-frames/
 
+# Ad-hoc tooling scripts (TDA-BATCH-C-03 / Registry §13.14)
+tmp-scripts/
+
 # TypeScript incremental build cache
 *.tsbuildinfo
 

@@ -38,13 +38,13 @@ import {
 import { isRedisAvailable } from "../../config/redis";
 import {
   createPageAnalyzeQueue,
-  addPageAnalyzeJob,
+  addPageAnalyzeJobWithGuard,
   closeQueue,
   type PageAnalyzeJobOptions,
 } from "../../queues/page-analyze-queue";
 
 // WorkerSupervisor: ワーカープロセスの自動管理（OOM対策）
-import { getWorkerSupervisor } from "../../services/worker-supervisor.service";
+import { bootstrapWorkersForPageAnalyze } from "./_shared/worker-bootstrap";
 
 // Queue Cleanup: バッチ投入前のorphaned job自動クリーンアップ
 import { cleanupQueue, createQueueAdapter } from "../../services/queue-cleanup.service";
@@ -319,8 +319,11 @@ export async function pageAnalyzeHandler(
       };
     }
 
-    // ワーカープロセスが起動していなければ起動する
-    getWorkerSupervisor().ensureWorkerRunning();
+    // ワーカープロセスが起動していなければ起動する (PR-D-9 Wave 1: C-11 helper)
+    // Worker bootstrap via shared helper. ENABLE_BACKFILL_AUTOSPAWN env var
+    // controls page-only (legacy) vs page + embedding-backfill staggered spawn.
+    // Failures are logged + audit-emitted per ADR-0018 §Decision 1 Supplement.
+    bootstrapWorkersForPageAnalyze();
 
     // ジョブIDとしてwebPageIdを事前生成
     const webPageId = uuidv7();
@@ -464,23 +467,39 @@ export async function pageAnalyzeHandler(
         jobOptions.autoSnapshot = true;
       }
 
-      const job = await addPageAnalyzeJob(queue, {
+      // PR-D-6 Phase 2: migrate legacy `addPageAnalyzeJob` → collision-guarded
+      // SSOT helper. Returns `EnqueueResult` (5-variant discriminated union
+      // post PR-D-7 Phase 2 Wave 2 Option Z-a); we branch on `outcome` for
+      // observability while preserving the existing user-facing response
+      // contract (jobId === webPageId).
+      // PR-D-6 Phase 2: legacy API → with-guard SSOT helper. `EnqueueResult`
+      // variants drive observability-only logging; user-facing contract stays
+      // anchored on `webPageId`.
+      const enqueueResult = await addPageAnalyzeJobWithGuard(queue, {
         webPageId,
         url: validated.url,
         options: jobOptions,
       });
 
+      // Always-on structured log: `outcome` surfaces enqueued_new /
+      // reused_active / enqueued_retry / limbo_forced / enqueued_fail_open for
+      // ops triage (5-variant union post PR-D-7 Phase 2 Wave 2 Option Z-a).
+      // Keep payload PII-safe via 8-char truncation.
+      logger.info("[page.analyze] Enqueue outcome", {
+        outcome: enqueueResult.outcome,
+        jobId: enqueueResult.jobId,
+        collision: enqueueResult.collision,
+        webPageId: webPageId.slice(0, 8) + "...",
+      });
+
       if (isDevelopment()) {
         logger.info("[page.analyze] Job queued successfully", {
-          jobId: job.id,
+          jobId: enqueueResult.jobId,
+          outcome: enqueueResult.outcome,
           webPageId,
           url: validated.url,
         });
       }
-
-      // v0.3.0: ジョブキューイング完了を進捗通知
-      // Notify job queued via MCP progress (async mode — client may not keep connection)
-      void progressService.notifyPhaseStart("ingest");
 
       // 非同期レスポンスを返す
       const autoAsyncNote = autoAsyncEnabled

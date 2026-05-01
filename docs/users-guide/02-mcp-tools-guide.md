@@ -1,7 +1,7 @@
 # Reftrix MCPツール完全ガイド / Reftrix MCP Tools Complete Guide
 
-**Last Updated**: 2026-03-25
-**Version**: 0.3.0
+**Last Updated**: 2026-04-29
+**Version**: 0.5.0
 **対象読者 / Target Audience**: Reftrixプラットフォームのエンドユーザー、デザイナー、開発者 / End users, designers, and developers of the Reftrix platform
 
 ---
@@ -2564,8 +2564,8 @@ This guide explained how to use Reftrix's <!-- gen:tool-count -->39<!-- /gen:too
 
 ---
 
-**Last Updated**: 2026-03-25
-**Version**: 0.3.0
+**Last Updated**: 2026-04-29
+**Version**: 0.5.0
 
 ---
 

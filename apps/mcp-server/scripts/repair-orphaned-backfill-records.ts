@@ -18,6 +18,11 @@
  *   pnpm tsx apps/mcp-server/scripts/repair-orphaned-backfill-records.ts            # dry-run (default)
  *   pnpm tsx apps/mcp-server/scripts/repair-orphaned-backfill-records.ts --confirm  # actually update
  *
+ * v0.4.0 PR7e-β4 PR1 — added optional filters:
+ *   --web-page-id=<uuid>    target a single web_page (otherwise scan all)
+ *   --category=<category>   diagnostics-only filter recorded in audit_logs
+ *                           (web_pages does not store category at row level)
+ *
  * Safety:
  *   - `--dry-run` is the default (no DB writes). `--confirm` required for
  *     any mutation, preventing accidental production runs (mirrors
@@ -34,24 +39,86 @@
 
 import * as fs from "node:fs";
 import { PrismaClient } from "@reftrixmcp/database";
+// PR7e-β1: shared .env.local loader.
+// PR7e-β1: 共通 .env.local ローダー。
+import { loadEnvLocal } from "@reftrixmcp/core";
 // v0.4.0 PR7d-3 (SEC L-1): sanitize error messages before logging.
 // v0.4.0 PR7d-3 (SEC L-1): 生 error.message は出力せず必ず sanitize する。
 import { sanitizeErrorMessage } from "../src/utils/sanitize-error";
 // v0.4.0 PR7d-3 (LCC MEDIUM-2): audit_logs に修復実行を記録する (GDPR Art.30)。
 // v0.4.0 PR7d-3 (LCC MEDIUM-2): record repair executions into audit_logs (GDPR Art.30).
-import { getAuditLogService } from "../src/services/audit-log.service";
+import {
+  bootstrapAuditLogServiceForScript,
+  getAuditLogService,
+} from "../src/services/audit-log.service";
 
 // -------- CLI args (reuse convention from reconcile-backfill CLI) -------
+//
+// v0.4.0 PR7e-β4 PR1: added optional --web-page-id and --category filters.
+// `webPageId` filters the SQL query to a single row; `category` is a
+// diagnostics-only label (recorded in audit_logs) because the screenshot file
+// existence check is category-independent.
+//
+// v0.4.0 PR7e-β4 PR1: --web-page-id / --category 任意フィルタを追加。
+// webPageId は SQL クエリを 1 行に絞る効果がある。category は監査ログ記録用
+// (screenshot 不在判定はカテゴリ依存ではない)。
+const VALID_REPAIR_CATEGORIES = [
+  "part_text",
+  "part_visual",
+  "section_visual",
+  "motion",
+  "background",
+  "js_animation",
+  "responsive",
+] as const;
+type RepairCategory = (typeof VALID_REPAIR_CATEGORIES)[number];
+
 interface CliArgs {
   dryRun: boolean;
   confirm: boolean;
+  webPageId?: string;
+  category?: RepairCategory;
 }
 
 export function parseArgs(argv: readonly string[]): CliArgs {
   const args = argv.slice(2); // skip node + script
   const confirm = args.includes("--confirm");
   const dryRun = args.includes("--dry-run") || !confirm; // default dry-run
-  return { dryRun, confirm };
+
+  // Parse --web-page-id=<uuid>
+  // UUID v1-v8 regex (SEC H-1 from PR7e-β4 PR1 audit).
+  // UUID v1-v8 regex (PR7e-β4 PR1 監査 SEC H-1 対応)。
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  let webPageId: string | undefined;
+  const webPageIdArg = args.find((a) => a.startsWith("--web-page-id="));
+  if (webPageIdArg) {
+    const value = webPageIdArg.slice("--web-page-id=".length);
+    if (value.length > 0) {
+      if (!UUID_REGEX.test(value)) {
+        throw new Error(
+          `Invalid --web-page-id: must be a UUID v1-v8 format (got: ${value.slice(0, 8)}...)`
+        );
+      }
+      webPageId = value;
+    }
+  }
+
+  // Parse --category=<category>
+  let category: RepairCategory | undefined;
+  const categoryArg = args.find((a) => a.startsWith("--category="));
+  if (categoryArg) {
+    const value = categoryArg.slice("--category=".length);
+    if ((VALID_REPAIR_CATEGORIES as readonly string[]).includes(value)) {
+      category = value as RepairCategory;
+    } else if (value.length > 0) {
+      throw new Error(`Invalid --category: ${value}. Valid: ${VALID_REPAIR_CATEGORIES.join(", ")}`);
+    }
+  }
+
+  const result: CliArgs = { dryRun, confirm };
+  if (webPageId !== undefined) result.webPageId = webPageId;
+  if (category !== undefined) result.category = category;
+  return result;
 }
 
 // -------- Helpers --------
@@ -86,13 +153,26 @@ export interface RepairResult {
 /**
  * Find pages matching: screenshotStoragePath IS NOT NULL AND
  * embeddingBackfillStatus IN ('queued','in_progress') AND file missing on disk.
+ *
+ * v0.4.0 PR7e-β4 PR1: accepts optional `webPageId` to scope the scan to a
+ * single row (otherwise scans the full table).
+ *
+ * v0.4.0 PR7e-β4 PR1: optional の `webPageId` で 1 行のみに絞り込み可能。
  */
-export async function findOrphanedCandidates(prisma: PrismaClient): Promise<RepairCandidate[]> {
+export async function findOrphanedCandidates(
+  prisma: PrismaClient,
+  options: { webPageId?: string } = {}
+): Promise<RepairCandidate[]> {
+  const where: Record<string, unknown> = {
+    screenshotStoragePath: { not: null },
+    embeddingBackfillStatus: { in: ["queued", "in_progress"] },
+  };
+  if (options.webPageId) {
+    where.id = options.webPageId;
+  }
+
   const rows = await prisma.webPage.findMany({
-    where: {
-      screenshotStoragePath: { not: null },
-      embeddingBackfillStatus: { in: ["queued", "in_progress"] },
-    },
+    where,
     select: {
       id: true,
       screenshotStoragePath: true,
@@ -135,7 +215,12 @@ export async function applyRepair(prisma: PrismaClient, webPageId: string): Prom
 }
 
 export async function runRepair(prisma: PrismaClient, args: CliArgs): Promise<RepairResult> {
-  const candidates = await findOrphanedCandidates(prisma);
+  // v0.4.0 PR7e-β4 PR1: forward the optional webPageId filter to the SELECT.
+  // v0.4.0 PR7e-β4 PR1: optional な webPageId フィルタを SELECT に渡す。
+  const candidates = await findOrphanedCandidates(
+    prisma,
+    args.webPageId !== undefined ? { webPageId: args.webPageId } : {}
+  );
 
   const result: RepairResult = {
     detected: candidates.length,
@@ -174,6 +259,12 @@ export async function runRepair(prisma: PrismaClient, args: CliArgs): Promise<Re
         // webPageId never enters the audit_logs table).
         // audit_logs には truncate 済み ID のみ格納 (PII 最小化)。
         webPageIdsTruncated: result.candidates.map((c) => c.webPageIdTruncated),
+        // v0.4.0 PR7e-β4 PR1: filter args (audit traceability for ad-hoc runs)
+        // v0.4.0 PR7e-β4 PR1: フィルタ引数を audit に残す (ad-hoc 実行のトレーサビリティ)
+        ...(args.category !== undefined ? { category: args.category } : {}),
+        ...(args.webPageId !== undefined
+          ? { targetWebPageIdTruncated: truncateId(args.webPageId) }
+          : {}),
       },
       result: "success",
     });
@@ -187,11 +278,22 @@ export async function runRepair(prisma: PrismaClient, args: CliArgs): Promise<Re
 
 // -------- Main --------
 async function main(): Promise<void> {
+  // PR7e-β1: load .env.local for DATABASE_URL before Prisma init.
+  // PR7e-β1: Prisma 初期化の前に DATABASE_URL を .env.local からロードする。
+  loadEnvLocal({ verbose: false });
+
   const args = parseArgs(process.argv);
   const prisma = new PrismaClient();
+  // PR7e-β1: register PrismaClient into AuditLogService DI (see repair-page-analyze.ts).
+  // PR7e-β1: AuditLogService の DI に PrismaClient を登録する (詳細は repair-page-analyze.ts)。
+  bootstrapAuditLogServiceForScript(prisma);
 
   // eslint-disable-next-line no-console
-  console.log(`[repair-orphaned-backfill-records] mode=${args.dryRun ? "dry-run" : "CONFIRMED"}`);
+  console.log(
+    `[repair-orphaned-backfill-records] mode=${args.dryRun ? "dry-run" : "CONFIRMED"}` +
+      (args.webPageId ? ` webPageId=${truncateId(args.webPageId)}` : "") +
+      (args.category ? ` category=${args.category}` : "")
+  );
 
   try {
     const result = await runRepair(prisma, args);

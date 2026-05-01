@@ -1,8 +1,8 @@
-// SPDX-FileCopyrightText: 2026 TKMD and Reftrix Contributors
+// SPDX-FileCopyrightText: 2025-2026 Reftrix Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { defineConfig } from "vitest/config";
-import path from "path";
+import { baseTestConfig } from "./vitest.base.config.mts";
 
 /**
  * Vitest Smoke Test Configuration
@@ -14,27 +14,24 @@ import path from "path";
  *
  * 使用方法:
  * - pnpm test:smoke → vitest run --config vitest.smoke.config.ts
+ *
+ * v0.4.0 PR7e-β5 ADR-0016 M1: `vitest.base.config.mts` から共通設定を継承する形に
+ * refactor。include / timeout のみ override し既存挙動を完全保持。
+ *
+ * v0.4.0 PR7e-β5 ADR-0016 M1: refactored to inherit shared options from
+ * `vitest.base.config.mts`. Only `include` and `timeout` are overridden;
+ * existing behavior is preserved bit-for-bit.
  */
 export default defineConfig({
+  ...baseTestConfig,
   test: {
+    ...baseTestConfig.test,
     name: "smoke",
-    globals: true,
-    environment: "node",
-    pool: "forks",
-    maxWorkers: 3, // メモリ枯渇防止: 各ワーカー約3.5GB消費
     include: ["tests/smoke/**/*.test.ts"],
     exclude: ["node_modules", "dist"],
     // スモークテストは高速実行（10秒タイムアウト）
+    // Fast smoke tests (10s timeout).
     testTimeout: 10000,
     hookTimeout: 10000,
-    env: {
-      NODE_ENV: "test",
-      MCP_SKIP_RATE_LIMIT: "true",
-    },
-  },
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
   },
 });

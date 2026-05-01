@@ -52,6 +52,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { loadEnvLocal as loadEnvLocalShared } from "@reftrixmcp/core";
 
 /**
  * Sentinel env var to prevent infinite re-exec loops.
@@ -88,13 +89,16 @@ function parseEnvLocal(): Record<string, string> {
   return envVars;
 }
 
+/**
+ * Load .env.local values into process.env.
+ *
+ * PR7e-β1: delegates to `@reftrixmcp/core` loadEnvLocal for SEC-β-01 (maxDepth)
+ * / SEC-β-07 (verbose=false) / preserve-existing-env consistency.
+ * `parseEnvLocal()` is retained because `ensureLdLibraryPathForCuda()` needs
+ * the parsed pairs without mutating `process.env`.
+ */
 function loadEnvLocal(): void {
-  const envVars = parseEnvLocal();
-  for (const [key, value] of Object.entries(envVars)) {
-    if (!process.env[key]) {
-      process.env[key] = value;
-    }
-  }
+  loadEnvLocalShared({ verbose: false });
 }
 
 /**

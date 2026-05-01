@@ -26,6 +26,48 @@ import {
   CSS_PARSER_LIMITS,
 } from "../../../src/services/page/css-animation-parser.service";
 
+// =============================================================================
+// v0.5.1 CO-PR21-REVIEW-01 (ADR-0020 Decision 5):
+//   ReDoS threshold input-size 関数化
+// =============================================================================
+// PR #21 hotfix では fixed `1000 ms` で elapsed assertion を行っていたが、
+// 大きな input (例: 100k chars) では false-pass、小さな input (例: 100 chars)
+// では false-fail のリスクがあり CWE-770 mitigation completeness 不足。
+//
+// CO-PR21-REVIEW-01 で `expectedMaxMs = input.length / throughputCharsPerMs + 200`
+// に置換。`throughputCharsPerMs` は env var `REDOS_TEST_THROUGHPUT_CHARS_PER_MS`
+// で override 可能 (Local default 100、CI 80 を Phase 2.4 で env var injection
+// により設定予定)。`+200ms` は startup overhead constant。
+//
+// PR #21 hotfix used a fixed 1000 ms threshold; with this change the limit
+// scales linearly with input length, restoring CWE-770 mitigation completeness.
+// `throughputCharsPerMs` defaults to 100 (Local) and is overridable via
+// `REDOS_TEST_THROUGHPUT_CHARS_PER_MS` (CI will inject 80 via Phase 2.4 env
+// var injection). `+200ms` is the startup-overhead constant.
+// =============================================================================
+
+/**
+ * Throughput floor (chars/ms) used to derive ReDoS test elapsed-time budget.
+ * Default 100 chars/ms (Local). CI overrides to 80 via env var
+ * `REDOS_TEST_THROUGHPUT_CHARS_PER_MS` (Phase 2.4 — Plan v0.5.1).
+ */
+const REDOS_TEST_THROUGHPUT_CHARS_PER_MS = Number(
+  process.env.REDOS_TEST_THROUGHPUT_CHARS_PER_MS ?? "100"
+);
+/** Startup-overhead constant (ms) added to the input-size proportional limit. */
+const REDOS_TEST_STARTUP_OVERHEAD_MS = 200;
+
+/**
+ * Compute the input-size proportional max elapsed time for a ReDoS protection
+ * assertion: `inputLength / throughputCharsPerMs + startupOverheadMs`.
+ *
+ * Replaces the v0.5.0 PR #21 hotfix fixed `1000 ms` threshold.
+ * See ADR-0020 Decision 5 / CO-PR21-REVIEW-01.
+ */
+function expectedMaxMsForReDoS(inputLength: number): number {
+  return inputLength / REDOS_TEST_THROUGHPUT_CHARS_PER_MS + REDOS_TEST_STARTUP_OVERHEAD_MS;
+}
+
 describe("CssAnimationParser", () => {
   let parser: CssAnimationParser;
 
@@ -624,8 +666,11 @@ describe("CssAnimationParser", () => {
         const result = parser.parseKeyframes(css);
         const elapsed = performance.now() - start;
 
-        // Should complete in reasonable time
-        expect(elapsed).toBeLessThan(1000);
+        // v0.5.1 CO-PR21-REVIEW-01 (ADR-0020 Decision 5):
+        //   PR #21 hotfix の固定 1000 ms から input-size proportional formula
+        //   `length / throughputCharsPerMs + 200` に置換。
+        // Replaces PR #21 fixed 1000 ms with input-size proportional formula.
+        expect(elapsed).toBeLessThan(expectedMaxMsForReDoS(css.length));
         expect(result.has("test")).toBe(true);
       });
 
@@ -655,9 +700,11 @@ describe("CssAnimationParser", () => {
         const result = parser.parseKeyframeSteps(content);
         const elapsed = performance.now() - start;
 
-        // Should complete in reasonable time (not exponential)
-        // CI環境ではCPU負荷で500ms超過が散発するため1000msに緩和
-        expect(elapsed).toBeLessThan(1000);
+        // v0.5.1 CO-PR21-REVIEW-01 (ADR-0020 Decision 5): input-size 関数化。
+        // PR #21 hotfix の固定 1000 ms (CI 緩和) を `length / throughputCharsPerMs + 200`
+        // に置換し、CWE-770 mitigation completeness を回復。
+        // Replaces PR #21 fixed 1000 ms with input-size proportional formula.
+        expect(elapsed).toBeLessThan(expectedMaxMsForReDoS(content.length));
         // Should still parse the valid part
         expect(result.length).toBeGreaterThanOrEqual(0);
       });
@@ -684,7 +731,11 @@ describe("CssAnimationParser", () => {
         const result = parser.extractStyleRules(css);
         const elapsed = performance.now() - start;
 
-        expect(elapsed).toBeLessThan(500);
+        // v0.5.1 CO-PR21-REVIEW-01 (ADR-0020 Decision 5):
+        //   af17e5c5 (PR #21 hotfix) で 500 → 1000 ms に緩和した CI threshold を、
+        //   input-size proportional formula `length / 100 + 200` に置換。
+        // Replaces PR #21 (af17e5c5) fixed 1000 ms with input-size proportional.
+        expect(elapsed).toBeLessThan(expectedMaxMsForReDoS(css.length));
         // Long selectors should be handled (either parsed or skipped)
         expect(result.size).toBeGreaterThanOrEqual(0);
       });
@@ -698,7 +749,11 @@ describe("CssAnimationParser", () => {
         const result = parser.extractStyleRules(css);
         const elapsed = performance.now() - start;
 
-        expect(elapsed).toBeLessThan(500);
+        // v0.5.1 CO-PR21-REVIEW-01 (ADR-0020 Decision 5):
+        //   af17e5c5 (PR #21 hotfix) で固定化した 1000 ms threshold を、
+        //   input-size proportional formula に置換。
+        // Replaces PR #21 (af17e5c5) fixed 1000 ms with input-size proportional.
+        expect(elapsed).toBeLessThan(expectedMaxMsForReDoS(css.length));
         expect(result.size).toBeGreaterThanOrEqual(0);
       });
 
@@ -754,7 +809,11 @@ describe("CssAnimationParser", () => {
         const result = parser.parseTransitionProperty(parts);
         const elapsed = performance.now() - start;
 
-        expect(elapsed).toBeLessThan(500);
+        // v0.5.1 CO-PR21-REVIEW-01 (ADR-0020 Decision 5):
+        //   af17e5c5 (PR #21 hotfix) で固定化した 1000 ms threshold を、
+        //   input-size proportional formula に置換。
+        // Replaces PR #21 (af17e5c5) fixed 1000 ms with input-size proportional.
+        expect(elapsed).toBeLessThan(expectedMaxMsForReDoS(parts.length));
         expect(result.length).toBe(100);
       });
 
@@ -824,7 +883,13 @@ describe("CssAnimationParser", () => {
         const rules = parser.extractStyleRules(css);
         const elapsed = performance.now() - start;
 
-        expect(elapsed).toBeLessThan(1000);
+        // v0.5.1 CO-PR21-REVIEW-01 (ADR-0020 Decision 5):
+        //   PR #21 hotfix の固定 1000 ms を input-size proportional formula に置換。
+        //   Two parser passes (parseKeyframes + extractStyleRules) なので、
+        //   `length * 2` で 2 pass ぶんの allowance を確保。
+        // Replaces PR #21 fixed 1000 ms with input-size proportional formula.
+        // Two parser passes; multiply length by 2 for combined-pass budget.
+        expect(elapsed).toBeLessThan(expectedMaxMsForReDoS(css.length * 2));
         expect(keyframes.size).toBe(2); // Same keyframes, deduplicated
         expect(rules.size).toBeGreaterThan(0);
       });

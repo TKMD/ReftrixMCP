@@ -126,16 +126,30 @@ function createMockEmbeddingService(embedding?: number[]): EmbeddingServiceLike 
  * Create PrismaClient mock
  */
 function createMockPrismaClient(): PartEmbeddingPrismaClient {
-  let idCounter = 0;
-  return {
+  // PR-D-2: new mock shape supports `$transaction(cb, { timeout })` with
+  // `createMany` + `$executeRawUnsafe` inside. Legacy `create` method is kept
+  // for test back-compat via a pass-through that delegates to createMany.
+  //
+  // PR-D-2: new mock shape for `$transaction(cb, { timeout })` wrapping
+  // `createMany` + `$executeRawUnsafe`. Legacy `create` removed in favor of
+  // the atomic dual-phase write contract.
+  const client = {
     componentPartEmbedding: {
-      create: vi.fn().mockImplementation(() => {
-        idCounter++;
-        return Promise.resolve({ id: `emb-id-${idCounter}` });
-      }),
+      createMany: vi.fn().mockImplementation(async (args: { data: unknown[] }) => ({
+        count: args.data.length,
+      })),
     },
     $executeRawUnsafe: vi.fn().mockResolvedValue(1),
-  };
+    $transaction: vi
+      .fn()
+      .mockImplementation(
+        async (
+          cb: (tx: PartEmbeddingPrismaClient) => Promise<unknown>,
+          _opts?: { timeout?: number }
+        ) => cb(client as PartEmbeddingPrismaClient)
+      ),
+  } satisfies PartEmbeddingPrismaClient;
+  return client;
 }
 
 // ============================================================================
@@ -519,8 +533,10 @@ describe("savePartEmbeddings", () => {
 
     const result = await savePartEmbeddings(prisma, []);
 
-    expect(result.savedCount).toBe(0);
+    expect(result.generatedCount).toBe(0);
     expect(result.errors).toEqual([]);
+    // 空配列 → transaction 不要 (PR-D-2 atomic contract)
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it("visual+text両方のEmbeddingを保存する / saves both visual and text embeddings", async () => {
@@ -536,25 +552,26 @@ describe("savePartEmbeddings", () => {
 
     const result = await savePartEmbeddings(prisma, embeddings);
 
-    expect(result.savedCount).toBe(1);
+    expect(result.generatedCount).toBe(1);
     expect(result.errors).toEqual([]);
 
-    // Step 1: Prisma create が呼ばれる
-    expect(prisma.componentPartEmbedding.create).toHaveBeenCalledTimes(1);
-    expect(prisma.componentPartEmbedding.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        componentPartId: "part-1",
-        textRepresentation: "passage: type:button",
-        visualModelVersion: "dinov2-vit-b14",
-        textModelVersion: "multilingual-e5-base",
-      }),
+    // PR-D-2: $transaction で atomic 実行
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    // Step 1: createMany
+    expect(prisma.componentPartEmbedding.createMany).toHaveBeenCalledTimes(1);
+    const createCall = vi.mocked(prisma.componentPartEmbedding.createMany).mock.calls[0]![0];
+    expect(createCall.data[0]).toMatchObject({
+      componentPartId: "part-1",
+      textRepresentation: "passage: type:button",
+      visualModelVersion: "dinov2-vit-b14",
+      textModelVersion: "multilingual-e5-base",
     });
 
     // Step 2: raw SQL で vector 更新（visual + text 両方）
     expect(prisma.$executeRawUnsafe).toHaveBeenCalledTimes(1);
     const rawCall = vi.mocked(prisma.$executeRawUnsafe).mock.calls[0]!;
     expect(rawCall[0]).toContain("visual_embedding = $1::vector(768)");
-    expect(rawCall[0]).toContain("text_embedding = $2::vector(768)");
+    expect(rawCall[0]).toContain("text_embedding   = $2::vector(768)");
   });
 
   it("visualEmbedding=nullの場合はtextのみ更新する / updates text only when visualEmbedding is null", async () => {
@@ -570,7 +587,7 @@ describe("savePartEmbeddings", () => {
 
     const result = await savePartEmbeddings(prisma, embeddings);
 
-    expect(result.savedCount).toBe(1);
+    expect(result.generatedCount).toBe(1);
     expect(prisma.$executeRawUnsafe).toHaveBeenCalledTimes(1);
     const rawCall = vi.mocked(prisma.$executeRawUnsafe).mock.calls[0]!;
     // visual_embedding は含まれない / visual_embedding not included
@@ -578,16 +595,16 @@ describe("savePartEmbeddings", () => {
     expect(rawCall[0]).toContain("text_embedding = $1::vector(768)");
   });
 
-  it("部分失敗時にエラーを記録して継続する / records errors and continues on partial failure", async () => {
+  it("transaction rollback時はgeneratedCount=0とサニタイズ済エラーを記録する / rollback → generatedCount=0 and sanitized error recorded (PR-D-3 CWE-209)", async () => {
     const prisma = createMockPrismaClient();
-    // 2番目のcreateでエラー
-    let createCount = 0;
-    vi.mocked(prisma.componentPartEmbedding.create).mockImplementation(() => {
-      createCount++;
-      if (createCount === 2) {
-        return Promise.reject(new Error("Unique constraint violation"));
-      }
-      return Promise.resolve({ id: `emb-id-${createCount}` });
+    // PR-D-2: atomic 契約により部分失敗は存在しない。transaction全体rollback。
+    // PR-D-3 (FIND-IMPL-SEC-01): raw "Unique constraint violation" message is
+    // a generic Error (no Prisma code) → sanitizeErrorMessage returns the
+    // internal-category fallback "An internal error occurred". The raw string
+    // MUST NOT leak to the client-facing `result.errors[]`.
+    // Simulate createMany failure → transaction rollback → no rows written.
+    vi.mocked(prisma.componentPartEmbedding.createMany).mockImplementationOnce(() => {
+      return Promise.reject(new Error("Unique constraint violation"));
     });
 
     const embeddings = [
@@ -603,20 +620,22 @@ describe("savePartEmbeddings", () => {
         textEmbedding: createMockEmbedding(4),
         textRepresentation: "passage: type:card",
       },
-      {
-        componentPartId: "part-3",
-        visualEmbedding: null,
-        textEmbedding: createMockEmbedding(5),
-        textRepresentation: "passage: type:icon",
-      },
     ];
 
     const result = await savePartEmbeddings(prisma, embeddings);
 
-    expect(result.savedCount).toBe(2);
+    // PR-D-2 atomic contract: rollback → generatedCount=0
+    expect(result.generatedCount).toBe(0);
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]).toContain("part-2");
-    expect(result.errors[0]).toContain("Unique constraint violation");
+    // Count prefix preserved (Plan §3.2 semantic preservation).
+    expect(result.errors[0]).toContain("rolled back");
+    expect(result.errors[0]).toContain("2 embeddings");
+    // PR-D-3 CWE-209 defense: raw message MUST be sanitized to whitelist entry.
+    // Generic Error (no Prisma code, no timeout/network keywords) falls through
+    // to `CATEGORY_MESSAGES.internal` = "An internal error occurred".
+    expect(result.errors[0]).toContain("An internal error occurred");
+    // Negative guard: raw "Unique constraint violation" MUST NOT leak.
+    expect(result.errors[0]).not.toContain("Unique constraint violation");
   });
 
   it("正しいvectorフォーマット文字列を生成する / generates correct vector format string", async () => {
@@ -639,10 +658,34 @@ describe("savePartEmbeddings", () => {
     await savePartEmbeddings(prisma, embeddings);
 
     const rawCall = vi.mocked(prisma.$executeRawUnsafe).mock.calls[0]!;
-    // $1がvisual vector string, $2がtext vector string, $3がid
+    // $1がvisual vector string, $2がtext vector string, $3がcomponent_part_id
     const visualVectorStr = rawCall[1] as string;
     expect(visualVectorStr.startsWith("[")).toBe(true);
     expect(visualVectorStr.endsWith("]")).toBe(true);
     expect(visualVectorStr).toContain("0.1,0.2,0.3");
   });
+
+  it("transaction timeout が 10s に設定されている (FIND-PLAN-09) / timeout set to 10s", async () => {
+    const prisma = createMockPrismaClient();
+    const embeddings = [
+      {
+        componentPartId: "part-timeout",
+        visualEmbedding: createMockEmbedding(1),
+        textEmbedding: createMockEmbedding(2),
+        textRepresentation: "passage: type:button",
+      },
+    ];
+
+    await savePartEmbeddings(prisma, embeddings);
+
+    const txCall = vi.mocked(prisma.$transaction).mock.calls[0]!;
+    const opts = txCall[1] as { timeout?: number } | undefined;
+    expect(opts?.timeout).toBe(10_000);
+  });
+
+  // PR-D-3 (UC-06, H severity, deadline 2026-04-27): the `savedCount`
+  // deprecated alias was fully removed from `PartEmbeddingSaveResult`; the
+  // alias-parity test is therefore deleted (alias 存在前提の test は削除)。
+  // Coverage for `generatedCount` SSOT semantics (derived from createMany.count)
+  // is preserved by the "INV-EMBEDDING-INTEGRITY-002-A" regression suite.
 });

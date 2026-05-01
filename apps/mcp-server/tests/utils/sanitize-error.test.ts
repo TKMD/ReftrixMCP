@@ -214,6 +214,61 @@ describe("sanitizeErrorMessage", () => {
       expect(sanitized).not.toContain("5432");
     });
   });
+
+  // ============================================================================
+  // SEC-M2-04 (v0.4.0 PR7e PR-B P5): BullMQ updateProgress leakage prevention /
+  //                                   BullMQ updateProgress の漏洩防止
+  // ============================================================================
+
+  describe("SEC-M2-04 (v0.4.0 PR7e PR-B P5): BullMQ updateProgress 系", () => {
+    it('"Missing key for job" → "An internal error occurred"', () => {
+      // BullMQ の Lua スクリプト "moveToActive" / "extendLock" が job hash 不在時に throw する
+      // 固有メッセージ。これは内部 Redis キー (`bull:page-analyze:<id>`) を含む。
+      // BullMQ's Lua scripts ("moveToActive" / "extendLock") throw this when the
+      // job hash is missing. Includes the internal Redis key.
+      const error = new Error("Missing key for job 019da6f4-...");
+      const sanitized = sanitizeErrorMessage(error);
+      expect(sanitized).toBe("An internal error occurred");
+      expect(sanitized).not.toContain("019da6f4");
+      expect(sanitized).not.toContain("Missing key");
+      expect(sanitized).not.toContain("job");
+    });
+
+    it("Lua script error path (bull:* prefix) は汎用メッセージに置換される", () => {
+      const error = new Error("ERR Script failed: bull:page-analyze:019d... is not locked");
+      const sanitized = sanitizeErrorMessage(error);
+      expect(sanitized).toBe("An internal error occurred");
+      expect(sanitized).not.toContain("bull:");
+      expect(sanitized).not.toContain("page-analyze");
+      expect(sanitized).not.toContain("019d");
+    });
+
+    it("lock token 不整合メッセージは内部構造を漏らさない", () => {
+      const error = new Error("Lock token 'abc123def456' mismatch on bull:queue:lock");
+      const sanitized = sanitizeErrorMessage(error);
+      expect(sanitized).toBe("An internal error occurred");
+      expect(sanitized).not.toContain("abc123");
+      expect(sanitized).not.toContain("bull:queue");
+    });
+
+    it("BullMQ からの非 Error 値 (string) でも internal message を返す", () => {
+      // BullMQ は稀に string を throw する (ioredis-mock や custom Lua wrapper)
+      // BullMQ occasionally throws raw strings (ioredis-mock / custom Lua wrappers)
+      expect(sanitizeErrorMessage("Missing key for job 019da6f4")).toBe(
+        "An internal error occurred"
+      );
+    });
+
+    it("redis connection string を含むエラーでも host:port が漏れない", () => {
+      const error = new Error("connect ECONNREFUSED redis://internal-redis.prod.local:27379");
+      const sanitized = sanitizeErrorMessage(error);
+      // Network category が適用されるため "Network request failed" が返る
+      expect(sanitized).toBe("Network request failed");
+      expect(sanitized).not.toContain("redis://");
+      expect(sanitized).not.toContain("27379");
+      expect(sanitized).not.toContain("internal-redis");
+    });
+  });
 });
 
 // ============================================================================

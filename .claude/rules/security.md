@@ -14,7 +14,7 @@
 
 ### ✅ PASS基準 / PASS Criteria
 
-- ✅ DOMPurify <!-- gen:ver-dompurify -->3.3<!-- /gen:ver-dompurify -->.x でHTMLをサニタイズ / Sanitize HTML with DOMPurify <!-- gen:ver-dompurify -->3.3<!-- /gen:ver-dompurify -->.x
+- ✅ DOMPurify <!-- gen:ver-dompurify -->3.4<!-- /gen:ver-dompurify -->.x でHTMLをサニタイズ / Sanitize HTML with DOMPurify <!-- gen:ver-dompurify -->3.4<!-- /gen:ver-dompurify -->.x
 - ✅ 危険なスクリプト参照（`<script>`タグ、`javascript:` URL、イベントハンドラ）が除去されている / Dangerous script references (`<script>` tags, `javascript:` URLs, event handlers) are removed
 - ✅ XSS攻撃テストケースが通過（`<script>alert('xss')</script>` 等が無害化） / XSS attack test cases pass (e.g., `<script>alert('xss')</script>` is neutralized)
 - ✅ layout.ingest/page.analyzeで取得したHTMLがサニタイズ済み / HTML from layout.ingest/page.analyze is sanitized
@@ -159,9 +159,9 @@ LGPL-3.0-or-later dependencies must be excluded via `--excludePackages` and revi
 
 ### sanitizeErrorMessage パターン / sanitizeErrorMessage Pattern
 
-v0.2.0で `utils/sanitize-error.ts` に統一ユーティリティとして抽出。<!-- gen:sanitize-usage-count -->85<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->39<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->79<!-- /gen:sanitize-import-count -->ファイルでインポート）。
+v0.2.0で `utils/sanitize-error.ts` に統一ユーティリティとして抽出。<!-- gen:sanitize-usage-count -->101<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->39<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->94<!-- /gen:sanitize-import-count -->ファイルでインポート）。
 
-Extracted as a unified utility in `utils/sanitize-error.ts` in v0.2.0. Applied to <!-- gen:sanitize-usage-count -->85<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->39<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->79<!-- /gen:sanitize-import-count --> files importing it).
+Extracted as a unified utility in `utils/sanitize-error.ts` in v0.2.0. Applied to <!-- gen:sanitize-usage-count -->101<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->39<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->94<!-- /gen:sanitize-import-count --> files importing it).
 
 エラーコードから汎用メッセージへ変換するヘルパー関数を使用し、内部構造の漏洩を防止する。
 
@@ -205,6 +205,57 @@ return { error: sanitizeErrorMessage(error) };
 
 ※ 上記は簡略化した例です。詳細は `utils/sanitize-error.ts` を参照。
 Note: The above is a simplified example. See `utils/sanitize-error.ts` for full implementation.
+
+### Prisma catch block 採用パターン / Prisma catch block adoption pattern
+
+Prisma `$transaction` / `$executeRawUnsafe` / `createMany` 等の DB 操作 catch block でも、**生 `error.message` を client response に含めず必ず `sanitizeErrorMessage(error)` 経由で汎用メッセージ化する**こと。Prisma error code (`P2002` unique violation / `P2025` record not found 等) の内部テーブル名・カラム名は CWE-209 (Information Exposure Through an Error Message) の latent risk に該当し、client に露出すると DB schema 推定攻撃の足がかりとなる。
+
+In DB-operation catch blocks (Prisma `$transaction` / `$executeRawUnsafe` / `createMany`, etc.) as well, **never put raw `error.message` into client responses — always route through `sanitizeErrorMessage(error)` to convert to a generic message**. Prisma error codes (`P2002` unique violation / `P2025` record not found, etc.) may carry internal table/column names — a CWE-209 (Information Exposure Through an Error Message) latent risk that exposes DB schema inference vectors to the client.
+
+**✅ PASS パターン / PASS pattern**:
+
+```typescript
+// Prisma transaction / raw SQL の catch block
+try {
+  await prisma.$transaction(async (tx) => {
+    await tx.componentPartEmbedding.createMany({ data: nonVectorRows });
+    for (const part of parts) {
+      await tx.$executeRawUnsafe(
+        `UPDATE component_part_embeddings
+           SET visual_embedding = $1::vector(768)
+         WHERE component_part_id = $2::uuid`,
+        `[${part.visualEmbedding.join(",")}]`,
+        part.componentPartId
+      );
+    }
+  });
+} catch (error) {
+  // ✅ Server-side: full error logged for debugging
+  logger.error("savePartEmbeddings transaction failed", {
+    error: (error as Error).message,
+    code: (error as { code?: string }).code,
+  });
+  // ✅ Client-safe: sanitized message + mapped Prisma code
+  result.errors.push({
+    message: sanitizeErrorMessage(error),
+    code: extractPrismaCode(error), // P2002 → "duplicate", P2025 → "not_found"
+  });
+}
+```
+
+**❌ FAIL パターン / FAIL pattern (CWE-209 latent risk)**:
+
+```typescript
+// ❌ 生 error.message を client response に push
+} catch (error) {
+  result.errors.push({
+    message: (error as Error).message, // ❌ DB schema leakage risk
+    code: (error as { code?: string }).code,
+  });
+}
+```
+
+**Cross-ref**: ADR-0018 §Decision 3.9 "`result.errors[]` sanitize policy" / PR-D-2 landed state の documented risk (FIND-IMPL-SEC-01, M severity, deadline 2026-05-04) / `utils/sanitize-error.ts`
 
 ## isDevelopment() ガード原則 / isDevelopment() Guard Principle
 
@@ -275,6 +326,57 @@ if (isDevelopment()) {
   logger.debug(`Profile details: ${profileId}`, { signals });
 }
 ```
+
+### Canonical CWE-209 PII Protection Pattern (LCC-endorsed) / 正典 CWE-209 PII 保護パターン (LCC 承認)
+
+PR-D-9-patch Wave 5 で **canonical CWE-209 PII 保護パターン** として LCC が正式 endorsement (FIND-IMPL-LCC-PATCH-W5-02 / Registry §13.11.2 / §13.14)。テスト assertion およびログ出力で truncation length の hardcoded literal (例: `"embeddin..."` のような 8 文字 + `...` の手書き) を使用してはならず、**SSOT (Single Source of Truth) 定数を import して導出**すること。
+
+PR-D-9-patch Wave 5 LCC formally endorsed this as the **canonical CWE-209 PII protection pattern** (FIND-IMPL-LCC-PATCH-W5-02 / Registry §13.11.2 / §13.14). Test assertions and log output MUST NOT use hardcoded truncation literals (e.g. hand-written 8-char + `...` strings like `"embeddin..."`); instead, **import the SSOT (Single Source of Truth) constant and derive**.
+
+**SSOT 定数 / SSOT constant**: `apps/mcp-server/src/services/audit-log.service.ts` `AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH` (現在値: 8 / current value: 8)
+
+**✅ PASS パターン / PASS pattern (Bug fix #2 canonical)**:
+
+```typescript
+// ✅ Production code: SSOT 定数を使用 / Use SSOT constant in production
+import { AUDIT_LOG_CONSTANTS } from "./audit-log.service";
+
+function truncateTargetId(id: string | undefined | null): string | null {
+  if (!id) return null;
+  if (id.length <= AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) return id;
+  return id.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...";
+}
+
+// ✅ Test assertion: SSOT 定数から導出 / Derive expected literal from SSOT constant in tests
+import { AUDIT_LOG_CONSTANTS } from "@/services/audit-log.service";
+
+const expectedTruncated = fullId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...";
+expect(auditLog.targetId).toBe(expectedTruncated);
+```
+
+**❌ FAIL パターン / FAIL pattern (silent coupling drift risk)**:
+
+```typescript
+// ❌ Test assertion: hardcoded literal — TARGET_ID_TRUNCATE_LENGTH を 8→12 に変更すると silently fail / regression
+expect(auditLog.targetId).toBe("embeddin..."); // ❌ 8-char literal hardcoded
+expect(log.profileId).toBe(profileId.substring(0, 8) + "..."); // ❌ length も hardcoded
+```
+
+**理由 / Rationale**:
+
+- **Coupling drift 検出**: SSOT 定数を変更すると、import 漏れ箇所は CI で TypeError / test failure として顕在化し silent regression を防止。Hardcoded literal は静かに stale 化する。
+- **GDPR Art.30 audit trail 整合**: `audit_logs.target_id` の truncation length は GDPR Art.30 PII minimisation 契約。SSOT 一元化により不一致を構造的に排除。
+- **CWE-209 information exposure 防御**: 全 PII truncation 経路 (production code / test code / log message) が同じ length contract に従うことを保証し、特定経路だけが full PII を漏らす latent risk を排除。
+
+**Coupling drift detection**: Changing the SSOT constant exposes any unimported callsite as a CI-time TypeError / test failure, preventing silent regression. Hardcoded literals go stale silently.
+**GDPR Art.30 audit trail consistency**: `audit_logs.target_id` truncation length is a GDPR Art.30 PII minimisation contract. SSOT unification structurally eliminates discrepancies.
+**CWE-209 information exposure defense**: Guarantees all PII truncation paths (production / test / log) follow the same length contract, eliminating the latent risk that a specific path leaks full PII.
+
+**適用範囲 / Scope**: `audit_logs.target_id` truncation のすべての callsite (production code、unit test、integration test、standing regression test)。`truncateId()` ユーティリティ (`src/tools/preference/schemas.ts` / `src/services/part/schemas.ts`) も将来の統一時に SSOT 定数導出パターンへ移行検討。
+
+Applies to all callsites truncating `audit_logs.target_id` (production code, unit tests, integration tests, standing regression). The `truncateId()` utilities (`src/tools/preference/schemas.ts` / `src/services/part/schemas.ts`) are also candidates for migration to SSOT-derived patterns during future unification.
+
+**Cross-ref**: Registry §13.14 C-IMPL-PATCH-W5-08 (L) / FIND-IMPL-LCC-PATCH-W5-02 / FIND-IMPL-TDA-PATCH-W5-01 (M, hardcoded `"embeddin..."` literal coupling) / `apps/mcp-server/src/services/audit-log.service.ts` (SSOT) / `tests/regression/standing/worker-lifecycle/inv-worker-lock-003-embedding-backfill-supervisor.test.ts` line 2317 (Wave 5 fix exemplar).
 
 ## ベクトルデータ検証 / Vector Data Validation
 

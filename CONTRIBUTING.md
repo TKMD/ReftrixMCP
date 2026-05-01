@@ -450,6 +450,12 @@ pnpm lint && pnpm typecheck && pnpm test
 - [ ] CLA に同意済み（初回のみ）
 - [ ] コミットに `Signed-off-by` を含めている
 
+#### Quality Gate コマンド列の記述規約
+
+`配下の Plan や` 配下の ADR で Quality Gate コマンド列 (`pnpm lint && pnpm typecheck && pnpm format:check && pnpm docs:verify && pnpm test` 等) を記載する場合は、必ず **fenced bash コードブロック** (` ```bash ` で開始) で記述すること。`docs-verify` の `qualityGateEnum()` 抽出器は fenced bash ブロックのみを検出するため、インラインコードや plain text 列挙は Registry §15 EXEMPT scope safety net の整合性検証を bypass する。
+
+Cross-ref: Registry §13.14 TPA-PHASE3-BATCH-C-01 (L) / `Pre-PR Checklist /`scripts/docs-verify-extract.mjs` `qualityGateEnum()` JSDoc。
+
 ---
 
 ## マージルール
@@ -1018,6 +1024,12 @@ pnpm lint && pnpm typecheck && pnpm test
 - [ ] Diff under 800 lines (or already split)
 - [ ] CLA agreed (first time only)
 - [ ] Commits include `Signed-off-by`
+
+#### Quality Gate Command Sequence Convention
+
+When documenting Quality Gate command sequences (e.g. `pnpm lint && pnpm typecheck && pnpm format:check && pnpm docs:verify && pnpm test`) in Plans under `or ADRs under` sequences MUST be expressed as **fenced bash code blocks** (opening with ` ```bash `). The `docs-verify` `qualityGateEnum()` extractor only detects fenced bash blocks; inline code or plain-text enumerations bypass the Registry §15 EXEMPT scope safety net consistency check.
+
+Cross-ref: Registry §13.14 TPA-PHASE3-BATCH-C-01 (L) / `Pre-PR Checklist /`scripts/docs-verify-extract.mjs` `qualityGateEnum()` JSDoc.
 
 ---
 

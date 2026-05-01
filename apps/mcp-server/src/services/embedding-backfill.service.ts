@@ -47,6 +47,10 @@ import {
   savePartEmbeddings,
   type PartEmbeddingPrismaClient,
 } from "./part/part-embedding-db.service";
+// v0.4.0 PR-D-5 (SEC-S-01 + FIND-SEC-01): CWE-209 defense —
+// sanitize Prisma error messages before surfacing to errors[] (reaches
+// BullMQ UI / page.analyze summary / MCP client responses).
+import { sanitizeErrorMessage } from "../utils/sanitize-error";
 
 // =====================================================
 // Constants
@@ -114,6 +118,25 @@ export interface BackfillOptions {
     thresholdGB: number,
     action: "dispose" | "skip"
   ) => void;
+  /**
+   * Upper bound on parts processed per invocation (v0.4.0 PR7e-β4 PR2b-β).
+   *
+   * undefined = process all missing rows (existing behavior preserved for the
+   * 8 wrappers that pass `undefined`).
+   * N = truncate the fetch to the first N rows (currently honored by
+   * `backfillJsAnimationsForPage` only — other categories ignore this field
+   * until fork wiring lands in PR3a+).
+   *
+   * Optional for backward compatibility with all existing in-process callers;
+   * no wrapper signatures change.
+   *
+   * fork 呼び出し 1 回あたりで処理する parts 件数の上限 (v0.4.0 PR7e-β4 PR2b-β)。
+   * undefined = 全 missing 行処理 (既存挙動、8 wrapper は undefined を渡す)。
+   * N 指定時は先頭 N 件に切り詰める (PR2b-β 時点では
+   * `backfillJsAnimationsForPage` のみ尊重し、他カテゴリは PR3a+ で fork 化する
+   * 際に順次対応)。既存 in-process caller の後方互換のため optional。
+   */
+  partsLimit?: number;
 }
 
 // =====================================================
@@ -443,6 +466,41 @@ async function getMissingJsAnimationEmbeddings(
      LEFT JOIN js_animation_embeddings jae ON jap.id = jae.js_animation_pattern_id
      WHERE jap.web_page_id = $1::uuid AND jae.id IS NULL`,
     webPageId
+  );
+}
+
+/**
+ * v0.4.0 PR7e-β4 PR2b-β (TPA-M-1): limit 付きの js_animation missing 取得。
+ *
+ * 既存 `getMissingJsAnimationEmbeddings` の signature を変更しない category 専用
+ * wrapper。`backfillJsAnimationsForPage` で `options.partsLimit` が指定された場合
+ * のみ呼び出される。`ORDER BY jap.id ASC` + `LIMIT $2` で deterministic に先頭 N
+ * 件を取得する (fork orchestrator の head-100 契約と整合)。
+ *
+ * Category-specific wrapper with `LIMIT` — keeps the existing 8 wrapper
+ * signatures unchanged (TPA-M-1). Called by `backfillJsAnimationsForPage` only
+ * when `options.partsLimit` is provided. `ORDER BY jap.id ASC` + `LIMIT $2`
+ * yields a deterministic head-N fetch aligned with the fork orchestrator's
+ * head-100 contract.
+ *
+ * @internal Exported for unit-test observability; production callers must go
+ *   through `backfillJsAnimationsForPage({ partsLimit })`.
+ */
+export async function getMissingJsAnimationEmbeddingsWithLimit(
+  webPageId: string,
+  limit: number
+): Promise<MissingJsAnimationRow[]> {
+  return prisma.$queryRawUnsafe<MissingJsAnimationRow[]>(
+    `SELECT jap.id, jap.name, jap.library_type, jap.animation_type,
+            jap.description, jap.duration_ms, jap.easing, jap.trigger_type,
+            jap.properties, jap.cdp_source_type, jap.cdp_play_state
+     FROM js_animation_patterns jap
+     LEFT JOIN js_animation_embeddings jae ON jap.id = jae.js_animation_pattern_id
+     WHERE jap.web_page_id = $1::uuid AND jae.id IS NULL
+     ORDER BY jap.id ASC
+     LIMIT $2::int`,
+    webPageId,
+    limit
   );
 }
 
@@ -776,9 +834,9 @@ async function backfillSections(
         await saveSectionEmbedding(row.id, embedding, MODEL_NAME, text);
         backfilled++;
       } catch (error) {
-        errors.push(
-          `section[${row.id}]: ${error instanceof Error ? error.message : String(error)}`
-        );
+        // v0.4.0 PR-D-5 (SEC-S-01 + FIND-SEC-01): row.id 8-char truncation
+        // (project PII 規約) + sanitizeErrorMessage (CWE-209 defense).
+        errors.push(`section[${row.id.slice(0, 8) + "..."}]: ${sanitizeErrorMessage(error)}`);
       }
     }
 
@@ -823,7 +881,8 @@ async function backfillMotions(
         await saveMotionEmbedding(row.id, embedding, MODEL_NAME);
         backfilled++;
       } catch (error) {
-        errors.push(`motion[${row.id}]: ${error instanceof Error ? error.message : String(error)}`);
+        // v0.4.0 PR-D-5 (SEC-S-01 + FIND-SEC-01)
+        errors.push(`motion[${row.id.slice(0, 8) + "..."}]: ${sanitizeErrorMessage(error)}`);
       }
     }
 
@@ -883,9 +942,8 @@ async function backfillBackgrounds(
 
         backfilled++;
       } catch (error) {
-        errors.push(
-          `background[${row.id}]: ${error instanceof Error ? error.message : String(error)}`
-        );
+        // v0.4.0 PR-D-5 (SEC-S-01 + FIND-SEC-01)
+        errors.push(`background[${row.id.slice(0, 8) + "..."}]: ${sanitizeErrorMessage(error)}`);
       }
     }
 
@@ -938,9 +996,8 @@ async function backfillJsAnimations(
           embedding: embeddingResult.embedding,
         });
       } catch (error) {
-        errors.push(
-          `jsAnimation[${row.id}]: ${error instanceof Error ? error.message : String(error)}`
-        );
+        // v0.4.0 PR-D-5 (SEC-S-01 + FIND-SEC-01)
+        errors.push(`jsAnimation[${row.id.slice(0, 8) + "..."}]: ${sanitizeErrorMessage(error)}`);
       }
     }
 
@@ -974,7 +1031,8 @@ async function backfillJsAnimations(
 
         backfilled += embeddingItems.length;
       } catch (error) {
-        errors.push(`jsAnimation-batch: ${error instanceof Error ? error.message : String(error)}`);
+        // v0.4.0 PR-D-5 (SEC-S-01): batch op — no row.id.
+        errors.push(`jsAnimation-batch: ${sanitizeErrorMessage(error)}`);
       }
     }
 
@@ -990,6 +1048,18 @@ async function backfillJsAnimations(
 // =====================================================
 
 async function getMissingResponsiveEmbeddings(webPageId: string): Promise<MissingResponsiveRow[]> {
+  // PR-D-9 Wave 3 (C-07 / FIND-PLAN-LCC-02): GDPR Art.17 TOCTOU resurrection
+  // defense. Inherits `apps/mcp-server/DATA_RETENTION.md` "v0.4.0 PR7e-β4 PR2d
+  // LCC-M-2 contract": when `data.delete(web_page_id)` runs concurrently with
+  // active backfill, this query MUST NOT resurrect already-deleted rows.
+  //
+  // The `JOIN web_pages wp ON ra.web_page_id = wp.id` already provides
+  // existence filtering (any deletion of `web_pages` cascades the rows here),
+  // but we add the explicit `EXISTS` predicate as defense-in-depth + an
+  // intent-clarifying SQL contract reviewers can grep for.
+  //
+  // PR-D-9 Wave 3 (C-07 / FIND-PLAN-LCC-02): GDPR Art.17 TOCTOU defensive
+  // WHERE clause. See DATA_RETENTION.md PR2d LCC-M-2 contract.
   return prisma.$queryRawUnsafe<MissingResponsiveRow[]>(
     `
     SELECT ra.id, ra.web_page_id, wp.url,
@@ -997,10 +1067,40 @@ async function getMissingResponsiveEmbeddings(webPageId: string): Promise<Missin
     FROM responsive_analyses ra
     LEFT JOIN responsive_analysis_embeddings rae ON ra.id = rae.responsive_analysis_id
     JOIN web_pages wp ON ra.web_page_id = wp.id
-    WHERE rae.id IS NULL AND ra.web_page_id = $1::uuid
+    WHERE rae.id IS NULL
+      AND ra.web_page_id = $1::uuid
+      AND EXISTS (SELECT 1 FROM web_pages WHERE id = $1::uuid)
   `,
     webPageId
   );
+}
+
+/**
+ * PR-D-9 Wave 3 (FIND-PLAN-LCC-02 / C-13 diagnostic): lightweight `COUNT(*)`
+ * probe used by `ResponsiveProcessor.processInProcess` to detect silent stalls
+ * (expectedCount > 0 yet generatedCount === 0 — the PR-D-7 §32.2 signature).
+ *
+ * Intentionally separate from `getMissingResponsiveEmbeddings` so the probe
+ * does not pull large JSONB columns (`differences` / `screenshot_diffs`) into
+ * memory. Same TOCTOU defensive WHERE clause as the row query.
+ *
+ * @param webPageId UUID of the target page (PII; never log unsanitized)
+ * @returns count of `responsive_analyses` rows missing `responsive_analysis_embeddings`
+ */
+export async function countMissingResponsiveEmbeddings(webPageId: string): Promise<number> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ missing: bigint | number }>>(
+    `
+    SELECT COUNT(*)::bigint AS missing
+    FROM responsive_analyses ra
+    LEFT JOIN responsive_analysis_embeddings rae ON ra.id = rae.responsive_analysis_id
+    WHERE rae.id IS NULL
+      AND ra.web_page_id = $1::uuid
+      AND EXISTS (SELECT 1 FROM web_pages WHERE id = $1::uuid)
+  `,
+    webPageId
+  );
+  const raw = rows[0]?.missing ?? 0;
+  return typeof raw === "bigint" ? Number(raw) : raw;
 }
 
 function convertResponsiveRowToTextInput(row: MissingResponsiveRow): ResponsiveAnalysisForText {
@@ -1071,9 +1171,8 @@ async function backfillResponsive(
         const { embedding } = await embeddingService.generateFromText(textRepresentation);
         embeddingItems.push({ dbId: row.id, textRepresentation, embedding });
       } catch (error) {
-        errors.push(
-          `responsive-${row.id}: ${error instanceof Error ? error.message : String(error)}`
-        );
+        // v0.4.0 PR-D-5 (SEC-S-01 + FIND-SEC-01)
+        errors.push(`responsive-${row.id.slice(0, 8) + "..."}: ${sanitizeErrorMessage(error)}`);
       }
     }
 
@@ -1107,7 +1206,8 @@ async function backfillResponsive(
 
         backfilled += embeddingItems.length;
       } catch (error) {
-        errors.push(`responsive-batch: ${error instanceof Error ? error.message : String(error)}`);
+        // v0.4.0 PR-D-5 (SEC-S-01): batch op — no row.id.
+        errors.push(`responsive-batch: ${sanitizeErrorMessage(error)}`);
       }
     }
 
@@ -1382,22 +1482,42 @@ async function backfillParts(
           visualEmbedding: null,
         });
       } catch (error) {
-        errors.push(`part[${row.id}]: ${error instanceof Error ? error.message : String(error)}`);
+        // v0.4.0 PR-D-5 (SEC-S-01 + FIND-SEC-01)
+        errors.push(`part[${row.id.slice(0, 8) + "..."}]: ${sanitizeErrorMessage(error)}`);
       }
     }
 
     if (embeddingItems.length > 0) {
       try {
+        // PR-D-2: savedCount → generatedCount rename。backfill path は
+        // visualEmbedding=null hard-coded のため text のみ書込 (PartVisualProcessor
+        // が別 flow で担当)。saveResult.errors は sanitize 済み (transaction
+        // rollback 発生時のみ出現)。FIND-PLAN-06: backfill path visual 非対応
+        // は ADR-0018 Amendment で明記予定。
+        //
+        // PR-D-2: renamed savedCount → generatedCount. The backfill path
+        // hard-codes visualEmbedding=null, writing text only (visual embedding
+        // owned by a separate flow: PartVisualProcessor). saveResult.errors
+        // are sanitized (appearing only on transaction rollback). FIND-PLAN-06:
+        // backfill path visual incompatibility will be documented in the
+        // ADR-0018 Amendment.
         const saveResult = await savePartEmbeddings(
           prisma as unknown as PartEmbeddingPrismaClient,
           embeddingItems
         );
-        backfilled += saveResult.savedCount;
+        backfilled += saveResult.generatedCount;
+        if (saveResult.filteredNonFinite > 0) {
+          // PII-free numeric warning; sanitized by sanitizeErrorMessage in errors[].
+          errors.push(
+            `part-batch: pre-filtered ${saveResult.filteredNonFinite} non-finite embeddings (NaN/Infinity)`
+          );
+        }
         if (saveResult.errors.length > 0) {
           errors.push(...saveResult.errors);
         }
       } catch (error) {
-        errors.push(`part-batch: ${error instanceof Error ? error.message : String(error)}`);
+        // v0.4.0 PR-D-5 (SEC-S-01): batch op — no row.id.
+        errors.push(`part-batch: ${sanitizeErrorMessage(error)}`);
       }
     }
 
@@ -1493,15 +1613,31 @@ export async function backfillBackgroundsForPage(
  *
  * v0.4.0 PR7a-3: ジェネリック `backfillCategoryForPage` への薄いラッパーに統一。
  * v0.4.0 PR7a-3: Unified as a thin wrapper over the generic `backfillCategoryForPage`.
+ *
+ * v0.4.0 PR7e-β4 PR2b-β (TPA-M-1): `options.partsLimit` が指定された場合は
+ * `getMissingJsAnimationEmbeddingsWithLimit(webPageId, partsLimit)` に routing し、
+ * DB 取得時点で head-N 件に切り詰める。既存 in-process caller は `partsLimit`
+ * undefined で呼び出すため挙動不変。
+ *
+ * v0.4.0 PR7e-β4 PR2b-β (TPA-M-1): When `options.partsLimit` is set, routes to
+ * `getMissingJsAnimationEmbeddingsWithLimit(webPageId, partsLimit)` to truncate
+ * at the DB fetch. Existing in-process callers pass `undefined` → behavior is
+ * unchanged.
  */
 export async function backfillJsAnimationsForPage(
   webPageId: string,
   options?: BackfillOptions
 ): Promise<PerCategoryBackfillResult> {
+  const partsLimit = options?.partsLimit;
+  const getMissingRows =
+    partsLimit !== undefined && Number.isFinite(partsLimit) && partsLimit > 0
+      ? (id: string): Promise<MissingJsAnimationRow[]> =>
+          getMissingJsAnimationEmbeddingsWithLimit(id, partsLimit)
+      : getMissingJsAnimationEmbeddings;
   return backfillCategoryForPage({
     webPageId,
     options,
-    getMissingRows: getMissingJsAnimationEmbeddings,
+    getMissingRows,
     runChunkLoop: backfillJsAnimations,
   });
 }

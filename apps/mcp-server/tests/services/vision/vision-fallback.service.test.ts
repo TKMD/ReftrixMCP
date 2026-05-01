@@ -428,8 +428,18 @@ describe("VisionFallbackService", () => {
       const result = await service.analyzeWithFallback(TEST_IMAGE_BASE64, TEST_HTML, {});
 
       // Assert
-      // Allow small timing variance (45ms instead of strict 50ms)
-      expect(result.metrics.visionAttemptTimeMs).toBeGreaterThanOrEqual(45);
+      // Test contract: vision attempt time is measured (not undefined, not zero).
+      // Avoid asserting absolute thresholds — CI runner timer precision (V8 coarse
+      // timer + event loop scheduling) can produce values 2-7ms below the
+      // setTimeout(50) request, leading to flaky failures (e.g. 43.16ms observed
+      // in CI run 25175843147). The paired test at line ~432 verifies the
+      // undefined-when-not-attempted branch, so a `> 0` check fully covers the
+      // "is measured" contract.
+      // テスト契約: 計測されていること (undefined / 0 でない)。CI runner の timer 精度
+      // (V8 coarse timer + event loop scheduling) で setTimeout(50) 要求値より
+      // 2-7ms 下回る現象が観測されているため (CI run 25175843147 で 43.16ms)、
+      // 絶対閾値を assert しない。L432 の対 (undefined branch) と組で十分。
+      expect(result.metrics.visionAttemptTimeMs).toBeGreaterThan(0);
     });
 
     it("should have undefined visionAttemptTimeMs when vision is not attempted", async () => {

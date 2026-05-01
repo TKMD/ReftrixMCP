@@ -19,6 +19,12 @@ import { allToolDefinitions, getToolDefinition } from "./tools";
 import { responseSizeWarning } from "./middleware";
 import { generateRequestId, createErrorResponseWithRequestId } from "./utils/mcp-response";
 import { coerceArgs } from "./middleware/args-type-coercion";
+// SEC-M1-02 (ADR-0016 § Test-only Env Var Guard, deadline 2026-05-15):
+// library-API 経路 (createServer + start) でも test-only env var leak を遮断する。
+// idempotent なので index.ts main() の冒頭呼び出しと併用しても問題なし。
+// SEC-M1-02: defense-in-depth at the library entry point. Idempotent and safe
+// to call alongside the index.ts main() invocation.
+import { assertNoTestOnlyEnvLeak } from "./config/test-env-guard";
 
 /**
  * ツールレスポンスがエラーかどうかを判定
@@ -269,6 +275,13 @@ export function createServer(): Server {
  * サーバーを起動
  */
 export async function start(server: Server, transport: StdioServerTransport): Promise<void> {
+  // SEC-M1-02 (ADR-0016 § Test-only Env Var Guard): library-API entry point の
+  // 起動シーケンス冒頭で再度 guard を呼ぶ。createServer() を直接消費する外部
+  // モジュール (テストハーネスを除く) でも production leak を遮断する。
+  // SEC-M1-02: re-invoke guard at the library start sequence to protect
+  // external consumers of createServer() / start() against production leaks.
+  assertNoTestOnlyEnvLeak();
+
   logger.info("Starting server...");
 
   await server.connect(transport);

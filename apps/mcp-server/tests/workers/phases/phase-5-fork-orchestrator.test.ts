@@ -69,6 +69,10 @@ describe("Phase 5: Fork Orchestrator", () => {
       expect(orchestratorSource).toMatch(/baseEnv\.DINOV2_WORKER_THREAD\s*=\s*["']false["']/);
     });
 
+    it("ONNX_EXECUTION_PROVIDER=cpu が強制されること（β2-P1） / should force ONNX_EXECUTION_PROVIDER=cpu (β2-P1)", () => {
+      expect(orchestratorSource).toMatch(/baseEnv\.ONNX_EXECUTION_PROVIDER\s*=\s*["']cpu["']/);
+    });
+
     it("MALLOC_ARENA_MAX=2 が設定されること（OOM-1） / should set MALLOC_ARENA_MAX=2 (OOM-1)", () => {
       // buildChildEnv sets MALLOC_ARENA_MAX to "2" when not already set
       expect(orchestratorSource).toMatch(/MALLOC_ARENA_MAX/);
@@ -437,10 +441,34 @@ describe("Phase 5: Fork Orchestrator", () => {
         type: "visual-result",
         sectionVisualEmbeddingsGenerated: 4,
         partVisualEmbeddingsGenerated: 3,
+        // PR-D-2: additively added; Zod schema defaults to 0 when absent
+        partVisualSkippedBboxInvalid: 0,
         embeddingFailedChunks: 0,
       };
       const result = validateChildMessage(msg);
       expect(result).toEqual(msg);
+    });
+
+    it("validateChildMessage が visual-result から partVisualSkippedBboxInvalid が欠落しても 0 に default する (PR-D-2 additive)", async () => {
+      const { validateChildMessage } =
+        await import("../../../src/workers/phases/phase-5-child-ipc");
+
+      // Legacy child (PR-D-1 or earlier) did not send partVisualSkippedBboxInvalid.
+      // Zod optional().default(0) must fill it in for back-compat.
+      const legacyMsg = {
+        type: "visual-result",
+        sectionVisualEmbeddingsGenerated: 1,
+        partVisualEmbeddingsGenerated: 2,
+        embeddingFailedChunks: 0,
+      };
+      const result = validateChildMessage(legacyMsg);
+      expect(result).toMatchObject({
+        type: "visual-result",
+        sectionVisualEmbeddingsGenerated: 1,
+        partVisualEmbeddingsGenerated: 2,
+        partVisualSkippedBboxInvalid: 0,
+        embeddingFailedChunks: 0,
+      });
     });
 
     it("validateChildMessage が正しい error メッセージを通すこと", async () => {
@@ -789,11 +817,12 @@ describe("Phase 5: Fork Orchestrator", () => {
       expect(ipcSource).toMatch(/stopHeartbeat[\s\S]{0,400}initialRssMb\s*=\s*0/);
     });
 
-    it("デフォルト閾値が設計値（warnDelta=2048MB, killDelta=3072MB）であること / default delta thresholds match design", () => {
+    it("デフォルト閾値が設計値（warnDelta=2560MB, killDelta=4096MB）であること / default delta thresholds match design", () => {
       const ipcSource = fs.readFileSync(CHILD_IPC_SRC, "utf-8");
-      // Default: WARN_DELTA=2048 (2GB), KILL_DELTA=3072 (3GB)
-      expect(ipcSource).toMatch(/PHASE5_CHILD_RSS_WARN_DELTA_MB[\s\S]{0,120}2048/);
-      expect(ipcSource).toMatch(/PHASE5_CHILD_RSS_KILL_DELTA_MB[\s\S]{0,120}3072/);
+      // Default: WARN_DELTA=2560 (2.5GB), KILL_DELTA=4096 (4GB)
+      // β2-P1: 2048→2560 / 3072→4096 (e5-base CPU mode RSS delta ~3.1GB)
+      expect(ipcSource).toMatch(/PHASE5_CHILD_RSS_WARN_DELTA_MB[\s\S]{0,120}2560/);
+      expect(ipcSource).toMatch(/PHASE5_CHILD_RSS_KILL_DELTA_MB[\s\S]{0,120}4096/);
     });
 
     it("IPC heartbeat スキーマが rssDeltaMb を必須フィールドとして定義すること / heartbeat schema requires rssDeltaMb", () => {

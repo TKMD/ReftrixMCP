@@ -161,6 +161,18 @@ pnpm lint && pnpm typecheck && pnpm format:check && pnpm test
 - [ ] テストカバレッジ: 80%以上 / Test coverage: above 80%
 - [ ] 差分が800行以下（または分割済み） / Diff 800 lines or less (or already split)
 
+#### Quality Gate コマンド列の記述規約 / Quality Gate Command Sequence Convention
+
+**規約 / Convention**: Quality Gate コマンド列 (`pnpm lint && pnpm typecheck && pnpm format:check && pnpm test` 等) は、`docs-verify` の `qualityGateEnum()` 抽出器が検出・検証できるよう、**fenced bash コードブロック** (` ```bash ` で開始) で記述しなければならない。インラインコード (`` ` `` 単一バックティック) や箇条書き内の plain text 列挙は検出対象外となり、Registry §15 EXEMPT scope safety net による整合性検証を bypass する。
+
+Quality Gate command sequences (e.g. `pnpm lint && pnpm typecheck && pnpm format:check && pnpm test`) MUST be expressed as **fenced bash code blocks** (opening with ` ```bash `) so that the `docs-verify` `qualityGateEnum()` extractor can detect and validate them. Inline code (single backticks) or plain-text enumerations in bullet lists are NOT detected and bypass the Registry §15 EXEMPT scope safety net consistency check.
+
+**適用範囲 / Scope**: `配下の Plan /` 配下の ADR で Quality Gate を列挙するすべての `##` / `###` / `####` セクション。
+
+Applies to all `##` / `###` / `####` sections enumerating Quality Gate commands under `(Plans) or` (ADRs).
+
+**Cross-ref**: Registry §13.14 TPA-PHASE3-BATCH-C-01 (L) / `scripts/docs-verify-extract.mjs` `qualityGateEnum()` JSDoc / `CONTRIBUTING.md` Pre-PR Checklist.
+
 ---
 
 ## マージルール（最重要） / Merge Rules (Most Important)
@@ -219,12 +231,31 @@ Push only after user approval.
 
 ## CHANGELOG管理ルール / CHANGELOG Management Rules
 
-### 2つのCHANGELOG / Two CHANGELOGs
+### 3つのCHANGELOG / Three CHANGELOGs
 
-| ファイル / File          | 用途 / Purpose                                                                                                                                                                    | OSS同期 / OSS Sync      |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
-| `CHANGELOG.md`（ルート） | **OSS公開用** — OSSリポジトリに同期される変更のみ記載 / **OSS-facing** — only changes synced to OSS repo                                                                          | ✅ 同期対象             |
-| `                        | **内部完全版** — プロジェクト全変更を記載（エージェント・スキル・内部ドキュメント含む） / **Internal full version** — all project changes including agents, skills, internal docs | ❌ 除外（`.ossfilter`） |
+v0.4.0 PR-D-9 で `apps/mcp-server/CHANGELOG.md`（パッケージレベル）を追加し、3 CHANGELOG 構成に拡張（PR-D-9 Phase 3 docs-sync OBS-2 / OBS-PRDD9-01 per Finding Registry §11.6）。
+
+As of v0.4.0 PR-D-9, `apps/mcp-server/CHANGELOG.md` (package-level) was added, expanding to a 3-CHANGELOG structure (PR-D-9 Phase 3 docs-sync OBS-2 / OBS-PRDD9-01 per Finding Registry §11.6).
+
+| ファイル / File                | 用途 / Purpose                                                                                                                                                                                                                                                                                                                                         | OSS同期 / OSS Sync      |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------- |
+| `CHANGELOG.md`（ルート）       | **OSS公開用** — OSSリポジトリに同期される変更のみ記載 / **OSS-facing** — only changes synced to OSS repo                                                                                                                                                                                                                                               | ✅ 同期対象             |
+| `                              | **内部完全版** — プロジェクト全変更を記載（エージェント・スキル・内部ドキュメント含む） / **Internal full version** — all project changes including agents, skills, internal docs                                                                                                                                                                      | ❌ 除外（`.ossfilter`） |
+| `apps/mcp-server/CHANGELOG.md` | **MCPサーバーパッケージレベル** — MCP server package 固有の変更を記載（コード変更、リファクタ、依存関係更新等）。OSS sync 対象（OSSリポジトリの `apps/mcp-server/` 配下に同期）/ **MCP server package-level** — MCP server package-specific changes (code changes, refactoring, dependency updates). Synced to OSS repo's `apps/mcp-server/` directory | ✅ 同期対象             |
+
+### 3 CHANGELOG sync rules / 3 CHANGELOG 同期ルール
+
+PR-D-9 以降、MCPサーバーのコード変更（リファクタリング、バグ修正、機能追加）は **3 CHANGELOG 全てに bilingual JP/EN で記載** する（FIND-IMPL-LCC-03 / OBS-4 mandatory landing per Registry §11.6）。
+
+From PR-D-9 onward, MCP server code changes (refactoring, bug fixes, feature additions) MUST be recorded in **all 3 CHANGELOGs in bilingual JP/EN** (FIND-IMPL-LCC-03 / OBS-4 mandatory landing per Registry §11.6).
+
+- ルート `CHANGELOG.md`: OSS公開向け要約（コード/テスト変更の本質、AGPL §5(a)/(b) modification notice）/ Root: OSS-facing summary
+- ` 内部完全版（IO Decision anchors、Plan/Registry/ADR cross-refs）/ Internal full
+- `apps/mcp-server/CHANGELOG.md`: パッケージレベル詳細（per-file LoC deltas、test counts、env var additions）/ Package-level details
+
+Cross-check: `grep -l "PR-D-N" CHANGELOG.md  apps/mcp-server/CHANGELOG.md` が全 3 path を返すこと。
+
+Cross-check: `grep -l "PR-D-N" CHANGELOG.md  apps/mcp-server/CHANGELOG.md` MUST return all 3 paths.
 
 ### ルート CHANGELOG.md に記載しない内容 / Do NOT include in root CHANGELOG.md
 

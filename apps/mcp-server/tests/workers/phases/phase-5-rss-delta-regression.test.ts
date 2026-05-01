@@ -340,11 +340,12 @@ describe("Phase 5 RSS Delta Monitoring — Regression Tests (v0.4.0 PR3)", () =>
   // Default thresholds sanity check
   // ==========================================================================
   describe("デフォルト閾値 / default thresholds", () => {
-    it("デフォルトで warnDelta=2048MB / killDelta=3072MB であること / default values match design", () => {
+    it("デフォルトで warnDelta=2560MB / killDelta=4096MB であること / default values match design", () => {
       // When no env override is present, the module-level constants should
       // land on the documented defaults.
-      expect(CHILD_RSS_WARN_DELTA_MB).toBe(2048);
-      expect(CHILD_RSS_KILL_DELTA_MB).toBe(3072);
+      // β2-P1: 2048→2560 / 3072→4096 に引き上げ (e5-base CPU mode RSS delta ~3.1GB)
+      expect(CHILD_RSS_WARN_DELTA_MB).toBe(2560);
+      expect(CHILD_RSS_KILL_DELTA_MB).toBe(4096);
     });
 
     it("kill 閾値が warn 閾値より大きいこと / kill > warn invariant", () => {

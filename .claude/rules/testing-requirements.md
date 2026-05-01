@@ -48,6 +48,203 @@ git log --follow --format="%H %ai" -- src/search.ts
 
 テストなしのコードはマージ不可。 / Code without tests cannot be merged.
 
+## Test Isolation 規約 / Test Isolation Standards
+
+### 1. Principle: 1 Test = 1 Mock Cycle 契約 / Principle: 1 Test = 1 Mock Cycle Contract
+
+各 `it()` block は **独立した `beforeEach` cycle で fresh mock を引く** こと。**複数 mock cycle (e.g. dispose + re-init、setup + reset + reload) を 1 test 内に詰め込む** と、`vi.doMock` hoisting timing miss / ESM module cache stale reference / async I/O scheduling race などの race condition が構造的に発生する。これらは 1-line fix では closure できず、test reshape (1 test = 1 mock cycle 契約への restructure) が **describe-block-level / it()-level race の closure path として necessary** となる。
+
+Each `it()` block must **acquire a fresh mock via an independent `beforeEach` cycle`**. **Embedding multiple mock cycles (e.g. dispose + re-init, setup + reset + reload) within a single test** structurally introduces race conditions such as `vi.doMock` hoisting timing misses, ESM module cache stale references, or async I/O scheduling races. These are not closable by 1-line fixes; test reshape (restructure to the 1 test = 1 mock cycle contract) is **necessary as a closure path for describe-block-level / it()-level races**.
+
+> **重要 / Critical — necessary but not sufficient**: §1 の "1 test = 1 mock cycle" 契約は describe-block-level / it()-level race を消滅させるが、**race の root cause が `vi.doMock` の async hoisting timing にある場合 (intra-file 同 process 内 sequential test 間の race) は §1 単独では closure 不可能**。この場合 §3 (File-level Isolation: `vi.mock` + `vi.hoisted` への移行) が **追加で必要**。empirical evidence: ADR-0020 Amendment 3 (1 test = 1 mock cycle 適用) → ~10% intra-file flake 残存 → Amendment 4 (vi.mock + vi.hoisted) で zero-flake 達成。
+>
+> **Critical — necessary but not sufficient**: The "1 test = 1 mock cycle" contract in §1 eliminates describe-block-level / it()-level races, but **when the race root cause lies in `vi.doMock`'s async hoisting timing (intra-file races between sequential tests in the same process), §1 alone cannot close it**. In such cases, §3 (File-level Isolation: migration to `vi.mock` + `vi.hoisted`) is **additionally necessary**. Empirical evidence: ADR-0020 Amendment 3 (applying 1 test = 1 mock cycle) → ~10% intra-file flake persisted → Amendment 4 (vi.mock + vi.hoisted) achieved zero-flake.
+
+> **DRIFT-U20-01 evidence (2026-05-01)**: §1 alone は intra-file race を防げない事が `service-coverage.test.ts` で empirically 立証 (5 `vi.doMock` + 4 `vi.doUnmock` で directory pass^5 2/5 fail)。§3 (file-level `vi.mock` + `vi.hoisted`) と組み合わせる必要あり。 / DRIFT-U20-01 evidence (2026-05-01): §1 alone cannot prevent intra-file race, empirically proven on `service-coverage.test.ts` (5 `vi.doMock` + 4 `vi.doUnmock` yielded directory pass^5 2/5 fail). Must be combined with §3 (file-level `vi.mock` + `vi.hoisted`).
+
+### 2. ESM Module Cache Discipline / ESM モジュールキャッシュ規律
+
+`vi.doMock` を使用する test では **`beforeEach` 先頭** に `vi.resetModules()` を呼び、ESM module cache を fresh state に clear すること (sibling file pattern に整合)。
+
+When using `vi.doMock`, call `vi.resetModules()` **at the head of `beforeEach`** to clear the ESM module cache to a fresh state (aligned with the sibling file pattern).
+
+```typescript
+// ✅ PASS pattern / 正例
+describe("Service with mocked module", () => {
+  beforeEach(() => {
+    vi.resetModules(); // ✅ clear cache BEFORE each test
+    // ... mock factory setup
+  });
+
+  it("first behaviour", async () => {
+    /* ... */
+  });
+  it("second behaviour", async () => {
+    /* ... */
+  }); // gets fresh mock via beforeEach
+});
+
+// ❌ FAIL pattern / 反例 (afterEach に配置すると最初の test を救えない)
+describe("Service with mocked module", () => {
+  // ❌ no resetModules in beforeEach
+  afterEach(() => {
+    vi.resetModules(); // ❌ too late — first test already polluted
+  });
+});
+```
+
+`afterEach` への配置は **最初の test を救えない** ため不十分。`vi.resetModules()` は test の **直前** で実行する必要がある。
+
+Placement in `afterEach` **cannot save the first test** and is insufficient. `vi.resetModules()` must execute **immediately before** each test.
+
+### 3. File-level Isolation / ファイルレベル分離
+
+#### Vitest pool: forks の structural guarantee と limitation / Structural Guarantee and Limitation of Vitest pool: forks
+
+Vitest `pool: "forks"` 設定は **inter-file isolation** を OS-level process boundary で保証する — 各 test file は separate forked process で実行され、`require.cache` / ESM module registry / mock 内部 state は process 間で共有不可能。一方、**intra-file** (同 file 内 sequential test execution) は同 process 内で実行されるため、`vi.doMock` 等の dynamic mock の race window は依然存在する。Path B' (file split: race の生じる test 群を独立 file に isolate) は inter-file race を OS process boundary で消滅させるが、isolated file 内の intra-file race には触れないため、§1 + §2 + Path B' の組み合わせでも intra-file flake が残存する場合がある (empirical: ADR-0020 Supplementary #3 verification 9/10 PASS)。
+
+Vitest's `pool: "forks"` configuration guarantees **inter-file isolation** via OS-level process boundary — each test file runs in a separate forked process, so `require.cache` / ESM module registry / mock internal state cannot be shared between processes. On the other hand, **intra-file** (sequential test execution within the same file) runs in the same process, so the race window of dynamic mocks like `vi.doMock` still exists. Path B' (file split: isolating tests with race into independent files) eliminates inter-file race via OS process boundary, but does not address intra-file race within the isolated file, so even the combination of §1 + §2 + Path B' may leave intra-file flake (empirical: ADR-0020 Supplementary #3 verification at 9/10 PASS).
+
+#### vi.mock vs vi.doMock の選択 / Choice between vi.mock and vi.doMock
+
+- **`vi.mock(path, factory)`**: Vitest が自動的に file 先頭にヒstingt、imports 前に解決、static、deterministic。File 全体で mock semantic が固定 (file-level permanent mock)。
+- **`vi.doMock(path, factory)`**: Test runtime から呼ぶ dynamic mock、test ごとに mock 切替可能だが async hoisting timing race を構造的に持つ。
+
+- **`vi.mock(path, factory)`**: Auto-hoisted by Vitest to the top of the file, resolved before imports, static, deterministic. Mock semantic is fixed for the entire file (file-level permanent mock).
+- **`vi.doMock(path, factory)`**: Dynamic mock called from test runtime, allows per-test mock switching but structurally carries an async hoisting timing race.
+
+#### 推奨パターン / Recommended Patterns
+
+1. **単一 mock semantic per file**: 当該 file 全 tests が同 mock を期待する場合 (例: mocked-ONNX 専用 file) → `vi.mock` を優先。Path B' (file split) と組み合わせると inter-file (process boundary) + intra-file (static hoisting) の double structural guarantee が成立。
+2. **Per-test mock toggling**: 同 file 内で mock ON/OFF を切替えたい場合 → `vi.doMock` を使うが §1 (1 test = 1 mock cycle) + §2 (`vi.resetModules()` in `beforeEach`) の組み合わせが necessary。ただし empirical evidence (DINOv2 case) では 30-run 中 ~10% intra-file flake 残存 → file split + `vi.mock` conversion が canonical fix。
+
+3. **Single mock semantic per file**: When all tests in the file expect the same mock (e.g., a dedicated mocked-ONNX file) → prefer `vi.mock`. Combined with Path B' (file split), this establishes a double structural guarantee — inter-file (process boundary) + intra-file (static hoisting).
+4. **Per-test mock toggling**: When toggling mocks ON/OFF within the same file → use `vi.doMock` but the combination of §1 (1 test = 1 mock cycle) + §2 (`vi.resetModules()` in `beforeEach`) is necessary. However, empirical evidence (DINOv2 case) shows ~10% intra-file flake persists in 30 runs → file split + `vi.mock` conversion is the canonical fix.
+
+#### vi.hoisted() pattern
+
+`vi.mock` factory が test 内 mock state (例: mockSession) を参照する必要がある場合、`vi.hoisted(() => ({ ... }))` で hoisted scope に pre-construct する:
+
+When `vi.mock` factory needs to reference test-level mock state (e.g., mockSession), pre-construct it in hoisted scope via `vi.hoisted(() => ({ ... }))`:
+
+```typescript
+// ✅ PASS pattern / 正例: vi.hoisted で mockSession を pre-construct
+const { mockSession } = vi.hoisted(() => {
+  const session = { run: vi.fn(), release: vi.fn().mockResolvedValue(undefined) };
+  return { mockSession: session };
+});
+
+vi.mock("module-name", () => ({
+  /* factory references mockSession from hoisted scope */
+}));
+
+// Now imports work normally with mocked module (static top-level import)
+import { Service } from "../src/service.js";
+
+// ❌ FAIL pattern / 反例: hoisted scope 外の reference は TDZ error
+const mockSession = { run: vi.fn() }; // ❌ not hoisted
+vi.mock("module-name", () => ({
+  /* factory references mockSession → TDZ ReferenceError */
+}));
+```
+
+#### Anti-patterns (file-level)
+
+- ❌ **`vi.doMock` を file-level で使う** / Using `vi.doMock` at file-level — Vitest が hoist しないため imports は real module を bind し、mock が effective にならない
+- ❌ **`vi.mock` factory 内で hoisted scope 外の mockSession を参照** / Referencing mockSession outside hoisted scope from `vi.mock` factory — TDZ (Temporal Dead Zone) error が発生
+- ❌ **Mocked + non-mocked describe blocks を同 file に co-locate** / Co-locating mocked + non-mocked describe blocks in the same file — intra-file mock state leak が発生 (Path B' [file split] が canonical fix)
+
+#### Cross-references / 関連参照
+
+- **ADR-0020 Amendment 4** (`packages/ml/tests/dinov2/service-mocked-onnx.test.ts` canonical example) — `vi.doMock` → `vi.mock` + `vi.hoisted` 7-change implementation contract / 7-change implementation contract for `vi.doMock` → `vi.mock` + `vi.hoisted` migration
+- **ADR-0020 Amendment 4 §5.5 Scope Expansion** (`packages/ml/tests/dinov2/service-coverage.test.ts` canonical example) — DRIFT-U20-01 Pattern (a) per-test override 適用例 / DRIFT-U20-01 Pattern (a) per-test override application
+- **INV-DINOV2-MOCK-FILE-ISOLATION-001** — IO Supplementary Decision #3 anchor `019de376-...` で導入された file-level mock isolation invariant (Path B' file split) / File-level mock isolation invariant introduced by IO Supplementary Decision #3 (Path B' file split)
+
+#### Directory-level pass^N Invariant / ディレクトリレベル pass^N 不変条件 (DRIFT-U20-02)
+
+File-level isolation (本 §3) は necessary だが directory-level の test isolation guarantee は保証しない。同 directory 内の異なる test file が独立した process で走るが、各 file 内 (intra-file) は同 process — 同 file 内の `vi.doMock` async race は file-split で消えない (DRIFT-U20-01 case study 参照)。
+
+File-level isolation (this §3) is necessary but does not guarantee directory-level test isolation. Different test files within the same directory run in independent processes, yet **within a file (intra-file) they share a single process** — the `vi.doMock` async race within a file is **not** eliminated by file split (see DRIFT-U20-01 case study).
+
+**Recommended pre-merge gate**: 重要 mock 含む directory に対し: / For directories containing critical mocks:
+
+1. **Isolation pass^N**: 各 test file 単独で N (推奨 N≥10) 連続 PASS / Each test file passes individually for N consecutive runs (recommended N ≥ 10)
+2. **Directory pass^N**: 同 directory の全 test file を N (推奨 N≥10) 連続 PASS / All test files in the same directory pass for N consecutive runs (recommended N ≥ 10)
+
+両 segment で 0 fail なら structural fix 確証。Empirical guarantee は file-level `vi.mock` + `vi.hoisted` の structural impossibility (Vitest auto-hoisting, ESM static binding) と complementary。
+
+If both segments yield 0 fail, structural fix is empirically corroborated. The empirical guarantee is **complementary** to the structural impossibility of file-level `vi.mock` + `vi.hoisted` (Vitest auto-hoisting, ESM static binding).
+
+**Gate command** (DINOv2 directory canonical) / ゲートコマンド (DINOv2 directory canonical):
+
+```bash
+cd packages/ml
+# Isolation pass^10 (single file)
+for i in $(seq 1 10); do pnpm test tests/dinov2/<file>.test.ts; done
+# Directory pass^10 (all files in directory)
+for i in $(seq 1 10); do pnpm test tests/dinov2/; done
+```
+
+ANSI color codes が grep matching に干渉する場合 `sed 's/\x1b\[[0-9;]*m//g'` で pre-strip。 / If ANSI color codes interfere with grep matching, pre-strip via `sed 's/\x1b\[[0-9;]*m//g'`.
+
+#### Canonical examples (updated 2026-05-01)
+
+Option A'' pattern (`vi.mock` + `vi.hoisted`) の canonical examples は **2 files に拡張**: / Canonical examples for the Option A'' pattern (`vi.mock` + `vi.hoisted`) are now expanded to **2 files**:
+
+1. `packages/ml/tests/dinov2/service-mocked-onnx.test.ts` — file-split origin (Path B') + `vi.mock` conversion (Option A''、IO Decision #3 + User Path ii) / file-split origin + `vi.mock` conversion
+2. `packages/ml/tests/dinov2/service-coverage.test.ts` — DRIFT-U20-01 fix、Pattern (a) per-test override 例 / DRIFT-U20-01 fix, Pattern (a) per-test override exemplar
+
+両 file は file-level `vi.mock` + `vi.hoisted` を使用、`vi.doMock` を一切使わない。dynamic mock semantic toggling が file 内で必要な場合は file split を優先。
+
+Both files use file-level `vi.mock` + `vi.hoisted` and never `vi.doMock`. When dynamic mock semantic toggling is needed within a file, prefer file split.
+
+### 4. Reshape 推奨パターン / Recommended Reshape Pattern
+
+1 test 内に **2 つ以上の mock cycle** が必要な場合 (例: `dispose() → re-initialize`、`setup → reset → reload`、`init → invalidate → re-init`)、`it()` を **分離** すること。1 mock cycle per test の単純構造に restructure することで、race condition の発生 surface を構造的に消滅させる。
+
+When **two or more mock cycles** (e.g. `dispose() → re-initialize`, `setup → reset → reload`, `init → invalidate → re-init`) are required in a single test, **split into separate `it()` blocks**. Restructuring to a simple 1-mock-cycle-per-test pattern structurally eliminates the race condition surface.
+
+```typescript
+// ❌ Anti-pattern / 反例: 1 test 内に 2 mock cycle
+it("should handle dispose and re-initialize", async () => {
+  // mock cycle 1: initial setup
+  const service = await createService();
+  await service.dispose();
+  // mock cycle 2: re-initialize (← vi.doMock hoisting race here)
+  const service2 = await createService();
+  expect(service2).toBeDefined();
+});
+
+// ✅ Reshape pattern / 正例: 2 it() に split (1 test = 1 mock cycle)
+it("should dispose cleanly", async () => {
+  const service = await createService();
+  await service.dispose();
+  expect(service.isDisposed).toBe(true);
+});
+
+it("should re-initialize after dispose via fresh mock cycle", async () => {
+  // beforeEach で vi.resetModules() 経由 fresh mock injection
+  const service = await createService();
+  expect(service).toBeDefined();
+});
+```
+
+### 5. Anti-Patterns / 禁止事項
+
+- ❌ **`.skip()` / `.todo()` で flaky test を隠蔽** / Hiding flaky tests via `.skip()` / `.todo()` — `## Standing Regression Suite` 節で全面禁止 (例外は 4-domain standing regression のみ)
+- ❌ **vitest `retry: N` で structural bug を mask** / Masking structural bugs with `retry: N` — `pass^3 ≥ 70%` の semantic を erosion し、CI green を artificial に演出する
+- ❌ **`vi.doMock` を test body 内で複数回 re-call して mock leak を test-by-test patch** / Repeatedly calling `vi.doMock` in test bodies to patch mock leaks test-by-test — hoisting timing race の root cause を mask する局所対症療法であり、`it()` 分離による structural fix を阻害
+
+### 6. Cross-references / 関連参照
+
+- **ADR-0020 Amendment 3** (` — DINOv2 test reshape の rationale および Option A/B/C 比較 (superseded by Amendment 4 / Amendment 4 によって supersede) / DINOv2 test reshape rationale and Option A/B/C comparison (superseded by Amendment 4)
+- **ADR-0020 Amendment 4** (`— DINOv2 mocked-ONNX file-level`vi.mock`+`vi.hoisted` structural fix (Path B' + Option A'' composition で zero-flake 達成) / Structural fix achieving zero-flake via Path B' + Option A'' composition
+- **INV-DINOV2-TEST-ISOLATION-001** — IO Supplementary Decision #1 anchor `019de32d-...` で導入された describe-block-level mock leak closure invariant / Mock leak closure invariant introduced by IO Supplementary Decision #1
+- **INV-DINOV2-MOCK-FILE-ISOLATION-001** — IO Supplementary Decision #3 anchor `019de376-...` で導入された file-level mock isolation invariant (Path B' file split + Amendment 4 vi.mock + vi.hoisted で carryover closure 完了) / File-level mock isolation invariant; carryover closed via Path B' file split + Amendment 4 vi.mock + vi.hoisted
+- **Canonical example (it()-level reshape)**: `packages/ml/tests/dinov2/service.test.ts` — Amendment 3 で 1 test = 1 mock cycle 契約に reshape した参照実装 / Reference implementation reshaped to the 1 test = 1 mock cycle contract under Amendment 3
+- **Canonical example (file-level isolation)**: `packages/ml/tests/dinov2/service-mocked-onnx.test.ts` — Amendment 4 で `vi.mock` + `vi.hoisted` に rewrite した参照実装 (Path B' file split + Option A'' composition) / Reference implementation rewritten to `vi.mock` + `vi.hoisted` under Amendment 4 (Path B' file split + Option A'' composition)
+- **Canonical example (Pattern (a) per-test override, DRIFT-U20-01)**: `packages/ml/tests/dinov2/service-coverage.test.ts` — Amendment 4 §5.5 Scope Expansion で `vi.doMock`×5 + `vi.doUnmock`×4 → 1 `vi.mock` + 1 `vi.hoisted` に rewrite、isolation pass^10 + directory pass^10 = 20/20 PASS / Reference implementation rewritten under Amendment 4 §5.5 Scope Expansion: `vi.doMock`×5 + `vi.doUnmock`×4 → 1 `vi.mock` + 1 `vi.hoisted`; isolation pass^10 + directory pass^10 = 20/20 PASS
+
 ## カバレッジ目標 / Coverage Targets
 
 | 指標 / Indicator           | 目標 / Target                         |
@@ -238,3 +435,72 @@ Test suites added during Phase 3 (security audit remediation):
 タスク完了時は必ず `pnpm lint`、`pnpm typecheck`、`pnpm format:check` を実行してコードの正確性を確認する。
 
 Always run `pnpm lint`, `pnpm typecheck`, `pnpm format:check` upon task completion to verify code correctness.
+
+---
+
+## Standing Regression Suite / 常設 regression suite (最重要 / CRITICAL)
+
+### 目的 / Purpose
+
+Reftrix は 4 つの critical ドメインに **常設 regression suite** を持つ。このスイートは CI で常時実行され、新規変更が既存の不変条件を破壊しないことを保証する。失敗は **P0 incident** 扱い。
+
+Reftrix maintains a **standing regression suite** for 4 critical domains. This suite runs on every CI invocation and ensures new changes do not break existing invariants. Failures are **P0 incidents**.
+
+### 4 ドメイン / 4 Domains
+
+| #   | Domain                                  | 不変条件 / Invariants                                                                                                                                                                                                                                                                                                                                                                                                          | Owner Agent                                    | 代表 INV-\*           | 配置 / Location                               |
+| --- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- | --------------------- | --------------------------------------------- |
+| 1   | **large-page** / 大規模ページ処理       | page.analyze >100 parts → backfill worker 経由で completed/failed/skipped\_\* の終端状態に到達<br>Phase 5 fork 分離 (ONNX Runtime OOM 回避)<br>RSS メモリ閾値 (warn 2.5GB / kill 4GB)<br>Stall recovery + Pre-Return Pause<br>Embedding backfill Queue (jobId uniqueness, `embeddingBackfillStatus` transitions)                                                                                                               | pipeline-engineer + capture-embedding-engineer | `INV-PAGE-QUEUE-001`  | `tests/regression/standing/large-page/`       |
+| 2   | **gdpr-delete** / GDPR 削除契約         | `data.delete` → screenshot / blob / vector (pgvector) / audit_logs の残存状態が定義通り<br>GDPR Art.17 同期削除<br>Screenshot 7d TTL cron<br>GDPR Art.30 audit_logs 記録 (削除件数 0 超のすべての run)                                                                                                                                                                                                                         | pipeline-engineer + legal-compliance-counsel   | `INV-DATA-DELETE-002` | `tests/regression/standing/gdpr-delete/`      |
+| 3   | **worker-lifecycle** / Worker 生存管理  | WorkerSupervisor 再起動 (maxJobsBeforeRestart=1)<br>Pre-Return Pause パターン (success path pause + failure path no-pause + resume 分岐)<br>Redis dual-run lock (`WorkerActiveLockService` + UUID nonce + 60s TTL + 30s heartbeat)<br>discriminated union API (`tryAcquireLock` / `probeExistingLock`) fail-open vs fail-closed<br>IPC boundary (child_process.fork) Zod 再検証<br>heartbeat timeout (60s)<br>3-phase shutdown | pipeline-engineer                              | `INV-WORKER-LOCK-003` | `tests/regression/standing/worker-lifecycle/` |
+| 4   | **schema-enum-sync** / Schema-enum 同期 | Prisma schema ↔ TypeScript type ↔ Zod schema ↔ OpenAPI / MCP tool spec の4箇所で enum 値が完全一致<br>`EmbeddingSkipReason` (12 values)、`EmbeddingBackfillStatus` (7 values)、その他全 enum の exhaustive mapping<br>enum value drift 検出 (CI で型不一致を即 fail)                                                                                                                                                           | backend-api-developer + platform-engineer      | `INV-SCHEMA-ENUM-004` | `tests/regression/standing/schema-enum-sync/` |
+
+### 運用ルール / Operational Rules
+
+| ルール / Rule                                | 詳細 / Details                                                                                                                    |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **配置 / Location**                          | `tests/regression/standing/<domain>/` 配下に domain 別サブディレクトリ                                                            |
+| **CI 実行 / CI execution**                   | `.github/workflows/` に `regression-standing` job を常設。`pnpm test:regression:standing` で全4ドメイン実行                       |
+| **PR 要件 / PR requirements**                | 標準 `pnpm test` に加え、4ドメインに該当する PR は **standing regression suite が必ず PASS** であること                           |
+| **失敗時 / On failure**                      | **P0 incident** — pipeline-engineer / security-engineer へ即時エスカレート。merge 即時ブロック                                    |
+| **4ドメイン該当変更 / Changes in 4 domains** | IO の Finding Registry で `Regression domain:` フィールド必須記入、該当 domain の standing suite への test landing を required に |
+| **CI-failing 要件 / CI-failing requirement** | standing regression のテストは必ず CI で fail する実行可能テスト。`.skip` / `.todo` / `describe.skip` 禁止                        |
+| **INV-\* との対応 / INV-\* mapping**         | 各 standing test は必ず 1 つ以上の INV-\* に紐付く (test 内で `// INV-PAGE-QUEUE-001` コメントで明示)                             |
+
+### テストコマンド / Test Commands
+
+```bash
+# 全 standing regression suite 実行
+pnpm test:regression:standing
+
+# ドメイン別実行
+pnpm test:regression:standing --filter large-page
+pnpm test:regression:standing --filter gdpr-delete
+pnpm test:regression:standing --filter worker-lifecycle
+pnpm test:regression:standing --filter schema-enum-sync
+```
+
+### 失敗時の対応 / Failure Response
+
+standing regression の fail は **P0 incident** 扱い:
+
+1. **即時 merge block** — PR が standing regression で fail → merge 禁止 (IO は自動 BLOCK)
+2. **即時エスカレーション** — pipeline-engineer (worker-lifecycle / large-page) または security-engineer (gdpr-delete) または backend-api-developer (schema-enum-sync) へ通知
+3. **一時的 disable 禁止** — `.skip` で放置することは禁止。必ず fail 原因を修正するか INV-\* を改訂 (ADR 必須) する
+
+### 関連ドキュメント / Related
+
+- Workflow: `CLAUDE.md` "常設 Regression Suite / Standing Regression Suite" セクション
+- IO: `.claude/agents/integration-owner.md` "Standing Regression Suite" セクション
+- ADR-0007 (Phase 5 Queue-based Backfill): large-page domain の背景
+- ADR-0011 (Worker Dual-run Lock): worker-lifecycle domain の背景
+
+---
+
+## 真実の源泉 / Source of Truth (for Tests)
+
+**テストはコード化された契約と同列に正典 (T1 Canonical)**。docs と矛盾した時はテストが勝つ。テスト自体を stale なドキュメントに合わせて書き換えることは禁止。
+
+**Tests are T1 Canonical source of truth**, alongside coded contracts. When docs contradict tests, tests win. Never rewrite tests to match stale docs.
+
+詳細は `CLAUDE.md` の "真実の源泉 / Source of Truth Hierarchy" セクション参照。

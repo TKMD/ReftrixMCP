@@ -37,6 +37,29 @@ export const AUDIT_LOG_CONSTANTS = {
   DEFAULT_RETENTION_DAYS: 365,
   /** targetId切り詰め長 / targetId truncation length */
   TARGET_ID_TRUNCATE_LENGTH: 8,
+  /**
+   * PR-E-1 LCC-04: zombie worker manual recovery 専用 audit action.
+   * Plan v1.1 §8.4 LCC explicit decision で確定:
+   *   - retention: 365 days (PR-D-9 audit_logs default 継承、GDPR Art.30)
+   *   - actor: `operator:<email>` (manual recovery 経路のみ、autospawn は将来別 action)
+   *   - target_id: raw workerType (`page` / `embedding-backfill` 固定 enum、PII 該当性ゼロ、`truncateTargetId` 不要)
+   *   - details schema: {recovery_method, original_signal, original_pid, redis_lock_key}
+   *   - compliance tags: [EU GDPR Art.30][JP APPI 第23条]
+   *
+   * PR-E-1 LCC-04: dedicated audit action for manual zombie-worker recovery.
+   * Plan v1.1 §8.4 LCC explicit decision: 365d retention / `operator:<email>` actor /
+   * raw workerType target_id (no truncation needed, fixed enum) /
+   * structured details / GDPR Art.30 + APPI Art.23 compliance.
+   */
+  WORKER_ZOMBIE_RECOVERED_ACTION: "worker_zombie_recovered",
+  /** PR-E-1 LCC-04: actor prefix for manual operator recovery path. */
+  WORKER_ZOMBIE_RECOVERED_ACTOR_PREFIX: "operator:",
+  /**
+   * PR-E-1 LCC-04: detail field — recovery method enum.
+   * Currently only `force_release_redis_lock` is in scope (Plan v1.1 §8.3 step 2).
+   * Future autospawn paths will use a separate action.
+   */
+  WORKER_ZOMBIE_RECOVERY_METHODS: ["force_release_redis_lock"] as const,
 } as const;
 
 /**
@@ -365,5 +388,44 @@ export function getAuditLogService(): AuditLogService {
  * Reset AuditLogService singleton (for testing)
  */
 export function resetAuditLogService(): void {
+  serviceInstance = null;
+}
+
+/**
+ * CLI スクリプトから AuditLogService を初期化する (PR7e-β1)
+ * Bootstrap AuditLogService for CLI / batch scripts (PR7e-β1)
+ *
+ * MCP server 起動時は `apps/mcp-server/src/mcp-server.ts` が
+ * `setAuditLogPrismaClientFactory()` を呼んで DI を設定しているが、
+ * CLI スクリプト (`repair-page-analyze.ts` / `repair-orphaned-backfill-records.ts` 等)
+ * では DI が登録されていないため、`getAuditLogService().log()` 呼び出しが
+ * サイレントに warn ログだけ出して DB に書き込まれない問題があった。
+ *
+ * この helper は、CLI スクリプトが `new PrismaClient()` した直後に呼び出すことで
+ * DI factory を登録し、監査ログが正しく永続化されるようにする。
+ *
+ * In the MCP server, `apps/mcp-server/src/mcp-server.ts` wires up the DI via
+ * `setAuditLogPrismaClientFactory()`. However CLI scripts
+ * (`repair-page-analyze.ts` / `repair-orphaned-backfill-records.ts`) never
+ * registered the factory, so `getAuditLogService().log()` silently degraded
+ * to a warn-only no-op and audit records were never written.
+ *
+ * This helper is intended to be called right after `new PrismaClient()` in a
+ * CLI script so that the factory is registered and audit logs are persisted.
+ *
+ * 冪等性 / Idempotency:
+ *   Multiple invocations with the same client are safe: the underlying DI
+ *   factory is simply replaced.
+ *
+ * シングルトンリセット / Singleton reset:
+ *   Any previously constructed `AuditLogService` instance (which captured a
+ *   null factory in its constructor) is reset so that the next
+ *   `getAuditLogService()` call rebuilds with the newly registered factory.
+ *
+ * @param prismaClient The PrismaClient instance owned by the CLI script
+ */
+export function bootstrapAuditLogServiceForScript(prismaClient: AuditLogPrismaClient): void {
+  setAuditLogPrismaClientFactory(() => prismaClient);
+  // Rebuild the singleton so any earlier "Prisma not available" warn path is cleared.
   serviceInstance = null;
 }

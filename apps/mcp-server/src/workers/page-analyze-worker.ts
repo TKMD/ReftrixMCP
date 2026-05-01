@@ -105,10 +105,10 @@ import {
 import { setFramePrismaClientFactory } from "../services/motion/frame-embedding.service";
 
 // Worker Memory Self-Monitoring（OOM防止用）
-// v0.4.0 PR7c: applyPreReturnPauseAndMemoryGate が memory check を内包するため
+// v0.4.0 PR7c: applyPostJobMemoryGate が memory check を内包するため
 // performMemoryCheckAndExit の直接参照は削除。
 // v0.4.0 PR7c: Direct import removed — memory check is now performed inside
-// applyPreReturnPauseAndMemoryGate.
+// applyPostJobMemoryGate.
 // Part Extraction (Phase 1.1)
 import { extractPartsFromSection } from "../services/part/part-extraction.service";
 import { saveExtractedParts } from "../services/part/part-db.service";
@@ -126,6 +126,11 @@ import { createPageAnalyzeQueue } from "../queues/page-analyze-queue";
 import { safeParseInt } from "../utils/safe-parse-int";
 // Frame Analysis DB保存ヘルパー（同期/非同期モード共有）
 import { saveFrameAnalysisToDb } from "../services/motion/frame-analysis-save.helper";
+// PR-B (v0.4.0 PR7e P4): Phase 0 Early INSERT (feature-flagged)
+// W0 で URL を正規化するため同じ util を再利用する。
+// PR-B (v0.4.0 PR7e P4): Phase 0 Early INSERT (feature-flagged).
+// W0 uses the same URL normalizer as W1 for deterministic upsert keys.
+import { normalizeUrlForStorage } from "../utils/url-normalizer";
 
 // ============================================================================
 // Phase Module Imports (TDA-C1 refactoring)
@@ -167,7 +172,7 @@ import { processIngestPhase } from "./phases/phase-0-ingest";
 // only touched `analysis_status` / `analysis_completed_at`).
 import { PhasedDbHandler } from "../tools/page/handlers/phased-db-handler";
 import { createScreenshotPersistenceService } from "../services/screenshot-persistence.service";
-import { applyPreReturnPauseAndMemoryGate } from "./shared/post-job-lifecycle";
+import { applyPostJobMemoryGate } from "./shared/post-job-lifecycle";
 import { processLayoutPhase } from "./phases/phase-1-layout";
 import { processMotionPhase } from "./phases/phase-2-motion";
 import { processQualityPhase } from "./phases/phase-3-quality";
@@ -186,7 +191,7 @@ import { dispatchEmbeddingPhase } from "./phases/phase-5-embedding";
 // path that enqueues all 7 categories.
 import {
   createEmbeddingBackfillQueue,
-  addEmbeddingBackfillJob,
+  addEmbeddingBackfillJobWithGuard,
   checkBackfillQueueBackPressure,
   resolveMemoryPressureDelayMs,
   EMBEDDING_BACKFILL_QUEUE_WAITING_CAP,
@@ -247,36 +252,58 @@ setFramePrismaClientFactory(() => prisma as never);
 const gpuResourceManager = GpuResourceManager.getInstance();
 
 // ============================================================================
-// Pre-Return Pause: BullMQ moveToCompleted レースコンディション防止
+// Post-Job Memory Gate: WORKER_MAX_JOBS_BEFORE_RESTART 駆動の RSS ゲート
 // ============================================================================
 //
-// BullMQ v5 の moveToCompleted Lua スクリプトは fetchNext=true の場合、
-// ジョブ完了と次のジョブ取得を1つのアトミック操作で行う。
-// これにより Worker.on('completed') イベントが発火する前に次のジョブが
-// active 状態に遷移してしまい、WorkerSupervisor の計画的再起動時に
-// 新規ジョブが「ブラウザ閉鎖済み」エラーで失敗するレースコンディションが発生する。
+// v0.4.0 PR7e-β2 hotfix で pause/resume 経路は完全削除され、post-job ライフ
+// サイクルは「RSS 閾値超過 → process.exit(0)」のみを残した（ADR-0009 参照）。
+// `fetchNext=false` の保証は BullMQ 側の `moveToCompleted` Lua スクリプトが
+// 担うため、Worker 側で pause を呼ぶ必要はなく、本 gate は concurrency 非依存。
 //
-// 解決: Processor内で return 前に worker.pause(true) を呼ぶことで
-// BullMQ Worker.paused フラグを立て、fetchNext=false を保証する。
-// worker.pause(doNotWaitActive=true) はProcessor内から安全に呼べる。
+// v0.4.0 PR7e-β2 audit carryover: helper を
+// `applyPostJobMemoryGate(enabled, loggerPrefix)` にリネームし、使われなくなった
+// `workerRef` 引数とモジュール変数 `_workerInstanceRef` を削除した。
 //
-// WorkerSupervisor側では job-completed IPC で再起動をトリガーする従来の
-// フローが維持され、shutdown処理中に新規ジョブが取得されることはない。
+// v0.4.0 PR7e-β2 hotfix removed the pause/resume path entirely; the post-job
+// lifecycle now keeps only the RSS gate ("RSS exceeds threshold → process.exit(0)").
+// `fetchNext=false` is already guaranteed by BullMQ's `moveToCompleted` Lua
+// script, so no Worker-side pause is needed and this gate is concurrency-neutral.
+//
+// v0.4.0 PR7e-β2 audit carryover: the helper was renamed to
+// `applyPostJobMemoryGate(enabled, loggerPrefix)` and the obsolete `workerRef`
+// argument plus the module-level `_workerInstanceRef` variable were removed.
 // ============================================================================
 
 /**
- * Module-level reference to the BullMQ Worker instance.
- * Set by createPageAnalyzeWorker(), read by processPageAnalyzeJob().
- * This bridge enables the Processor to call worker.pause() before returning.
- */
-let _workerInstanceRef: Worker<PageAnalyzeJobData, PageAnalyzeJobResult> | null = null;
-
-/**
- * Whether pre-return pause is enabled (maxJobsBeforeRestart > 0).
+ * Whether the post-job memory gate is enabled (maxJobsBeforeRestart > 0).
  * Read from WORKER_MAX_JOBS_BEFORE_RESTART env var (default: 1).
- * When 0, pre-return pause is disabled (unlimited jobs per process).
+ * When 0, the gate is disabled (unlimited jobs per process).
  */
 const _preReturnPauseEnabled = safeParseInt(process.env.WORKER_MAX_JOBS_BEFORE_RESTART, 1) > 0;
+
+/**
+ * PR-B (v0.4.0 PR7e P4): Phase 0 Early INSERT feature flag.
+ *
+ * When `PHASE0_EARLY_INSERT=true`, the orchestrator upserts a minimal
+ * `web_pages` row **before** calling `processIngestPhase`. This guarantees
+ * that early failures during Phase 0 (robots.txt block / SSRF validation /
+ * DNS NXDOMAIN etc.) still produce a DB row, so the failure-path
+ * `markAnalysisFailed` → `prisma.webPage.update({where: {id: actualWebPageId}})`
+ * does not hit P2025 on a missing row.
+ *
+ * Default: `false` (opt-in). Legacy behavior: the first DB write is the W1
+ * upsert inside `processIngestPhase`, which never runs if Phase 0 throws.
+ *
+ * `PHASE0_EARLY_INSERT=true` の場合、オーケストレーターは `processIngestPhase`
+ * を呼ぶ前に `web_pages` の最小行を upsert する (W0)。これにより Phase 0 の
+ * 早期失敗 (robots.txt block / SSRF / DNS NXDOMAIN 等) でも DB 行が残り、
+ * failure-path の `markAnalysisFailed` が P2025 で空振りしなくなる。
+ *
+ * デフォルト: `false` (opt-in)。
+ */
+function isPhase0EarlyInsertEnabled(): boolean {
+  return process.env.PHASE0_EARLY_INSERT === "true";
+}
 
 // Connect gpuModeSignal to the @reftrixmcp/ml EmbeddingService singleton.
 // When GpuResourceManager requests a provider switch, the ONNX pipeline is
@@ -411,12 +438,20 @@ async function dispatchBackfillJobsForPage(params: {
   if (shouldEnqueueParts) {
     // part_text は screenshot 不要 — 常に投入可能
     // part_text does not require a screenshot — always enqueue
+    // PR-D-6 Phase 2: migrate legacy `addEmbeddingBackfillJob` → with-guard SSOT
     try {
-      await addEmbeddingBackfillJob(queue, {
+      const result = await addEmbeddingBackfillJobWithGuard(queue, {
         webPageId,
         category: "part_text",
       });
       enqueued.push("part_text");
+      if (result.outcome !== "enqueued_new") {
+        logger.info("[PageAnalyzeWorker] part_text backfill enqueue outcome", {
+          outcome: result.outcome,
+          collision: result.collision,
+          webPageId: webPageId.slice(0, 8) + "...",
+        });
+      }
     } catch (error) {
       logger.warn("[PageAnalyzeWorker] Failed to enqueue part_text backfill (non-fatal)", {
         error: sanitizeErrorMessage(error),
@@ -426,15 +461,23 @@ async function dispatchBackfillJobsForPage(params: {
 
     // part_visual は persisted screenshot が必須
     // part_visual requires a persisted screenshot
+    // PR-D-6 Phase 2: migrate legacy `addEmbeddingBackfillJob` → with-guard SSOT
     if (screenshotStoragePath) {
       try {
-        await addEmbeddingBackfillJob(queue, {
+        const result = await addEmbeddingBackfillJobWithGuard(queue, {
           webPageId,
           category: "part_visual",
           screenshotStoragePath,
           requiresBboxResolution: true,
         });
         enqueued.push("part_visual");
+        if (result.outcome !== "enqueued_new") {
+          logger.info("[PageAnalyzeWorker] part_visual backfill enqueue outcome", {
+            outcome: result.outcome,
+            collision: result.collision,
+            webPageId: webPageId.slice(0, 8) + "...",
+          });
+        }
       } catch (error) {
         logger.warn("[PageAnalyzeWorker] Failed to enqueue part_visual backfill (non-fatal)", {
           error: sanitizeErrorMessage(error),
@@ -456,13 +499,21 @@ async function dispatchBackfillJobsForPage(params: {
   // (SectionVisualProcessor) can regenerate DINOv2 vision_embeddings — the
   // PR7b section_visual integration is leveraged here.
   if (shouldEnqueueSectionVisual && screenshotStoragePath) {
+    // PR-D-6 Phase 2: migrate legacy `addEmbeddingBackfillJob` → with-guard SSOT
     try {
-      await addEmbeddingBackfillJob(queue, {
+      const result = await addEmbeddingBackfillJobWithGuard(queue, {
         webPageId,
         category: "section_visual",
         screenshotStoragePath,
       });
       enqueued.push("section_visual");
+      if (result.outcome !== "enqueued_new") {
+        logger.info("[PageAnalyzeWorker] section_visual backfill enqueue outcome", {
+          outcome: result.outcome,
+          collision: result.collision,
+          webPageId: webPageId.slice(0, 8) + "...",
+        });
+      }
     } catch (error) {
       logger.warn("[PageAnalyzeWorker] Failed to enqueue section_visual backfill (non-fatal)", {
         error: sanitizeErrorMessage(error),
@@ -733,32 +784,47 @@ async function dispatchSkipRecoveryBackfill(params: {
 }
 
 /**
- * Phase 4 完了後の GC hint (ADR-0008 #5 / TPA H-2 → v0.4.0 PR7e-α Revert)。
+ * Phase 4 完了後の選択的メモリ解放 (v0.4.0 PR7e-β2 P0-2)。
  *
- * v0.4.0 PR7e-α で判明したバグ③（全ページ section/motion/bg/narrative/js
- * embedding 0 件）の真因: 以前は本関数が `state.layoutResultForNarrative` 等
- * 4 つを `null` 化しており、Phase 5 が必要な入力を受け取れず DB 全体で
- * embedding 生成がゼロになっていた。α診断 AI-1 〜 AI-4 で確定済。
+ * 設計の歴史 / Design history:
+ *   - PR7b (ADR-0008 #5): `state.layoutResultForNarrative` 等 4 つを null 化
+ *     して Phase 5 fork 前の親 RSS を削減していた。
+ *   - PR7e-α Revert: その null 化が「全ページ embedding 0 件」バグの真因
+ *     （Phase 5 が入力を受け取れず）と判明し撤回。dispose は GC hint のみに退化。
+ *   - PR7e-β2 P0-2 (本実装): Phase 5 が **使う** reference は維持しつつ、
+ *     Phase 5 が **使わない** 中間データを選択的に破棄する。これにより
+ *     reftrix.io / Stripe で観測された Phase 5 entry RSS=5028-5528MB を
+ *     圧縮し、parent RSS guard 6144MB ceiling 内に収める。
  *
- * Root cause of the 5-embedding-zero bug (v0.4.0 PR7e-α, AI-1 〜 AI-4): this
- * helper previously nulled out `state.layoutResultForNarrative` and 3 peers,
- * starving Phase 5 of its inputs and producing zero embeddings DB-wide.
+ *   - PR7b (ADR-0008 #5): nulled out 4 state references to reduce parent RSS
+ *     before Phase 5 fork.
+ *   - PR7e-α Revert: that null-out was the root cause of the "zero embeddings
+ *     DB-wide" bug (Phase 5 starved of its inputs) and was reverted; dispose
+ *     degraded to a GC hint only.
+ *   - PR7e-β2 P0-2 (this revision): Keep references that Phase 5 **uses**;
+ *     selectively drop the intermediate fields that Phase 5 **does not use**.
+ *     This compresses the observed Phase 5 entry RSS=5028-5528MB on
+ *     reftrix.io / Stripe so it fits within the 6144MB parent-RSS guard.
  *
- * 修正方針 / Fix:
- *   - in-memory reference の null 化は撤回。references は Phase 5 にそのまま流す。
- *   - GC hint のみ実施（V8 major GC 発火は V8 の自律判断に任せる）。
- *   - screenshot file / sharedBrowser / html / screenshotBase64 は従来通り
- *     物理維持（Phase 5 child / Queue-based Backfill が参照）。
+ * 保持必須 (Phase 5 が使う) / Must preserve (used by Phase 5):
+ *   - state.layoutResultForNarrative.sections (capped 50 in phase-4-narrative.ts)
+ *   - state.motionResultForEmbedding.patterns
+ *   - state.jsAnimationsForEmbedding (cdpAnimations / webAnimations / libraries)
+ *   - state.scrollVisionResultForEmbedding.scrollTriggeredAnimations
+ *   - state.sectionSaveResult, motionSaveResult, jsSaveResult, bgSaveResult,
+ *     scrollVisionSaveResult, screenshotPngPath
  *
- *   - Remove the `state.* = null` assignments; Phase 5 receives the references.
- *   - Emit a GC hint only (V8 autonomously decides whether to run major GC).
- *   - Screenshot / sharedBrowser / html / screenshotBase64 remain preserved
- *     for Phase 5 child + Queue-based Backfill.
+ * 破棄対象 (Phase 5 が使わない) / Drop targets (unused by Phase 5):
+ *   - MotionServiceResult: frame_capture / frame_analysis (frame buffers, MB単位),
+ *     webgl_animations (Canvas data), video_info / runtime_info, warnings,
+ *     js_animation_summary, js_animations (jsAnimationsForEmbedding が独立保持)
+ *   - ScrollVisionResult: analyses (per-capture Vision raw response, KB-MB単位)
  *
- * TODO(PR7e-β): PR7b の RSS 削減根拠 (dispose で Δ MB reclaim) は null 化撤回
- *   により成立しなくなった。実測し直して ADR-0012 に結果を反映する。
- *   The PR7b RSS-reduction rationale no longer holds after the revert.
- *   Re-measure and update ADR-0012 accordingly.
+ *   - Note: jsAnimationsForEmbedding は分離保持なので motionResultForEmbedding 側の
+ *     js_animations / js_animation_summary は冗長 → 破棄して安全。
+ *   - Note: jsAnimationsForEmbedding is preserved separately, so
+ *     motionResultForEmbedding's js_animations / js_animation_summary are
+ *     redundant → safe to drop.
  *
  * 戻り値 / Returns: dispose 前後の RSS 平均 (MB)。`afterRssMb` が 3 回平均で測定される
  * ことを保証するため、`tryGarbageCollect()` + 100ms 待機後に 3 回サンプリングする。
@@ -774,17 +840,59 @@ async function disposePhase4Memory(state: PipelineState): Promise<{
 }> {
   const beforeRssMb = Math.round(process.memoryUsage().rss / 1024 / 1024);
 
-  // v0.4.0 PR7e-α Revert: state.* = null 代入は撤回した（バグ③の真因、α診断
-  // AI-1 〜 AI-4）。Phase 5 が layoutResultForNarrative / motionResultForEmbedding /
-  // jsAnimationsForEmbedding / scrollVisionResultForEmbedding を必要とするため、
-  // references はここで維持する。
+  // ============================================================
+  // PR7e-β2 P0-2: 選択的破棄 / Selective disposal
   //
-  // v0.4.0 PR7e-α Revert: the `state.* = null` assignments are removed — they
-  // were the root cause of the 5-embedding-zero bug. Phase 5 requires the
-  // layout / motion / js-animation / scroll-vision references, so they must
-  // survive disposal.
-  void state;
+  // 履歴 / History:
+  //   - PR7b は state.layoutResultForNarrative 等を null 化していた。
+  //   - PR7e-α Revert (ADR-0012): その null 代入が「全 embedding 0 件」バグの
+  //     真因と判明し撤回。state.* references は Phase 5 入力として保持。
+  //   - PR7e-β2 P0-2: Phase 5 が使う reference は保持しつつ、Phase 5 不使用の
+  //     中間フィールドのみを選択的に破棄する。
+  //
+  //   - PR7b nulled out state.layoutResultForNarrative et al.
+  //   - PR7e-α Revert (ADR-0012): that null assignment was the root cause of
+  //     the "zero embeddings DB-wide" bug and was reverted; state.* refs are
+  //     preserved as Phase 5 inputs.
+  //   - PR7e-β2 P0-2: Keep refs Phase 5 uses; selectively drop only the
+  //     intermediate fields Phase 5 does not consume.
+  // ============================================================
 
+  // MotionServiceResult: keep only `patterns`; drop heavy intermediates.
+  // 破棄対象: frame_capture (5-30MB), frame_analysis, webgl_animations,
+  //   video_info, runtime_info, warnings, js_animation_summary,
+  //   js_animations (jsAnimationsForEmbedding が独立保持)
+  // Cast via `unknown` — MotionServiceResult lacks an index signature so a
+  // direct `as Record<string, unknown>` cast is rejected by strict TS, but
+  // optional fields are safe to `delete` at runtime.
+  if (state.motionResultForEmbedding) {
+    const m = state.motionResultForEmbedding as unknown as Record<string, unknown>;
+    delete m["frame_capture"];
+    delete m["frame_analysis"];
+    delete m["frame_capture_error"];
+    delete m["frame_analysis_error"];
+    delete m["webgl_animations"];
+    delete m["webgl_animation_summary"];
+    delete m["webgl_animation_error"];
+    delete m["video_info"];
+    delete m["runtime_info"];
+    delete m["warnings"];
+    delete m["js_animation_summary"];
+    delete m["js_animations"];
+    delete m["js_animation_error"];
+  }
+
+  // ScrollVisionResult: keep only `scrollTriggeredAnimations`; drop per-capture
+  // raw Vision analyses.
+  // 破棄対象: analyses (per-capture Ollama Vision raw response, KB-MB単位)
+  if (state.scrollVisionResultForEmbedding) {
+    const sv = state.scrollVisionResultForEmbedding as unknown as Record<string, unknown>;
+    delete sv["analyses"];
+  }
+
+  // ============================================================
+  // GC + 3-sample RSS measurement (existing behavior preserved)
+  // ============================================================
   tryGarbageCollect();
 
   // GC 完了待ち — 100ms wait + 3 samples で測定ノイズを抑制
@@ -818,8 +926,8 @@ async function disposePhase4Memory(state: PipelineState): Promise<{
  * This function creates the pipeline state and context, then delegates
  * to extracted phase modules (phase-0 through phase-5) in sequence.
  * Phase 5 (Embedding) and post-embedding backfill remain inline because
- * they reference module-level singletons (_workerInstanceRef, gpuResourceManager)
- * and have a different API signature (EmbeddingPhaseParams + EmbeddingPhaseDeps).
+ * they reference module-level singletons (gpuResourceManager) and have a
+ * different API signature (EmbeddingPhaseParams + EmbeddingPhaseDeps).
  *
  * @param job - BullMQ job instance
  * @param token - BullMQ worker token for lock management
@@ -836,6 +944,16 @@ async function disposePhase4Memory(state: PipelineState): Promise<{
  *
  * 生成された `@prisma/client` 型への実行時依存を避けるため、あえて文字列
  * リテラル合併型として定義する（テスト / fork 子プロセスからも利用可能）。
+ *
+ * INV-SCHEMA-ENUM-004-B (standing regression): この literal union は Prisma
+ * schema の `EmbeddingBackfillStatus` enum (現在 8 値) と完全一致しなければ
+ * ならない。`skipped_screenshot_missing` は PR7d-1 で追加された repair 用
+ * 終端状態 (`repair-orphaned-backfill-records.ts` 専用)。
+ *
+ * INV-SCHEMA-ENUM-004-B (standing regression): this literal union must match
+ * Prisma's `EmbeddingBackfillStatus` enum (currently 8 values). The
+ * `skipped_screenshot_missing` value was added in PR7d-1 as a repair-only
+ * terminal state (used exclusively by `repair-orphaned-backfill-records.ts`).
  */
 type EmbeddingBackfillStatusValue =
   | "not_required"
@@ -844,7 +962,8 @@ type EmbeddingBackfillStatusValue =
   | "completed"
   | "failed"
   | "skipped_memory_pressure"
-  | "skipped_fork_error";
+  | "skipped_fork_error"
+  | "skipped_screenshot_missing";
 
 /**
  * EmbeddingSkipReason → EmbeddingBackfillStatus へのマッピング（PR2 v0.4.0）。
@@ -872,6 +991,10 @@ function skipReasonToBackfillStatus(reason: EmbeddingSkipReason): EmbeddingBackf
     case "visual_child_abnormal_exit":
     case "visual_ipc_race":
     case "dispatch_phase_failed":
+    case "fork_terminated_before_done":
+    case "parity_check_failed":
+    case "bbox_invalid":
+    case "bbox_unresolvable":
       // TDA MEDIUM 1 (v0.4.0 PR2 監査): `dispatch_phase_failed` は
       // `dispatchEmbeddingPhase` 全体の予期せぬ例外に対応する汎用分類で、
       // fork / child 系と同じ backfill queue 経路で再試行させる。
@@ -879,6 +1002,51 @@ function skipReasonToBackfillStatus(reason: EmbeddingSkipReason): EmbeddingBackf
       // catch-all classification for unexpected exceptions thrown by
       // `dispatchEmbeddingPhase`; it is funneled through the same
       // backfill-queue retry path as fork/child-originated skips.
+      //
+      // ADR-0018 §Decision 2 (v0.4.0 PR-D-1): `fork_terminated_before_done`
+      // (fork child `done` 送信前終了) と `parity_check_failed` (terminal
+      // transition 直前の COUNT(*) parity check 失敗) も同じ `skipped_fork_error`
+      // ルートにマップし、backfill queue 経由で retry → 最終 state `failed`
+      // (INV-EMBEDDING-INTEGRITY-001/004 契約)。
+      // ADR-0018 §Decision 2 (v0.4.0 PR-D-1): `fork_terminated_before_done`
+      // (fork child terminated before sending `done`) and `parity_check_failed`
+      // (COUNT(*) parity-check failed before terminal transition) also map to
+      // `skipped_fork_error`, retrying via backfill queue and ultimately
+      // transitioning to `failed` (INV-EMBEDDING-INTEGRITY-001/004 contracts).
+      //
+      // ADR-0018 §Decision 3 Amendment (v0.4.0 PR-D-2, IO Registry UC-01):
+      // `bbox_invalid` (Part visual embedding loop が boundingBox invalid で
+      // skip) も同じ `skipped_fork_error` ルートにマップする。`skipped_fork_error`
+      // は `backfill-reconciliation.service.ts` の retry bucket 対象
+      // (L283/559/621/758) で、5 retry 後に `failed` 永続化。semantic-stretch:
+      // `skipped_fork_error` は既に 11 種類の skip reason (fork系/child系/
+      // ipc系/dispatch系) を集約する general-purpose retry-bucket mapping
+      // として機能しており、`bbox_invalid` の "Phase 5 part visual embedding
+      // 生成失敗" は自然な拡張。当初検討された `skipped_screenshot_missing`
+      // は retry 対象外のため GDPR Art.5(1)(d) accuracy 原則違反として
+      // 撤回 (IO Registry UC-01 Option B → Option D)。
+      //
+      // ADR-0018 §Decision 3 Amendment (v0.4.0 PR-D-2, IO Registry UC-01):
+      // `bbox_invalid` (Part visual embedding loop skip due to invalid
+      // boundingBox) also maps to `skipped_fork_error`. `skipped_fork_error`
+      // is the retry bucket in `backfill-reconciliation.service.ts`
+      // (L283/559/621/758), persisting to `failed` after 5 retries.
+      // Semantic-stretch: `skipped_fork_error` already aggregates 11 skip
+      // reasons (fork/child/ipc/dispatch) as a general-purpose retry-bucket
+      // mapping, so `bbox_invalid`'s "Phase 5 part visual embedding generation
+      // failure" is a natural extension. The initially-considered
+      // `skipped_screenshot_missing` was withdrawn (IO Registry UC-01 Option B
+      // → Option D) because it is retry-excluded, violating GDPR Art.5(1)(d)
+      // accuracy principle.
+      //
+      // PR-D-9 Wave 4 (C-02 + C-04 / ADR-0018 §Decision 1 Supplement S3):
+      // `bbox_unresolvable` (Playwright-residual catch-all post-1st-pass +
+      // post-reload-budget exhaustion) shares the same `skipped_fork_error`
+      // retry bucket. Per Supplement S3 mapping rationale: same accuracy-
+      // preserving retry path; downstream `backfill-reconciliation.service.ts`
+      // re-enqueues via skip recovery (5 retries, then terminal `failed`).
+      // Mutually exclusive with `bbox_invalid` (JSDOM-origin vs Playwright-
+      // residual) by Supplement S3 decision-boundary contract.
       return "skipped_fork_error";
     case "no_embeddable_items":
       return "not_required";
@@ -999,10 +1167,28 @@ async function processPageAnalyzeJob(
           ? Math.round(status.overallProgress)
           : 0;
 
-      job.updateProgress(progress).catch((err) => {
+      // PR-B (v0.4.0 PR7e P5 / SEC-M2-04): 以下 2 点を同時に解消する。
+      //   (1) raw `err.message` を `sanitizeErrorMessage()` で汎用メッセージ化
+      //       (CWE-209 内部構造漏洩防止 — "Missing key for job <id>" や
+      //       Redis internal path 等がログに載る経路を断つ)
+      //   (2) `updateProgress` はジョブがアクティブでない場合 (lock 喪失 /
+      //       stall 再試行直後 / BullMQ Redis hash 不在) に throw する。
+      //       catch 内で err を再 throw しないため、二次 crash への波及は
+      //       ない。sanitize されたメッセージを warn ログのみ記録して
+      //       fire-and-forget を維持する。
+      //
+      // PR-B (v0.4.0 PR7e P5 / SEC-M2-04): Addresses two issues at once:
+      //   (1) raw `err.message` → `sanitizeErrorMessage()` (CWE-209 leakage
+      //       prevention; redacts "Missing key for job <id>" and Redis
+      //       internals that would otherwise land in logs).
+      //   (2) `updateProgress` may throw when the job is no longer active
+      //       (lock lost / post-stall retry / missing BullMQ Redis hash).
+      //       The catch does not rethrow, so this stays fire-and-forget —
+      //       only the sanitized warn log is recorded.
+      job.updateProgress(progress).catch((err: unknown) => {
         logger.warn("[PageAnalyzeWorker] Failed to update job progress", {
           jobId: job.id,
-          error: err instanceof Error ? err.message : String(err),
+          error: sanitizeErrorMessage(err),
         });
       });
 
@@ -1059,6 +1245,95 @@ async function processPageAnalyzeJob(
   // open); worker-level lock TTL handles cleanup.
   let phasedDb: PhasedDbHandler | null = null;
 
+  // =====================================================
+  // PR-B (v0.4.0 PR7e P4): Phase 0 Early INSERT (feature-flagged, default OFF)
+  // =====================================================
+  // `PHASE0_EARLY_INSERT=true` の場合、`processIngestPhase` を呼ぶ前に
+  // `web_pages` の最小行を upsert する (W0)。これにより Phase 0 の早期
+  // 失敗 (robots.txt block / SSRF / DNS NXDOMAIN 等) でも DB 行が残り、
+  // failure-path の `markAnalysisFailed` / inline update が P2025 で空振り
+  // しなくなる。W0 の本旨は `actualWebPageId` を確定することであり、
+  // `htmlContent` / `htmlHash` は Phase 0.5 (W1) まで書き込まない。
+  //
+  // When `PHASE0_EARLY_INSERT=true`, upsert a minimal `web_pages` row BEFORE
+  // `processIngestPhase` starts (W0). This ensures that early Phase 0
+  // failures (robots.txt / SSRF / DNS) still leave a DB row, so the
+  // failure-path `markAnalysisFailed` / inline update no longer no-ops on
+  // P2025. W0 only resolves `actualWebPageId`; html content is still
+  // written later by Phase 0.5 (W1).
+  //
+  // =============================================================
+  // SAVETODB SEMANTICS — UNIFIED CONTRACT (FIND-PR-B-009)
+  // =============================================================
+  // `options.layoutOptions?.saveToDb !== false` is the canonical gate for
+  // ALL `web_pages` upsert writes in the ingest path. This condition is
+  // intentionally symmetric at two call sites:
+  //   - W0: page-analyze-worker.ts (this block) — early INSERT under
+  //         `PHASE0_EARLY_INSERT=true`, writes `analysisStatus='pending'`.
+  //   - W1: phase-0-ingest.ts:~201 — html/hash/crawledAt upsert after
+  //         `processIngestPhase` succeeds (does NOT overwrite
+  //         `analysisStatus` when W0 already set it).
+  //
+  // Contract:
+  //   - `saveToDb === undefined` (default) → PERSIST (treated as enabled).
+  //   - `saveToDb === true` → PERSIST.
+  //   - `saveToDb === false` → SKIP (explicit opt-out; transient analysis).
+  //
+  // Both sites MUST use `!== false` (not `=== true`) to preserve the default
+  // behavior. Flipping one site to `=== true` will desynchronize W0/W1 and
+  // break INV-PAGE-QUEUE-001-C (PHASE0_EARLY_INSERT failure-path persistence).
+  // Any future change to this semantics requires an ADR amendment.
+  // =============================================================
+  const phase0EarlyInsertEnabled = isPhase0EarlyInsertEnabled();
+  if (phase0EarlyInsertEnabled && options.layoutOptions?.saveToDb !== false) {
+    try {
+      const normalizedUrlForEarlyInsert = normalizeUrlForStorage(url);
+      const earlyUpsert = await prisma.webPage.upsert({
+        where: { url: normalizedUrlForEarlyInsert },
+        create: {
+          id: webPageId,
+          url: normalizedUrlForEarlyInsert,
+          title: null,
+          description: null,
+          sourceType: "user_provided",
+          usageScope: "inspiration_only",
+          crawledAt: new Date(),
+          analysisStatus: "pending",
+        },
+        update: {
+          // 既存行は `analysisStatus='pending'` に戻すだけ (retry 想定)。
+          // `htmlContent` / `htmlHash` は Phase 0.5 (W1) で書き換える。
+          // Existing row: reset `analysisStatus='pending'` only (retry flow).
+          // `htmlContent` / `htmlHash` are refreshed later by Phase 0.5 (W1).
+          analysisStatus: "pending",
+          analysisError: null,
+          analysisCompletedAt: null,
+          lastAnalyzedPhase: null,
+        },
+        select: { id: true },
+      });
+      state.actualWebPageId = earlyUpsert.id;
+      if (isDevelopment()) {
+        logger.debug("[PageAnalyzeWorker] Phase 0 Early INSERT complete", {
+          requestedWebPageId: webPageId.slice(0, 8) + "...",
+          actualWebPageId: state.actualWebPageId.slice(0, 8) + "...",
+          url,
+        });
+      }
+    } catch (earlyUpsertError) {
+      // fail-open: Early INSERT 失敗は non-fatal で続行する。
+      // 後続の Phase 0.5 (W1) が通常経路で行を作る想定。
+      //
+      // fail-open: Early INSERT failure is non-fatal; continue so Phase 0.5
+      // (W1) can create the row along the legacy path.
+      logger.warn("[PageAnalyzeWorker] Phase 0 Early INSERT failed (non-fatal, continuing)", {
+        error: sanitizeErrorMessage(earlyUpsertError),
+        webPageId: webPageId.slice(0, 8) + "...",
+        url,
+      });
+    }
+  }
+
   try {
     // =====================================================
     // Phase 0: Ingest (HTML取得) + Phase 0.5: WebPage DB Save
@@ -1067,16 +1342,27 @@ async function processPageAnalyzeJob(
       pageIngestAdapter,
       prisma,
       screenshotPersistenceService,
+      phase0EarlyInsertEnabled,
     });
 
     // v0.4.0 PR7e-α (バグ④ fix): Phase 0 完了直後に PhasedDbHandler を起動し、
     // analysis_phase_status='pending' + analysis_started_at=NOW を書き込む。
     // 失敗は non-fatal — TPA 指摘 "例外パス trans" 対応で fail-open とする。
     //
+    // PR-B (v0.4.0 PR7e P4): `phase0EarlyInsertEnabled=true` でも
+    // `markAnalysisStarted` は呼ぶ。理由: このメソッドは `analysisPhaseStatus`
+    // と `analysisStartedAt` も更新する (W0 は `analysisStatus` のみ)。
+    // 重複書き込みは冪等 (同一値の上書き) なので safe。
+    //
     // v0.4.0 PR7e-α (bug ④ fix): Instantiate PhasedDbHandler right after
     // Phase 0 so it writes analysis_phase_status='pending' +
     // analysis_started_at=NOW. Treat failure as non-fatal (TPA "exception
     // path trans" fail-open guidance).
+    //
+    // PR-B (v0.4.0 PR7e P4): Even with `phase0EarlyInsertEnabled=true` we
+    // still call `markAnalysisStarted` because it also advances
+    // `analysisPhaseStatus` / `analysisStartedAt` (W0 only touches
+    // `analysisStatus`). Duplicate writes are idempotent.
     try {
       phasedDb = new PhasedDbHandler({
         prisma,
@@ -2193,22 +2479,20 @@ async function processPageAnalyzeJob(
     }
 
     // =====================================================
-    // Pre-Return Pause + Memory-Gated Exit/Resume (v0.4.0 PR7c)
+    // Memory-Gated Exit (post-job) (v0.4.0 PR7e-β2 hotfix)
     // =====================================================
-    // fetchNext=false を保証（BullMQ moveToCompleted のレース回避）した上で、
-    // RSS 閾値超過時は process.exit(0) / 未満時は worker.resume() で新規ジョブ取得を
-    // 再開する。従来の「exit のみ」実装では RSS 軽量 Worker で pause が永続化していた
-    // （PR7c バグ1）。詳細は `workers/shared/post-job-lifecycle.ts` 冒頭の JSDoc 参照。
+    // RSS 閾値超過時は process.exit(0) → WorkerSupervisor 再起動。未満時は no-op で
+    // BullMQ mainLoop が自然に次ジョブを fetch する。pause/resume は BullMQ 5.66.5
+    // Worker.resume() の silent no-op race を避けるため削除済み（ADR-0009 参照）。
+    // `moveToCompleted` Lua による fetchNext=false 保証と併用するため、本ヘルパー
+    // は concurrency に対して中立。
     //
-    // Guarantees fetchNext=false during BullMQ moveToCompleted, then either exits
-    // (RSS above threshold) or resumes (RSS below threshold) to resume acquiring
-    // jobs. The legacy exit-only path caused a permanent pause on RSS-light workers
-    // (PR7c Bug 1). See `workers/shared/post-job-lifecycle.ts` JSDoc for details.
-    await applyPreReturnPauseAndMemoryGate(
-      _workerInstanceRef,
-      _preReturnPauseEnabled,
-      "[PageAnalyzeWorker]"
-    );
+    // Exits on RSS threshold breach so WorkerSupervisor restarts, otherwise no-op —
+    // the BullMQ mainLoop fetches the next job naturally. pause/resume were removed
+    // to avoid the BullMQ 5.66.5 `Worker.resume()` silent no-op race (see ADR-0009).
+    // Combined with the `moveToCompleted` Lua fetchNext=false guarantee, this helper
+    // is concurrency-neutral.
+    await applyPostJobMemoryGate(_preReturnPauseEnabled, "[PageAnalyzeWorker]");
 
     return result;
   } catch (error) {
@@ -2352,19 +2636,7 @@ export function createPageAnalyzeWorker(
     }
   );
 
-  // Set module-level reference for Processor→Worker bridge (pre-return pause)
-  _workerInstanceRef = worker;
-
-  // SEC-M1: Pre-return pause は concurrency=1 前提の設計。
-  // concurrency > 1 では複数 Processor が同一 Worker に対して pause を呼ぶ可能性がある。
-  // BullMQ の pause() は冪等であるため安全だが、設計意図として警告を出す。
-  if (concurrency > 1 && _preReturnPauseEnabled) {
-    logger.warn(
-      "[PageAnalyzeWorker] Pre-return pause is designed for concurrency=1. " +
-        "concurrency > 1 may cause unexpected pause timing.",
-      { concurrency }
-    );
-  }
+  // RSS gate は concurrency 非依存 (pause/resume 削除済み、ADR-0009 参照)
 
   // Event handlers for monitoring
   worker.on("completed", (job, result) => {
@@ -2378,9 +2650,23 @@ export function createPageAnalyzeWorker(
     }
 
     // P1-D: Notify parent process (WorkerSupervisor) of job completion via IPC
-    // This enables maxJobsBeforeRestart planned restarts for OOM prevention
+    // This enables maxJobsBeforeRestart planned restarts for OOM prevention.
+    //
+    // PR-D-8 Phase 2 (MF-02 + MF-05): IPC payload now conforms to the
+    // `WorkerIpcMessageSchema` SSOT (`apps/mcp-server/src/schemas/worker-ipc.schema.ts`).
+    // The supervisor's `verifyWorkerIpcMessage` rejects any payload missing
+    // `workerType` or `timestamp`, so the legacy `{type, jobId}` shape would
+    // be discarded and the supervisor would never trigger a planned restart.
+    // PR-D-8 Phase 2 (MF-02 + MF-05): IPC payload は SSOT スキーマに準拠する。
+    // 旧形式 `{type, jobId}` は workerType / timestamp 欠落で fail-closed
+    // 破棄されるため、必ず正規形式で emit する。
     try {
-      process.send?.({ type: "job-completed", jobId: job.id });
+      process.send?.({
+        type: "job-completed",
+        workerType: "page",
+        jobId: job.id,
+        timestamp: Date.now(),
+      });
     } catch {
       // IPC channel may be closed if parent is shutting down; non-fatal
     }

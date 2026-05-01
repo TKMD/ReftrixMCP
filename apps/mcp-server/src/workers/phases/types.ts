@@ -344,6 +344,117 @@ export const EMBEDDING_SKIP_REASONS = [
   // mis-classifying Visual-path exceptions as `text_fork_failed` in the outer
   // catch (TDA MEDIUM 1, v0.4.0 PR2 audit).
   "dispatch_phase_failed",
+  // ==========================================================================
+  // ADR-0018 §Decision 2 (v0.4.0 PR-D-1): 下記 2 値は PR-D-1 で enum 拡張のみ
+  // 実装され、実際の emit は PR-D-3 (fork_terminated_before_done) / PR-D-4
+  // (parity_check_failed) で開始する。`skipReasonToBackfillStatus()` では
+  // 両値とも `skipped_fork_error` にマップされる (fork/child-family と同じ
+  // backfill retry 経路)。
+  // ADR-0018 §Decision 2 (v0.4.0 PR-D-1): The following 2 values are landed
+  // in PR-D-1 as enum expansion only; actual emission starts in PR-D-3
+  // (fork_terminated_before_done) and PR-D-4 (parity_check_failed). Both map
+  // to `skipped_fork_error` in `skipReasonToBackfillStatus()` (same backfill
+  // retry path as fork/child family).
+  // ==========================================================================
+  //
+  // Fork child が `done` IPC message 送信前に終了した全シナリオの catch-all:
+  //   (a) 非ゼロ exit code
+  //   (b) signal 起因終了 (SIGKILL / SIGTERM / SIGSEGV / SIGABRT)
+  //   (c) heartbeat timeout (60s default)
+  //   (d) IPC disconnect without `done`
+  // text_child_abnormal_exit / visual_child_abnormal_exit はチャネル特定後
+  // の abnormal exit 用。本値は orchestrator 階層 (どのチャネルか判定できない
+  // 段階) の catch-all。
+  // INV-EMBEDDING-INTEGRITY-004 の landing に必要 (ADR-0018 §Decision 2,
+  // §Migration Path Step 5)。
+  //
+  // Catch-all for all scenarios where a fork child terminates before sending
+  // the `done` IPC message: (a) non-zero exit, (b) signal termination
+  // (SIGKILL/SIGTERM/SIGSEGV/SIGABRT), (c) heartbeat timeout (60s default),
+  // (d) IPC disconnect without `done`. `text_child_abnormal_exit` /
+  // `visual_child_abnormal_exit` cover post-channel-identification abnormal
+  // exits; this value covers the orchestrator layer (pre-channel-identification).
+  // Required to land INV-EMBEDDING-INTEGRITY-004 (ADR-0018 §Decision 2,
+  // §Migration Path Step 5).
+  "fork_terminated_before_done",
+  // Terminal transition (completed / failed) を実行する直前の
+  // `SELECT COUNT(*) FROM component_part_embeddings WHERE web_page_id=? AND relation=?`
+  // が `returnvalue.generatedCount` と strict equal しないケース。
+  // INV-EMBEDDING-INTEGRITY-001 の parity check 失敗に対応。terminal
+  // transition を abort し `failed + skipReason='parity_check_failed'` に遷移。
+  // skipDetail には `expected=<n> actual=<m> delta=<d>` を設定 (数値のみ、
+  // URL / stack trace / user 識別子は混入禁止)。
+  // (ADR-0018 §Decision 4, §Migration Path Step 4, §7 Threat Model T.3)。
+  //
+  // Case where the `SELECT COUNT(*) FROM component_part_embeddings WHERE
+  // web_page_id=? AND relation=?` just before terminal transition
+  // (completed / failed) does not strictly equal `returnvalue.generatedCount`.
+  // Corresponds to INV-EMBEDDING-INTEGRITY-001 parity-check failure. Aborts
+  // terminal transition and moves to `failed + skipReason='parity_check_failed'`.
+  // `skipDetail` is set to `expected=<n> actual=<m> delta=<d>` (numeric only;
+  // URLs / stack traces / user identifiers are prohibited).
+  // (ADR-0018 §Decision 4, §Migration Path Step 4, §7 Threat Model T.3.)
+  "parity_check_failed",
+  // ==========================================================================
+  // ADR-0018 §Decision 3 Amendment (v0.4.0 PR-D-2, IO Registry UC-01):
+  // Part visual embedding ループで boundingBox が invalid (null / 型不一致 /
+  // width<=0 / height<=0) により crop 不可となり skip された場合の観測用
+  // catch-all。従来は silent drop (continue) されていたが本値の enum 化 + counter
+  // 計上 (`EmbeddingPhaseResult.partVisualSkippedBboxInvalid`) により
+  // INV-EMBEDDING-INTEGRITY-005 を landing する。
+  //
+  // `skipReasonToBackfillStatus()` は本値を `skipped_fork_error` にマップし、
+  // 既存 fork/child-family と同じ retry bucket に載せる (IO Registry UC-01
+  // Option D、GDPR Art.5(1)(d) accuracy 遵守)。当初検討されていた
+  // `skipped_screenshot_missing` は `backfill-reconciliation.service.ts` で
+  // retry 対象外のため採用せず (Option B 撤回)。
+  // `skipDetail` への emit 形式は `bboxInvalid:<n>` (PII-free 数値のみ)。
+  //
+  // ADR-0018 §Decision 3 Amendment (v0.4.0 PR-D-2, IO Registry UC-01):
+  // Catch-all for observability when the Part visual embedding loop skips a
+  // part due to invalid boundingBox (null / non-number / width<=0 / height<=0).
+  // Previously a silent drop (continue); promoting to an enum + counter
+  // (`EmbeddingPhaseResult.partVisualSkippedBboxInvalid`) lands
+  // INV-EMBEDDING-INTEGRITY-005.
+  //
+  // `skipReasonToBackfillStatus()` maps this value to `skipped_fork_error`,
+  // sharing the retry bucket with the fork/child-family (IO Registry UC-01
+  // Option D, GDPR Art.5(1)(d) accuracy compliance). The initially-considered
+  // `skipped_screenshot_missing` was rejected because
+  // `backfill-reconciliation.service.ts` excludes it from retry (Option B
+  // withdrawn). `skipDetail` emit format is `bboxInvalid:<n>` (PII-free
+  // numeric only).
+  "bbox_invalid",
+  // ==========================================================================
+  // ADR-0018 §Decision 1 Supplement S3 (PR-D-9 Wave 4, C-02 + C-04):
+  // Playwright-residual catch-all. Emitted when `PartBboxPlaywrightService`
+  // 1st-pass `page.evaluate()` resolution fails AND the optional
+  // `BBOX_RESOLVE_RELOAD_ENABLED=true` reload pass either (a) is disabled,
+  // (b) exhausts its `BBOX_RESOLVE_RELOAD_ENABLED_MAX_RELOADS_PER_PAGE` cap
+  // (default 5), or (c) exhausts its `BBOX_RESOLVE_RELOAD_TOTAL_TIMEOUT_MS`
+  // cap (default 60000ms). Mutually exclusive with `bbox_invalid` per
+  // ADR-0018 §Decision 1 Supplement S3 decision-boundary contract:
+  //   - `bbox_invalid`     = JSDOM-origin catch-all (extraction-time, pre-Playwright)
+  //   - `bbox_unresolvable` = Playwright-residual catch-all (Phase 5/backfill,
+  //                            post-1st-pass + post-reload-budget exhaustion)
+  //
+  // `skipReasonToBackfillStatus()` maps this value to `skipped_fork_error`
+  // (same retry bucket as `bbox_invalid` per ADR-0018 §Decision 1 Supplement
+  // S3 mapping; `backfill-reconciliation.service.ts` retries up to 5 times
+  // before terminal `failed`).
+  //
+  // Emitted alongside `audit_logs.action='embedding_part_visual_skipped'`
+  // (per `AUDIT_ACTION_EMBEDDING_PART_VISUAL_SKIPPED` SSOT in
+  // `apps/mcp-server/src/audit/audit-actions.ts`); `details.skipReason` field
+  // carries this enum value, `details.targetId` is `truncateTargetId()` PII
+  // truncated.
+  //
+  // ADR-0018 §Decision 1 Supplement S3 (PR-D-9 Wave 4, C-02 + C-04):
+  // Playwright-residual catch-all. Emitted when 1st-pass resolution + optional
+  // reload pass both fail. Mutually exclusive with `bbox_invalid` (JSDOM-origin
+  // vs Playwright-residual). Maps to `skipped_fork_error` retry bucket.
+  // Audit logged via `embedding_part_visual_skipped` action SSOT.
+  "bbox_unresolvable",
 ] as const;
 
 /**
@@ -403,6 +514,22 @@ export interface EmbeddingPhaseResult {
   partEmbeddingsGenerated: number;
   /** Part visual embedding 生成数（DINOv2） */
   partVisualEmbeddingsGenerated: number;
+  /**
+   * Part visual embedding loop で boundingBox が invalid (null / non-number /
+   * width<=0 / height<=0) により skip された件数 (PR-D-2, INV-EMBEDDING-INTEGRITY-005)。
+   * 従来の silent drop (continue) を counter 計上に置換することで observability
+   * を担保する。Phase 5 完了時の `skipDetail` には `bboxInvalid:<n>` として
+   * encode され、run-level で全 part が bbox_invalid で skip された場合は
+   * `skipReason='bbox_invalid'` に promote される (§Plan 3.3)。
+   *
+   * Count of parts skipped by the Part visual embedding loop because the
+   * boundingBox is invalid (null / non-number / width<=0 / height<=0).
+   * Replaces the legacy silent-drop (`continue`) with an explicit counter,
+   * preserving observability (PR-D-2, INV-EMBEDDING-INTEGRITY-005). Encoded in
+   * `skipDetail` as `bboxInvalid:<n>` and promoted to run-level
+   * `skipReason='bbox_invalid'` when ALL parts are skipped this way (Plan §3.3).
+   */
+  partVisualSkippedBboxInvalid: number;
   /** Section visual embedding 生成数（DINOv2） */
   sectionVisualEmbeddingsGenerated: number;
   /** Embedding生成に失敗したチャンク数 */

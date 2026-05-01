@@ -62,6 +62,23 @@ export interface IngestPhaseDeps {
    * so Phase 5 Queue-based Backfill jobs can access it asynchronously.
    */
   screenshotPersistenceService: IScreenshotPersistenceService;
+  /**
+   * Phase 0 Early INSERT (PR-B / v0.4.0 PR7e P4) flag.
+   *
+   * When `true`, the orchestrator has already upserted a minimal
+   * `web_pages` row before Phase 0 starts (W0). This phase must therefore
+   * NOT overwrite `analysisStatus` in its own upsert (W1) — otherwise the
+   * failure-path `markAnalysisFailed` would race with Phase 0.5's "pending"
+   * write and the row could end up stuck in the wrong terminal state.
+   *
+   * `true` の場合、オーケストレーター側で Phase 0 開始前に `web_pages` 行が
+   * 先行 INSERT 済み (W0)。Phase 0.5 は自身の upsert (W1) で
+   * `analysisStatus` を再度書き換えてはならない (失敗パスの
+   * `markAnalysisFailed` と競合するため)。
+   *
+   * @default false
+   */
+  phase0EarlyInsertEnabled?: boolean;
 }
 
 // ============================================================================
@@ -90,6 +107,7 @@ export async function processIngestPhase(
   deps: IngestPhaseDeps
 ): Promise<Browser> {
   const { job, options, url, webPageId, statusTracker } = ctx;
+  const phase0EarlyInsertEnabled = deps.phase0EarlyInsertEnabled === true;
 
   // =====================================================
   // Phase 0: Ingest (HTML取得)
@@ -180,6 +198,17 @@ export async function processIngestPhase(
   // =====================================================
   // saveToDb が明示的に false でない限り、WebPageレコードを保存
   // これにより layout.inspect(pageId=webPageId) でのNOT_FOUNDを防止
+  //
+  // SAVETODB SEMANTICS — UNIFIED CONTRACT (FIND-PR-B-009):
+  // `options.layoutOptions?.saveToDb !== false` is the canonical gate
+  // (symmetric with W0 at `page-analyze-worker.ts:~1192`). See the full
+  // contract comment at the W0 site for the authoritative specification.
+  // Summary:
+  //   - `saveToDb === undefined` (default) → PERSIST
+  //   - `saveToDb === true` → PERSIST
+  //   - `saveToDb === false` → SKIP (explicit opt-out)
+  // Both sites MUST use `!== false` to preserve default behavior and keep
+  // W0/W1 in sync. See ADR-0016 Amendment 4 item (d).
   if (options.layoutOptions?.saveToDb !== false) {
     try {
       // HTMLをサニタイズ（XSS対策 - DB保存用）
@@ -197,26 +226,46 @@ export async function processIngestPhase(
 
       // WebPageテーブルに保存（upsert: URLが重複する場合は更新）
       // v0.1.0: upsertの結果から実際のIDを取得（既存レコードの場合は既存IDが返される）
+      //
+      // PR-B (v0.4.0 PR7e P4): `phase0EarlyInsertEnabled=true` のとき、
+      // オーケストレーターが W0 で既に `analysisStatus='pending'` を書き込み済み
+      // のため、ここでは `analysisStatus` を再度上書きしない (W1 の書込は
+      // `htmlContent` / `htmlHash` / `crawledAt` のみに限定)。
+      // これにより Phase 0 で例外が throw された直後に failure-path が
+      // `markAnalysisFailed` を呼んでも W1 と競合しない。
+      //
+      // PR-B (v0.4.0 PR7e P4): When `phase0EarlyInsertEnabled=true`, the
+      // orchestrator already wrote `analysisStatus='pending'` in W0, so this
+      // upsert must NOT overwrite `analysisStatus` (W1 now only writes
+      // `htmlContent` / `htmlHash` / `crawledAt`). This prevents W1 from
+      // racing with the failure-path `markAnalysisFailed` write.
+      const createData: Record<string, unknown> = {
+        id: webPageId,
+        url: normalizedUrl,
+        title: null,
+        description: null,
+        sourceType: "user_provided",
+        usageScope: "inspiration_only",
+        htmlContent: sanitizedHtml,
+        htmlHash,
+        crawledAt: new Date(),
+      };
+      const updateData: Record<string, unknown> = {
+        htmlContent: sanitizedHtml,
+        htmlHash,
+        crawledAt: new Date(),
+      };
+      if (!phase0EarlyInsertEnabled) {
+        // legacy 挙動: 自身で `analysisStatus='pending'` を書き込む
+        // legacy behavior: write `analysisStatus='pending'` here (W1 path)
+        createData.analysisStatus = "pending";
+        updateData.analysisStatus = "pending";
+      }
+
       const upsertResult = await deps.prisma.webPage.upsert({
         where: { url: normalizedUrl },
-        create: {
-          id: webPageId,
-          url: normalizedUrl,
-          title: null,
-          description: null,
-          sourceType: "user_provided",
-          usageScope: "inspiration_only",
-          htmlContent: sanitizedHtml,
-          htmlHash,
-          crawledAt: new Date(),
-          analysisStatus: "pending",
-        },
-        update: {
-          htmlContent: sanitizedHtml,
-          htmlHash,
-          crawledAt: new Date(),
-          analysisStatus: "pending",
-        },
+        create: createData,
+        update: updateData,
         select: { id: true },
       });
 

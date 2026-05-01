@@ -29,7 +29,9 @@ vi.mock("../../../src/config/redis", () => ({
 
 vi.mock("../../../src/queues/page-analyze-queue", () => ({
   createPageAnalyzeQueue: vi.fn(),
-  addPageAnalyzeJob: vi.fn(),
+  // PR-D-6 Phase 2: migrate legacy `addPageAnalyzeJob` → with-guard SSOT.
+  // The batch-analyze tool now imports `addPageAnalyzeJobWithGuard`.
+  addPageAnalyzeJobWithGuard: vi.fn(),
   closeQueue: vi.fn(),
 }));
 
@@ -84,7 +86,7 @@ vi.mock("../../../src/utils/logger", () => ({
 import { isRedisAvailable, getRedisClient } from "../../../src/config/redis";
 import {
   createPageAnalyzeQueue,
-  addPageAnalyzeJob,
+  addPageAnalyzeJobWithGuard,
   closeQueue,
 } from "../../../src/queues/page-analyze-queue";
 import { getWorkerSupervisor } from "../../../src/services/worker-supervisor.service";
@@ -130,6 +132,11 @@ describe("page.batch_analyze Tool", () => {
 
   const mockWorkerSupervisor = {
     ensureWorkerRunning: vi.fn(),
+    // PR-D-9 Wave 1 (C-11): bootstrapWorkersForPageAnalyze defaults to
+    // staggered spawn; add mock to satisfy the new helper's call surface.
+    // PR-D-9 Wave 1 (C-11): bootstrapWorkersForPageAnalyze はデフォルトで
+    // staggered spawn を呼ぶため新 helper の call surface に合わせ mock 追加。
+    ensureAllWorkersRunningStaggered: vi.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(() => {
@@ -153,7 +160,14 @@ describe("page.batch_analyze Tool", () => {
     (isUrlAllowedByRobotsTxt as Mock).mockResolvedValue({ allowed: true });
 
     // デフォルト: ジョブ投入成功
-    (addPageAnalyzeJob as Mock).mockResolvedValue({ id: "job-001" });
+    // PR-D-6 Phase 2: with-guard SSOT returns `EnqueueResult` discriminated
+    // union (`enqueued_new` variant for happy path). Tool reads `.jobId` and
+    // `.outcome`; legacy `{ id }` shape from `Job<T>` no longer applies.
+    (addPageAnalyzeJobWithGuard as Mock).mockResolvedValue({
+      outcome: "enqueued_new",
+      jobId: "job-001",
+      collision: null,
+    });
 
     // Redis: アクティブバッチなし
     mockRedisClient.keys.mockResolvedValue([]);
@@ -300,9 +314,10 @@ describe("page.batch_analyze Tool", () => {
 
     it("正常投入成功: batch_id, jobIds を含むレスポンスを返す", async () => {
       // Arrange
-      (addPageAnalyzeJob as Mock)
-        .mockResolvedValueOnce({ id: "job-001" })
-        .mockResolvedValueOnce({ id: "job-002" });
+      // PR-D-6 Phase 2: `EnqueueResult` `enqueued_new` variant per URL.
+      (addPageAnalyzeJobWithGuard as Mock)
+        .mockResolvedValueOnce({ outcome: "enqueued_new", jobId: "job-001", collision: null })
+        .mockResolvedValueOnce({ outcome: "enqueued_new", jobId: "job-002", collision: null });
 
       (validateExternalUrl as Mock)
         .mockReturnValueOnce({ valid: true, normalizedUrl: VALID_URL_1 })
@@ -323,8 +338,12 @@ describe("page.batch_analyze Tool", () => {
         expect(result.data.message).toContain("queued");
       }
 
-      // Worker起動が確認されたこと
-      expect(mockWorkerSupervisor.ensureWorkerRunning).toHaveBeenCalled();
+      // Worker起動が確認されたこと (PR-D-9 Wave 1: bootstrapWorkersForPageAnalyze
+      // が default `ENABLE_BACKFILL_AUTOSPAWN` 未設定 → staggered spawn を呼ぶため、
+      // 旧 `ensureWorkerRunning` ではなく `ensureAllWorkersRunningStaggered` が呼ばれる)
+      // PR-D-9 Wave 1: bootstrap helper invokes staggered spawn by default
+      // (ENABLE_BACKFILL_AUTOSPAWN unset).
+      expect(mockWorkerSupervisor.ensureAllWorkersRunningStaggered).toHaveBeenCalled();
       // キューがクローズされたこと
       expect(closeQueue).toHaveBeenCalledWith(mockQueue);
     });
@@ -350,7 +369,9 @@ describe("page.batch_analyze Tool", () => {
 
     it("ジョブ投入エラー時にINTERNAL_ERRORを返す", async () => {
       // Arrange
-      (addPageAnalyzeJob as Mock).mockRejectedValue(new Error("BullMQ connection timeout"));
+      (addPageAnalyzeJobWithGuard as Mock).mockRejectedValue(
+        new Error("BullMQ connection timeout")
+      );
 
       // Act
       const result = await pageBatchAnalyzeHandler({ urls: [VALID_URL_1] });
@@ -421,7 +442,7 @@ describe("page.batch_analyze Tool", () => {
 
     it("エラーメッセージがサニタイズされる（内部エラー漏洩なし）", async () => {
       // Arrange — BullMQ内部エラーを発生
-      (addPageAnalyzeJob as Mock).mockRejectedValue(
+      (addPageAnalyzeJobWithGuard as Mock).mockRejectedValue(
         new Error("INTERNAL: Redis connection at 127.0.0.1:27379 refused, AUTH failed")
       );
 
@@ -448,7 +469,11 @@ describe("page.batch_analyze Tool", () => {
         .mockResolvedValueOnce({ allowed: true })
         .mockResolvedValueOnce({ allowed: false, reason: "Disallow: /" });
 
-      (addPageAnalyzeJob as Mock).mockResolvedValueOnce({ id: "job-001" });
+      (addPageAnalyzeJobWithGuard as Mock).mockResolvedValueOnce({
+        outcome: "enqueued_new",
+        jobId: "job-001",
+        collision: null,
+      });
 
       // Act
       const result = await pageBatchAnalyzeHandler({
@@ -471,7 +496,11 @@ describe("page.batch_analyze Tool", () => {
         .mockReturnValueOnce({ valid: true, normalizedUrl: VALID_URL_1 })
         .mockReturnValueOnce({ valid: false, error: "SSRF blocked" });
 
-      (addPageAnalyzeJob as Mock).mockResolvedValueOnce({ id: "job-001" });
+      (addPageAnalyzeJobWithGuard as Mock).mockResolvedValueOnce({
+        outcome: "enqueued_new",
+        jobId: "job-001",
+        collision: null,
+      });
 
       // Act
       const result = await pageBatchAnalyzeHandler({

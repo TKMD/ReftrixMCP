@@ -88,6 +88,7 @@ vi.mock("../../src/workers/phases/phase-5-embedding", () => ({
   runVisualEmbeddingSubPhases: vi.fn(async () => ({
     sectionVisualEmbeddingsGenerated: 0,
     partVisualEmbeddingsGenerated: 0,
+    partVisualSkippedBboxInvalid: 0,
     embeddingFailedChunks: 0,
   })),
 }));
@@ -292,6 +293,7 @@ describe("SectionVisualProcessor DINOv2 integration (v0.4.0 PR7b)", () => {
       vi.mocked(runVisualEmbeddingSubPhases).mockResolvedValueOnce({
         sectionVisualEmbeddingsGenerated: 4,
         partVisualEmbeddingsGenerated: 0,
+        partVisualSkippedBboxInvalid: 0,
         embeddingFailedChunks: 0,
       });
 
@@ -329,6 +331,7 @@ describe("SectionVisualProcessor DINOv2 integration (v0.4.0 PR7b)", () => {
       vi.mocked(runVisualEmbeddingSubPhases).mockResolvedValueOnce({
         sectionVisualEmbeddingsGenerated: 3,
         partVisualEmbeddingsGenerated: 0,
+        partVisualSkippedBboxInvalid: 0,
         embeddingFailedChunks: 1, // one chunk failed
       });
 

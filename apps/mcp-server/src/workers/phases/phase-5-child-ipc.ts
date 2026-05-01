@@ -183,11 +183,20 @@ export const childTextResultSchema = z.object({
 
 /**
  * Child → Parent: Visual embedding result (success)
+ *
+ * PR-D-2 (INV-EMBEDDING-INTEGRITY-005): `partVisualSkippedBboxInvalid` を
+ * additive に optional 追加。古い child からの message (field 欠落) は
+ * Zod default で 0 扱いになり後方互換を維持する。
+ *
+ * PR-D-2 (INV-EMBEDDING-INTEGRITY-005): additively added optional
+ * `partVisualSkippedBboxInvalid`. Legacy child messages (missing this field)
+ * default to 0 via Zod, preserving backward compatibility.
  */
 export const childVisualResultSchema = z.object({
   type: z.literal("visual-result"),
   sectionVisualEmbeddingsGenerated: z.number().int().min(0),
   partVisualEmbeddingsGenerated: z.number().int().min(0),
+  partVisualSkippedBboxInvalid: z.number().int().min(0).optional().default(0),
   embeddingFailedChunks: z.number().int().min(0),
 });
 
@@ -323,21 +332,29 @@ export function appendConnectionLimit(databaseUrl: string, limit: number): strin
 // counts, making monitoring independent of the parent's RSS footprint.
 
 /** RSS delta warning threshold (MB) — log warning when child-allocated
- *  memory exceeds this delta. Default 2048 MB (2GB): ONNX + Sharp typically
- *  add ~1-1.5GB, so a delta above 2GB indicates unusual growth.
+ *  memory exceeds this delta. Default 2560 MB (2.5GB): ONNX e5-base CPU mode
+ *  allocates ~2.3GB via glibc sbrk heap, so a delta above 2.5GB indicates
+ *  unusual growth beyond the expected e5-base footprint.
  *  RSS delta 警告閾値 (MB) — 子プロセスが割り当てたメモリ delta がこの値を
- *  超えた場合にログ警告を出す。デフォルト 2048 MB (2GB)。 */
-const RAW_CHILD_RSS_WARN_DELTA_MB = safeParseInt(process.env.PHASE5_CHILD_RSS_WARN_DELTA_MB, 2048, {
+ *  超えた場合にログ警告を出す。デフォルト 2560 MB (2.5GB)。ONNX e5-base CPU
+ *  モードは glibc sbrk ヒープ経由で ~2.3GB を割り当てるため、2.5GB 超は異常。*/
+const RAW_CHILD_RSS_WARN_DELTA_MB = safeParseInt(process.env.PHASE5_CHILD_RSS_WARN_DELTA_MB, 2560, {
   min: 256,
   max: 16384,
 });
 
 /** RSS delta kill threshold (MB) — child self-terminates when the delta
- *  exceeds this value. Default 3072 MB (3GB): ONNX + Sharp + glibc overhead
- *  above 3GB of child-allocated memory indicates a leak.
+ *  exceeds this value. Default 4096 MB (4GB): ONNX e5-base CPU mode allocates
+ *  ~3.1GB delta via glibc sbrk heap (observed on reftrix.io: delta=3121MB at
+ *  kill). Previous default 3072MB was insufficient for CPU-only embedding.
+ *  Fork children are short-lived — OS reclaims all memory on exit(0).
+ *
+ *  β2-P1: 3072→4096 に引き上げ。e5-base CPU 推論の glibc sbrk ヒープ使用量が
+ *  ~3.1GB delta に達するため、以前のデフォルト 3072MB では不足。fork 子プロセスは
+ *  短命であり exit(0) 時に OS が全メモリを回収するため安全。
  *  RSS delta 強制終了閾値 (MB) — delta がこの値を超えた場合に子プロセスが
- *  自己終了する。デフォルト 3072 MB (3GB)。 */
-const RAW_CHILD_RSS_KILL_DELTA_MB = safeParseInt(process.env.PHASE5_CHILD_RSS_KILL_DELTA_MB, 3072, {
+ *  自己終了する。デフォルト 4096 MB (4GB)。 */
+const RAW_CHILD_RSS_KILL_DELTA_MB = safeParseInt(process.env.PHASE5_CHILD_RSS_KILL_DELTA_MB, 4096, {
   min: 512,
   max: 32768,
 });
@@ -354,9 +371,9 @@ function validateRssDeltaThresholds(warn: number, kill: number): { warn: number;
   if (kill <= warn) {
     console.warn(
       `[Phase5-IPC] Invalid RSS delta thresholds: kill (${kill}MB) must be > warn (${warn}MB). ` +
-        `Falling back to defaults: warnDelta=2048, killDelta=3072.`
+        `Falling back to defaults: warnDelta=2560, killDelta=4096.`
     );
-    return { warn: 2048, kill: 3072 };
+    return { warn: 2560, kill: 4096 };
   }
   return { warn, kill };
 }

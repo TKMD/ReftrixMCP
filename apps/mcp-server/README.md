@@ -746,8 +746,8 @@ Graceful Degradation: Redis未接続時はインメモリフォールバック /
 
 ### エラーメッセージサニタイズ / Error Message Sanitization (CWE-209)
 
-`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。<!-- gen:sanitize-usage-count -->85<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->39<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->79<!-- /gen:sanitize-import-count -->ファイルでインポート）。
-`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to <!-- gen:sanitize-usage-count -->85<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->39<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->79<!-- /gen:sanitize-import-count --> import files).
+`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。<!-- gen:sanitize-usage-count -->101<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->39<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->94<!-- /gen:sanitize-import-count -->ファイルでインポート）。
+`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to <!-- gen:sanitize-usage-count -->101<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->39<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->94<!-- /gen:sanitize-import-count --> import files).
 
 ---
 
@@ -1118,6 +1118,8 @@ Redisが未設定の場合、非同期モードは使用できません（同期
 ## ライセンス / License
 
 AGPL-3.0-only -- 詳細は [LICENSE](../../LICENSE) を参照 / See [LICENSE](../../LICENSE) for details
+
+すべての source file は AGPL §5(a) prominent notices requirement に従い `// SPDX-License-Identifier: AGPL-3.0-only` header を含む。`scripts/sync-oss.sh` Step 1.5b で SPDX integrity check が CI 強制。 / All source files include the `// SPDX-License-Identifier: AGPL-3.0-only` header per AGPL §5(a) prominent notices requirement. SPDX integrity is CI-enforced via `scripts/sync-oss.sh` Step 1.5b.
 
 ---
 

@@ -43,7 +43,7 @@ import type { PrismaClient } from "@prisma/client";
 import type { Queue } from "bullmq";
 import { z } from "zod";
 import {
-  BACKFILLABLE_CATEGORIES,
+  EMBEDDING_BACKFILL_CATEGORIES,
   SKIP_RECOVERY_RETRY_CAP,
   buildBackfillJobId,
   checkBackfillQueueBackPressure,
@@ -52,6 +52,7 @@ import {
   type EmbeddingBackfillJobResult,
 } from "../queues/embedding-backfill-queue";
 import { enqueueAllCategoriesForSkipRecovery } from "../queues/embedding-backfill-processors";
+import { computeRemainingStatusWithPrisma } from "./backfill-status.helper";
 import { getAuditLogService } from "./audit-log.service";
 import { logger } from "../utils/logger";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
@@ -309,45 +310,6 @@ async function fetchStaleSkippedPages(
 }
 
 /**
- * 指定ページに残っている embedding 欠損件数を返す。0 なら completed。
- * Returns remaining embedding gaps for a page. Zero means complete.
- */
-async function countRemainingGaps(
-  prisma: PrismaClient,
-  webPageId: string
-): Promise<{ textPending: number; visualPending: number }> {
-  const [textRows, visualRows] = await Promise.all([
-    prisma.$queryRawUnsafe<Array<{ count: bigint | string }>>(
-      `SELECT COUNT(*)::bigint AS count FROM component_parts cp
-       LEFT JOIN component_part_embeddings cpe ON cp.id = cpe.component_part_id
-       WHERE cp.web_page_id = $1::uuid
-         AND cp.pii_risk_level != 'high'
-         AND (cpe.id IS NULL OR cpe.text_embedding IS NULL)`,
-      webPageId
-    ),
-    prisma.$queryRawUnsafe<Array<{ count: bigint | string }>>(
-      `SELECT COUNT(*)::bigint AS count FROM component_parts cp
-       JOIN component_part_embeddings cpe ON cp.id = cpe.component_part_id
-       WHERE cp.web_page_id = $1::uuid
-         AND cp.pii_risk_level != 'high'
-         AND cpe.visual_embedding IS NULL`,
-      webPageId
-    ),
-  ]);
-
-  const parse = (rows: Array<{ count: bigint | string }>): number => {
-    const raw = rows[0]?.count ?? 0;
-    const n = typeof raw === "bigint" ? Number(raw) : Number.parseInt(String(raw), 10);
-    return Number.isFinite(n) && n >= 0 ? n : 0;
-  };
-
-  return {
-    textPending: parse(textRows),
-    visualPending: parse(visualRows),
-  };
-}
-
-/**
  * Queue 側に `<webPageId>__<category>` のどれかが active/waiting/delayed として
  * 残っているかを確認する。
  * Checks whether any `<webPageId>__<category>` job is still active/waiting/delayed
@@ -357,7 +319,7 @@ async function hasActiveQueueJob(
   queue: Queue<EmbeddingBackfillJobData, EmbeddingBackfillJobResult>,
   webPageId: string
 ): Promise<boolean> {
-  for (const category of BACKFILLABLE_CATEGORIES) {
+  for (const category of EMBEDDING_BACKFILL_CATEGORIES) {
     const jobId = buildBackfillJobId(webPageId, category);
     const job = await queue.getJob(jobId);
     if (!job) continue;
@@ -480,17 +442,51 @@ async function reconcileInProgressRows(args: {
       }
       result.staleDetected += 1;
 
-      const { textPending, visualPending } = await countRemainingGaps(prisma, row.id);
+      // v0.4.0 PR7e-β2 carryover (SSOT unification): Worker SSOT の
+      // `computeRemainingStatus` を再利用し、7 カテゴリ全ての backfill-eligible 件数で
+      // 真の残余を判定する。旧 `countRemainingGaps` は part_text / part_visual の 2
+      // カテゴリのみかつ backfill-eligible 絞り込みなし (blank image skip / section
+      // カバー外 parts を pending にカウント) だったため、backfill 成功後も
+      // reconciliation が誤って `failed` に遷移させる誤判定を引き起こしていた。
+      // `computeRemainingStatus` は backfill worker 側と同じロジックで判定するため、
+      // Worker と Reconciliation の判定結果が SSOT で同期する。
+      //
+      // v0.4.0 PR7e-β2 carryover (SSOT unification): Reuses the worker's SSOT
+      // `computeRemainingStatus` so all 7 backfill-eligible categories are considered.
+      // The former `countRemainingGaps` covered only part_text / part_visual without
+      // any backfill-eligible narrowing (blank image skips and out-of-section parts
+      // counted as pending), which caused reconciliation to mis-transition rows to
+      // `failed` even after a successful backfill. Using `computeRemainingStatus`
+      // keeps the worker and reconciliation in lockstep.
+      //
+      // TODO: Stripe で観測された motion_embeddings 0 件の別件調査は別 PR で扱う
+      //       (Phase 5 motion embedding が生成されなかった真因の調査、scope 外)。
+      // TODO: Stripe-observed motion_embeddings 0-count issue is out of scope —
+      //       follow-up PR to investigate why Phase 5 did not generate motion embeddings.
+      // v0.4.0 PR-D-4: `computeRemainingStatusWithPrisma` は `{finalStatus, pendingSnapshot}`
+      // を返す single-query refactor 後の API。reconciliation は finalStatus のみ
+      // 参照する (pendingSnapshot は parity-check 用で reconciliation とは別契約)。
+      // v0.4.0 PR-D-4: `computeRemainingStatusWithPrisma` now returns
+      // `{finalStatus, pendingSnapshot}` after the single-query refactor.
+      // Reconciliation only consumes `finalStatus` (pendingSnapshot belongs to
+      // the parity-check contract and is not used here).
+      const { finalStatus: remainingStatus } = await computeRemainingStatusWithPrisma(
+        row.id,
+        prisma
+      );
+      // reconciliation の責務は stale 行の status pin。
+      // `completed` はそのまま、`in_progress` 相当 (残余あり) は `failed` に固定。
+      // reconciliation pins stale rows. `completed` maps through; any remaining
+      // (`in_progress`) is pinned to `failed`.
       const newStatus: "completed" | "failed" =
-        textPending === 0 && visualPending === 0 ? "completed" : "failed";
+        remainingStatus === "completed" ? "completed" : "failed";
 
       if (dryRun) {
         // PR6 SEC LOW-2: dry-run は DB 書き込みをスキップし target 一覧を logger.info 出力
         // PR6 SEC LOW-2: dry-run skips DB writes and logs the target list
         logger.info("[BackfillReconciliation] [dry-run] Would reconcile in_progress page", {
           webPageId: row.id.slice(0, 8) + "...",
-          textPending,
-          visualPending,
+          remainingStatus,
           wouldTransitionTo: newStatus,
           stalenessMs: Date.now() - row.startedAt.getTime(),
         });
@@ -521,8 +517,7 @@ async function reconcileInProgressRows(args: {
       result.remediated += 1;
       logger.info("[BackfillReconciliation] Reconciled stale in_progress page", {
         webPageId: row.id.slice(0, 8) + "...",
-        textPending,
-        visualPending,
+        remainingStatus,
         newStatus,
         stalenessMs: Date.now() - row.startedAt.getTime(),
       });

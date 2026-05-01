@@ -160,3 +160,146 @@ describe("PR7e-α: disposePhase4Memory runtime (Revert of PR7b null assignments,
     expect(state.layoutResultForNarrative).toEqual({ large: "object" });
   });
 });
+
+// ==========================================================================
+// PR7e-β2 P0-2: Selective intermediate disposal
+// PR7e-β2 P0-2: 選択的な中間データ破棄
+//
+// Phase 5 が使う reference (patterns / scrollTriggeredAnimations / cdpAnimations
+// / webAnimations / libraries / sections) は保持しつつ、Phase 5 が使わない
+// 中間フィールド (frame_capture / webgl_animations / video_info /
+// scrollVisionResult.analyses 等) を破棄することを検証する。
+//
+// Asserts that Phase 5 inputs (patterns / scrollTriggeredAnimations /
+// cdpAnimations / webAnimations / libraries / sections) survive disposal,
+// while Phase 5-unused intermediate fields (frame_capture / webgl_animations
+// / video_info / scrollVisionResult.analyses, etc.) are dropped.
+// ==========================================================================
+
+interface RichPipelineState extends MinimalPipelineState {
+  motionResultForEmbedding: {
+    success?: boolean;
+    patterns?: Array<{ id: string; name: string }>;
+    // Drop targets / 破棄対象
+    frame_capture?: { frames: number };
+    frame_analysis?: { diffs: number };
+    webgl_animations?: { patterns: string[] };
+    video_info?: { recorded_url: string };
+    runtime_info?: { wait_time_used: number };
+    warnings?: string[];
+    js_animation_summary?: { totalDetected: number };
+    js_animations?: { cdpAnimations: string[] };
+  } | null;
+  scrollVisionResultForEmbedding: {
+    scrollTriggeredAnimations?: Array<{ element: string }>;
+    // Drop target / 破棄対象
+    analyses?: Array<{ visualImpression: string }>;
+    captureCount?: number;
+  } | null;
+}
+
+describe("PR7e-β2 P0-2: disposePhase4Memory selective intermediate disposal", () => {
+  let disposePhase4Memory: (
+    state: RichPipelineState
+  ) => Promise<{ beforeRssMb: number; afterRssMb: number; reclaimedMb: number }>;
+
+  beforeAll(async () => {
+    const mod = await import("../../src/workers/page-analyze-worker");
+    disposePhase4Memory = mod.disposePhase4Memory as never;
+  });
+
+  function makeRichState(): RichPipelineState {
+    return {
+      layoutResultForNarrative: { sections: [{ id: "s1" }] },
+      motionResultForEmbedding: {
+        success: true,
+        patterns: [{ id: "p1", name: "fade" }],
+        frame_capture: { frames: 200 },
+        frame_analysis: { diffs: 199 },
+        webgl_animations: { patterns: ["a", "b"] },
+        video_info: { recorded_url: "/tmp/foo.webm" },
+        runtime_info: { wait_time_used: 5000 },
+        warnings: ["w1"],
+        js_animation_summary: { totalDetected: 5 },
+        js_animations: { cdpAnimations: ["a"] },
+      },
+      jsAnimationsForEmbedding: {
+        cdpAnimations: ["c1"],
+        webAnimations: ["w1"],
+        libraries: { gsap: { detected: true } },
+      },
+      scrollVisionResultForEmbedding: {
+        scrollTriggeredAnimations: [{ element: "div.hero" }],
+        analyses: [{ visualImpression: "verbose Ollama Vision raw response" }],
+        captureCount: 3,
+      },
+      screenshotPngPath: "/tmp/reftrix-screenshots/phase5/xyz.png",
+      html: "<html>preserved</html>",
+      screenshotBase64: "AAAA",
+    };
+  }
+
+  it("MotionServiceResult: patterns を保持する / preserves motion patterns", async () => {
+    const state = makeRichState();
+    await disposePhase4Memory(state);
+    expect(state.motionResultForEmbedding?.patterns).toEqual([{ id: "p1", name: "fade" }]);
+    expect(state.motionResultForEmbedding?.success).toBe(true);
+  });
+
+  it("MotionServiceResult: frame_capture / frame_analysis を破棄する / drops frame buffers", async () => {
+    const state = makeRichState();
+    await disposePhase4Memory(state);
+    expect(state.motionResultForEmbedding?.frame_capture).toBeUndefined();
+    expect(state.motionResultForEmbedding?.frame_analysis).toBeUndefined();
+  });
+
+  it("MotionServiceResult: webgl_animations / video_info / runtime_info を破棄する / drops Phase 5-unused fields", async () => {
+    const state = makeRichState();
+    await disposePhase4Memory(state);
+    expect(state.motionResultForEmbedding?.webgl_animations).toBeUndefined();
+    expect(state.motionResultForEmbedding?.video_info).toBeUndefined();
+    expect(state.motionResultForEmbedding?.runtime_info).toBeUndefined();
+    expect(state.motionResultForEmbedding?.warnings).toBeUndefined();
+  });
+
+  it("MotionServiceResult: 冗長な js_animations / js_animation_summary を破棄する / drops redundant js_animations (preserved separately as jsAnimationsForEmbedding)", async () => {
+    const state = makeRichState();
+    await disposePhase4Memory(state);
+    expect(state.motionResultForEmbedding?.js_animations).toBeUndefined();
+    expect(state.motionResultForEmbedding?.js_animation_summary).toBeUndefined();
+    // jsAnimationsForEmbedding は独立保持されているので Phase 5 が使える
+    expect(state.jsAnimationsForEmbedding).toEqual({
+      cdpAnimations: ["c1"],
+      webAnimations: ["w1"],
+      libraries: { gsap: { detected: true } },
+    });
+  });
+
+  it("ScrollVisionResult: scrollTriggeredAnimations を保持し analyses を破棄する / preserves scrollTriggeredAnimations, drops analyses", async () => {
+    const state = makeRichState();
+    await disposePhase4Memory(state);
+    expect(state.scrollVisionResultForEmbedding?.scrollTriggeredAnimations).toEqual([
+      { element: "div.hero" },
+    ]);
+    expect(state.scrollVisionResultForEmbedding?.analyses).toBeUndefined();
+    expect(state.scrollVisionResultForEmbedding?.captureCount).toBe(3);
+  });
+
+  it("layoutResultForNarrative.sections を Phase 5 入力として保持する / preserves layout sections for Phase 5", async () => {
+    const state = makeRichState();
+    await disposePhase4Memory(state);
+    expect(state.layoutResultForNarrative).toEqual({ sections: [{ id: "s1" }] });
+  });
+
+  it("motionResultForEmbedding が null でも例外を投げない / null motionResult is safe", async () => {
+    const state = makeRichState();
+    state.motionResultForEmbedding = null;
+    await expect(disposePhase4Memory(state)).resolves.toBeDefined();
+  });
+
+  it("scrollVisionResultForEmbedding が null でも例外を投げない / null scrollVisionResult is safe", async () => {
+    const state = makeRichState();
+    state.scrollVisionResultForEmbedding = null;
+    await expect(disposePhase4Memory(state)).resolves.toBeDefined();
+  });
+});

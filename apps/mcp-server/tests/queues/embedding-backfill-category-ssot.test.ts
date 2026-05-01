@@ -5,19 +5,25 @@
  * Embedding Backfill Category SSOT Tests (v0.4.0 PR7a-2)
  *
  * SSOT である `EMBEDDING_BACKFILL_CATEGORIES` 配列・`EmbeddingBackfillCategory`
- * 型・`EmbeddingBackfillJobDataSchema.category` enum・`BACKFILLABLE_CATEGORIES`
- * エイリアスがすべて同じ 7 カテゴリで一致していることを検証する。
+ * 型・`EmbeddingBackfillJobDataSchema.category` enum がすべて同じ 7 カテゴリで
+ * 一致していることを検証する。
+ *
+ * Note: PR-D-9-patch Batch D-2 で `BACKFILLABLE_CATEGORIES` legacy alias を削除済み
+ * (FIND-IMPL-TDA-PATCH-03)。新規コードは `EMBEDDING_BACKFILL_CATEGORIES` のみを使用。
  *
  * Verifies the SSOT consistency across the `EMBEDDING_BACKFILL_CATEGORIES` array,
- * the `EmbeddingBackfillCategory` type, the Zod enum in
- * `EmbeddingBackfillJobDataSchema.category`, and the `BACKFILLABLE_CATEGORIES`
- * legacy alias — all must enumerate the same 7 categories.
+ * the `EmbeddingBackfillCategory` type, and the Zod enum in
+ * `EmbeddingBackfillJobDataSchema.category` — all must enumerate the same 7
+ * categories.
+ *
+ * Note: PR-D-9-patch Batch D-2 removed the `BACKFILLABLE_CATEGORIES` legacy
+ * alias (FIND-IMPL-TDA-PATCH-03). New code must reference
+ * `EMBEDDING_BACKFILL_CATEGORIES` only.
  */
 
 import { describe, it, expect } from "vitest";
 import {
   EMBEDDING_BACKFILL_CATEGORIES,
-  BACKFILLABLE_CATEGORIES,
   EmbeddingBackfillJobDataSchema,
   type EmbeddingBackfillCategory,
 } from "../../src/queues/embedding-backfill-queue";
@@ -49,13 +55,6 @@ describe("EmbeddingBackfillCategory SSOT (v0.4.0 PR7a-2)", () => {
   it("should have no duplicate categories", () => {
     const unique = new Set(EMBEDDING_BACKFILL_CATEGORIES);
     expect(unique.size).toBe(EMBEDDING_BACKFILL_CATEGORIES.length);
-  });
-
-  it("should share identity with BACKFILLABLE_CATEGORIES alias", () => {
-    // エイリアスは SSOT 配列と同一内容・同一順序
-    // Alias shares the same contents and order as the SSOT array
-    expect(BACKFILLABLE_CATEGORIES).toEqual(EMBEDDING_BACKFILL_CATEGORIES);
-    expect(BACKFILLABLE_CATEGORIES.length).toBe(EMBEDDING_BACKFILL_CATEGORIES.length);
   });
 
   it("should keep Zod enum in sync with the SSOT array", () => {

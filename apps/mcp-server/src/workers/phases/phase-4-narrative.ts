@@ -30,6 +30,8 @@ import {
   tryGarbageCollect,
 } from "./types";
 
+import { loadPhase5Config } from "../../config/phase5-config";
+
 // ============================================================================
 // NarrativePhaseDeps
 // ============================================================================
@@ -279,6 +281,38 @@ export async function processNarrativePhase(
       if (state.layoutResultForNarrative.sections) {
         for (const section of state.layoutResultForNarrative.sections) {
           delete section.htmlSnippet;
+        }
+      }
+
+      // PR7e-β1: Phase 4 → Phase 5 sections 件数上限 (ADR-0012 §3 BLOCKER 4)
+      // 大量セクション (例: Stripe 697 parts / ~100 sections) で Phase 5 の
+      // DINOv2 Visual Embedding 生成時の RSS 急増を防ぐ。
+      //
+      // PR7e-β1: Phase 4 → Phase 5 sections cap (ADR-0012 §3 BLOCKER 4)
+      // Prevents RSS spikes during per-section DINOv2 Visual Embedding on
+      // section-heavy pages (e.g. Stripe 697 parts / ~100 sections).
+      if (
+        Array.isArray(state.layoutResultForNarrative.sections) &&
+        state.layoutResultForNarrative.sections.length > 0
+      ) {
+        const { maxSectionsInput } = loadPhase5Config();
+        const originalCount = state.layoutResultForNarrative.sections.length;
+        if (originalCount > maxSectionsInput) {
+          state.layoutResultForNarrative.sections = state.layoutResultForNarrative.sections.slice(
+            0,
+            maxSectionsInput
+          );
+          logger.warn("[PageAnalyzeWorker] Phase 5 sections capped", {
+            originalCount,
+            cappedCount: maxSectionsInput,
+            dropped: originalCount - maxSectionsInput,
+            envVar: "PHASE5_MAX_SECTIONS_INPUT",
+          });
+        } else if (isDevelopment()) {
+          logger.debug("[PageAnalyzeWorker] Phase 5 sections within cap", {
+            sectionCount: originalCount,
+            cap: maxSectionsInput,
+          });
         }
       }
     }

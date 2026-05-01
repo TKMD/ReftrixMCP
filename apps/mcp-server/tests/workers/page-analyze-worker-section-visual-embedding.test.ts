@@ -174,9 +174,15 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
     });
 
     it("EmbeddingPhaseResult should include sectionVisualEmbeddingsGenerated field", () => {
+      // PR-D-2: widened slice from 800 → 1600 bytes to accommodate
+      // partVisualSkippedBboxInvalid field + extensive JSDoc (ADR-0018 §Decision 3
+      // Amendment, INV-EMBEDDING-INTEGRITY-005).
+      //
+      // PR-D-2: widened slice from 800 → 1600 bytes to accommodate the new
+      // partVisualSkippedBboxInvalid field and its extensive JSDoc.
       const resultSection = workerSource.slice(
         workerSource.indexOf("interface EmbeddingPhaseResult"),
-        workerSource.indexOf("interface EmbeddingPhaseResult") + 800
+        workerSource.indexOf("interface EmbeddingPhaseResult") + 1600
       );
       expect(resultSection).toContain("sectionVisualEmbeddingsGenerated: number");
     });

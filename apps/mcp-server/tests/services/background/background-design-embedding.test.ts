@@ -334,7 +334,11 @@ describe("generateBackgroundDesignEmbeddings", () => {
     expect(result.generatedCount).toBe(1);
     expect(result.failedCount).toBe(1);
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]?.error).toContain("Model inference failed");
+    // PR-D-7 Wave 7.1 (UB-TPA-IMPL-01 / CWE-209): client-facing error.error は
+    // `sanitizeErrorMessage()` 経由で汎用化される。Raw error message
+    // ("Model inference failed") は server-side `logger.warn` のみに残る。
+    // PR-D-7 Wave 7.1 (UB-TPA-IMPL-01 / CWE-209): client-facing error は sanitize 後の汎用文字列。
+    expect(result.errors[0]?.error).toBe("An internal error occurred");
   });
 
   it("should skip backgrounds without ID mapping", async () => {

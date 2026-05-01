@@ -19,6 +19,7 @@
  */
 
 import { isDevelopment, logger } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 
 // =====================================================
 // 型定義
@@ -463,16 +464,25 @@ export async function generateBackgroundDesignEmbeddings(
       }
     } catch (error) {
       result.failedCount++;
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      // PR-D-7 Wave 7.1 (UB-TPA-IMPL-01): sanitize pass-through for shape (b)
+      // `{name, error}[]` to prevent CWE-209 Information Exposure Through an
+      // Error Message. Client-facing push goes through sanitizeErrorMessage();
+      // server-side logger preserves raw error.message for debugging.
+      // PR-D-7 Wave 7.1 (UB-TPA-IMPL-01): shape (b) `{name, error}[]` の
+      // client-facing push を sanitizeErrorMessage() 経由に統一し
+      // CWE-209 (Information Exposure Through an Error Message) を防止。
+      // server-side logger は debug 目的で raw error.message を保持。
+      const safeMessage = sanitizeErrorMessage(error);
+      const rawMessage = error instanceof Error ? error.message : "Unknown error";
       result.errors.push({
         name: bg.name,
-        error: errorMessage,
+        error: safeMessage,
       });
 
       logger.warn("[BackgroundDesignEmbedding] Embedding generation failed", {
         name: bg.name,
         backgroundDesignId,
-        error: errorMessage,
+        error: rawMessage,
       });
     }
 

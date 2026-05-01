@@ -448,7 +448,7 @@ describe("layout_first=auto 自動判定", () => {
 
     expect(motionOptions?.detect_js_animations).toBe(true);
     expect(motionOptions?.js_animation_options?.enableCDP).toBe(false);
-  });
+  }, 120_000); // Flaky mitigation: extended to 120s (same commit, run 25171073318 PASSed in 26.8s, run 25172265165 FAILed at 60s+) // CI環境での flaky 対策: 120s に延長 (run 25171073318 PASS 26.8s / run 25172265165 FAIL 60s+ で同 commit flaky 確定)
 
   it("通常サイトではlayout_firstモードが無効のまま", async () => {
     const input: PageAnalyzeInput = {

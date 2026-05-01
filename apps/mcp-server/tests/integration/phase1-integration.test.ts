@@ -21,6 +21,150 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
 
+// =============================================================================
+// v0.5.1 F4 (ADR-0020 Decision 4): LocalStorageProvider mock 化
+// =============================================================================
+// Phase 1 integration test の test 意図は **Phase 1 logic** (PlaywrightCrawler →
+// page.analyze の orchestration) の検証であり、storage backend の actual I/O
+// latency に依存する assertion は本来の test 責務外。
+//
+// ADR-0020 Decision 4 に従い、`LocalStorageProvider` を `vi.mock` で in-memory
+// fake に置換し、storage I/O timing を test path から構造的に撤去する。
+// Storage backend 自体の I/O は `tests/services/storage/local-storage.provider.test.ts`
+// (既存) および `tests/services/storage/memory-storage-provider.test.ts`
+// (v0.5.1 R-11 mandatory landing) で個別に cover する。
+//
+// NOTE / 注: Plan / ADR は historical reasons から `MemoryStorageProvider` と
+// 表記しているが、本 integration test での actual import target は
+// `LocalStorageProvider`。本 mock は同 class を in-memory fake で置換する。
+//
+// Per ADR-0020 Decision 4, replace `LocalStorageProvider` with an in-memory fake
+// via `vi.mock` to structurally remove storage I/O timing from this Phase 1
+// integration test. Direct storage I/O coverage lives in dedicated unit tests
+// (`local-storage.provider.test.ts` + `memory-storage-provider.test.ts`).
+// =============================================================================
+
+vi.mock("../../src/services/storage/local-storage.provider", async () => {
+  const path = await import("path");
+
+  // Module-level error class preserved for test assertions referencing
+  // `error.code === "PATH_TRAVERSAL"` etc.
+  class StorageError extends Error {
+    constructor(
+      public readonly code:
+        | "PATH_TRAVERSAL"
+        | "INVALID_KEY"
+        | "NOT_FOUND"
+        | "PERMISSION_DENIED"
+        | "UNKNOWN",
+      message: string,
+      public readonly cause?: unknown
+    ) {
+      super(message);
+      this.name = "StorageError";
+    }
+  }
+
+  // In-memory store keyed by `${baseDir}::${key}` to allow multiple provider
+  // instances per test without leaking state between them when `baseDir` differs.
+  const inMemoryStore = new Map<string, Buffer>();
+
+  // Path traversal heuristic mirrors `LocalStorageProvider.isPathTraversal`
+  // (`local-storage.provider.ts` lines 278-303) so security-related test
+  // assertions still exercise the same boundary contract.
+  function isPathTraversal(key: string): boolean {
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(key);
+    } catch {
+      decoded = key;
+    }
+    const dangerousPatterns = [/\.\./, /^\.\//, /^\//, /^[a-zA-Z]:\\/];
+    for (const pattern of dangerousPatterns) {
+      if (pattern.test(decoded) || pattern.test(key)) return true;
+    }
+    return false;
+  }
+
+  function validateKey(key: string): void {
+    if (!key || key.trim() === "") {
+      throw new StorageError("INVALID_KEY", "Key cannot be empty");
+    }
+    if (isPathTraversal(key)) {
+      throw new StorageError("PATH_TRAVERSAL", `Path traversal detected: ${key}`);
+    }
+  }
+
+  class MockLocalStorageProvider {
+    private readonly baseDir: string;
+
+    constructor(baseDir: string, _options?: unknown) {
+      this.baseDir = path.resolve(baseDir);
+    }
+
+    static createDefault(_options?: unknown): MockLocalStorageProvider {
+      return new MockLocalStorageProvider(path.join(os.tmpdir(), "reftrix-mock-storage"));
+    }
+
+    private mapKey(key: string): string {
+      return `${this.baseDir}::${key}`;
+    }
+
+    async upload(key: string, data: Buffer): Promise<string> {
+      validateKey(key);
+      // Defensive copy so callers mutating the original buffer cannot affect
+      // future reads (real fs writes are isolated; we mirror that semantic).
+      inMemoryStore.set(this.mapKey(key), Buffer.from(data));
+      return path.join(this.baseDir, key);
+    }
+
+    async download(key: string): Promise<Buffer> {
+      validateKey(key);
+      const buf = inMemoryStore.get(this.mapKey(key));
+      if (!buf) {
+        throw new StorageError("NOT_FOUND", `File not found: ${key}`);
+      }
+      return Buffer.from(buf);
+    }
+
+    async delete(key: string): Promise<void> {
+      validateKey(key);
+      const mk = this.mapKey(key);
+      if (!inMemoryStore.has(mk)) {
+        throw new StorageError("NOT_FOUND", `File not found: ${key}`);
+      }
+      inMemoryStore.delete(mk);
+    }
+
+    async exists(key: string): Promise<boolean> {
+      validateKey(key);
+      return inMemoryStore.has(this.mapKey(key));
+    }
+
+    async list(prefix?: string): Promise<string[]> {
+      if (prefix !== undefined) validateKey(prefix);
+      const baseScope = `${this.baseDir}::`;
+      const keys: string[] = [];
+      for (const k of inMemoryStore.keys()) {
+        if (!k.startsWith(baseScope)) continue;
+        const relative = k.slice(baseScope.length);
+        if (prefix === undefined || relative.startsWith(prefix)) {
+          keys.push(relative);
+        }
+      }
+      return keys;
+    }
+  }
+
+  return {
+    LocalStorageProvider: MockLocalStorageProvider,
+    StorageError,
+    // `StorageProvider` is a TypeScript-only `interface`; no runtime export
+    // is required from the mock factory.
+    default: MockLocalStorageProvider,
+  };
+});
+
 // PlaywrightCrawlerService
 import {
   PlaywrightCrawlerService,
@@ -42,7 +186,8 @@ import {
 
 import { PAGE_ANALYZE_ERROR_CODES } from "../../src/tools/page/schemas";
 
-// LocalStorageProvider
+// LocalStorageProvider (vi.mock 化済 — in-memory fake が import される)
+// LocalStorageProvider (mocked above — imports resolve to the in-memory fake)
 import {
   LocalStorageProvider,
   StorageError,
@@ -939,17 +1084,22 @@ describe("Phase 1 統合テスト: LocalStorageProvider", () => {
     });
   });
 
-  describe("ファイルパーミッション", () => {
+  // v0.5.1 F4 (ADR-0020 Decision 4): file-system permission semantics は
+  // mock 化された LocalStorageProvider では検証不能。
+  // 同等カバレッジは `tests/services/storage/local-storage.provider.test.ts`
+  // (既存) で actual fs 経由で検証済みのため、本 integration test では skip。
+  // File-system permission semantics cannot be exercised against the mocked
+  // provider; equivalent coverage exists in
+  // `local-storage.provider.test.ts` against the real fs.
+  describe.skip("ファイルパーミッション (F4 mock 化により skip — local-storage.provider.test.ts でカバー)", () => {
     it("保存されたファイルが0600パーミッションを持つこと", async () => {
-      // Arrange
+      // Skipped: see describe.skip rationale above.
       const key = "permission/secure.txt";
       await provider.upload(key, Buffer.from("secure content"));
 
-      // Act
       const filePath = path.join(testDir, key);
       const stats = await fs.stat(filePath);
 
-      // Assert
       const mode = stats.mode & 0o777;
       expect(mode).toBe(0o600);
     });
@@ -976,20 +1126,22 @@ describe("Phase 1 統合テスト: LocalStorageProvider", () => {
       }
     });
 
-    it("書き込み権限がない場合にPERMISSION_DENIEDエラー", async () => {
-      // Arrange - 読み取り専用ディレクトリを作成
+    // v0.5.1 F4 (ADR-0020 Decision 4): fs permission denial semantics は
+    // mock 化された LocalStorageProvider では検証不能。
+    // 同等カバレッジは `local-storage.provider.test.ts` で actual fs 経由
+    // (chmod 0o444) で検証済みのため skip。
+    it.skip("書き込み権限がない場合にPERMISSION_DENIEDエラー (F4 mock 化により skip — local-storage.provider.test.ts でカバー)", async () => {
+      // Skipped: see in-line rationale above.
       const readOnlyDir = path.join(testDir, "readonly");
       await fs.mkdir(readOnlyDir);
       await fs.chmod(readOnlyDir, 0o444);
 
       const readOnlyProvider = new LocalStorageProvider(readOnlyDir);
 
-      // Act & Assert
       await expect(readOnlyProvider.upload("test.txt", Buffer.from("test"))).rejects.toThrow(
         StorageError
       );
 
-      // Cleanup - 権限を戻す
       await fs.chmod(readOnlyDir, 0o755);
     });
   });
@@ -1155,7 +1307,7 @@ describe("Phase 1 統合テスト: モジュール間連携", () => {
       for (const key of savedKeys) {
         expect(files).toContain(key);
       }
-    });
+    }, 120_000); // Flaky mitigation: extended to 120s (same commit, run 25172265165 PASSed, run 25174161557 FAILed at 60s+) // CI環境での flaky 対策: 120s に延長 (run 25172265165 PASS / run 25174161557 FAIL 60s+ で同 commit flaky 確定、3回連続 page.analyze loop)
   });
 });
 

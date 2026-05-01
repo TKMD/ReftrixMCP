@@ -30,6 +30,11 @@ env:
   # Skip CUDA binary download in CI (no GPU available)
   # onnxruntime-node postinstall attempts to download CUDA binaries which can fail with 503
   ONNXRUNTIME_NODE_INSTALL_CUDA: "skip"
+  # CSS-animation parser ReDoS test throughput baseline (CO-PR21-REVIEW-01 / ADR-0020 Decision 5)
+  # Local default = 100 chars/ms; CI runner (ubuntu-latest 2-core 7GB) = 80 chars/ms calibrated baseline
+  # Threshold formula: elapsed_ms < input.length / throughputCharsPerMs + 200ms
+  # TPA-IMPL-NEW-01 + Plan §2.3.5 + §2.4 (TPA-04⚯TDA-02 unified)
+  REDOS_TEST_THROUGHPUT_CHARS_PER_MS: "80"
 
 permissions:
   contents: read
@@ -132,6 +137,14 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm --filter @reftrixmcp/database db:generate
 
+      - name: Cache Playwright browsers / Playwright ブラウザキャッシュ
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-playwright-
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
@@ -202,6 +215,14 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm --filter @reftrixmcp/database db:generate
 
+      - name: Cache Playwright browsers / Playwright ブラウザキャッシュ
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-playwright-
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
@@ -211,7 +232,13 @@ jobs:
           PGPASSWORD=test_password psql -h localhost -U reftrix -d reftrix_test -c "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';"
 
       - name: Run migrations (deploy mode for CI)
-        run: pnpm --filter @reftrixmcp/database prisma migrate deploy
+        # `pnpm --filter <pkg> prisma migrate deploy` resolves "prisma" to a script
+        # name and fails ("None of the selected packages has a 'prisma' script").
+        # Use the existing `db:migrate` script (= `prisma migrate deploy`) instead.
+        # 旧コマンド `pnpm --filter @reftrixmcp/database prisma migrate deploy` は
+        # pnpm が "prisma" を script 名として解決しようとして失敗するため、
+        # 既存の `db:migrate` script (= `prisma migrate deploy`) を呼び出す。
+        run: pnpm --filter @reftrixmcp/database run db:migrate
 
       - name: Verify database schema
         run: |
@@ -354,6 +381,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Cache Playwright browsers / Playwright ブラウザキャッシュ
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-playwright-
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
@@ -369,9 +404,10 @@ jobs:
           PGPASSWORD=test_password psql -h localhost -U reftrix -d reftrix_test -c "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';"
 
       - name: Run database migrations
-        run: |
-          cd packages/database
-          npx prisma migrate deploy
+        # Same caveat as Integration Tests: avoid `pnpm --filter ... prisma ...`
+        # which interprets "prisma" as a script name. Use existing `db:migrate`.
+        # Integration Tests と同じ理由で db:migrate script を使用する。
+        run: pnpm --filter @reftrixmcp/database run db:migrate
 
       - name: Run E2E tests
         run: pnpm --filter @reftrixmcp/mcp-server test:e2e

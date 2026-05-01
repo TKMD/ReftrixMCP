@@ -110,6 +110,16 @@ export interface BboxResolutionResult {
    * record `skipReason=ssrf_blocked_on_backfill`.
    */
   ssrfBlocked: boolean;
+  /**
+   * PR-D-9 Wave 4 (C-06 / FIND-PLAN-SEC-02): observability fields propagated
+   * from `resolvePartBoundingBoxes` BBOX_RESOLVE_RELOAD pass. All optional
+   * (undefined when reload pass disabled / not entered).
+   *
+   * 観測性: BBOX_RESOLVE_RELOAD safety budget の per-page metrics 伝播。
+   */
+  reloadCount?: number;
+  reloadTotalTimeMs?: number;
+  reloadBudgetExhausted?: boolean;
 }
 
 /**
@@ -183,10 +193,21 @@ export async function resolvePartBoundingBoxesWithFallback(
       delegateArgs.viewportHeight = params.viewportHeight;
     }
     const serviceResult = await resolvePartBoundingBoxes(delegateArgs);
+    // PR-D-9 Wave 4 (C-06): only include reload* fields when set (avoid
+    // exactOptionalPropertyTypes friction on undefined assignment).
     result = {
       ssrfBlocked: false,
       resolvedCount: serviceResult.resolvedCount,
       skippedCount: serviceResult.skippedCount,
+      ...(serviceResult.reloadCount !== undefined
+        ? { reloadCount: serviceResult.reloadCount }
+        : {}),
+      ...(serviceResult.reloadTotalTimeMs !== undefined
+        ? { reloadTotalTimeMs: serviceResult.reloadTotalTimeMs }
+        : {}),
+      ...(serviceResult.reloadBudgetExhausted !== undefined
+        ? { reloadBudgetExhausted: serviceResult.reloadBudgetExhausted }
+        : {}),
     };
   } finally {
     release();

@@ -27,8 +27,11 @@
 import { Queue, QueueEvents, type Job, type ConnectionOptions } from "bullmq";
 import { z } from "zod";
 import { getRedisConfig, type RedisConfig } from "../config/redis";
+import { getAuditLogService } from "../services/audit-log.service";
 import { logger } from "../utils/logger";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
+import { truncateId } from "../utils/truncate-id";
+import { enqueueWithCollisionGuard, type EnqueueResult } from "./enqueue-with-collision-guard";
 
 /**
  * Queue name constant
@@ -194,13 +197,6 @@ export const EMBEDDING_BACKFILL_CATEGORIES = [
 export type EmbeddingBackfillCategory = (typeof EMBEDDING_BACKFILL_CATEGORIES)[number];
 
 /**
- * 旧 API 互換エイリアス — 後方互換のため残す（新規コードは `EMBEDDING_BACKFILL_CATEGORIES` を使う）
- * Legacy alias for backward compatibility (new code should use `EMBEDDING_BACKFILL_CATEGORIES`)
- */
-export const BACKFILLABLE_CATEGORIES: readonly EmbeddingBackfillCategory[] =
-  EMBEDDING_BACKFILL_CATEGORIES;
-
-/**
  * screenshotStoragePath の最大長（byte ではなく UTF-16 code unit 数）
  * Max length of screenshotStoragePath (UTF-16 code units, not bytes)
  *
@@ -292,12 +288,29 @@ export interface EmbeddingBackfillJobResult {
   error?: string | undefined;
   /**
    * Graceful Degradation スキップ理由 (v0.4.0 PR7e-α / bug⑦ observability)。
-   * 現在は `ssrf_blocked_on_backfill` のみ。PR7e-β 以降で拡張予定。
+   *
+   * Values:
+   *   - `ssrf_blocked_on_backfill` — PR7e-α (SSRF guard skipped Backfill)
+   *   - `parity_check_failed` — PR-D-4 (INV-EMBEDDING-INTEGRITY-003 parity
+   *     gate failed; DB row routed to `skipped_fork_error` retry bucket while
+   *     BullMQ job completes successfully)
+   *   - `bbox_unresolvable` — PR-D-9 Wave 4 (C-02 + C-04 / ADR-0018 §Decision 1
+   *     Supplement S3): Playwright-residual catch-all from `PartVisualProcessor`
+   *     when 1st-pass + opt-in `BBOX_RESOLVE_RELOAD` reload pass both fail to
+   *     resolve a part bbox. Mutually exclusive with `bbox_invalid` (JSDOM-origin
+   *     catch-all, surfaced via `EmbeddingPhaseResult.skipReason` not Backfill).
    *
    * Graceful Degradation skip reason (v0.4.0 PR7e-α / bug ⑦ observability).
-   * Only `ssrf_blocked_on_backfill` for now; expanded in later PRs.
+   *
+   * Values:
+   *   - `ssrf_blocked_on_backfill` — SSRF guard skipped Backfill (PR7e-α)
+   *   - `parity_check_failed` — INV-EMBEDDING-INTEGRITY-003 parity gate
+   *     failed; DB row routed to retry bucket (`skipped_fork_error`) while
+   *     the BullMQ job completes successfully (PR-D-4)
+   *   - `bbox_unresolvable` — PR-D-9 Wave 4: Playwright-residual catch-all
+   *     (1st-pass + reload pass both fail). See ADR-0018 §Decision 1 Supplement S3.
    */
-  skipReason?: "ssrf_blocked_on_backfill" | undefined;
+  skipReason?: "ssrf_blocked_on_backfill" | "parity_check_failed" | "bbox_unresolvable" | undefined;
 }
 
 /**
@@ -353,6 +366,29 @@ export const BACKFILL_JOB_ID_SEPARATOR = "__";
 export function buildBackfillJobId(webPageId: string, category: EmbeddingBackfillCategory): string {
   return `${webPageId}${BACKFILL_JOB_ID_SEPARATOR}${category}`;
 }
+
+/**
+ * Full canonical jobId regex for embedding-backfill BullMQ jobs.
+ *
+ * Form: `<UUID v4/v7>__<category>` per `buildBackfillJobId(webPageId, category)` SSOT factory.
+ *   - UUID portion: RFC 4122 hyphen positions enforced (8-4-4-4-12 layout)
+ *   - Separator: `__` (per `BACKFILL_JOB_ID_SEPARATOR`)
+ *   - Category portion: dynamic union of `EMBEDDING_BACKFILL_CATEGORIES` SSOT array
+ *     to prevent SSOT drift when new categories are added
+ *
+ * @see PR-D-9-patch Plan v1.2 §4.2 (Option B regex union with SSOT export)
+ * @see PR-D-9-patch Plan v1.2 §3.2 trade-off matrix (Option B selected)
+ * @see PR-D-9-patch ADR-0011 Amendment 3 §A.2 (Phase 3 docs-sync deliverable)
+ *
+ * Used by:
+ *   - `apps/mcp-server/src/schemas/worker-ipc.schema.ts:57` (Wave 3 schema union, Commit 2)
+ *   - `apps/mcp-server/tests/regression/standing/worker-lifecycle/inv-worker-lock-003-embedding-backfill-supervisor.test.ts` (case #15-#18, Wave 2 Commit 1)
+ *
+ * @internal exported for cross-package consumption (workers + schemas + tests)
+ */
+export const BACKFILL_JOB_ID_REGEX: RegExp = new RegExp(
+  `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}__(${EMBEDDING_BACKFILL_CATEGORIES.join("|")})$`
+);
 
 /**
  * Create the embedding backfill queue
@@ -441,6 +477,14 @@ export interface AddEmbeddingBackfillJobOptions {
  * at the BullMQ level. When an existing job is present, BullMQ skips creation
  * and returns the existing job (idempotent behaviour).
  *
+ * @deprecated Use {@link addEmbeddingBackfillJobWithGuard} instead (PR-D-6,
+ *   FIND-TDA-02). The legacy helper lacks the atomic SETNX claim + terminal
+ *   retention guard required by RC-A. Kept temporarily for backward-compatible
+ *   interop during the migration window; do not add new call sites.
+ *   `addEmbeddingBackfillJobWithGuard` を使用すること (PR-D-6, FIND-TDA-02)。
+ *   旧 helper は RC-A 対策の atomic SETNX claim と terminal retention guard を
+ *   持たない。並立期間の後方互換のため一時保持。新規 call site 追加禁止。
+ *
  * @param queue - BullMQ Queue instance
  * @param data - Job data (without createdAt — filled in here)
  * @param priorityOrOptions - Backward-compatible priority number, or an options
@@ -528,6 +572,7 @@ export async function checkBackfillQueueBackPressure(
  * @param jobId - Job ID (`<webPageId>__<category>`)
  * @returns Status or null if not found
  */
+// eslint-disable-next-line complexity -- Pre-existing CC=15, FIND-TDA-07 Q3-2026 backlog successor issue refactor (PR-D-6 IO spot decision 019db5a5-b84d-71cd-a198-95f9c8c1cbb7 Option A scope)
 export async function getEmbeddingBackfillJobStatus(
   queue: Queue<EmbeddingBackfillJobData, EmbeddingBackfillJobResult>,
   jobId: string
@@ -608,3 +653,299 @@ export async function checkEmbeddingBackfillQueueHealth(
     };
   }
 }
+
+// ============================================================================
+// PR-D-6 Phase 2: Collision-guarded enqueue helpers
+// ============================================================================
+
+/**
+ * Redis key namespace for the atomic SETNX jobId claim of the backfill queue.
+ * `reftrix:backfill:jobclaim:<jobId>` 形式に展開される。
+ *
+ * Redis key namespace for atomic SETNX jobId claim on the backfill queue.
+ */
+const BACKFILL_CLAIM_KEY_NAMESPACE = "backfill";
+
+// ============================================================================
+// Backfill Job ID Regex SSOT (3 patterns)
+// ============================================================================
+// 1. BACKFILL_JOB_ID_REGEX (full): `<UUID>__<category>` for IPC schema validation
+//    + worker schema enforcement. RFC 4122 strict hyphen positions.
+// 2. JOBID_TRUNCATED_REGEX (truncated): `<8-char>...__<category>` for PII-safe
+//    audit_logs payloads (see CWE-209 / GDPR Art.30 compliance).
+// 3. RETRY_JOBID_TRUNCATED_REGEX (retry truncated): adds `__retry_<uuid>` suffix
+//    for retry attempt audit trail.
+//
+// All three derive from `EMBEDDING_BACKFILL_CATEGORIES` SSOT array to prevent
+// drift when new categories are added. Truncated regexes (2/3) currently
+// hardcode `[a-z_]+` for the category portion; SSOT unification follow-up
+// tracked as OBS-PRDD9-PATCH-08 (M, backlog 2026-Q3).
+//
+// ============================================================================
+
+/**
+ * PII-safe truncated jobId regex (Plan v1.2 §3.1.4 US-1 (c) binding).
+ *
+ * Form: `<8-char>...__<category>` (e.g. `a1b2c3d4...__part_text`).
+ * Enforces that audit payloads never leak full 36-char UUID webPageId.
+ *
+ * @internal exported for Block C #11 CI-failing positive regex assertion.
+ */
+export const JOBID_TRUNCATED_REGEX = /^[a-f0-9]{8}\.{3}__[a-z_]+$/;
+
+/**
+ * PII-safe truncated retry jobId regex (Plan v1.2 §3.1.4 US-1 (c) binding).
+ *
+ * Form: `<8-char>...__<category>__retry_<uuidv7>` where the uuid suffix is
+ * either UUIDv7 (preferred) or UUIDv4 (Node.js 20.19-21.x fallback) — both
+ * conform to `[0-9a-f-]{36}`.
+ *
+ * @internal exported for Block C #11 CI-failing positive regex assertion.
+ */
+export const RETRY_JOBID_TRUNCATED_REGEX = /^[a-f0-9]{8}\.{3}__[a-z_]+__retry_[0-9a-f-]{36}$/;
+
+/**
+ * Zod schema for the `embedding_backfill_collision_resolved` audit action
+ * payload (Plan v1.2 §3.1.4 UP-4 + US-1 binding).
+ *
+ * `.strict()` で future field injection を禁止し、runtime regex validation で
+ * PII leak (full 36-char UUID) を schema-level で閉塞する。`AuditLogEntry`
+ * 受け渡し時は caller が本 schema を `parse` した後で `details` に spread する。
+ *
+ * Strict 5-field contract for `embedding_backfill_collision_resolved`. Runtime
+ * regex validation closes the PII-leak path (full 36-char UUID never reaches
+ * `audit_logs.details`).
+ */
+export const CollisionAuditPayloadSchema = z
+  .object({
+    /** 11-char truncated webPageId (`<8-char>...`), post `truncateId(webPageId, 8)`. */
+    webPageId: z.string().length(11),
+    /** `<8-char>...__<category>` — no 36-char UUID leak. */
+    originalJobId: z.string().regex(JOBID_TRUNCATED_REGEX),
+    /** `<8-char>...__<category>__retry_<uuidv7>` — no 36-char UUID leak. */
+    retryJobId: z.string().regex(RETRY_JOBID_TRUNCATED_REGEX),
+    /** Original job state at collision detection time. */
+    originalState: z.enum(["active", "waiting", "delayed", "completed", "failed", "unknown"]),
+    /** ISO-8601 timestamp at collision detection time. */
+    timestamp: z.string().datetime(),
+  })
+  .strict();
+
+export type CollisionAuditPayload = z.infer<typeof CollisionAuditPayloadSchema>;
+
+/**
+ * Truncate the webPageId portion of a canonical jobId (`<uuid>__<category>`)
+ * to 11 chars via the `utils/truncate-id.ts:17 truncateId` SSOT, keeping the
+ * category suffix intact.
+ *
+ * Local-scope helper (Plan v1.2 §3.1.4 US-1 (a)(b) binding) — no new export
+ * added to `utils/truncate-id.ts`; reuses the existing `truncateId` SSOT.
+ *
+ * Local-scope helper that truncates the webPageId portion of `<uuid>__<category>`
+ * via the `truncateId` SSOT, preserving the category suffix. Throws on invalid
+ * input rather than producing malformed audit payloads.
+ *
+ * @throws {Error} when the input does not match `<uuid>__<category>` form.
+ */
+function truncateOrigJobId(origJobId: string): string {
+  if (typeof origJobId !== "string" || origJobId.length === 0) {
+    throw new Error("truncateOrigJobId: origJobId must be a non-empty string");
+  }
+  const sepIndex = origJobId.indexOf("__");
+  if (sepIndex <= 0 || sepIndex === origJobId.length - 2) {
+    throw new Error("truncateOrigJobId: invalid '<webPageId>__<category>' form");
+  }
+  const webPageId = origJobId.slice(0, sepIndex);
+  const category = origJobId.slice(sepIndex + 2);
+  return `${truncateId(webPageId, 8)}__${category}`;
+}
+
+/**
+ * Truncate the webPageId portion of a retry jobId
+ * (`<origJobId>__retry_<uuidv7>`) while preserving the retry UUID suffix.
+ *
+ * Delegates to {@link truncateOrigJobId} for the leading `<uuid>__<category>`
+ * segment; the 36-char retry suffix is always preserved verbatim.
+ *
+ * Local-scope helper per Plan v1.2 §3.1.4 US-1 (a) binding.
+ *
+ * @throws {Error} when the input does not match `<origJobId>__retry_<uuidv7>` form.
+ */
+function truncateRetryJobId(retryJobId: string): string {
+  if (typeof retryJobId !== "string" || retryJobId.length === 0) {
+    throw new Error("truncateRetryJobId: retryJobId must be a non-empty string");
+  }
+  const retryMatch = retryJobId.match(/^(.+?)__retry_([0-9a-f-]{36})$/);
+  if (!retryMatch || retryMatch[1] === undefined || retryMatch[2] === undefined) {
+    throw new Error("truncateRetryJobId: invalid '<origJobId>__retry_<uuidv7>' form");
+  }
+  return `${truncateOrigJobId(retryMatch[1])}__retry_${retryMatch[2]}`;
+}
+
+/**
+ * Emit the `embedding_backfill_collision_resolved` audit row after a
+ * collision-retry was enqueued. Schema-validated via
+ * {@link CollisionAuditPayloadSchema} before hand-off to `AuditLogService`.
+ *
+ * Invoked by the generic {@link enqueueWithCollisionGuard} `auditEmitter`
+ * callback — see {@link addEmbeddingBackfillJobWithGuard}.
+ *
+ * Emits the `embedding_backfill_collision_resolved` audit row; validated via
+ * `CollisionAuditPayloadSchema` before routing through `AuditLogService`.
+ */
+async function emitCollisionAudit(event: {
+  webPageId: string;
+  originalJobId: string;
+  retryJobId: string;
+  originalState: "completed" | "failed";
+}): Promise<void> {
+  const payload: CollisionAuditPayload = CollisionAuditPayloadSchema.parse({
+    webPageId: truncateId(event.webPageId, 8),
+    originalJobId: truncateOrigJobId(event.originalJobId),
+    retryJobId: truncateRetryJobId(event.retryJobId),
+    originalState: event.originalState,
+    timestamp: new Date().toISOString(),
+  });
+
+  try {
+    await getAuditLogService().log({
+      action: "embedding_backfill_collision_resolved",
+      actor: "system:embedding-backfill-queue",
+      targetType: "web_page",
+      targetId: event.webPageId,
+      details: payload,
+      result: "success",
+    });
+  } catch (err) {
+    // Audit emission failures must not block the retry enqueue itself.
+    logger.warn("[EmbeddingBackfillQueue] collision audit emit failed (non-fatal)", {
+      error: sanitizeErrorMessage(err),
+    });
+  }
+}
+
+/**
+ * Collision-guarded enqueue (SSOT helper) for embedding backfill jobs.
+ *
+ * Phase 2 PR-D-6 binding: atomic SETNX Lua claim + 5 sub-handler dispatch + 6-variant
+ * {@link EnqueueResult} discriminated union. Wraps the generic
+ * {@link enqueueWithCollisionGuard} with backfill-specific Zod validation + audit
+ * emit. Callers should migrate from legacy {@link addEmbeddingBackfillJob} to
+ * this helper per Registry v3 Binding 3.
+ *
+ * Atomic-claim SSOT helper for embedding backfill jobs. Wraps the generic
+ * helper with domain-specific Zod validation and audit emission.
+ *
+ * **Fail-open behaviour**: on Redis unreachable or unexpected claim failure,
+ * falls through to a plain `queue.add` and returns
+ * `{ outcome: "enqueued_fail_open", ... }`. This mirrors the WorkerActiveLockService
+ * SEC M-1 precedent (ADR-0011) — availability preferred over strict collision
+ * guard for transient Redis hiccups.
+ *
+ * @param queue - BullMQ Queue instance
+ * @param data - Job data (without createdAt — filled in here)
+ * @param options - Optional priority / delay overrides
+ * @returns {@link EnqueueResult} discriminated by `outcome`
+ */
+export async function addEmbeddingBackfillJobWithGuard(
+  queue: Queue<EmbeddingBackfillJobData, EmbeddingBackfillJobResult>,
+  data: Omit<EmbeddingBackfillJobData, "createdAt">,
+  options: AddEmbeddingBackfillJobOptions = {}
+): Promise<EnqueueResult> {
+  const jobData: EmbeddingBackfillJobData = {
+    ...data,
+    createdAt: new Date().toISOString(),
+  };
+
+  // SEC M-1 (v0.4.0 PR4 audit): Zod validation at enqueue boundary.
+  try {
+    EmbeddingBackfillJobDataSchema.parse(jobData);
+  } catch (error) {
+    throw new Error(`[EmbeddingBackfillQueue] Invalid job data: ${sanitizeErrorMessage(error)}`);
+  }
+
+  const jobId = buildBackfillJobId(data.webPageId, data.category);
+
+  // Assemble BullMQ job options (priority / delay with finite guards).
+  const jobOptions: { priority: number; delay?: number } = {
+    priority: options.priority ?? 10,
+  };
+  if (options.delay !== undefined && Number.isFinite(options.delay) && options.delay > 0) {
+    jobOptions.delay = Math.floor(options.delay);
+  }
+
+  return await enqueueWithCollisionGuard<EmbeddingBackfillJobData, EmbeddingBackfillJobResult>({
+    queue,
+    queueName: EMBEDDING_BACKFILL_QUEUE_NAME,
+    jobId,
+    data: jobData,
+    jobOptions,
+    claimKeyNamespace: BACKFILL_CLAIM_KEY_NAMESPACE,
+    webPageId: data.webPageId,
+    auditEmitter: emitCollisionAudit,
+  });
+}
+
+/**
+ * Register the observability-only `"duplicated"` event listener on an
+ * embedding-backfill {@link QueueEvents} instance.
+ *
+ * PR-D-6 Registry v4 §15.2 Patch Binding B (FIND-TPA-IMPL-02 + FIND-SEC-04
+ * co-close): mirrors `registerPageAnalyzeDuplicatedListener` in
+ * `page-analyze-queue.ts:767`. Emits a `logger.warn` for every duplicated-jobId
+ * event as a secondary evidence stream correlated with
+ * `embedding_backfill_collision_resolved` audit rows. Listener is detached by
+ * the returned callback during `shutdownWorkers` lifecycle tear-down.
+ *
+ * Registers an observability-only `"duplicated"` listener on the
+ * embedding-backfill QueueEvents instance. Emits `logger.warn` on each
+ * duplicated-jobId event as correlated evidence for
+ * `embedding_backfill_collision_resolved` audit rows.
+ *
+ * PII safety: `jobId` is truncated to 8-hex prefix via the `utils/truncate-id.ts`
+ * SSOT before logging. `prev` (if present) is truncated the same way. Full
+ * 36-char UUIDs never reach the log.
+ *
+ * @param queueEvents - BullMQ QueueEvents instance for the embedding-backfill queue
+ * @returns Unregister callback; call during shutdown to detach the listener.
+ */
+export function registerEmbeddingBackfillDuplicatedListener(queueEvents: QueueEvents): () => void {
+  const handler = ({ jobId }: { jobId: string }): void => {
+    try {
+      logger.warn("[EmbeddingBackfillQueue] QueueEvents.duplicated fired", {
+        // PII-safe: truncate the <webPageId>__<category> prefix via the SSOT
+        // helper. For composite jobIds the split happens at the first `__`.
+        jobId: truncateId(jobId.split("__")[0] ?? jobId, 8),
+      });
+    } catch (err) {
+      // FIND-SEC-04 closure: guard the listener itself against thrown errors.
+      // A listener exception must not crash the QueueEvents event loop.
+      logger.warn("[EmbeddingBackfillQueue] duplicated listener handler failed (non-fatal)", {
+        error: sanitizeErrorMessage(err),
+      });
+    }
+  };
+  queueEvents.on("duplicated", handler);
+  return (): void => {
+    try {
+      queueEvents.off("duplicated", handler);
+    } catch {
+      /* best-effort detach */
+    }
+  };
+}
+
+// ============================================================================
+// Internal re-exports for test surface (Block C #11 assertion binding)
+// ============================================================================
+
+/**
+ * @internal Exported exclusively for the INV-WORKER-LOCK-003 Block C #11
+ * CI-failing assertion (positive / negative regex form enforcement).
+ * Production callers must use {@link addEmbeddingBackfillJobWithGuard}.
+ */
+export const __test_only__ = {
+  truncateOrigJobId,
+  truncateRetryJobId,
+  emitCollisionAudit,
+} as const;

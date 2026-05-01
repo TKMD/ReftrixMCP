@@ -18,6 +18,7 @@ import path from "path";
 
 import { logger } from "../utils/logger";
 import { createPrismaWrapper } from "../utils/prisma-wrapper-factory";
+import { sanitizeErrorMessage } from "../utils/sanitize-error";
 
 import type {
   ServiceInitializerConfig,
@@ -220,13 +221,25 @@ function recordInitError(
   skippedFactories: string[],
   error: unknown
 ): void {
-  const errorMessage = error instanceof Error ? error.message : "Unknown error";
-  result.errors.push(`${category}: ${errorMessage}`);
-  result.errorsInfo.push({ category, error: errorMessage });
+  // PR-D-7 Wave 3 / FIND-PLAN-TPA-01 H binding:
+  //   Client-facing `result.errors[]` routes through `sanitizeErrorMessage`
+  //   (CWE-209 defense). The string[] shape is preserved (additive-only;
+  //   no type rename per PR-D-7 breaking-change prohibition).
+  //   `errorsInfo` / `skippedCategoriesInfo` keep the pre-existing raw message
+  //   (out of scope for Wave 3; tracked for a future sanitize pass).
+  //
+  // PR-D-7 Wave 3 / FIND-PLAN-TPA-01 H 対応:
+  //   client 向け `result.errors[]` は `sanitizeErrorMessage` 経由 (CWE-209 対策)。
+  //   string[] 型は破壊変更禁止のため保持 (additive-only)。
+  //   `errorsInfo` / `skippedCategoriesInfo` は Wave 3 scope 外のため従来挙動を維持。
+  const rawErrorMessage = error instanceof Error ? error.message : "Unknown error";
+  const safeMessage = sanitizeErrorMessage(error);
+  result.errors.push(`${category}: ${safeMessage}`);
+  result.errorsInfo.push({ category, error: rawErrorMessage });
   result.skipped.push(...skippedFactories);
   result.skippedCategoriesInfo.push({
     category: `${category}.${category.charAt(0).toLowerCase() + category.slice(1)}`,
-    reason: errorMessage,
+    reason: rawErrorMessage,
   });
 }
 

@@ -58,6 +58,98 @@ const NAVIGATION_TIMEOUT_MS = 30_000;
 const POST_NAVIGATION_WAIT_MS = 1_000;
 
 // ============================================================================
+// PR-D-9 Wave 4 (C-06 / FIND-PLAN-SEC-02): BBOX_RESOLVE_RELOAD safety budget
+// ============================================================================
+//
+// `dom_disposed` 等の 1st-pass 失敗 part に対し、Playwright `page.reload()` を
+// opt-in で試行する。
+//   - default: disabled (`BBOX_RESOLVE_RELOAD_ENABLED=false`).
+//   - per-page max reload count cap (`BBOX_RESOLVE_RELOAD_ENABLED_MAX_RELOADS_PER_PAGE`,
+//     default 5) + cumulative timeout cap (`BBOX_RESOLVE_RELOAD_TOTAL_TIMEOUT_MS`,
+//     default 60000 = 60s). On either cap, residual unresolved parts emit
+//     `skipReason='bbox_unresolvable'` (fail-closed) per ADR-0018 §Decision 1
+//     Supplement S3 mutual exclusivity contract.
+//
+// On opt-in: per-page Playwright `page.reload()` is attempted for 1st-pass
+// failures. Default false. Two safety budgets (max reload count + cumulative
+// timeout) are fail-closed: when either is exhausted, residual parts emit
+// `bbox_unresolvable` rather than silently looping.
+//
+// @see Plan v1.1 §4.3.2 / §5.1.6 / §6.2 case #6
+// @see ADR-0018 §Decision 1 Supplement S3 (`bbox_invalid` vs `bbox_unresolvable`)
+
+const BBOX_RELOAD_ENABLED_DEFAULT = false;
+const BBOX_RELOAD_MAX_RELOADS_PER_PAGE_DEFAULT = 5;
+const BBOX_RELOAD_TOTAL_TIMEOUT_MS_DEFAULT = 60_000;
+
+/**
+ * Strict env var parser: returns the default when the value is undefined,
+ * empty, NaN, or out of `[1, absoluteCap]` range. Accepts only positive
+ * integers (rejects `"0"` / negatives / floats with logger.warn).
+ *
+ * @internal exported for unit tests
+ */
+export function parseBboxReloadIntEnv(
+  raw: string | undefined,
+  defaultValue: number,
+  absoluteCap: number,
+  envVarName: string
+): number {
+  if (raw === undefined || raw === "") return defaultValue;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    logger.warn(`${LOG_PREFIX} ${envVarName}=${raw} is not a positive integer; using default`, {
+      raw,
+      defaultValue,
+    });
+    return defaultValue;
+  }
+  if (parsed > absoluteCap) {
+    logger.warn(
+      `${LOG_PREFIX} ${envVarName}=${parsed} exceeds absolute cap ${absoluteCap}; clamped`,
+      { raw, parsed, absoluteCap }
+    );
+    return absoluteCap;
+  }
+  return parsed;
+}
+
+/**
+ * Resolve the reload safety budget from env vars (PR-D-9 Wave 4 / C-06).
+ *
+ * @internal exported for unit tests
+ */
+export function resolveBboxReloadBudget(): {
+  enabled: boolean;
+  maxReloadsPerPage: number;
+  totalTimeoutMs: number;
+} {
+  const flag = process.env["BBOX_RESOLVE_RELOAD_ENABLED"];
+  // Strict semantics: only `"true"` enables. Mirror worker-bootstrap C-11
+  // policy (FIND-PLAN-SEC-04 silent-enable risk mitigation).
+  const enabled = flag === "true" ? true : BBOX_RELOAD_ENABLED_DEFAULT;
+  if (flag !== undefined && flag !== "true" && flag !== "false") {
+    logger.warn(
+      `${LOG_PREFIX} non-canonical BBOX_RESOLVE_RELOAD_ENABLED value; treating as default (false). Accept only 'true'/'false'.`,
+      { flag }
+    );
+  }
+  const maxReloadsPerPage = parseBboxReloadIntEnv(
+    process.env["BBOX_RESOLVE_RELOAD_ENABLED_MAX_RELOADS_PER_PAGE"],
+    BBOX_RELOAD_MAX_RELOADS_PER_PAGE_DEFAULT,
+    100,
+    "BBOX_RESOLVE_RELOAD_ENABLED_MAX_RELOADS_PER_PAGE"
+  );
+  const totalTimeoutMs = parseBboxReloadIntEnv(
+    process.env["BBOX_RESOLVE_RELOAD_TOTAL_TIMEOUT_MS"],
+    BBOX_RELOAD_TOTAL_TIMEOUT_MS_DEFAULT,
+    600_000,
+    "BBOX_RESOLVE_RELOAD_TOTAL_TIMEOUT_MS"
+  );
+  return { enabled, maxReloadsPerPage, totalTimeoutMs };
+}
+
+// ============================================================================
 // Type Definitions / 型定義
 // ============================================================================
 
@@ -89,6 +181,16 @@ export interface ResolvePartBoundingBoxesResult {
   resolvedCount: number;
   /** マッチできずスキップしたパーツ数 / Number of parts skipped (no match found) */
   skippedCount: number;
+  /**
+   * PR-D-9 Wave 4 (C-06): observability fields for the BBOX_RESOLVE_RELOAD
+   * safety budget. Always present (0 when reload pass disabled / not entered).
+   *
+   * 観測性: BBOX_RESOLVE_RELOAD safety budget の per-page metrics。reload pass
+   * が走らなかった場合は両 field とも 0。CO-PRDD9-05 metrics design に対応。
+   */
+  reloadCount?: number;
+  reloadTotalTimeMs?: number;
+  reloadBudgetExhausted?: boolean;
 }
 
 /**
@@ -370,18 +472,57 @@ export async function resolvePartBoundingBoxes(
       id: string;
       bbox: { x: number; y: number; width: number; height: number };
     }> = [];
-    let skippedCount = 0;
+    const skippedSelectors: PartSelectorData[] = [];
 
-    for (const bbox of resolvedBboxes) {
-      if (bbox !== null) {
+    for (let i = 0; i < resolvedBboxes.length; i++) {
+      const bbox = resolvedBboxes[i];
+      if (bbox !== null && bbox !== undefined) {
         updates.push({
           id: bbox.id,
           bbox: { x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height },
         });
       } else {
-        skippedCount++;
+        // selectorData[i] is the corresponding skipped part (resolvedBboxes
+        // preserves order from page.evaluate input).
+        const skippedSelector = selectorData[i];
+        if (skippedSelector !== undefined) {
+          skippedSelectors.push(skippedSelector);
+        }
       }
     }
+
+    // PR-D-9 Wave 4 (C-06 / FIND-PLAN-SEC-02): opt-in BBOX_RESOLVE_RELOAD pass.
+    // When `BBOX_RESOLVE_RELOAD_ENABLED=true`, retry skipped parts via
+    // `page.reload()` within the per-page max reload count + cumulative
+    // timeout safety budget. On budget exhaustion or pass completion,
+    // residual skipped parts remain unresolved (caller emits
+    // `bbox_unresolvable` per ADR-0018 §Decision 1 Supplement S3).
+    //
+    // Opt-in reload pass per Plan v1.1 §4.3.2 / §6.2 case #6.
+    let reloadCount = 0;
+    let reloadTotalTimeMs = 0;
+    let reloadBudgetExhausted = false;
+    if (skippedSelectors.length > 0) {
+      const budget = resolveBboxReloadBudget();
+      if (budget.enabled) {
+        const reloadOutcome = await runBboxReloadPass({
+          page,
+          skippedSelectors,
+          budget,
+        });
+        reloadCount = reloadOutcome.reloadCount;
+        reloadTotalTimeMs = reloadOutcome.reloadTotalTimeMs;
+        reloadBudgetExhausted = reloadOutcome.budgetExhausted;
+        for (const bbox of reloadOutcome.recovered) {
+          updates.push({
+            id: bbox.id,
+            bbox: { x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height },
+          });
+        }
+      }
+    }
+
+    const finalSkippedCount = partsNeedingBbox.length - updates.length;
 
     if (updates.length > 0) {
       await prisma.$transaction(
@@ -398,12 +539,21 @@ export async function resolvePartBoundingBoxes(
       logger.info(`${LOG_PREFIX} Bounding box resolution completed`, {
         webPageId: truncateId(webPageId),
         resolvedCount: updates.length,
-        skippedCount,
+        skippedCount: finalSkippedCount,
         totalParts: partsNeedingBbox.length,
+        reloadCount,
+        reloadTotalTimeMs,
+        reloadBudgetExhausted,
       });
     }
 
-    return { resolvedCount: updates.length, skippedCount };
+    return {
+      resolvedCount: updates.length,
+      skippedCount: finalSkippedCount,
+      reloadCount,
+      reloadTotalTimeMs,
+      reloadBudgetExhausted,
+    };
   } catch (error) {
     // Graceful Degradation: bbox取得失敗はジョブを中断しない
     // Graceful Degradation: bbox resolution failure is non-fatal
@@ -432,6 +582,167 @@ export async function resolvePartBoundingBoxes(
       });
     }
   }
+}
+
+// ============================================================================
+// PR-D-9 Wave 4 (C-06 / FIND-PLAN-SEC-02): BBOX_RESOLVE_RELOAD pass
+// ============================================================================
+
+/**
+ * Reload pass の結果
+ * Result of the BBOX_RESOLVE_RELOAD pass
+ */
+interface BboxReloadPassResult {
+  /** Reload で recover した bounding box / Bounding boxes recovered via reload */
+  recovered: BboxResult[];
+  /** Page.reload() を呼び出した回数 / Number of `page.reload()` invocations */
+  reloadCount: number;
+  /** Reload pass 全体の経過時間 (ms) / Total elapsed time of the reload pass (ms) */
+  reloadTotalTimeMs: number;
+  /** Safety budget が exhaust した場合 true / true when safety budget exhausted */
+  budgetExhausted: boolean;
+}
+
+/**
+ * Reload pass の入力パラメータ / Reload pass input parameters
+ */
+interface BboxReloadPassParams {
+  page: Page;
+  skippedSelectors: PartSelectorData[];
+  budget: {
+    enabled: boolean;
+    maxReloadsPerPage: number;
+    totalTimeoutMs: number;
+  };
+}
+
+/**
+ * PR-D-9 Wave 4 (C-06): opt-in `page.reload()` based recovery pass for parts
+ * that failed the 1st-pass resolution (e.g., `dom_disposed` cases).
+ *
+ * Safety budget contract (fail-closed):
+ *   - Per-page reload count cap: at most `budget.maxReloadsPerPage` reloads.
+ *   - Cumulative timeout cap: aborts when elapsed time >= `budget.totalTimeoutMs`.
+ *   - On either cap, residual unresolved parts are returned as not-recovered;
+ *     the caller emits `skipReason='bbox_unresolvable'` per ADR-0018 §Decision 1
+ *     Supplement S3 (mutually exclusive with `bbox_invalid`).
+ *
+ * @internal exported indirectly via `resolvePartBoundingBoxes` reload pass
+ */
+async function runBboxReloadPass(params: BboxReloadPassParams): Promise<BboxReloadPassResult> {
+  const { page, skippedSelectors, budget } = params;
+  const startedAt = Date.now();
+  let reloadCount = 0;
+  const recovered: BboxResult[] = [];
+  let remainingSelectors = [...skippedSelectors];
+
+  // Loop until either (a) all skipped resolved, (b) max reloads reached, or
+  // (c) cumulative timeout exhausted.
+  while (
+    remainingSelectors.length > 0 &&
+    reloadCount < budget.maxReloadsPerPage &&
+    Date.now() - startedAt < budget.totalTimeoutMs
+  ) {
+    try {
+      // Cumulative timeout-aware reload (Playwright `timeout` is per-call).
+      const timeRemaining = budget.totalTimeoutMs - (Date.now() - startedAt);
+      const reloadTimeout = Math.max(1_000, Math.min(NAVIGATION_TIMEOUT_MS, timeRemaining));
+      await page.reload({ waitUntil: "load", timeout: reloadTimeout });
+      reloadCount++;
+      await page.waitForTimeout(POST_NAVIGATION_WAIT_MS);
+    } catch (reloadError) {
+      // Reload failure is non-fatal — record the attempt count and exit the
+      // pass (residual parts emit `bbox_unresolvable` downstream).
+      logger.warn(`${LOG_PREFIX} page.reload() failed during BBOX_RESOLVE_RELOAD pass`, {
+        error: reloadError instanceof Error ? reloadError.message : String(reloadError),
+        reloadCount,
+        remainingCount: remainingSelectors.length,
+      });
+      break;
+    }
+
+    // Re-resolve only the still-unresolved subset. Reuse the same page.evaluate
+    // logic shape as the 1st-pass call site (kept inline to avoid extracting a
+    // separate helper that would inflate file LoC beyond Plan §5.1.6 estimate).
+    let evalResult: Array<BboxResult | null>;
+    try {
+      evalResult = await page.evaluate((data: PartSelectorData[]): Array<BboxResult | null> => {
+        const globalMatched = new Set<Element>();
+        const results: Array<BboxResult | null> = [];
+        for (const part of data) {
+          let found = false;
+          for (const selector of part.selectors) {
+            if (found) break;
+            let elements: NodeListOf<Element>;
+            try {
+              elements = document.querySelectorAll(selector);
+            } catch {
+              continue;
+            }
+            let matchIndex = 0;
+            for (const el of elements) {
+              if (globalMatched.has(el)) continue;
+              const rect = el.getBoundingClientRect();
+              if (rect.width <= 0 || rect.height <= 0) continue;
+              const absoluteY = rect.top + window.scrollY;
+              const sectionTolerance = 500;
+              if (Math.abs(absoluteY - part.sectionStartY) > sectionTolerance + rect.height) {
+                continue;
+              }
+              if (matchIndex === part.sampleIndex) {
+                globalMatched.add(el);
+                results.push({
+                  id: part.id,
+                  x: Math.max(0, rect.left),
+                  y: Math.max(0, absoluteY - part.sectionStartY),
+                  width: rect.width,
+                  height: rect.height,
+                });
+                found = true;
+                break;
+              }
+              matchIndex++;
+            }
+          }
+          if (!found) {
+            results.push(null);
+          }
+        }
+        return results;
+      }, remainingSelectors);
+    } catch (evalError) {
+      // page.evaluate failure (e.g., page disposed mid-pass) is non-fatal.
+      logger.warn(`${LOG_PREFIX} page.evaluate() failed during reload pass`, {
+        error: evalError instanceof Error ? evalError.message : String(evalError),
+        reloadCount,
+        remainingCount: remainingSelectors.length,
+      });
+      break;
+    }
+
+    const stillUnresolved: PartSelectorData[] = [];
+    for (let i = 0; i < evalResult.length; i++) {
+      const bbox = evalResult[i];
+      const selector = remainingSelectors[i];
+      if (selector === undefined) continue;
+      if (bbox !== null && bbox !== undefined) {
+        recovered.push(bbox);
+      } else {
+        stillUnresolved.push(selector);
+      }
+    }
+    remainingSelectors = stillUnresolved;
+
+    // If a single reload didn't recover anything, keep iterating up to the
+    // budget cap (some lazy-load triggers require multiple cycles).
+  }
+
+  const reloadTotalTimeMs = Date.now() - startedAt;
+  const budgetExhausted =
+    remainingSelectors.length > 0 &&
+    (reloadCount >= budget.maxReloadsPerPage || reloadTotalTimeMs >= budget.totalTimeoutMs);
+
+  return { recovered, reloadCount, reloadTotalTimeMs, budgetExhausted };
 }
 
 // ============================================================================

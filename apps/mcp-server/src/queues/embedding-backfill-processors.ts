@@ -28,6 +28,9 @@ import type { Job, Queue } from "bullmq";
 import { prisma as sharedPrismaClient } from "@reftrixmcp/database";
 import { logger } from "../utils/logger";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
+import { truncateId } from "../utils/truncate-id";
+import { getAuditLogService } from "../services/audit-log.service";
+import { AUDIT_ACTION_EMBEDDING_PART_VISUAL_SKIPPED } from "../audit/audit-actions";
 import {
   backfillBackgroundsForPage,
   backfillJsAnimationsForPage,
@@ -35,6 +38,7 @@ import {
   backfillPartTextForPage,
   backfillResponsiveForPage,
   backfillSectionVisualsForPage,
+  countMissingResponsiveEmbeddings,
   countPartVisualBackfillTargets,
   countSectionVisualBackfillTargets,
 } from "../services/embedding-backfill.service";
@@ -43,13 +47,18 @@ import {
   type EmbeddingPhasePrismaClient,
 } from "../workers/phases/phase-5-embedding";
 import { resolvePartBoundingBoxesWithFallback } from "../workers/phases/shared/bbox-resolution.helper";
+import { BACKFILL_PARTS_LIMIT_DEFAULT } from "../workers/phases/embedding-backfill-ipc";
 import {
   EMBEDDING_BACKFILL_CATEGORIES,
-  addEmbeddingBackfillJob,
+  addEmbeddingBackfillJobWithGuard,
   type EmbeddingBackfillCategory,
   type EmbeddingBackfillJobData,
   type EmbeddingBackfillJobResult,
 } from "./embedding-backfill-queue";
+
+// v0.4.0 PR7e-β4 PR2d (HIGH-α): re-used across all 7 category Processors via
+// `runForkOrFallback`. See ADR-0015 Amendment 8.
+// PR2d (HIGH-α): 7 全 Processor で `runForkOrFallback` 経由で再利用。
 
 // =====================================================
 // Progress sentinel values — aligned with embedding-backfill-worker
@@ -119,13 +128,68 @@ export interface BackfillCategoryResult {
   errors: string[];
   /**
    * スキップ理由 (Graceful Degradation 時のみセット)。
-   * 例: `ssrf_blocked_on_backfill` — Backfill 経路の SSRF 再検証でブロック。
+   *   - `ssrf_blocked_on_backfill` — Backfill 経路の SSRF 再検証でブロック (SEC HIGH-1 + PR7e-α bug⑦)
+   *   - `bbox_unresolvable` — PR-D-9 Wave 4 (C-02 + C-04 / ADR-0018 §Decision 1
+   *     Supplement S3): Playwright-residual catch-all。1st-pass + opt-in reload
+   *     pass 共に失敗した residual parts。`bbox_invalid` と mutually exclusive。
    *
-   * Skip reason (set only for Graceful Degradation skips).
-   * Example: `ssrf_blocked_on_backfill` — SSRF re-validation blocked the
-   * backfill URL resolution (SEC HIGH-1 + PR7e-α bug⑦).
+   * Skip reason (set only for Graceful Degradation skips):
+   *   - `ssrf_blocked_on_backfill` — SSRF re-validation blocked
+   *   - `bbox_unresolvable` — PR-D-9 Wave 4: Playwright-residual catch-all
+   *
+   * @see ADR-0018 §Decision 1 Supplement S3 (decision boundary table)
    */
-  skipReason?: "ssrf_blocked_on_backfill";
+  skipReason?: "ssrf_blocked_on_backfill" | "bbox_unresolvable";
+}
+
+// =====================================================
+// PR-D-9 Wave 4 (C-16 / FIND-PLAN-TDA-06): classifyBboxFailure helper
+// =====================================================
+
+/**
+ * PR-D-9 Wave 4 (C-16 / FIND-PLAN-TDA-06): bbox failure 分類 helper。
+ *
+ * Plan §5.1.7 / §5.1.8: 4-way switch (`iframe` / `shadow_dom` / `dom_disposed`
+ * / catch-all `bbox_unresolvable`) を private helper 関数に extract して、
+ * `embedding-backfill-processors.ts` の cyclomatic complexity delta を
+ * `≤ +2` に制限する。
+ *
+ * **PR-D-9 scope**: 1st-pass で classification 情報がまだ propagation されない
+ * ため、本 helper は default branch (residual catch-all) のみを実装する。
+ * `iframe` / `shadow_dom` / `dom_disposed` の細分化は future PR で `service` 層
+ * から `BboxResolutionResult` に classification field を追加することを想定。
+ * 現状 Phase 5 の bbox-resolution.helper は failure mode を保持しないため、
+ * 4-way switch の structural shell を保持しつつ、3 case はすべて catch-all
+ * (`bbox_unresolvable`) と同じ扱いにする (ADR-0018 §Decision 1 Supplement S3
+ * `bbox_unresolvable` definition: "1st-pass resolution + optional reload pass
+ * both fail" の包括的 catch-all)。
+ *
+ * Helper extracted to keep CC delta ≤ +2 per FIND-PLAN-TDA-06. Currently the
+ * 4 cases all map to the residual `bbox_unresolvable` catch-all because the
+ * service layer does not yet propagate per-failure classification (future PR
+ * will subdivide).
+ *
+ * @see ADR-0018 §Decision 1 Supplement S3
+ * @see Plan v1.1 §5.1.7 / §5.1.8 (helper extraction contract)
+ */
+type SkipReasonClassification = {
+  skipReason: "bbox_unresolvable";
+};
+
+function classifyBboxFailure(reason: string): SkipReasonClassification {
+  switch (reason) {
+    case "iframe":
+    case "shadow_dom":
+    case "dom_disposed":
+      // PR-D-9 scope: future PR will introduce iframe / shadow_dom /
+      // dom_disposed-specific skipReason values; for now all classified
+      // failures fold into the residual catch-all per ADR-0018 §Decision 1
+      // Supplement S3 (`bbox_unresolvable` covers "1st-pass + reload both
+      // fail").
+      return { skipReason: "bbox_unresolvable" };
+    default:
+      return { skipReason: "bbox_unresolvable" };
+  }
 }
 
 /**
@@ -165,6 +229,136 @@ function makeOnProgress(
 }
 
 // =====================================================
+// Fork-or-Fallback shared helper — PR7e-β4 PR2d (HIGH-α)
+// =====================================================
+
+/**
+ * Shared fork-or-fallback helper used by every category Processor.
+ *
+ * v0.4.0 PR7e-β4 PR2d (HIGH-α): PR2b-β で `JsAnimationProcessor.processViaFork`
+ * (~70 LOC) として canary 限定で実装されていたロジックを 7 全 category で
+ * 再利用するために抽出。`EMBEDDING_BACKFILL_FORK_ENABLED=true` のときのみ
+ * fork orchestrator 経由で `child_process.fork()` を起動し、ONNX Runtime を
+ * isolate する (ADR-0015)。各 Processor は本 helper を 1 行呼び出すだけで、
+ * SEC-M-3 fail-open / TPA-H-1 observability 対称性 / TPA-M-2 fallback 再帰
+ * セマンティクスを継承する。
+ *
+ * PR2d (HIGH-α): Extracted from `JsAnimationProcessor.processViaFork` (~70
+ * LOC, PR2b-β canary-only) so all 7 categories reuse it. Each Processor calls
+ * the helper in a single line and inherits SEC-M-3 fail-open, TPA-H-1
+ * observability symmetry, and TPA-M-2 fallback recursion semantics.
+ *
+ * ## Saved invariants / 継承不変条件
+ *
+ * - **SEC-M-3 fail-open**: dynamic import / orchestrator 読み込み / fork 実行時
+ *   失敗 → `inProcessFallback()` 呼び出しで Job 完走 (ADR-0015 §SEC-M-3)。
+ * - **TPA-H-1 observability**: fork child の `backfill.done` IPC から
+ *   failedCount / memorySkipCount / errors を取得し BackfillCategoryResult に
+ *   伝搬する (in-process 経路と対称化)。
+ * - **TPA-M-2 fallback recursion**: `inProcessFallback()` が再度 throw した
+ *   場合は BullMQ Worker へ伝搬し、`attempts=3` retry + DLQ (ADR-0007) に委譲。
+ * - **PII protection invariant (ADR-0015 Amendment 8 LCC-H-1)**: catch 経路の
+ *   `sanitizeErrorMessage(error)` は CWE-209 PII 漏洩を防止。新 category
+ *   Processor は本 helper 経由で自動的に同 invariant を継承する。
+ */
+async function runForkOrFallback(
+  category: EmbeddingBackfillCategory,
+  ctx: BackfillProcessContext,
+  inProcessFallback: () => Promise<BackfillCategoryResult>,
+  loggerLabel: string
+): Promise<BackfillCategoryResult> {
+  if (process.env["EMBEDDING_BACKFILL_FORK_ENABLED"] !== "true") {
+    return inProcessFallback();
+  }
+  // Fix-2 (INFRA-EMBEDDING-MOTION-SIGABRT-001): dispose the parent Worker
+  // Thread's ONNX session BEFORE fork() so the child does not inherit a
+  // mid-inference native pthread state via copy-on-write. ONNX Runtime's
+  // pthread COW inheritance is the same race that drives Fix-1; pre-fork
+  // dispose is the parent-side complement that prevents SIGABRT during the
+  // fork-orchestrator handoff.
+  //
+  // Best-effort: dispose failure must never block the fork (SEC-M-3 fail-open
+  // semantics; the in-process fallback path remains the safety net).
+  //
+  // Observability (TPA-MOTION-02 M): emit `pre_fork_dispose_duration_ms` so
+  // future regressions where dispose stalls (>500ms warn threshold) surface
+  // in production logs. Future SLO: Loki rate query on the warn line.
+  //
+  // Cross-ref: IO §13.16.4 Plan Decision (Fix-2 mandated co-landing with
+  //            Fix-1), ADR-0015 §SEC-M-3 fail-open.
+  const preForkDisposeStart = Date.now();
+  try {
+    const { embeddingService: mlEmbeddingService } = await import("@reftrixmcp/ml");
+    await mlEmbeddingService.dispose();
+  } catch (error) {
+    // Best-effort: do not block fork on dispose failure.
+    logger.warn("[EmbeddingBackfill] pre-fork dispose failed (non-fatal)", {
+      finding: "INFRA-EMBEDDING-MOTION-SIGABRT-001",
+      error: sanitizeErrorMessage(error),
+    });
+  }
+  const preForkDisposeDurationMs = Date.now() - preForkDisposeStart;
+  if (preForkDisposeDurationMs > 500) {
+    // Slow-dispose sentinel (TPA-MOTION-02): >500ms warn for future regression
+    // detection. Threshold derived from typical ONNX session teardown < 200ms;
+    // 500ms suggests a stuck session (potential dispose-time race).
+    logger.warn("[EmbeddingBackfill] pre-fork dispose slow", {
+      finding: "INFRA-EMBEDDING-MOTION-SIGABRT-001",
+      pre_fork_dispose_duration_ms: preForkDisposeDurationMs,
+      threshold_ms: 500,
+    });
+  }
+  try {
+    const { runEmbeddingBackfillFork, BACKFILL_EXTEND_LOCK_DURATION_MS } =
+      await import("../workers/phases/embedding-backfill-fork-orchestrator.js");
+    const jobToken = ctx.job.token;
+    const forkResult = await runEmbeddingBackfillFork({
+      jobId: String(ctx.job.id),
+      webPageId: ctx.webPageId,
+      category,
+      // TPA-M-1 (PR2b-β audit): Single source of truth — see
+      // `BACKFILL_PARTS_LIMIT_DEFAULT` in embedding-backfill-ipc.ts.
+      // TPA-M-1 (PR2b-β 監査): ADR-0007 head-100 contract の single source。
+      partsLimit: BACKFILL_PARTS_LIMIT_DEFAULT,
+      onProgress: async (processed: number, total: number): Promise<void> => {
+        await ctx.job.updateProgress({ processed, total });
+      },
+      // BullMQ `job.extendLock(token, duration)` requires the worker's lock
+      // token. When `ctx.job.token` is undefined (e.g. Job manufactured outside
+      // a Worker context) we skip relay; orchestrator heartbeat + SIGKILL
+      // escalation handles the stuck case.
+      //
+      // BullMQ の `job.extendLock(token, duration)` は Worker 由来の token が
+      // 必要。`ctx.job.token` 未定義時は relay を skip する。stall 対応は
+      // orchestrator 側 heartbeat / SIGKILL に委譲。
+      extendLock: async (): Promise<void> => {
+        if (jobToken) {
+          await ctx.job.extendLock(jobToken, BACKFILL_EXTEND_LOCK_DURATION_MS);
+        }
+      },
+    });
+    return {
+      category,
+      generated: forkResult.processedCount,
+      failed: forkResult.failedCount ?? 0,
+      memorySkips: forkResult.memorySkipCount ?? 0,
+      errors: forkResult.errors ?? [],
+    };
+  } catch (error) {
+    // SEC-M-3 + TPA-M-2: fall back to in-process so the Job completes; no
+    // further automatic fallback (errors propagate to BullMQ retry / DLQ).
+    // SEC-M-3 + TPA-M-2: in-process fallback で Job を完走させる。さらなる
+    // 自動 fallback は無し (BullMQ retry / DLQ に委譲)。
+    // Canary runbook は本 warn の発火頻度を監視し、非ゼロ継続時は
+    // `EMBEDDING_BACKFILL_FORK_ENABLED` を即 rollback すること。
+    logger.warn(`[${loggerLabel}] Fork path unavailable, falling back to in-process`, {
+      error: sanitizeErrorMessage(error),
+    });
+    return inProcessFallback();
+  }
+}
+
+// =====================================================
 // Processors — per-category implementations
 // =====================================================
 
@@ -176,6 +370,15 @@ class PartTextProcessor implements BackfillCategoryProcessor {
   }
 
   async process(ctx: BackfillProcessContext): Promise<BackfillCategoryResult> {
+    return runForkOrFallback(
+      this.category,
+      ctx,
+      () => this.processInProcess(ctx),
+      "PartTextProcessor"
+    );
+  }
+
+  private async processInProcess(ctx: BackfillProcessContext): Promise<BackfillCategoryResult> {
     const result = await backfillPartTextForPage(ctx.webPageId, {
       onProgress: makeOnProgress(ctx.job),
     });
@@ -196,7 +399,34 @@ class PartVisualProcessor implements BackfillCategoryProcessor {
     return true;
   }
 
+  /**
+   * v0.4.0 PR7e-β4 PR2d (HIGH-β + LCC-M-2): fork-or-fallback dispatch.
+   *
+   * `EMBEDDING_BACKFILL_FORK_ENABLED=true` のときは `runForkOrFallback` 経由で
+   * fork orchestrator を試行する。child 側 dispatch switch は `part_visual`
+   * を意図的に throw する (DINOv2 + Playwright bbox flow を要するため、
+   * service-layer wrapper `backfillPartVisualsForPage` 未実装、PR3b で対応予定)。
+   * その結果 helper の catch 経路が `processInProcess` (既存ロジック) に
+   * fallback し、Job は完走する。これにより future PR3b で service wrapper を
+   * 実装した時点で fork 経路に乗り、本 Processor は再変更不要となる。
+   *
+   * PR2d (HIGH-β + LCC-M-2): When the flag is on, `runForkOrFallback` attempts
+   * the fork path; the child dispatch deliberately throws for `part_visual`
+   * (heavy DINOv2 + Playwright bbox flow not yet wrapped in the service layer
+   * — tracked for PR3b). Helper catch routes to `processInProcess`, so the Job
+   * still completes. PR3b's service-layer addition will then activate fork
+   * automatically without further Processor changes.
+   */
   async process(ctx: BackfillProcessContext): Promise<BackfillCategoryResult> {
+    return runForkOrFallback(
+      this.category,
+      ctx,
+      () => this.processInProcess(ctx),
+      "PartVisualProcessor"
+    );
+  }
+
+  private async processInProcess(ctx: BackfillProcessContext): Promise<BackfillCategoryResult> {
     // Screenshot 無しは Graceful Degradation（0 件成功扱い）
     // No screenshot → Graceful Degradation (treat as 0 processed)
     if (!ctx.screenshotStoragePath) {
@@ -322,7 +552,7 @@ class PartVisualProcessor implements BackfillCategoryProcessor {
 
       if (bboxResult.ssrfBlocked) {
         logger.warn("[PartVisualProcessor] SSRF re-validation blocked bbox resolution (backfill)", {
-          webPageId: ctx.webPageId.slice(0, 8) + "...",
+          webPageId: truncateId(ctx.webPageId, 8),
         });
         return {
           category: this.category,
@@ -335,10 +565,53 @@ class PartVisualProcessor implements BackfillCategoryProcessor {
       }
 
       logger.info("[PartVisualProcessor] Resolved Part bboxes on backfill", {
-        webPageId: ctx.webPageId.slice(0, 8) + "...",
+        webPageId: truncateId(ctx.webPageId, 8),
         resolvedCount: bboxResult.resolvedCount,
         skippedCount: bboxResult.skippedCount,
+        reloadCount: bboxResult.reloadCount ?? 0,
+        reloadTotalTimeMs: bboxResult.reloadTotalTimeMs ?? 0,
+        reloadBudgetExhausted: bboxResult.reloadBudgetExhausted ?? false,
       });
+
+      // PR-D-9 Wave 4 (C-04 + C-06 / ADR-0018 §Decision 1 Supplement S3 + S4):
+      // emit `embedding_part_visual_skipped` audit_logs entry per residual
+      // unresolved part. Triggered when:
+      //   (a) reload budget was exhausted (`reloadBudgetExhausted=true`), OR
+      //   (b) reload pass disabled but parts remain unresolved
+      //       (`skippedCount > 0` after 1st-pass).
+      //
+      // GDPR Art.30 audit trail: action SSOT constant +
+      // `details.skipReason='bbox_unresolvable'` per ADR-0018 §Decision 1
+      // Supplement S4. PII: `targetId` is `truncateTargetId()`-truncated
+      // automatically by `AuditLogService.log()`.
+      if (bboxResult.skippedCount > 0) {
+        const classification = classifyBboxFailure(
+          bboxResult.reloadBudgetExhausted ? "dom_disposed" : "default"
+        );
+        try {
+          await getAuditLogService().log({
+            action: AUDIT_ACTION_EMBEDDING_PART_VISUAL_SKIPPED,
+            actor: "system:embedding-backfill-worker",
+            targetType: "web_page",
+            targetId: ctx.webPageId,
+            details: {
+              skipReason: classification.skipReason,
+              skippedCount: bboxResult.skippedCount,
+              resolvedCount: bboxResult.resolvedCount,
+              reloadCount: bboxResult.reloadCount ?? 0,
+              reloadTotalTimeMs: bboxResult.reloadTotalTimeMs ?? 0,
+              reloadBudgetExhausted: bboxResult.reloadBudgetExhausted ?? false,
+            },
+            result: "failure",
+          });
+        } catch (auditError) {
+          // Audit emit failure must NOT halt backfill. Logged only.
+          logger.warn("[PartVisualProcessor] audit_logs emit failed (non-fatal)", {
+            error: sanitizeErrorMessage(auditError),
+            webPageId: truncateId(ctx.webPageId, 8),
+          });
+        }
+      }
     } catch (resolveError) {
       // Non-fatal — proceed to standard visual embedding path with whatever
       // bboxes are already in the DB.
@@ -376,7 +649,26 @@ class SectionVisualProcessor implements BackfillCategoryProcessor {
     return true;
   }
 
+  /**
+   * v0.4.0 PR7e-β4 PR2d (HIGH-β): fork-or-fallback dispatch. fork 経路では
+   * child 側 dispatch が `backfillSectionVisualsForPage` (text 部分) を実行
+   * する。DINOv2 sub-path は本 Processor の `processInProcess` 内で in-process
+   * fallback として継続実行される (PR3b で fork 経路に統合予定)。
+   *
+   * PR2d (HIGH-β): fork attempts `backfillSectionVisualsForPage` (text part).
+   * The DINOv2 sub-path stays in-process via `processInProcess` until PR3b
+   * unifies the visual path into the fork.
+   */
   async process(ctx: BackfillProcessContext): Promise<BackfillCategoryResult> {
+    return runForkOrFallback(
+      this.category,
+      ctx,
+      () => this.processInProcess(ctx),
+      "SectionVisualProcessor"
+    );
+  }
+
+  private async processInProcess(ctx: BackfillProcessContext): Promise<BackfillCategoryResult> {
     // 1) Text-side recovery（既存パス）
     //    section_embeddings レコードそのものが存在しない section の text embedding
     //    を補完する。0 件の場合でも非エラー（後続の DINOv2 パスへ進む）。
@@ -502,6 +794,15 @@ class MotionProcessor implements BackfillCategoryProcessor {
   }
 
   async process(ctx: BackfillProcessContext): Promise<BackfillCategoryResult> {
+    return runForkOrFallback(
+      this.category,
+      ctx,
+      () => this.processInProcess(ctx),
+      "MotionProcessor"
+    );
+  }
+
+  private async processInProcess(ctx: BackfillProcessContext): Promise<BackfillCategoryResult> {
     const result = await backfillMotionsForPage(ctx.webPageId, {
       onProgress: makeOnProgress(ctx.job),
     });
@@ -523,6 +824,15 @@ class BackgroundProcessor implements BackfillCategoryProcessor {
   }
 
   async process(ctx: BackfillProcessContext): Promise<BackfillCategoryResult> {
+    return runForkOrFallback(
+      this.category,
+      ctx,
+      () => this.processInProcess(ctx),
+      "BackgroundProcessor"
+    );
+  }
+
+  private async processInProcess(ctx: BackfillProcessContext): Promise<BackfillCategoryResult> {
     const result = await backfillBackgroundsForPage(ctx.webPageId, {
       onProgress: makeOnProgress(ctx.job),
     });
@@ -543,7 +853,29 @@ class JsAnimationProcessor implements BackfillCategoryProcessor {
     return false;
   }
 
+  /**
+   * v0.4.0 PR7e-β4 PR2d (HIGH-α): fork-or-fallback dispatch via shared helper.
+   *
+   * PR2b-β で本 Processor 限定で実装されていた `processViaFork` (~70 LOC) は
+   * `runForkOrFallback` ヘルパーに抽出され、6 他 Processor と共有される。
+   * 本 Processor は helper 1 行呼び出しのみで SEC-M-3 fail-open / TPA-H-1
+   * observability / TPA-M-2 fallback recursion を継承する。
+   *
+   * PR2d (HIGH-α): The `processViaFork` (~70 LOC) previously implemented in
+   * this Processor is now extracted to `runForkOrFallback` and shared with
+   * the other 6 Processors. This Processor inherits SEC-M-3 / TPA-H-1 / TPA-
+   * M-2 invariants via a single helper call.
+   */
   async process(ctx: BackfillProcessContext): Promise<BackfillCategoryResult> {
+    return runForkOrFallback(
+      this.category,
+      ctx,
+      () => this.processInProcess(ctx),
+      "JsAnimationProcessor"
+    );
+  }
+
+  private async processInProcess(ctx: BackfillProcessContext): Promise<BackfillCategoryResult> {
     const result = await backfillJsAnimationsForPage(ctx.webPageId, {
       onProgress: makeOnProgress(ctx.job),
     });
@@ -565,9 +897,54 @@ class ResponsiveProcessor implements BackfillCategoryProcessor {
   }
 
   async process(ctx: BackfillProcessContext): Promise<BackfillCategoryResult> {
+    return runForkOrFallback(
+      this.category,
+      ctx,
+      () => this.processInProcess(ctx),
+      "ResponsiveProcessor"
+    );
+  }
+
+  private async processInProcess(ctx: BackfillProcessContext): Promise<BackfillCategoryResult> {
+    // PR-D-9 Wave 3 (FIND-PLAN-LCC-02 / C-13 PII): diagnostic probe BEFORE the
+    // backfill call to compute `expectedCount` (rows in `responsive_analyses`
+    // missing `responsive_analysis_embeddings`). When `expectedCount > 0` but
+    // `result.generated === 0`, emit a structured warn log so silent stalls
+    // become observable. PII: `webPageId` is truncated via `truncateId(..., 8)`
+    // per `.claude/rules/security.md` CWE-532 PII-in-log policy.
+    //
+    // PR-D-9 Wave 3 (FIND-PLAN-LCC-02 / C-13 PII): probe expectedCount before
+    // the backfill so silent stalls (expected > 0 yet generated === 0) emit a
+    // structured warn log. PII: `webPageId` truncated per CWE-532.
+    let expectedCount = 0;
+    try {
+      expectedCount = await countMissingResponsiveEmbeddings(ctx.webPageId);
+    } catch (probeError) {
+      // Probe failure is non-fatal — proceed with backfill. The diagnostic log
+      // simply omits the assertion check.
+      logger.warn("[ResponsiveProcessor] expectedCount probe failed (non-fatal)", {
+        error: sanitizeErrorMessage(probeError),
+        webPageId: truncateId(ctx.webPageId, 8),
+      });
+    }
+
     const result = await backfillResponsiveForPage(ctx.webPageId, {
       onProgress: makeOnProgress(ctx.job),
     });
+
+    // Diagnostic log: only when expectedCount > 0 but no rows were generated.
+    // This is the silent-stall signature documented in PR-D-7 §32.2 (responsive
+    // generatedCount:0 despite missing rows existing).
+    if (expectedCount > 0 && result.generated === 0) {
+      logger.warn("[ResponsiveProcessor] generatedCount mismatch (expected > 0, generated 0)", {
+        webPageId: truncateId(ctx.webPageId, 8),
+        expectedCount,
+        generatedCount: result.generated,
+        failedCount: result.failed,
+        memorySkips: result.memorySkips,
+      });
+    }
+
     return {
       category: this.category,
       generated: result.generated,
@@ -712,8 +1089,21 @@ export async function enqueueAllCategoriesForSkipRecovery(
     }
 
     try {
-      await addEmbeddingBackfillJob(queue, jobData, opts);
+      // PR-D-6 Phase 2: migrate legacy `addEmbeddingBackfillJob` → with-guard SSOT
+      // PR-D-6 Phase 2: legacy API → with-guard. outcome is observed for
+      // skip-recovery telemetry; successful variants (enqueued_* / reused_*)
+      // all count as "category successfully enqueued".
+      const result = await addEmbeddingBackfillJobWithGuard(queue, jobData, opts);
       enqueued.push(category);
+      if (result.outcome !== "enqueued_new") {
+        logger.info(`[EmbeddingBackfillProcessors] Skip-recovery enqueue outcome (${source})`, {
+          outcome: result.outcome,
+          collision: result.collision,
+          webPageId: webPageId.slice(0, 8) + "...",
+          category,
+          source,
+        });
+      }
     } catch (enqueueError) {
       failed.push(category);
       logger.warn(

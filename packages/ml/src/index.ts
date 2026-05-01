@@ -56,6 +56,14 @@ export {
   safeImportOnnx,
 } from "./onnx-availability.js";
 
+// ML Worker Thread resource limits (PR7e-β1)
+export {
+  loadMLWorkerResourceLimits,
+  getMLWorkerThreadOptions,
+  MLWorkerResourceLimitsSchema,
+} from "./config/worker-resource-limits.js";
+export type { MLWorkerResourceLimits } from "./config/worker-resource-limits.js";
+
 // Search utilities exports (SearchService removed in v0.1.0)
 export { calculateRRF, mergeWithRRF, normalizeRRFScore, toRankedItems } from "./search/index.js";
 export { executeHybridSearch } from "./search/index.js";

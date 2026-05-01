@@ -143,6 +143,26 @@ function buildChildEnv(): Record<string, string> {
   baseEnv.EMBEDDING_WORKER_THREAD = "false";
   baseEnv.DINOV2_WORKER_THREAD = "false";
 
+  // β2-P1: Force CPU execution provider in fork child processes.
+  // Fork children run ONNX in-process (EMBEDDING_WORKER_THREAD=false) where
+  // @huggingface/transformers passes `device` directly to onnxruntime-node.
+  // If ONNX_EXECUTION_PROVIDER=cuda is inherited from the parent, the child
+  // attempts CUDA initialization without the worker-thread-level safety checks
+  // (verifyCudaAvailability / isLdLibraryPathSetAtOsLevel), causing SIGABRT or
+  // exitCode=1 when libonnxruntime_providers_cuda.so is not installed.
+  // CUDA embedding is handled by the MCP server's worker-thread EmbeddingService;
+  // fork children are short-lived and CPU-only is sufficient.
+  //
+  // β2-P1: fork 子プロセスで CPU execution provider を強制する。
+  // fork 子プロセスは ONNX を in-process 実行する (EMBEDDING_WORKER_THREAD=false)。
+  // 親から ONNX_EXECUTION_PROVIDER=cuda を継承すると、worker thread レベルの
+  // 安全チェック (verifyCudaAvailability / isLdLibraryPathSetAtOsLevel) なしに
+  // CUDA 初期化を試み、libonnxruntime_providers_cuda.so 未インストール時に
+  // SIGABRT / exitCode=1 でクラッシュする。CUDA embedding は MCP サーバーの
+  // worker-thread EmbeddingService が担当する。fork 子プロセスは短命のため
+  // CPU only で十分。
+  baseEnv.ONNX_EXECUTION_PROVIDER = "cpu";
+
   // P0-3: Limit connection pool size for child process
   if (baseEnv.DATABASE_URL) {
     baseEnv.DATABASE_URL = appendConnectionLimit(baseEnv.DATABASE_URL, CHILD_CONNECTION_LIMIT);
@@ -570,6 +590,7 @@ export async function runPhase5ViaFork(
     responsiveEmbeddingsGenerated: 0,
     partEmbeddingsGenerated: 0,
     partVisualEmbeddingsGenerated: 0,
+    partVisualSkippedBboxInvalid: 0,
     sectionVisualEmbeddingsGenerated: 0,
     embeddingFailedChunks: 0,
     completed: false,
@@ -825,6 +846,8 @@ export async function runPhase5ViaFork(
           if (msg.type !== "visual-result") return;
           result.sectionVisualEmbeddingsGenerated = msg.sectionVisualEmbeddingsGenerated;
           result.partVisualEmbeddingsGenerated = msg.partVisualEmbeddingsGenerated;
+          // PR-D-2 / INV-EMBEDDING-INTEGRITY-005: propagate bbox_invalid counter
+          result.partVisualSkippedBboxInvalid = msg.partVisualSkippedBboxInvalid;
           result.embeddingFailedChunks += msg.embeddingFailedChunks;
         }
       );

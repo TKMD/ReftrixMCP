@@ -19,6 +19,7 @@
  */
 
 import { isDevelopment, logger } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 
 // =====================================================
 // 型定義
@@ -378,15 +379,24 @@ export async function generateResponsiveAnalysisEmbeddings(
       }
     } catch (error) {
       result.failedCount++;
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      // PR-D-7 Wave 7.1 (UB-TPA-IMPL-02): sanitize pass-through for shape (c)
+      // `{id, error}[]` to prevent CWE-209 Information Exposure Through an
+      // Error Message. Client-facing push goes through sanitizeErrorMessage();
+      // server-side logger preserves raw error.message for debugging.
+      // PR-D-7 Wave 7.1 (UB-TPA-IMPL-02): shape (c) `{id, error}[]` の
+      // client-facing push を sanitizeErrorMessage() 経由に統一し
+      // CWE-209 (Information Exposure Through an Error Message) を防止。
+      // server-side logger は debug 目的で raw error.message を保持。
+      const safeMessage = sanitizeErrorMessage(error);
+      const rawMessage = error instanceof Error ? error.message : "Unknown error";
       result.errors.push({
         id: analysis.id,
-        error: errorMessage,
+        error: safeMessage,
       });
 
       logger.warn("[ResponsiveAnalysisEmbedding] Embedding generation failed", {
         analysisId: analysis.id,
-        error: errorMessage,
+        error: rawMessage,
       });
     }
 

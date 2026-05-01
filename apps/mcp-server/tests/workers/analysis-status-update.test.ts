@@ -33,13 +33,69 @@ describe("PageAnalyzeWorker - analysisStatus DB Update", () => {
   });
 
   describe("Phase 0: Initial Status", () => {
-    it("should set analysisStatus to 'pending' during Phase 0 upsert", () => {
-      // Phase 0 sets analysisStatus to "pending" in both create and update paths
-      expect(phase0Source).toContain('analysisStatus: "pending"');
-      // Should appear in both the create and update parts of the upsert
-      const matches = phase0Source.match(/analysisStatus:\s*"pending"/g);
-      expect(matches).not.toBeNull();
-      expect(matches!.length).toBeGreaterThanOrEqual(2);
+    it("should set analysisStatus to 'pending' during Phase 0 upsert (legacy path)", () => {
+      // PR-B (v0.4.0 PR7e P4): Phase 0 still writes analysisStatus='pending'
+      // for both create/update branches of the W1 upsert when the Phase 0
+      // Early INSERT flag is OFF (legacy, default behavior). With the flag
+      // ON, the orchestrator's W0 upsert writes 'pending' instead.
+      //
+      // Source shape evolved from object-literal keys (`analysisStatus: "pending"`)
+      // to property assignments (`createData.analysisStatus = "pending"` /
+      // `updateData.analysisStatus = "pending"`) to support the conditional
+      // branch. Static check matches either form.
+      //
+      // PR-B (v0.4.0 PR7e P4): Phase 0 continues to write
+      // analysisStatus='pending' for both create/update branches of W1
+      // upsert on the legacy path (flag OFF, default). When the flag is ON,
+      // the orchestrator writes 'pending' instead via W0 upsert.
+      //
+      // Source shape evolved from `analysisStatus: "pending"` object-literal
+      // to `createData.analysisStatus = "pending"` /
+      // `updateData.analysisStatus = "pending"` assignments to support the
+      // conditional branch. Static check now matches either form.
+      const objectLiteralMatches = phase0Source.match(/analysisStatus:\s*"pending"/g) ?? [];
+      const assignmentMatches = phase0Source.match(/\.analysisStatus\s*=\s*"pending"/g) ?? [];
+      const totalMatches = objectLiteralMatches.length + assignmentMatches.length;
+      // Should appear at least twice (once for create payload, once for update)
+      expect(totalMatches).toBeGreaterThanOrEqual(2);
+    });
+
+    it("should branch the W1 upsert on the phase0EarlyInsertEnabled flag (PR-B v0.4.0 PR7e P4)", () => {
+      // The Phase 0 Early INSERT feature flag must be honored in Phase 0.5
+      // Phase 0.5 は phase0EarlyInsertEnabled フラグを尊重して W1 の
+      // analysisStatus 書込をスキップする必要がある。
+      expect(phase0Source).toContain("phase0EarlyInsertEnabled");
+      expect(phase0Source).toMatch(/if\s*\(\s*!phase0EarlyInsertEnabled\s*\)/);
+    });
+  });
+
+  describe("Phase 0 Early INSERT (PR-B v0.4.0 PR7e P4)", () => {
+    it("orchestrator declares PHASE0_EARLY_INSERT feature flag (default OFF)", () => {
+      // オーケストレーター側に opt-in フラグ関数がある
+      // Orchestrator must expose the opt-in flag helper
+      expect(orchestratorSource).toContain("isPhase0EarlyInsertEnabled");
+      // env var は PHASE0_EARLY_INSERT でデフォルトは false (opt-in)
+      expect(orchestratorSource).toMatch(/process\.env\.PHASE0_EARLY_INSERT\s*===\s*"true"/);
+    });
+
+    it("orchestrator performs W0 upsert before processIngestPhase when flag=true", () => {
+      // W0 upsert は processIngestPhase 呼び出しより前に位置する
+      // W0 upsert must appear before the processIngestPhase call
+      const flagBlock = orchestratorSource.indexOf("phase0EarlyInsertEnabled");
+      const w0Upsert = orchestratorSource.indexOf("prisma.webPage.upsert", flagBlock);
+      const ingestCall = orchestratorSource.indexOf("processIngestPhase(state, ctx");
+      expect(flagBlock).toBeGreaterThan(-1);
+      expect(w0Upsert).toBeGreaterThan(-1);
+      expect(ingestCall).toBeGreaterThan(-1);
+      expect(w0Upsert).toBeLessThan(ingestCall);
+    });
+
+    it("orchestrator propagates phase0EarlyInsertEnabled flag into ingest deps", () => {
+      // processIngestPhase に phase0EarlyInsertEnabled が渡される
+      // processIngestPhase must receive phase0EarlyInsertEnabled in its deps
+      expect(orchestratorSource).toMatch(
+        /processIngestPhase\(state,\s*ctx,\s*\{[^}]*phase0EarlyInsertEnabled/s
+      );
     });
   });
 

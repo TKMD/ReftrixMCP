@@ -329,9 +329,18 @@ describe("P1-D: notifyJobCompleted IPC通知", () => {
       workerSource = fs.readFileSync(WORKER_SOURCE_PATH, "utf8");
     });
 
-    it('Worker completed イベントで process.send({ type: "job-completed" }) を送信すること', () => {
-      // BullMQ Worker.on('completed') ハンドラー内で IPC メッセージを送信
-      expect(workerSource).toContain('process.send?.({ type: "job-completed", jobId: job.id })');
+    it('Worker completed イベントで process.send({ type: "job-completed", workerType, jobId, timestamp }) を送信すること', () => {
+      // BullMQ Worker.on('completed') ハンドラー内で IPC メッセージを送信。
+      //
+      // PR-D-8 Phase 2 (MF-02 + MF-05): IPC payload は WorkerIpcMessageSchema
+      // SSOT に準拠する必要がある — `workerType` と `timestamp` 必須。supervisor
+      // の `verifyWorkerIpcMessage` が両 field 欠落 payload を fail-closed で
+      // 破棄するため、page-analyze-worker は per-type payload を emit する。
+      // PR-D-8 Phase 2 (MF-02 + MF-05): IPC payload は新形式 (workerType + timestamp 必須)。
+      expect(workerSource).toContain('type: "job-completed"');
+      expect(workerSource).toContain('workerType: "page"');
+      expect(workerSource).toContain("jobId: job.id");
+      expect(workerSource).toContain("timestamp: Date.now()");
     });
 
     it("IPC送信が try-catch で保護されていること", () => {
@@ -359,16 +368,27 @@ describe("P1-D: notifyJobCompleted IPC通知", () => {
       supervisorSource = fs.readFileSync(SUPERVISOR_PATH, "utf8");
     });
 
-    it('WorkerSupervisor が child.on("message") で job-completed を受信し notifyJobCompleted を呼ぶこと', () => {
-      // P1-D: IPC message handler
+    it('WorkerSupervisor が child.on("message") で job-completed を受信し notifyJobCompletedForType を呼ぶこと', () => {
+      // P1-D + PR-D-8 Phase 2 (MF-02): IPC message handler は
+      // `verifyWorkerIpcMessage` 経由で SSOT schema 検証 + bindingTable cross-check
+      // 後に `notifyJobCompletedForType(workerType)` へ dispatch する。
+      // legacy single-worker `notifyJobCompleted()` は per-type API の
+      // backward-compat alias として残るが、IPC dispatch path は per-type を使う。
+      // P1-D + PR-D-8 Phase 2 (MF-02): IPC dispatch は per-type API を使用。
       expect(supervisorSource).toContain('child.on("message"');
-      expect(supervisorSource).toContain('msg.type === "job-completed"');
-      expect(supervisorSource).toContain("this.notifyJobCompleted()");
+      // dispatchVerifiedIpc → verifyWorkerIpcMessage → notifyJobCompletedForType
+      expect(supervisorSource).toContain("dispatchVerifiedIpc");
+      expect(supervisorSource).toContain("verifyWorkerIpcMessage");
+      expect(supervisorSource).toMatch(/this\.notifyJobCompletedForType\(verified\.workerType\)/);
     });
 
-    it("WorkerMessage 型が定義されていること", () => {
-      expect(supervisorSource).toContain("export interface WorkerMessage");
-      expect(supervisorSource).toContain('type: "job-completed"');
+    it("WorkerIpcMessage 型が SSOT schema からインポートされていること (MF-02)", () => {
+      // PR-D-8 Phase 2: WorkerMessage 型は `worker-ipc.schema.ts` SSOT に
+      // 移管され、supervisor は import で取得する。inline 型定義は禁止。
+      // PR-D-8 Phase 2: WorkerIpcMessage 型は SSOT schema 経由で参照する。
+      expect(supervisorSource).toContain("worker-ipc.schema");
+      // `type: "job-completed"` は IPC schema enum value として残存している
+      expect(supervisorSource).toMatch(/"job-completed"/);
     });
   });
 
@@ -399,12 +419,24 @@ describe("P1-D: notifyJobCompleted IPC通知", () => {
       supervisor.ensureWorkerRunning();
       expect(supervisor.getState()).toBe("running");
 
-      // IPC経由でjob-completedを2回送信
-      // spawnWorkerのchild.on('message')ハンドラーが呼ばれる
-      mockChild.emit("message", { type: "job-completed", jobId: "job-1" });
+      // PR-D-8 Phase 2 (MF-02 + MF-05): IPC payload は SSOT schema 準拠
+      // (`workerType` + `timestamp` 必須)。`mockChild` は pid=12345 で fork
+      // されたため supervisor の bindingTable に `(12345, "page")` が登録済。
+      // PR-D-8 Phase 2 (MF-02 + MF-05): per-type IPC payload で送信。
+      mockChild.emit("message", {
+        type: "job-completed",
+        workerType: "page",
+        jobId: "00000000-0000-4000-8000-000000000001",
+        timestamp: Date.now(),
+      });
       expect(supervisor.getCompletedJobCount()).toBe(1);
 
-      mockChild.emit("message", { type: "job-completed", jobId: "job-2" });
+      mockChild.emit("message", {
+        type: "job-completed",
+        workerType: "page",
+        jobId: "00000000-0000-4000-8000-000000000002",
+        timestamp: Date.now(),
+      });
       expect(supervisor.getCompletedJobCount()).toBe(2);
 
       // 2件到達 → initiateRestart がトリガーされ、state が restarting に遷移
@@ -423,11 +455,15 @@ describe("P1-D: notifyJobCompleted IPC通知", () => {
 
       supervisor.ensureWorkerRunning();
 
-      // 不正なメッセージ型
+      // PR-D-8 Phase 2 (MF-02): schema-invalid な payload は
+      // `verifyWorkerIpcMessage` で fail-closed 破棄される。
+      // PR-D-8 Phase 2 (MF-02): schema-invalid payload は破棄。
       mockChild.emit("message", { type: "unknown-type" });
       mockChild.emit("message", "string-message");
       mockChild.emit("message", null);
       mockChild.emit("message", { noType: true });
+      // 旧形式 (workerType/timestamp 欠落) も fail-closed 破棄される
+      mockChild.emit("message", { type: "job-completed", jobId: "legacy-shape" });
 
       // いずれもカウンタに影響しない
       expect(supervisor.getCompletedJobCount()).toBe(0);
@@ -469,8 +505,13 @@ describe("P1-E: initiateRestart 3-Phase Shutdown", () => {
       supervisorSource = fs.readFileSync(SUPERVISOR_PATH, "utf8");
     });
 
-    it("initiateRestart が private メソッドとして存在すること", () => {
-      expect(supervisorSource).toContain("private initiateRestart(reason: string): void");
+    it("initiateRestart が private メソッドとして存在すること (per-type signature)", () => {
+      // PR-D-8 Phase 2 (MF-04): initiateRestart は per-type 化され workerType を
+      // 第一引数に取る。`(workerType: WorkerType, reason: string): void`。
+      // PR-D-8 Phase 2 (MF-04): per-type signature。
+      expect(supervisorSource).toMatch(
+        /private\s+initiateRestart\(workerType:\s*WorkerType,\s*reason:\s*string\):\s*void/
+      );
     });
 
     it("IPC_SHUTDOWN_GRACE_MS が 2000ms であること", () => {
@@ -479,36 +520,56 @@ describe("P1-E: initiateRestart 3-Phase Shutdown", () => {
 
     it("Phase 1: IPC shutdown メッセージを送信すること", () => {
       // initiateRestart 内で workerToRestart.send({ type: 'shutdown' }) を呼ぶ
-      const restartMethod = supervisorSource.slice(
-        supervisorSource.indexOf("private initiateRestart"),
-        supervisorSource.indexOf("private scheduleRestart")
+      // PR-D-8 Phase 2: initiateRestart は scheduleRespawn より後に定義され、
+      // 直後 section header (`// ====` Redis active-worker lock) が anchor。
+      // PR-D-8 Phase 2: initiateRestart の終端を section header で位置決め。
+      const initiateStart = supervisorSource.indexOf("private initiateRestart");
+      const sectionEnd = supervisorSource.indexOf(
+        "// Private — Redis active-worker lock",
+        initiateStart
       );
+      const restartMethod = supervisorSource.slice(initiateStart, sectionEnd);
       expect(restartMethod).toContain('workerToRestart.send({ type: "shutdown" })');
     });
 
     it("Phase 2: IPC_SHUTDOWN_GRACE_MS 後に SIGTERM を送信すること", () => {
-      const restartMethod = supervisorSource.slice(
-        supervisorSource.indexOf("private initiateRestart"),
-        supervisorSource.indexOf("private scheduleRestart")
+      // PR-D-8 Phase 2: initiateRestart は scheduleRespawn より後に定義され、
+      // 直後 section header (`// ====` Redis active-worker lock) が anchor。
+      // PR-D-8 Phase 2: initiateRestart の終端を section header で位置決め。
+      const initiateStart = supervisorSource.indexOf("private initiateRestart");
+      const sectionEnd = supervisorSource.indexOf(
+        "// Private — Redis active-worker lock",
+        initiateStart
       );
+      const restartMethod = supervisorSource.slice(initiateStart, sectionEnd);
       expect(restartMethod).toContain('workerToRestart.kill("SIGTERM")');
       expect(restartMethod).toContain("IPC_SHUTDOWN_GRACE_MS");
     });
 
     it("Phase 3: タイムアウト後に SIGKILL エスカレーションすること", () => {
-      const restartMethod = supervisorSource.slice(
-        supervisorSource.indexOf("private initiateRestart"),
-        supervisorSource.indexOf("private scheduleRestart")
+      // PR-D-8 Phase 2: initiateRestart は scheduleRespawn より後に定義され、
+      // 直後 section header (`// ====` Redis active-worker lock) が anchor。
+      // PR-D-8 Phase 2: initiateRestart の終端を section header で位置決め。
+      const initiateStart = supervisorSource.indexOf("private initiateRestart");
+      const sectionEnd = supervisorSource.indexOf(
+        "// Private — Redis active-worker lock",
+        initiateStart
       );
+      const restartMethod = supervisorSource.slice(initiateStart, sectionEnd);
       expect(restartMethod).toContain('workerToRestart.kill("SIGKILL")');
       expect(restartMethod).toContain("this.config.shutdownTimeoutMs");
     });
 
     it("exit イベントでタイマーがクリアされること", () => {
-      const restartMethod = supervisorSource.slice(
-        supervisorSource.indexOf("private initiateRestart"),
-        supervisorSource.indexOf("private scheduleRestart")
+      // PR-D-8 Phase 2: initiateRestart は scheduleRespawn より後に定義され、
+      // 直後 section header (`// ====` Redis active-worker lock) が anchor。
+      // PR-D-8 Phase 2: initiateRestart の終端を section header で位置決め。
+      const initiateStart = supervisorSource.indexOf("private initiateRestart");
+      const sectionEnd = supervisorSource.indexOf(
+        "// Private — Redis active-worker lock",
+        initiateStart
       );
+      const restartMethod = supervisorSource.slice(initiateStart, sectionEnd);
       expect(restartMethod).toContain("clearTimeout(sigTermTimerId)");
       expect(restartMethod).toContain("clearTimeout(killTimerId)");
     });
@@ -522,20 +583,37 @@ describe("P1-E: initiateRestart 3-Phase Shutdown", () => {
     });
 
     it("shutdown() で IPC shutdown メッセージを送信すること", () => {
+      // PR-D-8 Phase 2: shutdown() は per-type 化され、shutdownChild() に委譲。
+      // shutdownChild 内で `workerToKill.send({ type: "shutdown" })` を実行。
+      // PR-D-8 Phase 2: shutdown は per-type shutdownChild へ委譲。
+      // PR-D-8 Phase 2: `getWorkerProcess` は class JSDoc にも出現するため
+      // shutdown 開始点以降の最初の method 宣言を anchor にする。
+      // PR-D-8 Phase 2: doc comment 衝突回避のため method 宣言形を anchor 化。
+      const shutdownStart = supervisorSource.indexOf("async shutdown(): Promise<void>");
       const shutdownMethod = supervisorSource.slice(
-        supervisorSource.indexOf("async shutdown(): Promise<void>"),
-        supervisorSource.indexOf("getWorkerProcess")
+        shutdownStart,
+        supervisorSource.indexOf("getWorkerProcess(): ChildProcess", shutdownStart)
       );
       expect(shutdownMethod).toContain('workerToKill.send({ type: "shutdown" })');
     });
 
-    it("shutdown() で Phase 2 SIGTERM を 2秒後に送信すること", () => {
+    it("shutdown() で Phase 2 SIGTERM を IPC_SHUTDOWN_GRACE_MS (2000ms) 後に送信すること", () => {
+      // PR-D-8 Phase 2: 2000 リテラルは IPC_SHUTDOWN_GRACE_MS 定数に
+      // 統合 (DRY)。const IPC_SHUTDOWN_GRACE_MS = 2000 がモジュール冒頭で
+      // 宣言され shutdownChild + initiateRestart 両方から参照される。
+      // PR-D-8 Phase 2: 2000 リテラル → IPC_SHUTDOWN_GRACE_MS 定数化。
+      // PR-D-8 Phase 2: `getWorkerProcess` は class JSDoc にも出現するため
+      // shutdown 開始点以降の最初の method 宣言を anchor にする。
+      // PR-D-8 Phase 2: doc comment 衝突回避のため method 宣言形を anchor 化。
+      const shutdownStart = supervisorSource.indexOf("async shutdown(): Promise<void>");
       const shutdownMethod = supervisorSource.slice(
-        supervisorSource.indexOf("async shutdown(): Promise<void>"),
-        supervisorSource.indexOf("getWorkerProcess")
+        shutdownStart,
+        supervisorSource.indexOf("getWorkerProcess(): ChildProcess", shutdownStart)
       );
       expect(shutdownMethod).toContain('workerToKill.kill("SIGTERM")');
-      expect(shutdownMethod).toContain("2000");
+      expect(shutdownMethod).toContain("IPC_SHUTDOWN_GRACE_MS");
+      // 値そのものはモジュール冒頭で定数宣言されている
+      expect(supervisorSource).toContain("const IPC_SHUTDOWN_GRACE_MS = 2000");
     });
   });
 
@@ -705,25 +783,36 @@ describe("v0.1.0 Worker Reliability Integration", () => {
     expect(lockDuration!).toBeGreaterThanOrEqual(2_400_000);
   });
 
-  it("Worker側 process.send の type と Supervisor側の型定義が一致すること", () => {
-    // Worker側: 'job-completed'
+  it("Worker側 process.send の type と Supervisor側の dispatch が一致すること", () => {
+    // PR-D-8 Phase 2 (MF-02): Worker は SSOT schema 準拠の payload を emit
+    // (`type: "job-completed", workerType: "page", jobId, timestamp`).
+    // Supervisor は `verified.type === "job-completed"` で dispatch する。
+    // SSOT schema 経由で type 値の整合性が保証されるため、両側で同じ
+    // string literal `"job-completed"` を参照していることを確認する。
+    // PR-D-8 Phase 2 (MF-02): 両側で同 string literal を参照する。
     expect(workerSource).toContain('type: "job-completed"');
-    // Supervisor側: WorkerMessage.type = 'job-completed'
-    expect(supervisorSource).toContain('type: "job-completed"');
+    // Supervisor側: dispatchVerifiedIpc 内で "job-completed" string literal を比較
+    expect(supervisorSource).toContain('"job-completed"');
   });
 
   it("initiateRestart と shutdown が同じ IPC→SIGTERM→SIGKILL パターンを使用すること", () => {
-    // initiateRestart
-    const restartMethod = supervisorSource.slice(
-      supervisorSource.indexOf("private initiateRestart"),
-      supervisorSource.indexOf("private scheduleRestart")
+    // initiateRestart — PR-D-8 Phase 2: section header anchor で範囲決定。
+    // PR-D-8 Phase 2: per-type 化により section header (Redis lock) で終端。
+    const initiateStart = supervisorSource.indexOf("private initiateRestart");
+    const sectionEnd = supervisorSource.indexOf(
+      "// Private — Redis active-worker lock",
+      initiateStart
     );
+    const restartMethod = supervisorSource.slice(initiateStart, sectionEnd);
 
-    // shutdown
-    const shutdownMethod = supervisorSource.slice(
-      supervisorSource.indexOf("async shutdown(): Promise<void>"),
-      supervisorSource.indexOf("getWorkerProcess")
-    );
+    // shutdown (includes shutdownChild helper). PR-D-8 Phase 2:
+    // `getWorkerProcess` は class JSDoc にも登場するため、`async shutdown`
+    // 以降の最初の出現を取る必要がある (`indexOf(needle, fromIndex)`)。
+    // PR-D-8 Phase 2: `getWorkerProcess` は doc comment にも出現するため
+    // shutdown 開始点以降の最初の出現を anchor にする。
+    const shutdownStart = supervisorSource.indexOf("async shutdown(): Promise<void>");
+    const shutdownEnd = supervisorSource.indexOf("getWorkerProcess(): ChildProcess", shutdownStart);
+    const shutdownMethod = supervisorSource.slice(shutdownStart, shutdownEnd);
 
     // 両方とも3つのフェーズを含む
     for (const method of [restartMethod, shutdownMethod]) {

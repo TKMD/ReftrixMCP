@@ -13,7 +13,10 @@
  * を防止するための Redis ベース active-worker 検出機構。
  *
  * Design:
- *   - Key:   `reftrix:worker:active:<workerType>` (e.g. `reftrix:worker:active:page`)
+ *   - Key:   `reftrix:worker:active:<workerType>` where workerType ∈
+ *            {`page`, `embedding-backfill`} (PR-D-8: per-type extension).
+ *            Each WorkerType has its own independent lock so the two
+ *            supervised children never collide on lock state.
  *   - Value: UUID nonce (process-unique boot token)
  *   - TTL:   60 seconds (refreshed every 30s via `extendLock()`)
  *   - acquire: `SET key nonce EX 60 NX` (atomic acquire-or-fail)
@@ -21,7 +24,9 @@
  *              (prevents accidental deletion of a later owner's lock)
  *
  * 設計:
- *   - キー:   `reftrix:worker:active:<workerType>` (例: `reftrix:worker:active:page`)
+ *   - キー:   `reftrix:worker:active:<workerType>` (workerType ∈
+ *            {`page`, `embedding-backfill`}、PR-D-8 で per-type 拡張)。
+ *            各 WorkerType 独立の lock を持ち、2 子 process 間で状態が衝突しない。
  *   - 値:     UUID nonce (プロセス固有の boot token)
  *   - TTL:    60 秒 (30 秒ごとに `extendLock()` で延長)
  *   - acquire: `SET key nonce EX 60 NX` (atomic 取得 or 失敗)
@@ -44,13 +49,23 @@ import type Redis from "ioredis";
 import { createRedisClient } from "../config/redis";
 import { logger } from "../utils/logger";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
+// PR-D-8 Phase 2 — migrate to WorkerType SSOT (§3.2.1, TDA-01 H resolution).
+// Previously this file declared `export type WorkerType = "page"` inline,
+// creating a 3-way SSOT collision with start-workers.ts and informal uses.
+// PR-D-8 Phase 2: WorkerType SSOT へ移行し 3-way collision を解消する。
+import type { WorkerType } from "../types/worker-type";
+
+// Re-export WorkerType so consumers of this service (e.g. WorkerSupervisor,
+// start-workers.ts) can continue importing from here during the 1-cycle
+// migration window. New code SHOULD import directly from `types/worker-type`.
+// WorkerType を re-export し、1 release cycle の移行期間中は既存 importer
+// (WorkerSupervisor, start-workers.ts) が壊れないよう配慮する。新コードは
+// `types/worker-type` から直接 import すること。
+export type { WorkerType } from "../types/worker-type";
 
 // ============================================================================
 // Constants
 // ============================================================================
-
-/** Known worker types. `page` is the only page-analyze BullMQ Queue consumer. */
-export type WorkerType = "page";
 
 /** Redis key prefix for active-worker lock keys. */
 const LOCK_KEY_PREFIX = "reftrix:worker:active:";
@@ -64,9 +79,11 @@ export const LOCK_HEARTBEAT_INTERVAL_MS = 30_000;
 /**
  * Lua script — release lock only if value matches our nonce.
  * Prevents accidentally deleting a lock owned by a later process.
+ * Key-agnostic (works for any per-type key under `reftrix:worker:active:`).
  *
  * 自 nonce と一致する場合のみ lock を削除する Lua スクリプト。
  * 後続プロセスの lock を誤って削除しないように保護する。
+ * key に依存せず、`reftrix:worker:active:` 配下の全 per-type key で動作する。
  */
 const RELEASE_LUA = `
 if redis.call("GET", KEYS[1]) == ARGV[1] then
@@ -158,6 +175,13 @@ export class WorkerActiveLockService {
 
   /**
    * Compute the Redis key for a given worker type.
+   *
+   * Per-type keys: `reftrix:worker:active:page` /
+   * `reftrix:worker:active:embedding-backfill`. Each WorkerType is an
+   * independent lock namespace (PR-D-8 §3.2.1).
+   *
+   * WorkerType ごとの Redis キーを計算する。WorkerType ごとに完全独立な lock
+   * namespace を持つ (PR-D-8 §3.2.1)。
    *
    * @internal exposed for tests
    */

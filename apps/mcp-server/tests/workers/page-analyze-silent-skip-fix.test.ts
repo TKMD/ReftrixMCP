@@ -64,11 +64,29 @@ describe("PR2: page-analyze-worker silent-skip fix", () => {
       );
     });
 
-    it("12 種類のスキップ理由が定義されていること / all 12 skip reasons defined", () => {
+    it("15 種類のスキップ理由が定義されていること / all 15 skip reasons defined", () => {
       // TDA MEDIUM 1 (v0.4.0 PR2 監査): `dispatch_phase_failed` を追加して
       // 外側 catch での text_fork_failed 誤分類を解消。
       // TDA MEDIUM 1 (v0.4.0 PR2 audit): Added `dispatch_phase_failed` to
       // eliminate outer-catch mis-classification as text_fork_failed.
+      //
+      // ADR-0018 §Decision 2 (v0.4.0 PR-D-1): `fork_terminated_before_done` と
+      // `parity_check_failed` を追加。fork child done 前終了 / terminal
+      // transition parity check 失敗に対応。
+      // ADR-0018 §Decision 2 (v0.4.0 PR-D-1): Added `fork_terminated_before_done`
+      // and `parity_check_failed` for fork child pre-done termination and
+      // terminal transition parity check failure.
+      //
+      // ADR-0018 §Decision 3 Amendment (v0.4.0 PR-D-2): `bbox_invalid` を追加。
+      // Part visual embedding ループで boundingBox が invalid (null /
+      // non-number / width<=0 / height<=0) により skip された場合の観測用。
+      // hand-coded literal array は `typesSource.match()` regex 検証用のため
+      // named import 不可。
+      // ADR-0018 §Decision 3 Amendment (v0.4.0 PR-D-2): Added `bbox_invalid` for
+      // observability when Part visual embedding loop skips due to invalid
+      // boundingBox. Hand-coded literal array required for `typesSource.match()`
+      // regex verification (named import would erase the source string under
+      // verification).
       const required = [
         "v8_heap_headroom_low",
         "system_memavailable_low",
@@ -82,6 +100,9 @@ describe("PR2: page-analyze-worker silent-skip fix", () => {
         "visual_ipc_race",
         "no_embeddable_items",
         "dispatch_phase_failed",
+        "fork_terminated_before_done",
+        "parity_check_failed",
+        "bbox_invalid",
       ];
       for (const reason of required) {
         expect(typesSource).toContain(`"${reason}"`);
@@ -201,6 +222,86 @@ describe("PR2: page-analyze-worker silent-skip fix", () => {
       const match = workerSource.match(/function skipReasonToBackfillStatus[\s\S]*?\n\}/);
       expect(match).not.toBeNull();
       expect(match![0]).toMatch(/case "dispatch_phase_failed":/);
+    });
+
+    it("fork_terminated_before_done が skipped_fork_error にマップされること / fork_terminated_before_done → fork_error (ADR-0018 §Decision 2, PR-D-1 UC-2)", () => {
+      // ADR-0018 §Decision 2 (v0.4.0 PR-D-1, TPA CA-1 UC-2): Fork child が
+      // `done` IPC message 送信前に終了した場合 (非ゼロ exit / signal /
+      // heartbeat timeout / IPC disconnect) に `fork_terminated_before_done`
+      // を設定する。mapping は既存 fork/child 系と同じ `skipped_fork_error`
+      // ルート (backfill queue 経由で retry、最終的に `failed` 永続化)。
+      //
+      // 本 test は AST レベルで case label の存在 + return 値を verify する。
+      // 最終 state `embeddingBackfillStatus='failed'` への遷移は既存の backfill
+      // worker / reconciliation service で契約 (`skipped_fork_error` → `failed`
+      // は `backfill-reconciliation.service.ts` L283/559/621/758 で保証)。
+      //
+      // ADR-0018 §Decision 2 (v0.4.0 PR-D-1, TPA CA-1 UC-2): When fork child
+      // terminates before sending the `done` IPC message (non-zero exit /
+      // signal / heartbeat timeout / IPC disconnect), set
+      // `fork_terminated_before_done`. Maps to `skipped_fork_error` (same
+      // retry path as existing fork/child-originated reasons).
+      //
+      // This test verifies case label existence + return value at AST level.
+      // Terminal transition to `embeddingBackfillStatus='failed'` is
+      // contracted by the existing backfill worker / reconciliation service
+      // (`skipped_fork_error` → `failed` guaranteed by
+      // `backfill-reconciliation.service.ts` L283/559/621/758).
+      const match = workerSource.match(/function skipReasonToBackfillStatus[\s\S]*?\n\}/);
+      expect(match).not.toBeNull();
+      const body = match![0];
+      expect(body).toMatch(/case "fork_terminated_before_done":/);
+      // Stacked-case pattern: 同一ブロックが "skipped_fork_error" を return する
+      // ことを確認する (fork/child-family と同じ block 内に落ちる)。
+      // Stacked-case pattern: verify the shared block returns
+      // "skipped_fork_error" (falls into the same block as fork/child family).
+      expect(body).toMatch(
+        /case "fork_terminated_before_done":[\s\S]*?return "skipped_fork_error"/
+      );
+    });
+
+    it("bbox_invalid が skipped_fork_error にマップされること / bbox_invalid → fork_error (ADR-0018 §Decision 3 Amendment, PR-D-2 UC-01 Option D)", () => {
+      // ADR-0018 §Decision 3 Amendment (v0.4.0 PR-D-2, IO Registry UC-01):
+      // Part visual embedding loop で boundingBox が invalid (null /
+      // non-number / width<=0 / height<=0) により skip された場合に
+      // `bbox_invalid` を設定する。mapping は既存 `skipped_fork_error`
+      // ルート (retry bucket 対象、GDPR Art.5(1)(d) accuracy 遵守)。
+      // `skipped_screenshot_missing` は retry excluded のため採用不可
+      // (IO Registry UC-01 Option B 撤回、Option D 採用)。
+      //
+      // ADR-0018 §Decision 3 Amendment (v0.4.0 PR-D-2, IO Registry UC-01):
+      // When Part visual embedding loop skips due to invalid boundingBox
+      // (null / non-number / width<=0 / height<=0), set `bbox_invalid`. Maps
+      // to `skipped_fork_error` (retry bucket, per GDPR Art.5(1)(d) accuracy).
+      // `skipped_screenshot_missing` rejected (retry-excluded; IO Registry
+      // UC-01 Option B withdrawn in favor of Option D).
+      const match = workerSource.match(/function skipReasonToBackfillStatus[\s\S]*?\n\}/);
+      expect(match).not.toBeNull();
+      const body = match![0];
+      expect(body).toMatch(/case "bbox_invalid":/);
+      expect(body).toMatch(/case "bbox_invalid":[\s\S]*?return "skipped_fork_error"/);
+    });
+
+    it("parity_check_failed が skipped_fork_error にマップされること / parity_check_failed → fork_error (ADR-0018 §Decision 2, PR-D-1 UC-2)", () => {
+      // ADR-0018 §Decision 2 / §Decision 4 / §Migration Path Step 4
+      // (v0.4.0 PR-D-1, TPA CA-1 UC-2): terminal transition 直前の
+      // `SELECT COUNT(*) FROM component_part_embeddings` が
+      // `returnvalue.generatedCount` と不一致の場合、
+      // `parity_check_failed` を設定し `skipped_fork_error` にマップ。
+      // backfill queue で retry → 再実行で整合性回復を試み、3 回 retry で
+      // `failed` 永続化 (INV-EMBEDDING-INTEGRITY-001 契約)。
+      //
+      // ADR-0018 §Decision 2 / §Decision 4 / §Migration Path Step 4
+      // (v0.4.0 PR-D-1, TPA CA-1 UC-2): When the pre-terminal
+      // `SELECT COUNT(*) FROM component_part_embeddings` mismatches
+      // `returnvalue.generatedCount`, set `parity_check_failed` and map to
+      // `skipped_fork_error`. Retries via backfill queue; after 3 retries
+      // persists as `failed` (INV-EMBEDDING-INTEGRITY-001 contract).
+      const match = workerSource.match(/function skipReasonToBackfillStatus[\s\S]*?\n\}/);
+      expect(match).not.toBeNull();
+      const body = match![0];
+      expect(body).toMatch(/case "parity_check_failed":/);
+      expect(body).toMatch(/case "parity_check_failed":[\s\S]*?return "skipped_fork_error"/);
     });
 
     it("no_embeddable_items が not_required にマップされること / no_embeddable_items → not_required", () => {

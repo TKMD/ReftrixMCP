@@ -679,9 +679,21 @@ export async function saveJSAnimationEmbeddings(
         // Embedding を pgvector 形式で保存
         const embeddingVector = `[${embeddingResult.embedding.join(",")}]`;
 
+        // SEC-H-1 (PR7e-β4 PR2d): Cast `$1` (patternId) to ::uuid explicitly.
+        // `js_animation_pattern_id` is `uuid` in DB; without the cast pgvector
+        // queue path occasionally hit `column ... is of type uuid but expression
+        // is of type text` under prepared-statement re-execution, leading to
+        // `0/82` save-rate regressions (Stripe canary). pgvector field $2 already
+        // carries `::vector` cast — we mirror the same explicit-cast policy here.
+        //
+        // SEC-H-1 (PR7e-β4 PR2d): `$1` (patternId) を `::uuid` に明示 cast。
+        // `js_animation_pattern_id` は DB 型 `uuid` だが、cast 不在のため prepared-
+        // statement 再実行経路で `column ... is of type uuid but expression is of
+        // type text` が散発し Stripe canary で 0/82 save-rate 退行を誘発した。
+        // 既に `$2::vector` で同方針を採っているため整合性も担保される。
         await prisma.$executeRawUnsafe(
           `INSERT INTO js_animation_embeddings (id, js_animation_pattern_id, embedding, text_representation, model_version, embedding_timestamp, updated_at)
-           VALUES (gen_random_uuid(), $1, $2::vector, $3, $4, NOW(), NOW())
+           VALUES (gen_random_uuid(), $1::uuid, $2::vector, $3, $4, NOW(), NOW())
            ON CONFLICT (js_animation_pattern_id)
            DO UPDATE SET embedding = $2::vector, text_representation = $3, model_version = $4, embedding_timestamp = NOW(), updated_at = NOW()`,
           patternId,

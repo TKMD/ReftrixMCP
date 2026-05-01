@@ -587,8 +587,31 @@ export async function generateMotionEmbeddings(
     const motionPersistenceService = getMotionPersistenceService();
 
     if (!motionPersistenceService.isAvailable()) {
+      // v0.4.0 PR7e-β3: silent-skip 防御 (TDA P2)
+      // 以前は logger.warn + success=false で返却していたため、呼び出し元では
+      // 単なる savedCount=0 にしか見えず DI 欠落が検知されなかった (fork child で
+      // 全 motion_embeddings が silent skip される原因)。
+      //
+      // v0.4.0 PR7e-β3: silent-skip defense (TDA P2).
+      // Previously returned with logger.warn + success=false, which surfaced
+      // only as savedCount=0 upstream and hid DI misconfiguration. This made
+      // the fork child silently skip all motion_embeddings.
+      // v0.4.0 PR7e-β3 SEC-β3-M1: error メッセージから内部関数名を除去。
+      // 詳細は logger.error 側のみに残し、MCP クライアントに露出し得る result.errors には汎用化した表現を push。
+      // v0.4.0 PR7e-β3 SEC-β3-M1: removed internal function names from the error message surfaced on
+      // `result.errors`; diagnostic details remain only in `logger.error` which is not returned to MCP clients.
       result.success = false;
-      logger.warn("[EmbeddingHandler] MotionPersistenceService not available");
+      result.errors.push({
+        patternId: "__di_unavailable__",
+        error: "Motion embedding DI configuration missing",
+      });
+      logger.error(
+        "[EmbeddingHandler] MotionPersistenceService DI not initialized — all motion embeddings will be skipped",
+        {
+          patternCount: patterns.length,
+          idMappingSize: motionPatternIdMapping?.size ?? 0,
+        }
+      );
       return result;
     }
 

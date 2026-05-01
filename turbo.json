@@ -39,10 +39,21 @@
       "dependsOn": ["^build"]
     },
     "test:integration": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "env": ["DATABASE_URL", "REDIS_URL", "CI", "SKIP_EXTERNAL_TESTS"]
     },
     "test:smoke": {
       "dependsOn": ["^build"]
+    },
+    "test:regression:standing": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "vitest.regression-standing.config.ts",
+        "vitest.base.config.mts",
+        "tests/regression/standing/**"
+      ],
+      "env": ["DATABASE_URL", "REDIS_URL", "REFTRIX_SCREENSHOT_ROOT", "EMBEDDING_MODEL_MOCK"]
     },
     "test:e2e": {
       "dependsOn": ["build"]

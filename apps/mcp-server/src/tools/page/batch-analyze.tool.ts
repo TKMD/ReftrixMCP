@@ -1,6 +1,4 @@
-// SPDX-FileCopyrightText: 2026 TKMD and Reftrix Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-
 /**
  * page.batch_analyze MCPツール
  * 複数URLの一括分析（BullMQバッチジョブ）
@@ -23,12 +21,12 @@ import { isUrlAllowedByRobotsTxt } from "@reftrixmcp/core";
 import { isRedisAvailable, getRedisClient } from "../../config/redis";
 import {
   createPageAnalyzeQueue,
-  addPageAnalyzeJob,
+  addPageAnalyzeJobWithGuard,
   closeQueue,
   type PageAnalyzeJobOptions,
   type PageAnalyzeJobData,
 } from "../../queues/page-analyze-queue";
-import { getWorkerSupervisor } from "../../services/worker-supervisor.service";
+import { bootstrapWorkersForPageAnalyze } from "./_shared/worker-bootstrap";
 import { cleanupQueue, createQueueAdapter } from "../../services/queue-cleanup.service";
 import {
   generateRequestId,
@@ -254,9 +252,12 @@ export async function pageBatchAnalyzeHandler(input: unknown): Promise<BatchAnal
   }
 
   // ---------------------------------------------------------------
-  // 5. ワーカー起動確認 / Ensure worker is running
+  // 5. ワーカー起動確認 / Ensure worker is running (PR-D-9 Wave 1: C-11 helper)
+  // Worker bootstrap via shared helper. ENABLE_BACKFILL_AUTOSPAWN env var
+  // controls page-only (legacy) vs page + embedding-backfill staggered spawn.
+  // Failures are logged + audit-emitted per ADR-0018 §Decision 1 Supplement.
   // ---------------------------------------------------------------
-  getWorkerSupervisor().ensureWorkerRunning();
+  bootstrapWorkersForPageAnalyze();
 
   // キュークリーンアップ
   const cleanupResult = await cleanupQueue(createQueueAdapter(queue));
@@ -286,8 +287,23 @@ export async function pageBatchAnalyzeHandler(input: unknown): Promise<BatchAnal
         requestId: `${batchId}:${item.webPageId}`,
       };
 
-      const job = await addPageAnalyzeJob(queue, jobData, 10);
-      jobIds.push(job.id ?? item.webPageId);
+      // PR-D-6 Phase 2: migrate legacy `addPageAnalyzeJob` → collision-guarded
+      // SSOT helper. `EnqueueResult.jobId` is always defined (no `job.id` race
+      // fallback needed); ops triage uses `outcome` / `collision` fields.
+      // PR-D-6 Phase 2: legacy API → with-guard. `jobId` is always defined
+      // in `EnqueueResult`; `outcome` surfaces collisions for ops triage.
+      const enqueueResult = await addPageAnalyzeJobWithGuard(queue, jobData, 10);
+      jobIds.push(enqueueResult.jobId);
+
+      if (enqueueResult.outcome !== "enqueued_new") {
+        logger.warn("[page.batch_analyze] Non-standard enqueue outcome", {
+          batchId: batchId.slice(0, 8) + "...",
+          webPageId: item.webPageId.slice(0, 8) + "...",
+          outcome: enqueueResult.outcome,
+          collision: enqueueResult.collision,
+          jobId: enqueueResult.jobId,
+        });
+      }
     }
 
     // バッチメタデータをRedisに保存（ステータス追跡用）

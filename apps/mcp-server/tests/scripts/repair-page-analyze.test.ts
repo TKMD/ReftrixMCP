@@ -35,7 +35,15 @@ const {
 } = vi.hoisted(() => ({
   mockWebPageFindMany: vi.fn<[], Promise<unknown[]>>(async () => []),
   mockWebPageUpdateMany: vi.fn<[], Promise<{ count: number }>>(async () => ({ count: 1 })),
-  mockAddEmbeddingBackfillJob: vi.fn(async () => ({})),
+  // PR-D-6 Phase 2: mock migrated from legacy `addEmbeddingBackfillJob` to
+  // `addEmbeddingBackfillJobWithGuard`. Return the `EnqueueResult` discriminated
+  // union `enqueued_new` variant (happy path) — the repair script reads
+  // `.outcome` / `.collision` via the 6-variant union.
+  mockAddEmbeddingBackfillJob: vi.fn(async () => ({
+    outcome: "enqueued_new" as const,
+    jobId: "mock-job-id",
+    collision: null,
+  })),
   mockCreateQueue: vi.fn(() => ({
     close: vi.fn(async () => undefined),
   })),
@@ -66,7 +74,10 @@ vi.mock("../../src/queues/embedding-backfill-queue", async () => {
   return {
     ...actual,
     createEmbeddingBackfillQueue: mockCreateQueue,
-    addEmbeddingBackfillJob: mockAddEmbeddingBackfillJob,
+    // PR-D-6 Phase 2: migrate legacy `addEmbeddingBackfillJob` → with-guard SSOT.
+    // The repair script imports `addEmbeddingBackfillJobWithGuard`; the legacy
+    // export is preserved via `...actual` for any residual callers.
+    addEmbeddingBackfillJobWithGuard: mockAddEmbeddingBackfillJob,
   };
 });
 

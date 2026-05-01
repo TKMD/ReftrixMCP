@@ -1,5 +1,5 @@
-// SPDX-FileCopyrightText: 2026 TKMD and Reftrix Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2025-2026 Reftrix contributors
 
 /**
  * Page Analyze Queue - BullMQ Queue for Async Web Analysis
@@ -17,6 +17,11 @@
 
 import { Queue, QueueEvents, type Job, type ConnectionOptions } from "bullmq";
 import { getRedisConfig, type RedisConfig } from "../config/redis";
+import { getAuditLogService } from "../services/audit-log.service";
+import { logger } from "../utils/logger";
+import { sanitizeErrorMessage } from "../utils/sanitize-error";
+import { truncateId } from "../utils/truncate-id";
+import { enqueueWithCollisionGuard, type EnqueueResult } from "./enqueue-with-collision-guard";
 
 /**
  * Queue name constant
@@ -464,6 +469,16 @@ export function createQueueEvents(configOverrides?: Partial<RedisConfig>): Queue
 /**
  * Add a page analyze job to the queue
  *
+ * @deprecated Use {@link addPageAnalyzeJobWithGuard} instead (PR-D-6,
+ *   FIND-TDA-02). The legacy helper performs a bare `queue.add` without the
+ *   atomic SETNX claim + observability-only audit emit required by RC-A.
+ *   Kept temporarily for backward-compatible interop during the migration
+ *   window; do not add new call sites.
+ *   `addPageAnalyzeJobWithGuard` を使用すること (PR-D-6, FIND-TDA-02)。旧
+ *   helper は RC-A 対策の atomic SETNX claim と observability-only audit
+ *   emit を持たない。並立期間の後方互換のため一時保持。新規 call site
+ *   追加禁止。
+ *
  * @param queue - BullMQ Queue instance
  * @param data - Job data
  * @param priority - Job priority (lower = higher priority, default: 10)
@@ -493,6 +508,7 @@ export async function addPageAnalyzeJob(
  * @param jobId - Job ID (webPageId)
  * @returns Job status or null if not found
  */
+// eslint-disable-next-line complexity -- Pre-existing CC=21, FIND-TDA-07 Q3-2026 backlog successor issue refactor (PR-D-6 IO spot decision 019db5a5-b84d-71cd-a198-95f9c8c1cbb7 Option A scope)
 export async function getJobStatus(
   queue: Queue<PageAnalyzeJobData, PageAnalyzeJobResult>,
   jobId: string
@@ -633,4 +649,130 @@ export async function checkQueueHealth(
       error: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+// ============================================================================
+// PR-D-6 Phase 2: Collision-guarded enqueue (observability-only scope)
+// ============================================================================
+
+/**
+ * Redis key namespace for the atomic SETNX jobId claim of the page-analyze
+ * queue. Expands to `reftrix:page-analyze:jobclaim:<webPageId>`.
+ *
+ * Redis key namespace for atomic SETNX jobId claim on the page-analyze queue.
+ */
+const PAGE_ANALYZE_CLAIM_KEY_NAMESPACE = "page-analyze";
+
+/**
+ * Observability-only audit emitter for page-analyze collisions (Registry v3
+ * §3 FIND-TPA-02 binding: `addPageAnalyzeJobWithGuard` scope 縮退 = QueueEvents
+ * duplicated listener + audit emit のみ、collision detection path は Plan §2
+ * 未特定のため Option A full implementation 不要)。
+ *
+ * Writes a `page_analyze_collision_resolved` audit row for operational
+ * visibility — **not** a schema drift trigger (schema-enum-sync standing
+ * regression remains untouched per Registry §4 row 238 continuity).
+ *
+ * Observability-only audit emitter per Registry v3 §3 FIND-TPA-02 binding.
+ * Writes a `page_analyze_collision_resolved` row for visibility only.
+ */
+async function emitPageAnalyzeCollisionAudit(event: {
+  webPageId: string;
+  originalJobId: string;
+  retryJobId: string;
+  originalState: "completed" | "failed";
+}): Promise<void> {
+  try {
+    await getAuditLogService().log({
+      action: "page_analyze_collision_resolved",
+      actor: "system:page-analyze-queue",
+      targetType: "web_page",
+      targetId: event.webPageId,
+      details: {
+        // PII-safe: webPageId is truncated via `utils/truncate-id.ts:17 truncateId` SSOT.
+        webPageId: truncateId(event.webPageId, 8),
+        // Both jobIds are webPageId-only (page-analyze jobId convention), so
+        // truncate each through the same SSOT helper for symmetric PII guard.
+        originalJobId: truncateId(event.originalJobId, 8),
+        retryJobId: truncateId(event.retryJobId.split("__retry_")[0] ?? event.retryJobId, 8),
+        originalState: event.originalState,
+        timestamp: new Date().toISOString(),
+      },
+      result: "success",
+    });
+  } catch (err) {
+    // Observability-only path: audit failure never blocks the retry enqueue.
+    logger.warn("[PageAnalyzeQueue] collision audit emit failed (non-fatal)", {
+      error: sanitizeErrorMessage(err),
+    });
+  }
+}
+
+/**
+ * Collision-guarded enqueue (observability-only scope) for page-analyze jobs.
+ *
+ * Registry v3 Binding 3 (secondary, FIND-TPA-02 observability-only scope):
+ * atomic SETNX Lua claim + 5 sub-handler dispatch via the shared
+ * {@link enqueueWithCollisionGuard} generic helper. Retry jobId = `<webPageId>__retry_<uuidv7>`;
+ * observability-only audit emit via {@link emitPageAnalyzeCollisionAudit}.
+ *
+ * Call site migration (legacy {@link addPageAnalyzeJob} → this helper) is
+ * owned by backend-api-developer per Registry v3 Binding 3 secondary scope
+ * and is intentionally **not** performed here.
+ *
+ * Observability-scoped collision-guarded enqueue for page-analyze. Mirrors the
+ * backfill helper but emits a dedicated `page_analyze_collision_resolved`
+ * audit row for operational visibility.
+ *
+ * @param queue - BullMQ Queue instance
+ * @param data - Job data (without createdAt — filled in here)
+ * @param priority - Job priority (lower = higher priority, default 10)
+ * @returns {@link EnqueueResult} discriminated by `outcome`
+ */
+export async function addPageAnalyzeJobWithGuard(
+  queue: Queue<PageAnalyzeJobData, PageAnalyzeJobResult>,
+  data: Omit<PageAnalyzeJobData, "createdAt">,
+  priority: number = 10
+): Promise<EnqueueResult> {
+  const jobData: PageAnalyzeJobData = {
+    ...data,
+    createdAt: new Date().toISOString(),
+  };
+
+  return await enqueueWithCollisionGuard<PageAnalyzeJobData, PageAnalyzeJobResult>({
+    queue,
+    queueName: PAGE_ANALYZE_QUEUE_NAME,
+    jobId: data.webPageId,
+    data: jobData,
+    jobOptions: { priority },
+    claimKeyNamespace: PAGE_ANALYZE_CLAIM_KEY_NAMESPACE,
+    webPageId: data.webPageId,
+    auditEmitter: emitPageAnalyzeCollisionAudit,
+  });
+}
+
+/**
+ * Register the observability-only `"duplicated"` event listener on a
+ * page-analyze {@link QueueEvents} instance.
+ *
+ * Registry v3 FIND-TPA-02 binding (observability-only scope absorb from Plan
+ * §3.3 Option C): emits a `logger.warn` for every duplicated-jobId event as a
+ * secondary evidence stream correlated with `page_analyze_collision_resolved`
+ * audit rows.
+ *
+ * Registers an observability-only `"duplicated"` listener on the page-analyze
+ * QueueEvents instance. Emits `logger.warn` on each duplicated-jobId event as
+ * correlated evidence for `page_analyze_collision_resolved` audit rows.
+ *
+ * @param queueEvents - BullMQ QueueEvents instance for the page-analyze queue
+ * @returns The same QueueEvents instance for fluent chaining.
+ */
+export function registerPageAnalyzeDuplicatedListener(queueEvents: QueueEvents): QueueEvents {
+  queueEvents.on("duplicated", ({ jobId }) => {
+    logger.warn("[PageAnalyzeQueue] QueueEvents.duplicated fired", {
+      // PII-safe: truncate webPageId-shaped jobId via `truncateId` SSOT.
+      jobId: truncateId(jobId, 8),
+    });
+  });
+  return queueEvents;
 }

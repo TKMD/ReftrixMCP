@@ -19,6 +19,14 @@
 import { createServer, start, SERVER_CONFIG } from "./server";
 import { createTransport } from "./transport";
 import { logger, validateEnvironment } from "./utils/logger";
+// SEC-M1-02 (ADR-0016 § Test-only Env Var Guard, deadline 2026-05-15):
+// production entry point の起動シーケンス冒頭で test-only env var leak を
+// throw-on-detect する。idempotent なので server.ts start() / start-workers.ts
+// main() でも独立に呼ばれる (3-entry-point defense in depth)。
+// SEC-M1-02: enforce test-only env var guard at the production entry-point
+// boot sequence; idempotent so it is also called from server.ts and
+// start-workers.ts as defense in depth.
+import { assertNoTestOnlyEnvLeak } from "./config/test-env-guard";
 import { registerTool, setAuthMiddleware } from "./router";
 import { toolHandlers, checkToolConsistency } from "./tools";
 import { createAuthMiddleware, PUBLIC_TOOLS } from "./middleware/auth";
@@ -43,6 +51,14 @@ import type { Server } from "http";
  * MCPサーバーを起動
  */
 async function main(): Promise<void> {
+  // SEC-M1-02 (ADR-0016 § Test-only Env Var Guard): block production startup
+  // when test-only env vars (e.g. EMBEDDING_MODEL_MOCK) are set in a non-test
+  // runtime. Must be called BEFORE validateEnvironment() so that any leak fails
+  // fast before service initialization begins.
+  // SEC-M1-02: validateEnvironment() より前に呼び出し、test-only env var が
+  // production にリークしている場合は service 初期化前に fail-fast する。
+  assertNoTestOnlyEnvLeak();
+
   // 環境変数を検証（最優先で実行）
   // NODE_ENV が未設定/空の場合はエラーをスローしてサーバー起動を中止
   const environment = validateEnvironment();

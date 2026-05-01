@@ -6,12 +6,12 @@
     "url": "https://github.com/TKMD/ReftrixMCP",
     "source": "github"
   },
-  "version": "0.3.0",
+  "version": "0.5.1",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@reftrixmcp/mcp-server",
-      "version": "0.3.0",
+      "version": "0.5.1",
       "transport": {
         "type": "stdio"
       },

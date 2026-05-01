@@ -64,6 +64,7 @@ import {
   acquireSectionCropBuffer,
   generateJsAnimationTextRepresentation,
   saveJsAnimationEmbeddingChunk,
+  truncateSkipDetail,
 } from "./types";
 
 // Phase 5 RAW decode optimization
@@ -918,11 +919,25 @@ async function processPartTextEmbeddingChunks(
         }
 
         if (chunkEmbeddings.length > 0) {
+          // PR-D-2: savedCount → generatedCount rename。INV-EMBEDDING-INTEGRITY-002
+          // により generatedCount は createMany.count からのみ導出される。
+          // PR-D-2: renamed savedCount → generatedCount. Per
+          // INV-EMBEDDING-INTEGRITY-002, generatedCount derives solely from
+          // createMany.count (loop counter prohibited).
           const saveResult = await savePartEmbeddings(
             ctx.prisma as unknown as PartEmbeddingPrismaClient,
             chunkEmbeddings
           );
-          ctx.result.partEmbeddingsGenerated += saveResult.savedCount;
+          ctx.result.partEmbeddingsGenerated += saveResult.generatedCount;
+          if (saveResult.filteredNonFinite > 0) {
+            logger.warn(
+              "[PageAnalyzeWorker] Part embedding NaN/Infinity pre-filter removed items",
+              {
+                filteredNonFinite: saveResult.filteredNonFinite,
+                chunkSize: chunkEmbeddings.length,
+              }
+            );
+          }
         }
 
         if (isDevelopment()) {
@@ -1139,6 +1154,20 @@ async function processPartVisualEmbeddingLoop(
           bbox.width <= 0 ||
           bbox.height <= 0
         ) {
+          // RC-C / INV-EMBEDDING-INTEGRITY-005 (PR-D-2): bbox=0 の silent drop を
+          // 明示的な counter に計上する。従来の silent `continue` を observability
+          // 可能な skip として promote し、Phase 5 終了時に
+          // partsNeedingVisual 全件が bbox_invalid で skip された場合のみ
+          // run-level `skipReason='bbox_invalid'` への promotion 判定が可能になる
+          // (§Plan 3.3 の 3 条件 gate は promote 処理側で実施)。
+          //
+          // RC-C / INV-EMBEDDING-INTEGRITY-005 (PR-D-2): promote the bbox=0
+          // silent drop to an observable counter. The legacy silent `continue`
+          // becomes an explicit skip count, enabling later run-level
+          // `skipReason='bbox_invalid'` promotion when 100% of
+          // partsNeedingVisual are skipped this way (per Plan §3.3's 3-condition
+          // gate, handled at the caller).
+          ctx.result.partVisualSkippedBboxInvalid++;
           continue;
         }
 
@@ -1221,9 +1250,46 @@ async function processPartVisualEmbeddingLoop(
   partRawBuffer = null;
   partFallbackBuffer = null;
 
+  // INV-EMBEDDING-INTEGRITY-005 (PR-D-2): bbox_invalid の observability 情報を
+  // skipDetail に encode。3 条件 gate (Plan §3.3) を満たす場合のみ run-level
+  // `skipReason='bbox_invalid'` に promote、そうでない場合は counter のみ
+  // skipDetail に追記 (partial skip として観測)。
+  //
+  //   Gate:
+  //     (1) partsNeedingVisual.length > 0
+  //     (2) partVisualSkippedBboxInvalid === partsNeedingVisual.length
+  //         (100% bbox_invalid)
+  //     (3) partVisualEmbeddingsGenerated === 0 (他の skip reason でない)
+  //
+  // INV-EMBEDDING-INTEGRITY-005 (PR-D-2): encode bbox_invalid observability
+  // into skipDetail. Promote to run-level `skipReason='bbox_invalid'` only
+  // when the 3-condition gate (Plan §3.3) is satisfied; otherwise append the
+  // counter to skipDetail only (observed as a partial skip).
+  if (ctx.result.partVisualSkippedBboxInvalid > 0) {
+    const bboxInvalidDetail = `bboxInvalid:${ctx.result.partVisualSkippedBboxInvalid}`;
+    const allBboxInvalid =
+      partsNeedingVisual.length > 0 &&
+      ctx.result.partVisualSkippedBboxInvalid === partsNeedingVisual.length &&
+      ctx.result.partVisualEmbeddingsGenerated === 0;
+
+    if (allBboxInvalid && ctx.result.skipReason === undefined) {
+      // Promote to run-level terminal state. Only set when no prior skipReason
+      // exists so we don't override memory-pressure / fork-error etc.
+      ctx.result.skipReason = "bbox_invalid";
+      ctx.result.skipDetail = truncateSkipDetail(bboxInvalidDetail);
+    } else {
+      // Partial skip: append to existing skipDetail (or create new).
+      // PII-free: only numeric value, no part IDs / URLs / stack traces.
+      const existing = ctx.result.skipDetail ?? "";
+      const combined = existing ? `${existing} ${bboxInvalidDetail}` : bboxInvalidDetail;
+      ctx.result.skipDetail = truncateSkipDetail(combined);
+    }
+  }
+
   if (isDevelopment()) {
     logger.info("[PageAnalyzeWorker] DINOv2 part visual embedding generation complete", {
       generatedCount: ctx.result.partVisualEmbeddingsGenerated,
+      skippedBboxInvalid: ctx.result.partVisualSkippedBboxInvalid,
       totalParts: partsNeedingVisual.length,
     });
   }
@@ -2105,6 +2171,7 @@ export async function runTextEmbeddingSubPhases(
     responsiveEmbeddingsGenerated: 0,
     partEmbeddingsGenerated: 0,
     partVisualEmbeddingsGenerated: 0,
+    partVisualSkippedBboxInvalid: 0,
     sectionVisualEmbeddingsGenerated: 0,
     embeddingFailedChunks: 0,
     completed: false,
@@ -2237,6 +2304,15 @@ export interface VisualEmbeddingSubPhaseParams {
 export interface VisualEmbeddingSubPhaseResult {
   sectionVisualEmbeddingsGenerated: number;
   partVisualEmbeddingsGenerated: number;
+  /**
+   * Part visual embedding loop で bbox_invalid により skip された件数
+   * (PR-D-2, INV-EMBEDDING-INTEGRITY-005)。fork child → parent IPC で伝搬する。
+   *
+   * Count of parts skipped by bbox_invalid in the Part visual embedding loop
+   * (PR-D-2, INV-EMBEDDING-INTEGRITY-005). Propagated from fork child → parent
+   * via IPC.
+   */
+  partVisualSkippedBboxInvalid: number;
   embeddingFailedChunks: number;
 }
 
@@ -2253,6 +2329,7 @@ export async function runVisualEmbeddingSubPhases(
   const vResult: VisualEmbeddingSubPhaseResult = {
     sectionVisualEmbeddingsGenerated: 0,
     partVisualEmbeddingsGenerated: 0,
+    partVisualSkippedBboxInvalid: 0,
     embeddingFailedChunks: 0,
   };
 
@@ -2452,6 +2529,7 @@ export async function runVisualEmbeddingSubPhases(
           responsiveEmbeddingsGenerated: 0,
           partEmbeddingsGenerated: 0,
           partVisualEmbeddingsGenerated: 0,
+          partVisualSkippedBboxInvalid: 0,
           sectionVisualEmbeddingsGenerated: 0,
           embeddingFailedChunks: 0,
           completed: false,
@@ -2487,6 +2565,9 @@ export async function runVisualEmbeddingSubPhases(
         );
 
         vResult.partVisualEmbeddingsGenerated = partResultHolder.partVisualEmbeddingsGenerated;
+        // PR-D-2 / INV-EMBEDDING-INTEGRITY-005: bbox_invalid counter を親へ伝搬
+        // PR-D-2 / INV-EMBEDDING-INTEGRITY-005: propagate bbox_invalid counter to parent
+        vResult.partVisualSkippedBboxInvalid = partResultHolder.partVisualSkippedBboxInvalid;
       } catch (partVisErr) {
         vResult.embeddingFailedChunks++;
         logger.warn("[Phase5-VisualChild] Part DINOv2 visual embedding failed (non-fatal)", {

@@ -130,3 +130,46 @@ export function sanitizeErrorCode(
 ): string {
   return codeToMessageMap[errorCode] ?? (CATEGORY_MESSAGES.internal as string);
 }
+
+// =====================================================
+// extractPrismaCode / Prismaエラーコード抽出
+// =====================================================
+
+/**
+ * Extract a Prisma-shaped error code (`P\d{4}` such as `P2002`, `P2025`) from
+ * an unknown error-like value.
+ *
+ * 未知のエラー値から Prisma 形式のエラーコード (`P\d{4}` 例: `P2002`, `P2025`)
+ * を抽出する。
+ *
+ * PR-D-7 Wave 3 / FIND-PLAN-TPA-01 H binding (see Plan v1.2 §3.5.2 Step 5):
+ *   When a caller shapes `result.errors[]` as an object form that carries a
+ *   `code` field, it MUST be populated via this helper so the code matches the
+ *   strict `/^P\d{4}$/` regex (no freeform strings). Callers are still
+ *   responsible for CWE-200 defense: the raw Prisma code must only be paired
+ *   with a sanitized `message` from `sanitizeErrorMessage` before any
+ *   client-facing exposure.
+ *
+ * PR-D-7 Wave 3 / FIND-PLAN-TPA-01 H 対応 (Plan v1.2 §3.5.2 Step 5 参照):
+ *   caller が `result.errors[]` の object form に `code` フィールドを含める場合、
+ *   必ず本 helper を経由して `/^P\d{4}$/` に一致するコードのみを採用する
+ *   (freeform 文字列は不可)。CWE-200 対策は caller 責務: raw Prisma code は
+ *   client 露出前に `sanitizeErrorMessage` 由来の message と組み合わせること。
+ *
+ * @param error - Raw error (unknown type from catch blocks)
+ * @returns Prisma error code if the error exposes a strict `P\d{4}` code,
+ *          otherwise `undefined`.
+ */
+export function extractPrismaCode(error: unknown): string | undefined {
+  if (error === null || error === undefined) {
+    return undefined;
+  }
+  if (typeof error !== "object") {
+    return undefined;
+  }
+  const code = (error as { code?: unknown }).code;
+  if (typeof code !== "string") {
+    return undefined;
+  }
+  return /^P\d{4}$/.test(code) ? code : undefined;
+}

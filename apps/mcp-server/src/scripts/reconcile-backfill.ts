@@ -30,6 +30,16 @@
  *   pnpm tsx apps/mcp-server/src/scripts/reconcile-backfill.ts --confirm --threshold-ms 1800000
  *   pnpm tsx apps/mcp-server/src/scripts/reconcile-backfill.ts --dry-run --batch 100
  *
+ * v0.4.0 PR7e-β4 PR1 — added options:
+ *   --force-stuck         manual trigger of the stale `in_progress` reconciliation
+ *                         path (passed through to `reconcileStaleBackfillJobs`,
+ *                         observability log only — the service treats every run
+ *                         as eligible for stale detection regardless of this flag,
+ *                         but emitting it lets operators record an explicit
+ *                         intent in stdout / audit trails).
+ *   --older-than-ms <ms>  alias for --threshold-ms; both supported (former takes
+ *                         precedence when both are provided). Default 3600000.
+ *
  * @module scripts/reconcile-backfill
  */
 
@@ -45,17 +55,26 @@ interface CliArgs {
   batchLimit?: number;
   confirm: boolean;
   dryRun: boolean;
+  forceStuck: boolean;
 }
 
 /**
  * Parse minimal argv. Safe against missing/invalid values (falls through to
  * defaults). No external CLI framework to keep the script lightweight.
  * 最小限の argv パーサ。不正値はデフォルトにフォールバック。
+ *
+ * v0.4.0 PR7e-β4 PR1: added `--force-stuck` (boolean flag) and `--older-than-ms`
+ * (alias of `--threshold-ms`). When both `--threshold-ms` and `--older-than-ms`
+ * are present, `--threshold-ms` wins (legacy precedence).
+ *
+ * v0.4.0 PR7e-β4 PR1: `--force-stuck` (boolean) と `--older-than-ms`
+ * (`--threshold-ms` のエイリアス) を追加。両方指定時は `--threshold-ms` 優先 (後方互換)。
  */
 function parseArgs(argv: string[]): CliArgs {
   const args: CliArgs = {
     confirm: argv.includes("--confirm"),
     dryRun: argv.includes("--dry-run"),
+    forceStuck: argv.includes("--force-stuck"),
   };
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i];
@@ -64,6 +83,16 @@ function parseArgs(argv: string[]): CliArgs {
       const n = Number.parseInt(value, 10);
       if (Number.isFinite(n) && n > 0) {
         args.thresholdMs = n;
+      }
+      i++;
+    } else if (key === "--older-than-ms" && value !== undefined) {
+      // Alias for --threshold-ms; --threshold-ms takes precedence when both set.
+      // --threshold-ms のエイリアス。両方指定時は --threshold-ms 優先。
+      if (args.thresholdMs === undefined) {
+        const n = Number.parseInt(value, 10);
+        if (Number.isFinite(n) && n > 0) {
+          args.thresholdMs = n;
+        }
       }
       i++;
     } else if (key === "--batch" && value !== undefined) {
@@ -102,6 +131,9 @@ async function main(): Promise<void> {
     batchLimit: args.batchLimit ?? "default(500)",
     confirm: args.confirm,
     dryRun: args.dryRun,
+    // v0.4.0 PR7e-β4 PR1: forceStuck observability
+    // v0.4.0 PR7e-β4 PR1: forceStuck の観測性
+    forceStuck: args.forceStuck,
     nodeEnv: process.env.NODE_ENV ?? "unset",
   });
 
@@ -175,10 +207,9 @@ function isRunDirectly(): boolean {
 
 if (isRunDirectly()) {
   main().catch((error) => {
-    console.error(
-      "[ReconcileBackfill] Uncaught error:",
-      error instanceof Error ? error.message : String(error)
-    );
+    // v0.4.0 PR-D-5 (FIND-TPA-PLAN-02 M): CWE-209 defense —
+    // outer catch raw error.message を sanitize。
+    console.error("[ReconcileBackfill] Uncaught error:", sanitizeErrorMessage(error));
     process.exit(1);
   });
 }

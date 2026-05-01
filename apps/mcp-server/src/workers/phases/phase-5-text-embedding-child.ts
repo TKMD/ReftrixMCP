@@ -43,6 +43,24 @@ import {
   setMotionLayoutEmbeddingServiceFactory,
 } from "../../tools/page/handlers/embedding-handler";
 import { setFramePrismaClientFactory } from "../../services/motion/frame-embedding.service";
+// v0.4.0 PR7e-β3: motion_embeddings silent-zero 修復
+// fork child の setupDI が motion persistence factory を設定していなかったため、
+// `getMotionPersistenceService().isAvailable()` が false を返し motion embedding が
+// 全件 silent skip されていた (reftrix.io 552件 / Stripe 216件 motion_patterns に対し
+// motion_embeddings = 0)。sync 経路 (service-registrar-analysis.ts:236-244) と同じ
+// 2 factory を fork child でも明示的に設定する。
+//
+// v0.4.0 PR7e-β3: Fix for motion_embeddings silent-zero bug. The fork child's
+// setupDI was not registering motion persistence factories, causing
+// `getMotionPersistenceService().isAvailable()` to return false and all motion
+// embeddings to be silently skipped (motion_embeddings = 0 across all pages
+// despite 552 + 216 motion_patterns). Align the fork child with the sync path
+// (service-registrar-analysis.ts:236-244) by explicitly registering the same
+// 2 factories.
+import {
+  setMotionPersistenceEmbeddingServiceFactory,
+  setMotionPersistencePrismaClientFactory,
+} from "../../services/motion-persistence.service";
 import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import {
   validateParentMessage,
@@ -85,6 +103,21 @@ function setupDI(sharedService: LayoutEmbeddingService): void {
   setMotionLayoutEmbeddingServiceFactory(() => sharedService);
   setBackgroundPrismaClientFactory(() => prisma as never);
   setFramePrismaClientFactory(() => prisma as never);
+  // v0.4.0 PR7e-β3: motion_embeddings silent-zero 修復 (上記 import コメント参照)
+  // `motion-persistence.service.ts` の IEmbeddingService インターフェースは
+  // `generateEmbedding(text, type)` を要求する。sharedService (LayoutEmbeddingService) は
+  // `generateFromText()` のみを公開しており型不適合のため、`@reftrixmcp/ml` の `mlEmbeddingService`
+  // (IEmbeddingService 互換、sync path の `service-registrar-analysis.ts:236` と同じインスタンス)
+  // を直接渡す。
+  //
+  // v0.4.0 PR7e-β3: Motion persistence DI for motion_embeddings generation (see import).
+  // `motion-persistence.service.ts`'s `IEmbeddingService` interface requires
+  // `generateEmbedding(text, type)`. `sharedService` (LayoutEmbeddingService) only exposes
+  // `generateFromText()` and is type-incompatible, so we pass `@reftrixmcp/ml`'s
+  // `mlEmbeddingService` directly (IEmbeddingService-compatible, same instance used by the
+  // sync path at `service-registrar-analysis.ts:236`).
+  setMotionPersistenceEmbeddingServiceFactory(() => mlEmbeddingService);
+  setMotionPersistencePrismaClientFactory(() => prisma as never);
 }
 
 // ============================================================================
@@ -164,6 +197,7 @@ process.on("message", async (raw: unknown) => {
     responsiveEmbeddingsGenerated: 0,
     partEmbeddingsGenerated: 0,
     partVisualEmbeddingsGenerated: 0,
+    partVisualSkippedBboxInvalid: 0,
     sectionVisualEmbeddingsGenerated: 0,
     embeddingFailedChunks: 0,
     completed: false,

@@ -27,6 +27,7 @@
 
 import type { PrismaClient } from "@prisma/client";
 import { logger } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { truncateId } from "./schemas";
 import { extractPartsFromSection } from "./part-extraction.service";
 import { saveExtractedParts } from "./part-db.service";
@@ -210,11 +211,17 @@ export async function backfillPartEmbeddings(
 
           result.sectionsProcessed++;
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          result.errors.push(`Section ${truncateId(section.id)}: ${errorMessage}`);
+          // PR-D-7 Wave 3 / FIND-PLAN-TPA-01 H binding:
+          //   Client-facing `result.errors[]` uses `sanitizeErrorMessage` (CWE-209
+          //   defense); server-side `logger.warn` retains the raw message for
+          //   debugging. string[] shape preserved (additive-only).
+          // PR-D-7 Wave 3: client 向けは sanitize 経由、server log は raw 保全。
+          const rawErrorMessage = error instanceof Error ? error.message : String(error);
+          const safeMessage = sanitizeErrorMessage(error);
+          result.errors.push(`Section ${truncateId(section.id)}: ${safeMessage}`);
           logger.warn("[part-backfill] Section processing error", {
             sectionId: truncateId(section.id),
-            error: errorMessage,
+            error: rawErrorMessage,
           });
         }
       }
@@ -222,9 +229,14 @@ export async function backfillPartEmbeddings(
 
     result.pagesProcessed = processedPageIds.size;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    result.errors.push(`Fatal: ${errorMessage}`);
-    logger.error("[part-backfill] Fatal error", { error: errorMessage });
+    // PR-D-7 Wave 3 / FIND-PLAN-TPA-01 H binding:
+    //   Same contract as the per-section catch above (client-safe sanitize +
+    //   server-side raw retention). string[] shape preserved.
+    // PR-D-7 Wave 3: 上記と同じ契約 (client sanitize / server raw)。
+    const rawErrorMessage = error instanceof Error ? error.message : String(error);
+    const safeMessage = sanitizeErrorMessage(error);
+    result.errors.push(`Fatal: ${safeMessage}`);
+    logger.error("[part-backfill] Fatal error", { error: rawErrorMessage });
   }
 
   result.durationMs = Date.now() - startTime;

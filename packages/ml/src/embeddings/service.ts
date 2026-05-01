@@ -22,6 +22,7 @@ import path from "node:path";
 import type { EmbeddingTextType, EmbeddingServiceConfig, CacheStats } from "./types.js";
 import type { WorkerMessage, WorkerResponse } from "./worker-thread-types.js";
 import { OnnxRuntimeUnavailableError } from "../onnx-availability.js";
+import { getMLWorkerThreadOptions } from "../config/worker-resource-limits.js";
 
 /**
  * Disposable pipeline interface (used only in in-process fallback mode).
@@ -307,7 +308,13 @@ export class EmbeddingService {
       // worker_threads Workers, so we must explicitly pass an empty array
       // to prevent the parent's flags (set by WorkerSupervisor fork())
       // from propagating.
-      this.worker = new Worker(scriptPath, { execArgv: [] });
+      //
+      // PR7e-β1: Add explicit resourceLimits to prevent OOM when ONNX
+      // falls back to CPU (onnxruntime-node). Without resourceLimits,
+      // V8 old-space defaults to < 4GB and e5-base CPU inference OOMs.
+      // See ADR-0012 §3 BLOCKER 4 and config/worker-resource-limits.ts.
+      const workerOptions = { execArgv: [], ...getMLWorkerThreadOptions() };
+      this.worker = new Worker(scriptPath, workerOptions);
 
       // Handle worker messages
       this.worker.on("message", (response: WorkerResponse) => {

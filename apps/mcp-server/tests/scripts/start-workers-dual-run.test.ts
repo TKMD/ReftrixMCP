@@ -57,7 +57,13 @@ describe("start-workers.ts — dual-run guard (v0.4.0 PR7d-2)", () => {
       // be distinguished from "lock absent".
       // v0.4.0 PR7d-3 (SEC M-1): 旧 `checkExistingLock` は両ケースを null に
       // 潰していたため `probeExistingLock` に移行。
-      expect(guardSection).toContain('probeExistingLock("page")');
+      //
+      // PR-D-8 Phase 2 MF-06: per-type guard — `probeExistingLock` now takes
+      // `workerType` argument resolved from startMode. Test asserts the call
+      // pattern (variable arg) rather than a hardcoded "page".
+      // PR-D-8 Phase 2 MF-06: per-type guard — `probeExistingLock(workerType)`
+      // 呼び出し pattern (引数は変数) を assert する。
+      expect(guardSection).toMatch(/probeExistingLock\(workerType\)/);
     });
 
     it("exits with code 1 when an existing lock is detected", () => {
@@ -71,7 +77,11 @@ describe("start-workers.ts — dual-run guard (v0.4.0 PR7d-2)", () => {
       // distinction.
       // v0.4.0 PR7d-3 (SEC M-1): fail-open/fail-closed 分岐のため
       // `tryAcquireLock` に移行。
-      expect(guardSection).toContain('tryAcquireLock("page"');
+      //
+      // PR-D-8 Phase 2 MF-06: per-type acquire — `tryAcquireLock(workerType, token)`
+      // (workerType resolved from startMode). Test asserts the call pattern.
+      // PR-D-8 Phase 2 MF-06: per-type acquire — `tryAcquireLock(workerType, token)`。
+      expect(guardSection).toMatch(/tryAcquireLock\(workerType,\s*token\)/);
       expect(guardSection).toContain("generateBootToken");
     });
 
@@ -98,10 +108,17 @@ describe("start-workers.ts — dual-run guard (v0.4.0 PR7d-2)", () => {
 
   describe("Lifecycle integration", () => {
     it("evaluateDualRunGuard is invoked from main() before heavy init", () => {
-      expect(source).toContain("await evaluateDualRunGuard()");
+      // PR-D-8 Phase 2 MF-06: guard now takes workerType resolved from
+      // startMode (`--page` / `--backfill`) before being invoked. Older
+      // signature was no-arg `evaluateDualRunGuard()`; the migrated form is
+      // `evaluateDualRunGuard(guardWorkerType)`.
+      // PR-D-8 Phase 2 MF-06: guard は workerType を受け取る per-type 化済み。
+      expect(source).toMatch(/await evaluateDualRunGuard\(guardWorkerType\)/);
       // Ensure the guard runs BEFORE startWorkers (which triggers Prisma/Redis)
-      const guardCall = source.indexOf("await evaluateDualRunGuard()");
-      const startCall = source.indexOf("await startWorkers(workerType)");
+      // startWorkers の引数名は `startMode` (StartMode union: "page" |
+      // "embedding-backfill" | "all")。guardWorkerType は startMode から導出される。
+      const guardCall = source.indexOf("await evaluateDualRunGuard(guardWorkerType)");
+      const startCall = source.indexOf("await startWorkers(startMode)");
       expect(guardCall).toBeGreaterThan(-1);
       expect(startCall).toBeGreaterThan(guardCall);
     });

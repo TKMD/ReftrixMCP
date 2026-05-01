@@ -1,7 +1,7 @@
 # トラブルシューティングガイド / Troubleshooting Guide
 
-**Version**: 0.3.0
-**Last Updated**: 2026-03-25
+**Version**: 0.5.0
+**Last Updated**: 2026-04-29
 
 ---
 

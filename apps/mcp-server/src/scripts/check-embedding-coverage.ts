@@ -16,6 +16,7 @@
  */
 
 import { prisma } from "@reftrixmcp/database";
+import { loadEnvLocal } from "@reftrixmcp/core";
 import {
   checkWebPageEmbeddingCoverage,
   findWebPagesWithMissingEmbeddings,
@@ -23,34 +24,9 @@ import {
 
 /* eslint-disable no-console */
 
-// Load .env.local if present
-import fs from "node:fs";
-import path from "node:path";
-
-function loadEnvLocal(): void {
-  const envPaths = [
-    path.resolve(process.cwd(), ".env.local"),
-    path.resolve(__dirname, "../../../../.env.local"),
-  ];
-
-  for (const envPath of envPaths) {
-    if (fs.existsSync(envPath)) {
-      const content = fs.readFileSync(envPath, "utf-8");
-      for (const line of content.split("\n")) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith("#")) continue;
-        const [key, ...valueParts] = trimmed.split("=");
-        if (key && !process.env[key]) {
-          process.env[key] = valueParts.join("=").replace(/^["']|["']$/g, "");
-        }
-      }
-      break;
-    }
-  }
-}
-
 async function main(): Promise<void> {
-  loadEnvLocal();
+  // PR7e-β1: use shared @reftrixmcp/core loader (SEC-β-01 / SEC-β-07)
+  loadEnvLocal({ verbose: false });
 
   const args = process.argv.slice(2);
   const urlFilter = args.includes("--url") ? args[args.indexOf("--url") + 1] : undefined;

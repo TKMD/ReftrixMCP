@@ -193,12 +193,58 @@ describe("embedding-backfill.service Queue entry points (v0.4.0 PR4)", () => {
       const nextBoundary = rest.slice(1).search(/\nexport async function /);
       const body = nextBoundary >= 0 ? rest.substring(0, nextBoundary + 1) : rest;
       expect(body).toContain("backfillCategoryForPage");
-      expect(body).toContain(`getMissingRows: ${getMissingName}`);
+      // v0.4.0 PR7e-β4 PR2b-β (TPA-M-1): `backfillJsAnimationsForPage` routes
+      // between `getMissingJsAnimationEmbeddings` (partsLimit undefined) and
+      // `getMissingJsAnimationEmbeddingsWithLimit` (partsLimit set). Other
+      // wrappers still pass the fetcher directly.
+      //
+      // v0.4.0 PR7e-β4 PR2b-β (TPA-M-1): js_animation wrapper は partsLimit に
+      // よって `getMissingJsAnimationEmbeddings` / `getMissingJsAnimationEmbeddingsWithLimit`
+      // を切り替える。他 wrapper は fetcher を直接渡す。
+      if (wrapperName === "backfillJsAnimationsForPage") {
+        expect(body).toContain("getMissingJsAnimationEmbeddings");
+        expect(body).toContain("getMissingJsAnimationEmbeddingsWithLimit");
+        expect(body).toContain("partsLimit");
+        expect(body).toContain("getMissingRows,");
+      } else {
+        expect(body).toContain(`getMissingRows: ${getMissingName}`);
+      }
       expect(body).toContain(`runChunkLoop: ${runChunkName}`);
       // Thin wrapper — must NOT re-declare EmbeddingService / dispose / RSS threshold
       expect(body).not.toContain("new LayoutEmbeddingService");
       expect(body).not.toContain("disposeEmbeddingPipeline");
       expect(body).not.toContain("resolveRssThreshold");
+    });
+  });
+
+  // ==========================================================================
+  // v0.4.0 PR7e-β4 PR2b-β (TPA-M-1): partsLimit routing behavioral test
+  // ==========================================================================
+  describe("backfillJsAnimationsForPage partsLimit routing (PR7e-β4 PR2b-β)", () => {
+    it("should export getMissingJsAnimationEmbeddingsWithLimit with LIMIT clause", () => {
+      // Export must exist so fork orchestrator / tests can observe it.
+      expect(serviceSource).toMatch(
+        /export async function getMissingJsAnimationEmbeddingsWithLimit\(/
+      );
+      // Body must contain LIMIT + ORDER BY for deterministic head-N fetch.
+      const start = serviceSource.indexOf(
+        "export async function getMissingJsAnimationEmbeddingsWithLimit"
+      );
+      expect(start).toBeGreaterThan(0);
+      const rest = serviceSource.substring(start);
+      const nextBoundary = rest.slice(1).search(/\n(export )?async function /);
+      const body = nextBoundary >= 0 ? rest.substring(0, nextBoundary + 1) : rest;
+      expect(body).toContain("ORDER BY jap.id ASC");
+      expect(body).toContain("LIMIT $2");
+    });
+
+    it("BackfillOptions should declare optional partsLimit", () => {
+      const start = serviceSource.indexOf("export interface BackfillOptions");
+      expect(start).toBeGreaterThan(0);
+      const rest = serviceSource.substring(start);
+      const end = rest.indexOf("\n}\n");
+      const body = rest.substring(0, end >= 0 ? end + 2 : rest.length);
+      expect(body).toContain("partsLimit?: number");
     });
   });
 

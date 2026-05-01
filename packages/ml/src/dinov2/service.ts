@@ -25,6 +25,7 @@ import path from "node:path";
 import type { DINOv2WorkerMessage, DINOv2WorkerResponse } from "./worker-thread-types.js";
 import { safeImportOnnx } from "../onnx-availability.js";
 import { detectExecutionProvider, isLdLibraryPathSetAtOsLevel } from "../onnx-provider-detect.js";
+import { getMLWorkerThreadOptions } from "../config/worker-resource-limits.js";
 
 // =====================================================
 // Constants
@@ -176,7 +177,13 @@ export class DINOv2Service {
 
       // Worker threads inherit the parent's execArgv by default.
       // Pass empty array to prevent parent flags from propagating.
-      this.worker = new Worker(scriptPath, { execArgv: [] });
+      //
+      // PR7e-β1: Add explicit resourceLimits to prevent OOM when ONNX
+      // falls back to CPU (onnxruntime-node). DINOv2 ViT-B/14 arena is
+      // ~800MB; without resourceLimits V8 old-space < 4GB triggers OOM
+      // during CPU inference. See ADR-0012 §3 BLOCKER 4.
+      const workerOptions = { execArgv: [], ...getMLWorkerThreadOptions() };
+      this.worker = new Worker(scriptPath, workerOptions);
 
       this.worker.on("message", (response: DINOv2WorkerResponse) => {
         this.handleWorkerResponse(response);

@@ -100,26 +100,32 @@ describe("EmbeddingBackfillWorker (v0.4.0 PR4)", () => {
     });
   });
 
-  describe("Pre-Return Pause pattern (v0.4.0 PR7c)", () => {
+  describe("Post-Job Memory Gate (v0.4.0 PR7c + β2 audit carryover)", () => {
     it("should read WORKER_MAX_JOBS_BEFORE_RESTART env var", () => {
       expect(workerSource).toContain("process.env.WORKER_MAX_JOBS_BEFORE_RESTART");
     });
 
-    it("should delegate pause + memory gate to applyPreReturnPauseAndMemoryGate (PR7c)", () => {
+    it("should delegate post-job memory gate to applyPostJobMemoryGate (PR7e-β2 audit)", () => {
       // v0.4.0 PR7c: pause(true) + performMemoryCheckAndExit は shared helper に移動
       //   旧: finalizeBackfillJob 内で _workerInstanceRef.pause(true) + setImmediate(...) 直呼び
-      //   新: applyPreReturnPauseAndMemoryGate() 一本化
-      // v0.4.0 PR7c: pause + memory gate are now delegated to the shared helper.
-      expect(workerSource).toContain("applyPreReturnPauseAndMemoryGate");
+      //   新: applyPostJobMemoryGate() 一本化
+      // v0.4.0 PR7e-β2 hotfix: pause/resume を完全削除
+      // v0.4.0 PR7e-β2 audit carryover: helper を applyPostJobMemoryGate にリネームし、
+      //   workerRef 引数も削除
+      // Helper invocations now use the renamed, simplified signature.
+      expect(workerSource).toContain("applyPostJobMemoryGate");
+      // Legacy name must not remain anywhere in the worker source.
+      expect(workerSource).not.toContain("applyPreReturnPauseAndMemoryGate");
     });
   });
 
-  describe("Memory defense (v0.4.0 PR7c)", () => {
-    it("should delegate post-job memory check to the shared helper (PR7c)", () => {
-      // applyPreReturnPauseAndMemoryGate internally calls shouldExitForMemory() and
+  describe("Memory defense (v0.4.0 PR7c + β2 audit carryover)", () => {
+    it("should delegate post-job memory check to the shared helper", () => {
+      // applyPostJobMemoryGate internally calls shouldExitForMemory() and
       //   - process.exit(0) if above threshold
-      //   - worker.resume() if below threshold (PR7c Bug 1 fix)
-      expect(workerSource).toContain("applyPreReturnPauseAndMemoryGate");
+      //   - no-op if below threshold (PR7e-β2 hotfix: pause/resume removed — BullMQ
+      //     mainLoop fetches the next job naturally)
+      expect(workerSource).toContain("applyPostJobMemoryGate");
       // Legacy direct setImmediate(performMemoryCheckAndExit) call must be gone.
       expect(workerSource).not.toMatch(
         /setImmediate\s*\(\s*\(\s*\)\s*=>\s*\{\s*performMemoryCheckAndExit/
@@ -209,7 +215,7 @@ describe("EmbeddingBackfillWorker (v0.4.0 PR4)", () => {
       expect(body).not.toContain("_workerInstanceRef.pause(true)");
     });
 
-    it("should declare finalizeBackfillJob owning Pre-Return Pause + failed transition", () => {
+    it("should declare finalizeBackfillJob owning Post-Job Memory Gate + failed transition", () => {
       const start = workerSource.indexOf("async function finalizeBackfillJob(");
       // Find end as the next top-level async function declaration
       const rest = workerSource.substring(start + 1);
@@ -219,11 +225,16 @@ describe("EmbeddingBackfillWorker (v0.4.0 PR4)", () => {
 
       // v0.4.0 PR7c: Pre-Return Pause + memory gate は shared helper に抽出された。
       //   旧: worker.pause(true) + setImmediate(performMemoryCheckAndExit) をここで直接実行
-      //   新: applyPreReturnPauseAndMemoryGate() 一行で内包
-      // v0.4.0 PR7c: Pre-Return Pause + memory gate is now consolidated in a shared
-      //   helper, so finalizeBackfillJob delegates instead of inlining pause/exit.
-      expect(body).toContain("applyPreReturnPauseAndMemoryGate");
-      expect(body).toContain("_workerInstanceRef");
+      //   新: applyPostJobMemoryGate() 一行で内包
+      // v0.4.0 PR7e-β2 hotfix: pause/resume 経路完全削除
+      // v0.4.0 PR7e-β2 audit carryover: helper を applyPostJobMemoryGate に
+      //   リネームし workerRef 引数も削除 → finalize は enabled flag と loggerPrefix
+      //   の 2 引数のみ渡す。
+      // finalizeBackfillJob delegates the post-job memory gate to the shared helper
+      // with a 2-arg signature (no workerRef).
+      expect(body).toContain("applyPostJobMemoryGate");
+      // workerRef 引数は削除済み — finalize 内で _workerInstanceRef は参照されない
+      expect(body).not.toContain("_workerInstanceRef");
       expect(body).toContain("_preReturnPauseEnabled");
 
       // Failed-transition logic remains inside finalizeBackfillJob
@@ -233,6 +244,8 @@ describe("EmbeddingBackfillWorker (v0.4.0 PR4)", () => {
       // Legacy direct references must be absent
       expect(body).not.toContain("_workerInstanceRef.pause(true)");
       expect(body).not.toContain("performMemoryCheckAndExit");
+      // Legacy helper name must not remain
+      expect(body).not.toContain("applyPreReturnPauseAndMemoryGate");
     });
 
     it("should keep processBackfillJob as a thin orchestrator", () => {
@@ -267,10 +280,13 @@ describe("EmbeddingBackfillWorker (v0.4.0 PR4)", () => {
     // v0.4.0 PR7c M8: _preReturnPauseEnabled=false 経路のセマンティクス
     // v0.4.0 PR7c M8: semantics for _preReturnPauseEnabled=false path
     // ========================================================================
-    it("should import applyPreReturnPauseAndMemoryGate helper (PR7c)", () => {
-      // Helper import line must exist — source of truth for the new lifecycle
+    it("should import applyPostJobMemoryGate helper (PR7c + β2 audit carryover)", () => {
+      // Helper import line must exist — source of truth for the post-job lifecycle.
+      // v0.4.0 PR7e-β2 audit carryover: renamed to applyPostJobMemoryGate, legacy
+      //   name applyPreReturnPauseAndMemoryGate must not reappear anywhere.
       expect(workerSource).toMatch(/from ["']\.\/shared\/post-job-lifecycle["']/);
-      expect(workerSource).toContain("applyPreReturnPauseAndMemoryGate");
+      expect(workerSource).toContain("applyPostJobMemoryGate");
+      expect(workerSource).not.toContain("applyPreReturnPauseAndMemoryGate");
     });
 
     it("should derive _preReturnPauseEnabled from WORKER_MAX_JOBS_BEFORE_RESTART > 0 (PR7c M8)", () => {
@@ -294,62 +310,123 @@ describe("EmbeddingBackfillWorker (v0.4.0 PR4)", () => {
   // v0.4.0 PR7b (TPA Low-1 / TDA carryover): computeRemainingStatus 7-category
   // ============================================================================
 
-  describe("computeRemainingStatus 7-category (PR7b TPA Low-1)", () => {
-    let computeFn: string;
+  describe("computeRemainingStatus 7-category (PR7b TPA Low-1 / PR7e-β2 carryover SSOT)", () => {
+    // v0.4.0 PR7e-β2 carryover (SSOT unification):
+    // 実装は `services/backfill-status.helper.ts` の
+    // `computeRemainingStatusWithPrisma` に委譲済み。worker の wrapper は
+    // `return computeRemainingStatusWithPrisma(webPageId, prisma)` 1 行のみ。
+    // 7 カテゴリ SQL / Promise.all / bigint 防御の構造検証は helper 側で行うため、
+    // ここでは wrapper が helper に委譲していることと、SSOT import がある
+    // ことを検証する。詳細ロジックの回帰は
+    // `tests/services/backfill-status.helper.test.ts` でカバー。
+    //
+    // v0.4.0 PR7e-β2 carryover (SSOT unification):
+    // The implementation was delegated to
+    // `computeRemainingStatusWithPrisma` in `services/backfill-status.helper.ts`.
+    // The worker wrapper is now a single-line passthrough. Structural checks
+    // for the 7-category SQL, Promise.all, and bigint defense live in the
+    // helper tests; here we only verify the wrapper delegates and imports the
+    // SSOT helper. Full regression coverage lives in
+    // `tests/services/backfill-status.helper.test.ts`.
+    let helperSource: string;
     beforeAll(() => {
-      const start = workerSource.indexOf(
-        "async function computeRemainingStatus(webPageId: string)"
-      );
-      const end = workerSource.indexOf("async function updateEmbeddingBackfillStatus(", start);
-      computeFn = workerSource.substring(start, end);
+      const helperPath = path.resolve(__dirname, "../../src/services/backfill-status.helper.ts");
+      helperSource = fs.readFileSync(helperPath, "utf8");
     });
 
-    it("should query all 7 categories (part_text, part_visual, section_visual, motion, background, js_animation, responsive)", () => {
+    it("worker wrapper delegates to computeRemainingStatusWithPrisma (SSOT)", () => {
+      // Wrapper は helper を import して呼び出すこと。PR-D-4 で `verifyCategoryParity`
+      // + `CategoryPendingSnapshot` も同じ helper から import するため、import 文
+      // は multi-line に拡張された。identifier 単位で検証する (exact-string 検証は
+      // import が同一 module からかどうかを分離検証)。
+      // Wrapper must import and invoke the helper. PR-D-4 also imports
+      // `verifyCategoryParity` and `CategoryPendingSnapshot` from the same
+      // helper, so the import statement is now multi-line. We assert per
+      // identifier + same-module origin separately.
+      expect(workerSource).toContain("computeRemainingStatusWithPrisma");
+      expect(workerSource).toContain('from "../services/backfill-status.helper"');
+      expect(workerSource).toContain("return computeRemainingStatusWithPrisma(webPageId, prisma)");
+    });
+
+    it("worker still exports computeRemainingStatus for backward compatibility", () => {
+      // 既存 API 契約: test/reconciliation 等の外部 import が破綻しないこと
+      // Preserves the existing public API contract so external callers (tests,
+      // reconciliation, etc.) keep working.
+      expect(workerSource).toMatch(/computeRemainingStatus,\s*\n/);
+    });
+
+    it("helper should query all 7 categories (part_text, part_visual, section_visual, motion, background, js_animation, responsive)", () => {
       // part_text: prisma.componentPart.count
-      expect(computeFn).toContain("prisma.componentPart.count");
-      // part_visual: countPartVisualBackfillTargets
-      expect(computeFn).toContain("countPartVisualBackfillTargets");
+      expect(helperSource).toContain("prisma.componentPart.count");
+      // part_visual: countPartVisualBackfillTargetsWithPrisma
+      expect(helperSource).toContain("countPartVisualBackfillTargetsWithPrisma");
       // section_visual: raw SQL on section_embeddings
-      expect(computeFn).toContain("section_embeddings se");
-      expect(computeFn).toContain("vision_embedding IS NULL");
+      expect(helperSource).toContain("section_embeddings se");
+      expect(helperSource).toContain("vision_embedding IS NULL");
       // motion: prisma.motionPattern.count
-      expect(computeFn).toContain("prisma.motionPattern.count");
+      expect(helperSource).toContain("prisma.motionPattern.count");
       // background: prisma.backgroundDesign.count
-      expect(computeFn).toContain("prisma.backgroundDesign.count");
+      expect(helperSource).toContain("prisma.backgroundDesign.count");
       // js_animation: prisma.jSAnimationPattern.count
-      expect(computeFn).toContain("prisma.jSAnimationPattern.count");
+      expect(helperSource).toContain("prisma.jSAnimationPattern.count");
       // responsive: prisma.responsiveAnalysis.count
-      expect(computeFn).toContain("prisma.responsiveAnalysis.count");
+      expect(helperSource).toContain("prisma.responsiveAnalysis.count");
     });
 
-    it("should sum all 7 pending counts and return 'completed' only when all zero", () => {
-      // 全 7 件の pending を totalPending に集約
-      // All 7 pending counts aggregated into totalPending
-      expect(computeFn).toContain("partTextPending");
-      expect(computeFn).toContain("partVisualPending.pendingCount");
-      expect(computeFn).toContain("sectionVisualCount");
-      expect(computeFn).toContain("motionPending");
-      expect(computeFn).toContain("backgroundPending");
-      expect(computeFn).toContain("jsAnimationPending");
-      expect(computeFn).toContain("responsivePending");
-      expect(computeFn).toMatch(/totalPending === 0 \?\s*"completed"\s*:\s*"in_progress"/);
+    it("helper should sum all 7 pending counts and return 'completed' only when all zero", () => {
+      expect(helperSource).toContain("partTextPending");
+      expect(helperSource).toContain("partVisualPending.pendingCount");
+      expect(helperSource).toContain("sectionVisualCount");
+      expect(helperSource).toContain("motionPending");
+      expect(helperSource).toContain("backgroundPending");
+      expect(helperSource).toContain("jsAnimationPending");
+      expect(helperSource).toContain("responsivePending");
+      expect(helperSource).toMatch(/totalPending === 0 \?\s*"completed"\s*:\s*"in_progress"/);
     });
 
-    it("should filter out high-PII parts in part_text count (GDPR Art. 5(1)(c))", () => {
-      // part_text の WHERE 句に piiRiskLevel: { not: "high" } を含む
-      // part_text WHERE clause includes piiRiskLevel: { not: "high" }
-      expect(computeFn).toMatch(/piiRiskLevel:\s*\{\s*not:\s*["']high["']/);
+    it("helper should filter out high-PII parts in part_text count (GDPR Art. 5(1)(c))", () => {
+      expect(helperSource).toMatch(/piiRiskLevel:\s*\{\s*not:\s*["']high["']/);
     });
 
-    it("should use Promise.all for parallel category queries", () => {
-      expect(computeFn).toContain("Promise.all([");
+    it("helper should use Promise.all for parallel category queries", () => {
+      expect(helperSource).toContain("Promise.all([");
     });
 
-    it("should defend against bigint/NaN parsing for raw SQL counts (TPA Low-1)", () => {
-      // parseBigint helper handles bigint / non-finite / negative values
-      // parseBigint ヘルパーが bigint / 非有限 / 負値を防御
-      expect(computeFn).toContain("Number.isFinite(n)");
-      expect(computeFn).toContain("parseBigint");
+    it("helper should defend against bigint/NaN parsing for raw SQL counts (TPA Low-1)", () => {
+      expect(helperSource).toContain("Number.isFinite(n)");
+      expect(helperSource).toContain("parseBigint");
+    });
+  });
+
+  // ============================================================================
+  // INFRA-EMBEDDING-MOTION-SIGABRT-001 Fix-1: close → dispose ordering
+  // (TDA-D-1b-01 H block-equivalent mandatory landing per IO §13.16.4).
+  //
+  // The previous order `dispose → close` raced with motion-category batches
+  // whose final ONNX inference was still in flight. After Fix-1 the BullMQ
+  // Worker is closed first so in-flight jobs and their locks resolve before
+  // the ONNX session is torn down.
+  // ============================================================================
+
+  describe("close ordering (INFRA-EMBEDDING-MOTION-SIGABRT-001 Fix-1)", () => {
+    it("should call worker.close() BEFORE disposeEmbeddingPipeline()", () => {
+      // Verify ordering by comparing the indices of the actual `await`
+      // statements (NOT comment references). `await worker.close()` MUST
+      // appear before `await sharedLayoutEmbeddingService.disposeEmbeddingPipeline()`
+      // so the BullMQ Worker quiesces in-flight jobs first.
+      const awaitWorkerCloseIdx = workerSource.indexOf("await worker.close();");
+      const awaitDisposeIdx = workerSource.indexOf(
+        "await sharedLayoutEmbeddingService.disposeEmbeddingPipeline();"
+      );
+      expect(awaitWorkerCloseIdx).toBeGreaterThan(0);
+      expect(awaitDisposeIdx).toBeGreaterThan(0);
+      expect(awaitWorkerCloseIdx).toBeLessThan(awaitDisposeIdx);
+    });
+
+    it("should reference the finding ID in close-block comment (forensic anchor)", () => {
+      // Forensic anchor: future audits must trace the ordering decision back
+      // to INFRA-EMBEDDING-MOTION-SIGABRT-001 / ADR-0019 directly from source.
+      expect(workerSource).toContain("INFRA-EMBEDDING-MOTION-SIGABRT-001");
     });
   });
 });
