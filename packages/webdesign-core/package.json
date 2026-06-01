@@ -31,9 +31,9 @@
     "@reftrixmcp/core": "workspace:*",
     "cheerio": "^1.2.0",
     "css-tree": "^3.0.0",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.10",
     "postcss-value-parser": "^4.2.0",
-    "uuid": "^11.1.0",
+    "uuid": "^14.0.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
@@ -41,7 +41,7 @@
     "@types/css-tree": "^2.3.8",
     "@vitest/coverage-v8": "^4.0.14",
     "typescript": "^5.9.0",
-    "vitest": "^4.0.14"
+    "vitest": "^4.1.0"
   },
   "publishConfig": {
     "access": "public"

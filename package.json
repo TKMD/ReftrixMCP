@@ -93,12 +93,12 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@cyclonedx/cdxgen": "^12.1.2",
+    "@cyclonedx/cdxgen": "^12.3.3",
     "@types/js-yaml": "^4.0.9",
     "husky": "^9.1.0",
     "js-yaml": "^4.1.1",
     "playwright": "^1.57.0",
     "ts-morph": "^27.0.2",
-    "turbo": "^2.5.0"
+    "turbo": "^2.9.14"
   }
 }
