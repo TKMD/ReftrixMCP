@@ -63,6 +63,69 @@
  * // => 'http://'
  * ```
  */
+/**
+ * Step 5 helper: クエリパラメータをアルファベット順 (key→value) にソートして
+ * 正規化済みクエリ文字列を返す (`?` prefix なし、クエリ無しは空文字列)。
+ *
+ * `normalizeUrlCore` から抽出した純粋関数 (behavior-不変 refactor, TDA-IMPL-L-01
+ * CC ≤ 10)。SEVEN_STEP_MARKERS の `let sortedQuery =` literal を本 helper 内に保持し
+ * INV-URL-NORMALIZE-SSOT-001 AST sweep の 7-step pin を満たす。
+ *
+ * Step 5 helper: sorts query params alphabetically (key then value) and returns
+ * the normalized query string (no leading `?`; empty string when no query).
+ * Extracted from `normalizeUrlCore` as a pure function (behaviour-invariant
+ * refactor, TDA-IMPL-L-01 CC ≤ 10), keeping the `let sortedQuery =` marker inside
+ * url-normalizer.ts so the INV-URL-NORMALIZE-SSOT-001 7-step AST sweep stays green.
+ */
+function sortQueryParams(urlObj: URL): string {
+  let sortedQuery = "";
+  if (urlObj.search) {
+    const params = urlObj.searchParams;
+    const entries = Array.from(params.entries());
+
+    // パラメータ名でソート、同じ名前の場合は値でソート
+    entries.sort((a, b) => {
+      const keyCompare = a[0].localeCompare(b[0]);
+      if (keyCompare !== 0) return keyCompare;
+      return a[1].localeCompare(b[1]);
+    });
+
+    const sortedParams = new URLSearchParams();
+    for (const [key, value] of entries) {
+      sortedParams.append(key, value);
+    }
+    sortedQuery = sortedParams.toString();
+  }
+  return sortedQuery;
+}
+
+/**
+ * Step 6+7 helper: ルートパス "/" を空文字列にし、末尾スラッシュを除去した
+ * 正規化済み pathname を返す。
+ *
+ * `normalizeUrlCore` から抽出した純粋関数 (behavior-不変 refactor, TDA-IMPL-L-01
+ * CC ≤ 10)。SEVEN_STEP_MARKERS の trailing-slash `replace(/\/+$/,...)` literal を
+ * 本 helper 内に保持し INV-URL-NORMALIZE-SSOT-001 AST sweep の 7-step pin を満たす。
+ *
+ * Step 6+7 helper: collapses root path "/" to empty string and strips the
+ * trailing slash, returning the normalized pathname. Extracted from
+ * `normalizeUrlCore` as a pure function (behaviour-invariant refactor,
+ * TDA-IMPL-L-01 CC ≤ 10), keeping the trailing-slash `replace(/\/+$/,...)` marker
+ * inside url-normalizer.ts so the 7-step AST sweep stays green.
+ */
+function normalizePathname(pathname: string): string {
+  // 6. ルートパス "/" を空文字列に
+  let normalizedPath = pathname;
+  if (normalizedPath === "/") {
+    normalizedPath = "";
+  }
+  // 7. 末尾スラッシュを除去（パスがある場合のみ）
+  if (normalizedPath.length > 1) {
+    normalizedPath = normalizedPath.replace(/\/+$/, "");
+  }
+  return normalizedPath;
+}
+
 export function normalizeUrlCore(url: string): string {
   const trimmed = url.trim();
 
@@ -87,34 +150,10 @@ export function normalizeUrlCore(url: string): string {
     urlObj.pathname = urlObj.pathname.replace(/\/+/g, "/");
 
     // 5. クエリパラメータをアルファベット順にソート
-    let sortedQuery = "";
-    if (urlObj.search) {
-      const params = urlObj.searchParams;
-      const entries = Array.from(params.entries());
+    const sortedQuery = sortQueryParams(urlObj);
 
-      // パラメータ名でソート、同じ名前の場合は値でソート
-      entries.sort((a, b) => {
-        const keyCompare = a[0].localeCompare(b[0]);
-        if (keyCompare !== 0) return keyCompare;
-        return a[1].localeCompare(b[1]);
-      });
-
-      const sortedParams = new URLSearchParams();
-      for (const [key, value] of entries) {
-        sortedParams.append(key, value);
-      }
-      sortedQuery = sortedParams.toString();
-    }
-
-    // 6. ルートパス "/" を空文字列に
-    let normalizedPath = urlObj.pathname;
-    if (normalizedPath === "/") {
-      normalizedPath = "";
-    }
-    // 7. 末尾スラッシュを除去（パスがある場合のみ）
-    if (normalizedPath.length > 1) {
-      normalizedPath = normalizedPath.replace(/\/+$/, "");
-    }
+    // 6-7. ルートパス空文字化 + 末尾スラッシュ除去
+    const normalizedPath = normalizePathname(urlObj.pathname);
 
     // 結果を手動で構築（URL objectのhrefを使わない）
     let result = `${urlObj.protocol}//${urlObj.hostname}`;

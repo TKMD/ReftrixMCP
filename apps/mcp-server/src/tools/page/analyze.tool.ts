@@ -754,8 +754,8 @@ export const pageAnalyzeToolDefinition = {
             type: "number",
             minimum: 1,
             maximum: 4000,
-            default: 100,
-            description: "Maximum patterns to detect (default: 100)",
+            default: 500,
+            description: "Maximum patterns to detect (default: 500)",
           },
           includeWarnings: {
             type: "boolean",
@@ -918,9 +918,9 @@ export const pageAnalyzeToolDefinition = {
                 type: "number",
                 minimum: 0,
                 maximum: 10000,
-                default: 1000,
+                default: 2000,
                 description:
-                  "Wait time in ms after page load before detecting animations (default: 1000)",
+                  "Wait time in ms after page load before detecting animations (default: 2000)",
               },
             },
           },
@@ -929,9 +929,9 @@ export const pageAnalyzeToolDefinition = {
             type: "number",
             minimum: 30000,
             maximum: 600000,
-            default: 180000,
+            default: 300000,
             description:
-              "Motion detection timeout in milliseconds. MCP Protocol has a 60-second tool call limit. In async mode (page.analyze with async=true), this limit does not apply, allowing longer detection times for heavy WebGL/Three.js sites. (default: 180000 = 3 minutes, max: 600000 = 10 minutes)",
+              "Motion detection timeout in milliseconds. MCP Protocol has a 60-second tool call limit. In async mode (page.analyze with async=true), this limit does not apply, allowing longer detection times for heavy WebGL/Three.js sites. (default: 300000 = 5 minutes, max: 600000 = 10 minutes)",
           },
           // ===== PR-L2 (CO-ASYNC-03): nested coercion parity =====
           // detect_webgl_animations + video_options / runtime_options /

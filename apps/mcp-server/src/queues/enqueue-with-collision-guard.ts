@@ -58,19 +58,29 @@ import { truncateId } from "../utils/truncate-id";
  * still upheld by BullMQ jobId uniqueness (≤1 surviving job), so D1 only makes
  * the transient observable; it never changes the returned outcome.
  *
- * `^Missing key for job ` anchor + lazy `[\s\S]*?` (multi-line-safe, NOT `.*`)
- * to avoid over-matching unrelated / security-relevant errors (F-PLAN-L-01).
+ * `^Missing key for job ` anchor + lazy `[^\n]*?` (same-line only, NOT `.*` and
+ * NOT `[\s\S]*?`) to avoid over-matching unrelated / security-relevant errors
+ * (F-PLAN-L-01) and to structurally close the cross-newline over-match surface
+ * (TDA-IMPL-L-01): `[^\n]` excludes newlines, so a multi-line message whose
+ * `Missing key for job` line and lifecycle keyword line are separated by `\n`
+ * is NOT classified as a transient. BullMQ's real transient is single-line
+ * (`Missing key for job <id>. updateProgress`), so `[^\n]*?` preserves real
+ * transient classification while eliminating the multi-line over-match window.
  *
  * CO-SAMEURL-02 D1 用の BullMQ "Missing key for job …" transient 判別 SSOT
  * regex。same-URL race の fail-open `queue.add` 内で発生しうる transient で、
  * dedup の正しさ (≤1 surviving job) は BullMQ jobId uniqueness で担保済。D1 は
  * transient を observable にするのみで returned outcome は不変。`^` anchor +
- * lazy `[\s\S]*?` で over-match (security-relevant error 誤分類) を防止する。
+ * lazy `[^\n]*?` (same-line only) で over-match (security-relevant error 誤分類)
+ * と cross-newline over-match (TDA-IMPL-L-01) を構造的に防止する。実 BullMQ
+ * transient は単一行 (`Missing key for job <id>. updateProgress`) であるため
+ * `[^\n]*?` 化は real transient 分類を維持しつつ multi-line over-match を排除する。
  *
  * @see  §Sub-item 4 / §UB-6
+ * @see  §1 Item 1 (TDA-IMPL-L-01)
  */
 export const BULLMQ_KEY_MISSING_TRANSIENT_RE =
-  /^Missing key for job [\s\S]*?(?:updateProgress|moveToActive|lock)/i;
+  /^Missing key for job [^\n]*?(?:updateProgress|moveToActive|lock)/i;
 
 // ============================================================================
 // Types — Public API

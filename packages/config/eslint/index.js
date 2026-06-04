@@ -267,6 +267,23 @@ export const baseConfig = [
       complexity: ["error", 10],
     },
   },
+  // L-tracked defense-in-depth bundle (TDA-IMPL-L-01, PR-L3 successor):
+  // url-normalizer.ts is the URL dedup correctness SSOT (`normalizeUrlCore`,
+  // PR #54 same-URL race fix core). `normalizeUrlCore` measured CC ~12; after
+  // extracting the step-5 query-sort (`sortQueryParams`) and step-6+7
+  // pathname-normalize (`normalizePathname`) helpers the body is CC ≈ 8.
+  // Scope-limited `complexity: ["error", 10]` enforcement CI-gates future
+  // normalization-step complexity creep (base rule is `off` monorepo-wide).
+  //
+  // L-tracked defense-in-depth bundle (TDA-IMPL-L-01): url-normalizer.ts の
+  // `normalizeUrlCore` (URL dedup SSOT) を helper 2-block 抽出で CC ≤ 10 に下げ、
+  // 将来の正規化 step 追加時の複雑度 creep を CI で gate 化する。
+  {
+    files: ["apps/mcp-server/src/utils/url-normalizer.ts"],
+    rules: {
+      complexity: ["error", 10],
+    },
+  },
   // PR-D-8 Phase 2 (TDA-V11-02 M resolution):
   // Scope-limited `complexity: ["error", 10]` enforcement for WorkerSupervisor
   // + IPC boundary + spawn helper per Plan v1.1 §3.2.5 + Finding Registry v2

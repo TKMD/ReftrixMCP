@@ -561,14 +561,22 @@ describe("page.analyze advertised-schema coercion parity (INV-SCHEMA-ENUM-004)",
 
   // --- (UB4 / TDA-L-01) constraint (default/minimum/maximum) SSOT-diff ------
   // Scope: the 21 nested scalar paths THIS PR (PR-L2) hand-transcribes into the
-  // advertised schema. The constraint values for those fields are authored here,
-  // so they must match the Zod canonical (T1 SSOT) — `deriveNestedZodConstraints`
-  // derives the expectations straight from Zod, catching any hand-transcription
-  // drift at CI. Pre-existing already-advertised fields (e.g. motionOptions.maxPatterns
-  // default 100 vs Zod 500, motionOptions.timeout 180000 vs Zod 300000,
-  // js_animation_options.waitTime 1000 vs Zod 2000) carry their own historical
-  // drift that is OUT OF SCOPE for PR-L2 (IO ruling: do not touch already-advertised
-  // fields), so the diff is intentionally restricted to PR-L2-authored paths.
+  // advertised schema, PLUS the 3 pre-existing already-advertised fields whose
+  // advertised default was aligned to the Zod canonical (T1 SSOT) by the
+  // L-tracked defense-in-depth bundle (FIND-IMPL-L2-DRIFT-01). The constraint
+  // values for all of these fields are authored in the advertised schema, so
+  // they must match the Zod canonical — `deriveNestedZodConstraints` derives the
+  // expectations straight from Zod, catching any hand-transcription drift at CI.
+  //
+  // FIND-IMPL-L2-DRIFT-01 closure (was IO ruling "do not touch already-advertised
+  // fields"): the 3 pre-existing fields below previously carried a benign
+  // advertised↔Zod default drift (display-hint only; the coercion engine never
+  // reads the advertised `default`, runtime default resolution is done by the Zod
+  // canonical). They are now aligned (maxPatterns 100→500, motionOptions.timeout
+  // 180000→300000, js_animation_options.waitTime 1000→2000) AND folded into this
+  // SSOT-diff scope so future drift on them is also CI-detected (drift guard
+  // extension). T1 SSOT = `input.schemas.ts` (maxPatterns:477, motionOptions.timeout:599,
+  // jsAnimationOptionsSchema.waitTime:446).
   const PR_L2_ADDED_NUMBER_PATHS = [
     "layoutOptions.visionBatchSize",
     "layoutOptions.scrollVisionMaxCaptures",
@@ -585,6 +593,10 @@ describe("page.analyze advertised-schema coercion parity (INV-SCHEMA-ENUM-004)",
     "motionOptions.webgl_animation_options.sample_interval_ms",
     "motionOptions.webgl_animation_options.change_threshold",
     "motionOptions.webgl_animation_options.timeout_ms",
+    // FIND-IMPL-L2-DRIFT-01: pre-existing advertised fields, aligned + drift-guarded
+    "motionOptions.maxPatterns",
+    "motionOptions.timeout",
+    "motionOptions.js_animation_options.waitTime",
   ];
 
   it("PR-L2-added nested advertised number constraints (default/minimum/maximum) match Zod canonical (SSOT-derived, UB4/TDA-L-01)", () => {

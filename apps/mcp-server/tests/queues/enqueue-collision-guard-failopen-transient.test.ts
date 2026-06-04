@@ -102,6 +102,23 @@ describe("CO-SAMEURL-02 D1: BULLMQ_KEY_MISSING_TRANSIENT_RE SSOT regex", () => {
     expect(BULLMQ_KEY_MISSING_TRANSIENT_RE.test("Connection refused")).toBe(false);
     expect(BULLMQ_KEY_MISSING_TRANSIENT_RE.test("ENOTFOUND example.com")).toBe(false);
   });
+
+  it("does NOT match across a newline (multi-line over-match closure, TDA-IMPL-L-01)", () => {
+    // `[^\n]*?` excludes newlines: a multi-line message whose `Missing key for
+    // job` line and the lifecycle keyword line are separated by `\n` must NOT
+    // be classified as a transient (cross-newline over-match closure).
+    expect(BULLMQ_KEY_MISSING_TRANSIENT_RE.test("Missing key for job abc\nupdateProgress")).toBe(
+      false
+    );
+    expect(BULLMQ_KEY_MISSING_TRANSIENT_RE.test("Missing key for job abc\nmoveToActive")).toBe(
+      false
+    );
+    expect(BULLMQ_KEY_MISSING_TRANSIENT_RE.test("Missing key for job abc\nlock")).toBe(false);
+    // same-line still matches (real BullMQ transient is single-line).
+    expect(BULLMQ_KEY_MISSING_TRANSIENT_RE.test("Missing key for job abc. updateProgress")).toBe(
+      true
+    );
+  });
 });
 
 // ============================================================================
