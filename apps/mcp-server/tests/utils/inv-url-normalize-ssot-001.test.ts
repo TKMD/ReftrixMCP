@@ -57,6 +57,8 @@ import fs from "node:fs";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Project, SyntaxKind } from "ts-morph";
 import type { CallExpression, SourceFile } from "ts-morph";
+// C-M01-SHARED (CO-DID-02): shared recursive `*.ts` walk (no new inline copy).
+import { collectTypeScriptSources } from "../regression/standing/schema-enum-sync/_extractors";
 // queue 側 public export (validator module から)。
 import { normalizeUrlForValidation } from "../../src/utils/url-validator";
 // DB 側 public export (normalizer module から) + SSOT core。両 module の public
@@ -138,14 +140,43 @@ const URL_VALIDATOR_FILE = path.resolve(SRC_ROOT, "utils/url-validator.ts");
 const PAGE_ANALYZE_QUEUE_FILE = path.resolve(SRC_ROOT, "queues/page-analyze-queue.ts");
 
 /**
- * DB upsert callsites that build `web_pages.url` from `normalizeUrlForStorage`.
- * Sanity-list (not allowlist) to ensure the sweep coverage is non-empty.
+ * Documented exceptions to the src-wide `web_pages.url` create/upsert sweep
+ * (CO-DID-03 / C-OBS2-SCOPE). A discovered callsite that does NOT reference
+ * `normalizeUrlForStorage` in its file MUST be registered here, or the sweep
+ * fails (forward-compat drift gate). Each entry pins WHY a callsite legitimately
+ * bypasses the storage-normalization SSOT, so the bypass never becomes silent.
+ *
+ * **CO-DID-03 = Option B (documented exception, production code unchanged)**:
+ * `web-page.service.ts` `findOrCreateByUrl` does a `find-by-raw-url` then a
+ * `create({ data: { url } })` on the raw url. Routing it through
+ * `normalizeUrlForStorage` (Option A) would normalize only the create side
+ * while `findByUrl` stays raw → find-miss against existing rows → MORE duplicate
+ * rows (it WORSENS the CWE-697 dedup degradation it would try to fix). Full
+ * symmetrisation requires `findByUrl` normalization + an existing-row backfill
+ * migration (a future ADR, breaking). Real-harm is currently 0 because of the
+ * **data-layer dual defense**: the `web_pages_url_key` UNIQUE constraint
+ * (Evidence-First anchor `019e8fcd`, production-operating) + `findOrCreateByUrl`
+ * find-first idempotency. The SSRF entrypoint `validateExternalUrl` is not on
+ * this path (no security surface).
+ *
+ * @see  §4 (Option B rationale)
+ * @see  §2 / C-OBS2-SCOPE
  */
-const KNOWN_DB_UPSERT_FILES: readonly string[] = [
-  "src/workers/phases/phase-0-ingest.ts",
-  "src/workers/page-analyze-worker.ts",
-  "src/tools/layout/ingest.tool.ts",
-  "src/tools/layout/batch-ingest.tool.ts",
+const DOCUMENTED_RAWCREATE_EXCEPTIONS: ReadonlyArray<{
+  file: string;
+  callsite: string;
+  reason: string;
+  trackedIssue: string;
+}> = [
+  {
+    file: "src/services/web-page.service.ts",
+    callsite: "findOrCreateByUrl prisma.webPage.create",
+    reason:
+      "data-layer 2-defense (web_pages_url_key UNIQUE + find-first idempotency); " +
+      "Option A (normalizeUrlForStorage) deferred to a future ADR due to existing-row " +
+      "normalization-set integrity risk (would require findByUrl symmetrisation + row backfill)",
+    trackedIssue: "CO-DID-03",
+  },
 ] as const;
 
 function createAstProject(): Project {
@@ -168,6 +199,68 @@ const SEVEN_STEP_MARKERS: readonly RegExp[] = [
   /urlObj\.port\s*=\s*""/, // step 2 default-port strip
   /urlObj\.hash\s*=\s*""/, // step 3 fragment strip
 ] as const;
+
+// ============================================================================
+// src-wide AST discovery of web_pages.url create/upsert callsites
+// (CO-DID-02 / C-M02-AST + C-M03-HELPER)
+// ============================================================================
+
+/**
+ * A discovered `prisma.webPage.create` / `prisma.webPage.upsert` callsite that
+ * writes (or can write) `web_pages.url`.
+ */
+interface WebPageUrlUpsertCallsite {
+  /** repo-relative source path (e.g. `src/services/web-page.service.ts`). */
+  readonly file: string;
+  /** the create/upsert method name, for diagnostics. */
+  readonly method: "create" | "upsert";
+  /** the call expression head text (e.g. `prisma.webPage.create`). */
+  readonly headText: string;
+}
+
+/**
+ * Return the create/upsert method name if `callExpr`'s head is a
+ * `<anything>.webPage.create` / `.upsert` member chain, else `null`.
+ *
+ * Narrows to **create/upsert only**: `update` / `updateMany` / `findUnique` etc.
+ * never (re)write the immutable `url` key, so they are intentionally excluded.
+ * Accepts any receiver chain (`prisma.`, `tx.`, `deps.prisma.`, …) by matching
+ * the `.webPage.<method>` suffix.
+ *
+ * @returns `"create" | "upsert"` when matched, otherwise `null`
+ */
+function matchWebPageUrlMethod(callExpr: CallExpression): "create" | "upsert" | null {
+  const head = callExpr.getExpression().getText();
+  if (/\.webPage\.create$/.test(head)) return "create";
+  if (/\.webPage\.upsert$/.test(head)) return "upsert";
+  return null;
+}
+
+/**
+ * Discover every `*.webPage.create` / `*.webPage.upsert` callsite in a single
+ * SourceFile via AST CallExpression traversal (C-M02-AST). Pure function —
+ * returns the discovered callsites; the test body owns all assertions
+ * (C-M03-HELPER). Kept structurally simple (cyclomatic complexity ≤ 10) by
+ * delegating the head-chain match to {@link matchWebPageUrlMethod}.
+ *
+ * @param sourceFile - ts-morph SourceFile to scan
+ * @param relFile - repo-relative path used in the returned callsite records
+ * @returns discovered create/upsert callsites for this file (may be empty)
+ */
+function discoverWebPageUrlUpsertCallsites(
+  sourceFile: SourceFile,
+  relFile: string
+): WebPageUrlUpsertCallsite[] {
+  const found: WebPageUrlUpsertCallsite[] = [];
+  const calls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
+  for (const call of calls) {
+    const callExpr = call as CallExpression;
+    const method = matchWebPageUrlMethod(callExpr);
+    if (method === null) continue;
+    found.push({ file: relFile, method, headText: callExpr.getExpression().getText() });
+  }
+  return found;
+}
 
 // ============================================================================
 // Test Suite
@@ -367,52 +460,150 @@ describe("INV-URL-NORMALIZE-SSOT-001: SSOT-import AST sweep — queue jobId + DB
   });
 
   // ==========================================================================
-  // (c) DB upsert callsites reference normalizeUrlForStorage (→ core), and do
-  //     NOT inline the 7-step normalization logic themselves.
+  // (c) src-wide AST sweep (CO-DID-02): every `*.webPage.create` /
+  //     `*.webPage.upsert` callsite in src/ either references
+  //     normalizeUrlForStorage (→ core) and does NOT re-inline the 7-step
+  //     logic, OR is registered in DOCUMENTED_RAWCREATE_EXCEPTIONS (CO-DID-03).
+  //
+  //     **Scope (C-OBS2-SCOPE)**: Prisma fluent API `create` / `upsert` only.
+  //     `update` / `updateMany` never (re)write the immutable `url` key, so
+  //     they are excluded. Raw-SQL paths (`$executeRaw*` / `createMany`) that
+  //     write `web_pages.url` are NOT covered by this sweep — none currently
+  //     exist (only `DELETE FROM web_pages` raw-SQL exists), so real-harm 0.
+  //
+  //     This replaces the prior 4-entry `KNOWN_DB_UPSERT_FILES` sanity-list,
+  //     which silently omitted 2 url-writing upsert callsites
+  //     (`tools/page/handlers/db-handler.ts`, `services/worker-supervisor-
+  //     failure-path.service.ts`) — exactly the silent-drift surface CO-DID-02
+  //     closes.
   // ==========================================================================
 
-  it("INV-URL-NORMALIZE-SSOT-001: DB upsert callsites reference normalizeUrlForStorage (→ normalizeUrlCore) and do NOT re-inline 7-step normalization (forward-compat drift gate)", () => {
-    const violations: Array<{ file: string; reason: string }> = [];
-    let discovered = 0;
+  it("INV-URL-NORMALIZE-SSOT-001: src-wide AST sweep — every webPage.create/upsert callsite references normalizeUrlForStorage OR is a documented exception (forward-compat drift gate)", () => {
+    const srcFiles = collectTypeScriptSources(SRC_ROOT, { includeTests: false });
 
-    for (const rel of KNOWN_DB_UPSERT_FILES) {
-      const abs = path.resolve(MCP_SERVER_ROOT, rel);
-      if (!fs.existsSync(abs)) {
-        violations.push({ file: rel, reason: "KNOWN_DB_UPSERT_FILES entry not found on disk" });
-        continue;
+    type Discovered = { file: string; method: "create" | "upsert"; headText: string };
+    const discovered: Discovered[] = [];
+
+    for (const abs of srcFiles) {
+      const rel = path.relative(MCP_SERVER_ROOT, abs);
+      const sf = astProject.addSourceFileAtPath(abs);
+      for (const c of discoverWebPageUrlUpsertCallsites(sf, rel)) {
+        discovered.push({ file: c.file, method: c.method, headText: c.headText });
       }
-      discovered++;
+    }
+
+    // Non-vacuity: the sweep must not collapse to an empty set (a broken
+    // discovery that returns nothing would otherwise be a false-green).
+    expect(
+      discovered.length,
+      "src-wide AST sweep must discover ≥4 webPage.create/upsert callsites (non-empty coverage)"
+    ).toBeGreaterThanOrEqual(4);
+
+    const exceptionFiles = new Set(DOCUMENTED_RAWCREATE_EXCEPTIONS.map((e) => e.file));
+    const violations: Array<{ file: string; reason: string }> = [];
+
+    for (const callsite of discovered) {
+      const abs = path.resolve(MCP_SERVER_ROOT, callsite.file);
       const text = fs.readFileSync(abs, "utf8");
-      // Must reference the storage wrapper (which delegates to the core).
-      if (!/normalizeUrlForStorage\s*\(/.test(text)) {
+      const referencesStorage = /normalizeUrlForStorage\s*\(/.test(text);
+      const isException = exceptionFiles.has(callsite.file);
+
+      if (!referencesStorage && !isException) {
+        // A url-writing create/upsert that neither delegates to the storage
+        // SSOT wrapper nor is registered as a documented exception → drift.
         violations.push({
-          file: rel,
-          reason: "does not reference normalizeUrlForStorage (storage normalization SSOT wrapper)",
+          file: callsite.file,
+          reason:
+            `webPage.${callsite.method} callsite does not reference normalizeUrlForStorage ` +
+            "and is NOT in DOCUMENTED_RAWCREATE_EXCEPTIONS (register it or route through the SSOT wrapper)",
         });
       }
-      // Must NOT re-inline the distinctive 7-step markers (drift guard).
+
+      // Must NOT re-inline the distinctive 7-step markers (drift guard),
+      // even for the documented-exception file.
       for (const marker of SEVEN_STEP_MARKERS) {
         if (marker.test(text)) {
           violations.push({
-            file: rel,
+            file: callsite.file,
             reason: `re-inlines 7-step normalization marker ${marker} instead of delegating to the core`,
           });
         }
       }
     }
 
-    expect(
-      discovered,
-      "AST sweep must discover ≥1 DB upsert callsite (non-empty coverage)"
-    ).toBeGreaterThan(0);
-
     if (violations.length > 0) {
       const formatted = violations.map((v) => `  - ${v.file}: ${v.reason}`).join("\n");
       expect.fail(
-        `INV-URL-NORMALIZE-SSOT-001 SSOT-import sweep: ${violations.length} DB upsert callsite drift(s):\n${formatted}`
+        `INV-URL-NORMALIZE-SSOT-001 src-wide sweep: ${violations.length} webPage url create/upsert drift(s):\n${formatted}`
       );
     }
     expect(violations).toEqual([]);
+
+    // Every registered exception must actually be discovered by the sweep
+    // (no stale exception entries that point at a non-existent callsite).
+    const discoveredFiles = new Set(discovered.map((d) => d.file));
+    for (const exc of DOCUMENTED_RAWCREATE_EXCEPTIONS) {
+      expect(
+        discoveredFiles.has(exc.file),
+        `DOCUMENTED_RAWCREATE_EXCEPTIONS entry ${exc.file} must correspond to a discovered callsite (no stale exceptions)`
+      ).toBe(true);
+    }
+  });
+
+  // ==========================================================================
+  // (c2) Over/under-match guard (C-M02-AST verification): the sweep discovers
+  //      EXACTLY the expected set of url-writing create/upsert callsites — no
+  //      false positives (e.g. webPage.update url-less) and no false negatives.
+  //      The expected set is derived from ground-truth and pins the count so a
+  //      future regression (new un-normalized callsite, or a discovery that
+  //      silently drops one) is caught.
+  // ==========================================================================
+
+  it("INV-URL-NORMALIZE-SSOT-001: AST discovery matches EXACTLY the ground-truth webPage.create/upsert callsite set (over/under-match 0)", () => {
+    const srcFiles = collectTypeScriptSources(SRC_ROOT, { includeTests: false });
+    const discoveredFiles = new Set<string>();
+    for (const abs of srcFiles) {
+      const rel = path.relative(MCP_SERVER_ROOT, abs);
+      const sf = astProject.addSourceFileAtPath(abs);
+      for (const c of discoverWebPageUrlUpsertCallsites(sf, rel)) {
+        discoveredFiles.add(c.file);
+      }
+    }
+
+    // Ground-truth (IO-verified 2026-06-05): 7 files contain a
+    // `webPage.create` / `webPage.upsert` writing `web_pages.url`. 6 route
+    // through normalizeUrlForStorage; 1 (web-page.service.ts) is the
+    // documented CO-DID-03 exception. NOTE: this is 7, not the Registry's
+    // forecast of 5 — the plan's KNOWN_DB_UPSERT_FILES (4-file) under-counted
+    // db-handler.ts + worker-supervisor-failure-path.service.ts, the very
+    // omission CO-DID-02 closes (flagged to IO for V1 reconciliation).
+    const EXPECTED_CALLSITE_FILES: readonly string[] = [
+      "src/services/web-page.service.ts", // CO-DID-03 exception (create)
+      "src/workers/phases/phase-0-ingest.ts",
+      "src/workers/page-analyze-worker.ts",
+      "src/tools/layout/ingest.tool.ts",
+      "src/tools/layout/batch-ingest.tool.ts",
+      "src/tools/page/handlers/db-handler.ts",
+      "src/services/worker-supervisor-failure-path.service.ts",
+    ];
+
+    const expectedSet = new Set(EXPECTED_CALLSITE_FILES.map((f) => f.replace(/\//g, path.sep)));
+    const normalizedDiscovered = new Set(
+      Array.from(discoveredFiles).map((f) => f.replace(/\//g, path.sep))
+    );
+
+    const overMatch = Array.from(normalizedDiscovered).filter((f) => !expectedSet.has(f));
+    const underMatch = Array.from(expectedSet).filter((f) => !normalizedDiscovered.has(f));
+
+    expect(
+      overMatch,
+      `AST sweep over-matched (discovered callsites NOT in ground-truth): ${overMatch.join(", ")}`
+    ).toEqual([]);
+    expect(
+      underMatch,
+      `AST sweep under-matched (ground-truth callsites NOT discovered): ${underMatch.join(", ")}`
+    ).toEqual([]);
+    expect(normalizedDiscovered.size, "exactly 7 url-writing create/upsert callsite files").toBe(7);
   });
 
   // ==========================================================================

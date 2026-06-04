@@ -15,6 +15,7 @@
  * @module tests/regression/standing/schema-enum-sync/_extractors
  */
 
+import fs from "node:fs";
 import path from "node:path";
 import { Project, SyntaxKind } from "ts-morph";
 import type { SourceFile } from "ts-morph";
@@ -60,6 +61,65 @@ export function createAstProject(): Project {
 export function addMcpServerSourceFile(project: Project, relPath: string): SourceFile {
   const abs = path.resolve(__dirname, "../../../../", relPath);
   return project.addSourceFileAtPath(abs);
+}
+
+// ============================================================================
+// Recursive TypeScript source collection (shared, CO-DID-02 / C-M01-SHARED)
+// ============================================================================
+
+/**
+ * Recursively collect every `*.ts` file under `root`, excluding `dist/`,
+ * `node_modules/`, dot-directories, and (depending on `opts.includeTests`)
+ * `.test.ts` / `.spec.ts` files. Returns absolute paths.
+ *
+ * **C-M01-SHARED (CO-DID bundle, TDA-PLAN-M-01)**: This is the single shared
+ * source for the recursive `*.ts` walk previously **copy-pasted inline** in
+ * three standing tests:
+ *   - `gdpr-delete/inv-audit-emit-ssot-import-001.test.ts`
+ *   - `worker-lifecycle/inv-worker-restart-delay-ssot-001-env-only.test.ts`
+ *   - `worker-lifecycle/inv-worker-config-legacy-env-var-detection-001.test.ts`
+ * and now also consumed by `tests/utils/inv-url-normalize-ssot-001.test.ts`
+ * (CO-DID-02 src-wide AST sweep). The signature is byte-compatible with the
+ * existing inline copies (`(root, { includeTests }) => string[]`) so the three
+ * callsites can co-migrate to this import without behaviour change
+ * (tracked: CO-DID-CARRY-01, deadline 2026-06-06). Adding a **new** inline
+ * copy is forbidden (would re-introduce the drift this consolidation removes).
+ *
+ * `*.ts` を再帰収集 (`dist/` / `node_modules/` / dot-dir 除外、test 含む/除く切替)。
+ *
+ * @param root - absolute directory root to walk
+ * @param opts.includeTests - `true` collects only `*.test.ts` / `*.spec.ts`;
+ *   `false` collects only non-test `*.ts` (mirrors the existing inline copies)
+ * @returns absolute paths of matching `*.ts` files
+ */
+export function collectTypeScriptSources(root: string, opts: { includeTests: boolean }): string[] {
+  const out: string[] = [];
+
+  function walk(dir: string): void {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.name === "node_modules" || entry.name === "dist" || entry.name.startsWith(".")) {
+        continue;
+      }
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+      } else if (entry.isFile() && entry.name.endsWith(".ts")) {
+        const isTest = entry.name.endsWith(".test.ts") || entry.name.endsWith(".spec.ts");
+        if (!opts.includeTests && isTest) continue;
+        if (opts.includeTests && !isTest) continue;
+        out.push(full);
+      }
+    }
+  }
+
+  walk(root);
+  return out;
 }
 
 // ============================================================================
