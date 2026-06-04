@@ -17,5 +17,14 @@ export * from "./services/robots-txt.service";
 export { loadEnvLocal } from "./config/env-local";
 export type { LoadEnvLocalOptions, LoadEnvLocalResult } from "./config/env-local";
 
+// Worker types (Plan v3 Track T4 — FailedKnownReason SSOT) /
+// Worker types (Plan v3 Track T4 — FailedKnownReason SSOT)
+export {
+  FAILED_KNOWN_REASONS,
+  failedKnownReasonForPhase,
+  assertNeverFailedKnownReason,
+} from "./types/failed-known-reason";
+export type { FailedKnownReason } from "./types/failed-known-reason";
+
 // Webdesign module
 export * from "./webdesign";

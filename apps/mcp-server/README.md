@@ -374,6 +374,7 @@ Performs unified Layout + Motion + Quality analysis for a given URL. Uses BullMQ
 {
   url: string;              // 分析対象URL
   summary?: boolean;        // 軽量レスポンス
+  async?: boolean;          // 非同期モード（省略時 auto）
   timeout?: number;
   features?: {
     layout?: boolean;
@@ -382,6 +383,10 @@ Performs unified Layout + Motion + Quality analysis for a given URL. Uses BullMQ
   };
 }
 ```
+
+> **入力型の文字列強制変換（advertised schema coercion）**: `page.analyze` の advertised inputSchema は boolean/number/object フィールド（`async`、`summary`、`timeout`、`timeout_strategy`、`partial_results`、`layoutTimeout`/`motionTimeout`/`qualityTimeout`、`auto_retry`/`max_retries`、`layout_first`、`narrativeOptions`/`visionOptions` 等）を公開します。MCP クライアントが boolean/number を文字列（例: `"true"` / `"600000"`）として送っても、ツール層の `coerceArgs` が advertised schema の型ヒントに従って Zod 検証前に正しい型へ強制変換します。これにより文字列引数による `VALIDATION_ERROR` を防止します。
+>
+> **Advertised-schema string coercion of inputs**: the `page.analyze` advertised inputSchema exposes its boolean/number/object fields (`async`, `summary`, `timeout`, `timeout_strategy`, `partial_results`, `layoutTimeout`/`motionTimeout`/`qualityTimeout`, `auto_retry`/`max_retries`, `layout_first`, `narrativeOptions`/`visionOptions`, etc.). When an MCP client sends a boolean/number as a string (e.g. `"true"` / `"600000"`), the tool-layer `coerceArgs` uses the advertised type hints to coerce them to the correct type before Zod validation, preventing `VALIDATION_ERROR` from string-typed arguments.
 
 #### `page.getJobStatus` - 非同期ジョブステータス確認 / Async Job Status
 
@@ -746,8 +751,8 @@ Graceful Degradation: Redis未接続時はインメモリフォールバック /
 
 ### エラーメッセージサニタイズ / Error Message Sanitization (CWE-209)
 
-`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。<!-- gen:sanitize-usage-count -->101<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->39<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->94<!-- /gen:sanitize-import-count -->ファイルでインポート）。
-`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to <!-- gen:sanitize-usage-count -->101<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->39<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->94<!-- /gen:sanitize-import-count --> import files).
+`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。<!-- gen:sanitize-usage-count -->116<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->39<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->108<!-- /gen:sanitize-import-count -->ファイルでインポート）。
+`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to <!-- gen:sanitize-usage-count -->116<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->39<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->108<!-- /gen:sanitize-import-count --> import files).
 
 ---
 
@@ -1112,6 +1117,16 @@ REDIS_PORT=27379
 ```
 
 Redisが未設定の場合、非同期モードは使用できません（同期モードのみ動作）。
+
+---
+
+## リリースノート / Release Notes
+
+### Plan v4.4 PR-N (2026-05-17)
+
+`WorkerSupervisorOptions.restartDelayMs` フィールドを正式削除し、ADR-0035 Amendment 1 §Decision 5 に従い env-only canonical SSOT へ一元化。`WORKER_RESTART_DELAY_MS` (page-analyze 用、default 3000ms) と `EMBEDDING_BACKFILL_RESTART_DELAY_MS` (embedding-backfill 用、default 8000ms) 環境変数が per-type restart cooldown 値の唯一の真実源となり、`getRestartDelayMsForType(workerType)` module-level export 経由で解決される。サーバーバージョンを 0.6.0 に bump。
+
+`WorkerSupervisorOptions.restartDelayMs` field formally removed and consolidated to env-only canonical SSOT per ADR-0035 Amendment 1 §Decision 5. The `WORKER_RESTART_DELAY_MS` (page-analyze, default 3000ms) and `EMBEDDING_BACKFILL_RESTART_DELAY_MS` (embedding-backfill, default 8000ms) environment variables are now the sole source of truth for per-type restart cooldown values, resolved via the `getRestartDelayMsForType(workerType)` module-level export. Server version bumped to 0.6.0.
 
 ---
 

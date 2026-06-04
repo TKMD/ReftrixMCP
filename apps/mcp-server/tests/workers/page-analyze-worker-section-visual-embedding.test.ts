@@ -34,8 +34,8 @@ import * as path from "node:path";
 const EMBEDDING_PHASE_SLICE = 75000;
 /** Section Visual Embedding ブロックのスライスサイズ（processEmbeddingPhase内、PII+セクション取得まで） */
 const SECTION_VISUAL_SLICE = 70000;
-/** processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック） */
-const SINGLE_SECTION_SLICE = 10000;
+/** processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック。secvisual blank/no-position terminal exit 2件追加で実関数長 ~10992 文字に拡大、result.generated++ は rel offset 10587） */
+const SINGLE_SECTION_SLICE = 12000;
 
 describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
   // After TDA-C1 refactoring, processEmbeddingPhase and visual embedding logic
@@ -70,12 +70,21 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
       expect(fnBody).toContain("DINOv2");
     });
 
-    it("should query section_embeddings with null vision_embedding via raw SQL", () => {
-      // vision_embedding が NULL のレコードを raw SQL で取得する
+    it("should query section_embeddings via the SSOT sectionVisualPendingExclusionPredicate (PR-BT-2: terminal-skip exclusion, no inline WHERE)", () => {
+      // PR-BT-2 (系統B): the section_visual work-fetch query (`sectionsNeedingVisual`
+      // in runVisualEmbeddingSubPhases) now references the SSOT exclusion predicate
+      // `sectionVisualPendingExclusionPredicate("se")` instead of an inline
+      // `text_embedding IS NOT NULL AND vision_embedding IS NULL` WHERE, so a
+      // terminal-skip section (vision_skip_reason non-NULL) is NOT re-fetched
+      // (symmetry with part_visual). The text_embedding / vision_embedding conjuncts
+      // are now encoded inside the predicate fragment (asserted by the predicate's
+      // own unit test + INV-007 Block E + the section-visual standing test).
       const fnStart = workerSource.indexOf("async function processSectionVisualEmbeddingLoop");
       const fnBody = workerSource.slice(fnStart, fnStart + SECTION_VISUAL_SLICE);
-      expect(fnBody).toContain("vision_embedding IS NULL");
-      expect(fnBody).toContain("text_embedding IS NOT NULL");
+      expect(
+        fnBody,
+        "the section_visual work-fetch MUST reference the SSOT sectionVisualPendingExclusionPredicate (no inline pending WHERE)"
+      ).toContain('sectionVisualPendingExclusionPredicate("se")');
       expect(fnBody).toContain("section_embeddings");
     });
 
@@ -178,11 +187,13 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
       // partVisualSkippedBboxInvalid field + extensive JSDoc (ADR-0018 §Decision 3
       // Amendment, INV-EMBEDDING-INTEGRITY-005).
       //
-      // PR-D-2: widened slice from 800 → 1600 bytes to accommodate the new
-      // partVisualSkippedBboxInvalid field and its extensive JSDoc.
+      // ADR-0018 Amendment 7 §7.6 (Plan v2 PR-B): widened slice 1600 → 2400 bytes
+      // to accommodate the new partVisualSkippedBboxUnresolvable field + its JSDoc
+      // (exit #2 bbox_unresolvable terminal marker counter), which is declared
+      // immediately before sectionVisualEmbeddingsGenerated.
       const resultSection = workerSource.slice(
         workerSource.indexOf("interface EmbeddingPhaseResult"),
-        workerSource.indexOf("interface EmbeddingPhaseResult") + 1600
+        workerSource.indexOf("interface EmbeddingPhaseResult") + 2400
       );
       expect(resultSection).toContain("sectionVisualEmbeddingsGenerated: number");
     });
@@ -289,12 +300,22 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
     });
 
     it("should log truncated sectionEmbeddingId for PII safety", () => {
-      // PII対策: sectionEmbeddingId を truncate してログ出力（truncateId パターン）
+      // PII対策: sectionEmbeddingId を truncate してログ出力。
+      // PR-C4/CO-5 リファクタ追従、SSOT canonical 化: インライン
+      // `section.id.slice(0, 8) + "..."` literal は `truncateAuditTargetId` SSOT
+      // (AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH 由来) に移行。CWE-209 PII
+      // truncation length の coupling drift を排除する canonical pattern。
+      // PR-C4/CO-5 refactor follow-up, SSOT canonicalisation: the inline
+      // `section.id.slice(0, 8) + "..."` literal was migrated to the
+      // `truncateAuditTargetId` SSOT (derived from AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH),
+      // the canonical CWE-209 pattern that eliminates PII-truncation-length coupling drift.
       // After TDA-C1 refactoring, per-section logging moved to processSingleSectionVisualEmbedding
       const fnStart = workerSource.indexOf("async function processSingleSectionVisualEmbedding");
       expect(fnStart).toBeGreaterThan(-1);
       const singleBody = workerSource.slice(fnStart, fnStart + SINGLE_SECTION_SLICE);
-      expect(singleBody).toContain('section.id.slice(0, 8) + "..."');
+      // section.id の PII truncation は SSOT helper 経由であることを検証
+      // Verify section.id PII truncation goes through the SSOT helper
+      expect(singleBody).toContain("truncateAuditTargetId(p.section.id)");
     });
   });
 
@@ -599,16 +620,34 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
     });
 
     it("PII check should appear before the section visual embedding processing loop", () => {
-      // PII check は runVisualEmbeddingSubPhases 内、processSectionVisualEmbeddingLoop 呼び出し前に実行される
+      // PR-C4/CO-5 リファクタ追従、SSOT canonical 化: PII check は worker インラインの
+      // `pii_risk_level = 'high'` literal ではなく、SSOT exclusion predicate
+      // (`sectionVisualPendingExclusionPredicate`) + 高PII pending set
+      // (`highPiiSectionIdSet`) で表現される。GDPR Art.5(1)(c) data-minimisation の
+      // 「PII フィルタが processSectionVisualEmbeddingLoop 呼び出し前」という順序
+      // invariant は新 shape (predicate + highPiiSectionIdSet → loop) で保持。
+      // PR-C4/CO-5 refactor follow-up, SSOT canonicalisation: the PII check is now
+      // expressed via the SSOT exclusion predicate (`sectionVisualPendingExclusionPredicate`)
+      // + the high-PII pending set (`highPiiSectionIdSet`) — NOT via an inline
+      // `pii_risk_level = 'high'` literal in the worker. The GDPR Art.5(1)(c) ordering
+      // invariant ("PII filter before the processSectionVisualEmbeddingLoop call") is
+      // preserved by the new shape (predicate + highPiiSectionIdSet → loop).
       const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
       expect(fnStart).toBeGreaterThan(-1);
       const embeddingBody = workerSource.slice(fnStart, fnStart + 20000);
-      const piiCheckPos = embeddingBody.indexOf("pii_risk_level = 'high'");
-      expect(piiCheckPos).toBeGreaterThan(-1);
-      // processSectionVisualEmbeddingLoop 呼び出しがPII check より後にある
+      // PII 除外は SSOT predicate 経由 (NOT EXISTS pii_risk_level='high' を内包)
+      // PII exclusion via the SSOT predicate (which embeds NOT EXISTS pii_risk_level='high')
+      const predicatePos = embeddingBody.indexOf("sectionVisualPendingExclusionPredicate");
+      // 高PII pending set の導出 / High-PII pending set derivation
+      const highPiiSetPos = embeddingBody.indexOf("highPiiSectionIdSet");
       const loopCallPos = embeddingBody.indexOf("processSectionVisualEmbeddingLoop");
+      expect(predicatePos).toBeGreaterThan(-1);
+      expect(highPiiSetPos).toBeGreaterThan(-1);
       expect(loopCallPos).toBeGreaterThan(-1);
-      expect(piiCheckPos).toBeLessThan(loopCallPos);
+      // PII フィルタリング (predicate + 高PII set) は loop 呼び出しの前に位置する
+      // PII filtering (predicate + high-PII set) is positioned before the loop call
+      expect(predicatePos).toBeLessThan(loopCallPos);
+      expect(highPiiSetPos).toBeLessThan(loopCallPos);
     });
 
     it("should log PII-skipped section count", () => {

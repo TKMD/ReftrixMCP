@@ -36,9 +36,19 @@ vi.mock("../../../../src/services/part/part-bbox-playwright.service", () => ({
   resolvePartBoundingBoxes: mockResolvePartBoundingBoxes,
 }));
 
-vi.mock("../../../../src/services/audit-log.service", () => ({
-  getAuditLogService: () => ({ log: mockAuditLog }),
-}));
+vi.mock("../../../../src/services/audit-log.service", async (importOriginal) => {
+  // Wave 5 LCC canonical pattern: re-export `AUDIT_LOG_CONSTANTS` SSOT from
+  // the original module so callers that compute `webPageId.slice(0,
+  // AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH)` keep working. Only
+  // `getAuditLogService` is replaced with a mock to capture audit writes.
+  // Anchor: FIND-IMPL-LCC-PATCH-W5-02 (Wave 5 LCC canonical anchor 019df7ab-2f5a).
+  const actual =
+    await importOriginal<typeof import("../../../../src/services/audit-log.service")>();
+  return {
+    ...actual,
+    getAuditLogService: () => ({ log: mockAuditLog }),
+  };
+});
 
 import {
   resolvePartBoundingBoxesWithFallback,

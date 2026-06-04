@@ -8,15 +8,19 @@
  * Note: Some tests are skipped when Redis is not available
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, beforeAll } from "vitest";
+import { z } from "zod";
+import { validate as uuidValidate, version as uuidVersion } from "uuid";
 import {
   PAGE_ANALYZE_QUEUE_NAME,
   createPageAnalyzeQueue,
   createQueueEvents,
-  addPageAnalyzeJob,
+  addPageAnalyzeJobWithGuard,
+  buildUrlStableJobId,
   getJobStatus,
   closeQueue,
   checkQueueHealth,
+  extractCurrentPhase,
   type PageAnalyzeJobData,
   type PageAnalyzeJobResult,
   type PageAnalyzeJobOptions,
@@ -28,6 +32,50 @@ describe("Page Analyze Queue", () => {
   describe("Constants and Types", () => {
     it("should have correct queue name", () => {
       expect(PAGE_ANALYZE_QUEUE_NAME).toBe("page-analyze");
+    });
+  });
+
+  // ADR-0018 Amendment 11 (PR-SAMEURL-DEDUP, Strategy A): URL-stable UUIDv5 jobId.
+  describe("buildUrlStableJobId (URL-stable UUIDv5 jobId)", () => {
+    it("is deterministic: same URL → same UUIDv5", () => {
+      const a = buildUrlStableJobId("https://example.com/page");
+      const b = buildUrlStableJobId("https://example.com/page");
+      expect(a).toBe(b);
+    });
+
+    it("distinct URLs → distinct UUIDv5", () => {
+      const a = buildUrlStableJobId("https://example.com/a");
+      const b = buildUrlStableJobId("https://example.com/b");
+      expect(a).not.toBe(b);
+    });
+
+    it("returns a valid RFC 4122 v5 UUID", () => {
+      const id = buildUrlStableJobId("https://example.com/page");
+      expect(uuidValidate(id)).toBe(true);
+      expect(uuidVersion(id)).toBe(5);
+    });
+
+    it("passes z.string().uuid() (SEC-RV1-H-01 closure: schema gate accepts the jobId)", () => {
+      const id = buildUrlStableJobId("https://example.com/page");
+      expect(z.string().uuid().safeParse(id).success).toBe(true);
+    });
+
+    it("normalization: fragment-insensitive, query-sensitive (matches normalizeUrlForValidation)", () => {
+      // Fragment is stripped → same UUIDv5.
+      expect(buildUrlStableJobId("https://x.com/p")).toBe(
+        buildUrlStableJobId("https://x.com/p#frag")
+      );
+      // Query is kept (sorted) → distinct UUIDv5.
+      expect(buildUrlStableJobId("https://x.com/p?v=1")).not.toBe(
+        buildUrlStableJobId("https://x.com/p?v=2")
+      );
+    });
+
+    it("matches the canonical node-verified value for https://example.com/p", () => {
+      // IO ground-truth value pinned in ADR-0018 Amendment 11 §Decision.
+      expect(buildUrlStableJobId("https://example.com/p")).toBe(
+        "7986ac7b-c3d8-561b-a6de-158e3866139a"
+      );
     });
   });
 
@@ -264,9 +312,10 @@ describe("Page Analyze Queue", () => {
     it.skipIf(!redisAvailable)("should add a job to the queue", async () => {
       if (!queue) return;
 
-      const job = await addPageAnalyzeJob(queue, {
+      const url = "https://example.com";
+      const result = await addPageAnalyzeJobWithGuard(queue, {
         webPageId: "019bc123-4567-7890-abcd-ef1234567890",
-        url: "https://example.com",
+        url,
         options: {
           timeout: 60000,
           features: {
@@ -277,27 +326,36 @@ describe("Page Analyze Queue", () => {
         },
       });
 
+      // WithGuard returns a discriminated `EnqueueResult` whose jobId is the
+      // URL-stable UUIDv5 (ADR-0018 Amendment 11), NOT the webPageId.
+      expect(result.outcome).toBe("enqueued_new");
+      expect(result.jobId).toBe(buildUrlStableJobId(url));
+
+      // Retrieve the enqueued job via the URL-stable jobId for payload assertions.
+      const job = await queue.getJob(result.jobId);
       expect(job).toBeDefined();
-      expect(job.id).toBe("019bc123-4567-7890-abcd-ef1234567890");
-      expect(job.data.url).toBe("https://example.com");
-      expect(job.data.createdAt).toBeDefined();
+      expect(job?.data.url).toBe(url);
+      expect(job?.data.createdAt).toBeDefined();
     });
 
     it.skipIf(!redisAvailable)("should add a job with priority", async () => {
       if (!queue) return;
 
-      const job = await addPageAnalyzeJob(
+      const url = "https://example.com/priority";
+      const result = await addPageAnalyzeJobWithGuard(
         queue,
         {
           webPageId: "019bc123-4567-7890-abcd-ef1234567891",
-          url: "https://example.com/priority",
+          url,
           options: {},
         },
         5 // Higher priority (lower number)
       );
 
+      // EnqueueResult has no `.opts`; retrieve the job to assert priority.
+      const job = await queue.getJob(result.jobId);
       expect(job).toBeDefined();
-      expect(job.opts.priority).toBe(5);
+      expect(job?.opts.priority).toBe(5);
     });
 
     it.skipIf(!redisAvailable)("should get job status", async () => {
@@ -305,16 +363,18 @@ describe("Page Analyze Queue", () => {
 
       const webPageId = "019bc123-4567-7890-abcd-ef1234567892";
 
-      await addPageAnalyzeJob(queue, {
+      // WithGuard's jobId is the URL-stable UUIDv5 (≠ webPageId), so status
+      // lookup must use `result.jobId`, not the webPageId.
+      const result = await addPageAnalyzeJobWithGuard(queue, {
         webPageId,
         url: "https://example.com/status",
         options: {},
       });
 
-      const status = await getJobStatus(queue, webPageId);
+      const status = await getJobStatus(queue, result.jobId);
 
       expect(status).not.toBeNull();
-      expect(status?.jobId).toBe(webPageId);
+      expect(status?.jobId).toBe(result.jobId);
       expect(status?.state).toBe("waiting");
       expect(status?.progress).toBe(0);
     });
@@ -361,10 +421,15 @@ describe("Page Analyze Queue", () => {
         requestId: "test-request-123",
       };
 
-      const job = await addPageAnalyzeJob(queue, originalData);
+      const result = await addPageAnalyzeJobWithGuard(queue, originalData);
 
-      // Retrieve the job
-      const retrievedJob = await queue.getJob(originalData.webPageId);
+      // `addPageAnalyzeJobWithGuard` derives the BullMQ jobId from the URL via
+      // `buildUrlStableJobId(url)` (a UUIDv5, ADR-0018 Amendment 11), NOT the
+      // webPageId. So the returned jobId must equal the URL-stable UUIDv5.
+      expect(result.jobId).toBe(buildUrlStableJobId(originalData.url));
+
+      // Retrieve the job by that same URL-stable jobId
+      const retrievedJob = await queue.getJob(result.jobId);
 
       expect(retrievedJob).not.toBeNull();
       expect(retrievedJob?.data.url).toBe(originalData.url);
@@ -377,32 +442,181 @@ describe("Page Analyze Queue", () => {
     it.skipIf(!redisAvailable)("should handle multiple jobs", async () => {
       if (!queue) return;
 
-      const jobs = await Promise.all([
-        addPageAnalyzeJob(queue, {
+      // 3 distinct URLs → 3 distinct URL-stable UUIDv5 jobIds → all enqueued_new
+      // (same-URL would dedup to `reused_active` and break the waiting>=3 count).
+      const results = await Promise.all([
+        addPageAnalyzeJobWithGuard(queue, {
           webPageId: "019bc123-4567-7890-abcd-ef1234567894",
           url: "https://example.com/page1",
           options: {},
         }),
-        addPageAnalyzeJob(queue, {
+        addPageAnalyzeJobWithGuard(queue, {
           webPageId: "019bc123-4567-7890-abcd-ef1234567895",
           url: "https://example.com/page2",
           options: {},
         }),
-        addPageAnalyzeJob(queue, {
+        addPageAnalyzeJobWithGuard(queue, {
           webPageId: "019bc123-4567-7890-abcd-ef1234567896",
           url: "https://example.com/page3",
           options: {},
         }),
       ]);
 
-      expect(jobs).toHaveLength(3);
+      expect(results).toHaveLength(3);
+      for (const result of results) {
+        expect(result.outcome).toBe("enqueued_new");
+      }
 
       const health = await checkQueueHealth(queue);
       expect(health.stats.waiting).toBeGreaterThanOrEqual(3);
     });
   });
 
+  // ============================================================
+  // C-4 (Plan V1 §3.4): Deterministic currentPhase extractor tests.
+  // ============================================================
+  // These exercise `extractCurrentPhase` directly (no Redis required), and
+  // include the prototype-pollution negative test mandated by the C-4 Wave 5
+  // 4-statement commit body contract (Statement 2 / SEC S-2). The
+  // Redis-conditional integration block below remains as the end-to-end
+  // verifier when Redis is available.
+  //
+  // C-4 (Plan V1 §3.4): Redis 不要の決定論的 extractCurrentPhase テスト群。
+  // Statement 2 / SEC S-2 が要求する prototype 汚染負例を含む。下の Redis
+  // 依存ブロックは E2E verifier として保持。
+  describe("extractCurrentPhase (pure helper)", () => {
+    it("returns the validated AnalysisPhase from a well-formed progress object", () => {
+      const progress = {
+        overallProgress: 35,
+        currentPhase: "motion",
+        phases: {},
+        webPageId: "019bc999-0001-7000-a000-000000000001",
+        url: "https://example.com/phase-test",
+        startedAt: new Date().toISOString(),
+        lastUpdatedAt: new Date().toISOString(),
+      };
+      expect(extractCurrentPhase(progress)).toBe("motion");
+    });
+
+    it("returns undefined for a numeric progress payload (no phase info)", () => {
+      expect(extractCurrentPhase(50)).toBeUndefined();
+      expect(extractCurrentPhase(0)).toBeUndefined();
+      expect(extractCurrentPhase(100)).toBeUndefined();
+    });
+
+    it("returns undefined for null / undefined progress", () => {
+      expect(extractCurrentPhase(null)).toBeUndefined();
+      expect(extractCurrentPhase(undefined)).toBeUndefined();
+    });
+
+    it("returns undefined for arrays (typeof === 'object' but not a valid carrier)", () => {
+      expect(extractCurrentPhase(["motion"])).toBeUndefined();
+      expect(extractCurrentPhase([])).toBeUndefined();
+    });
+
+    it("returns undefined for objects without a currentPhase own-property", () => {
+      expect(extractCurrentPhase({ overallProgress: 35 })).toBeUndefined();
+      expect(extractCurrentPhase({})).toBeUndefined();
+    });
+
+    it("returns undefined when currentPhase is not a string", () => {
+      expect(extractCurrentPhase({ currentPhase: 123 })).toBeUndefined();
+      expect(extractCurrentPhase({ currentPhase: null })).toBeUndefined();
+      expect(extractCurrentPhase({ currentPhase: { nested: "motion" } })).toBeUndefined();
+      expect(extractCurrentPhase({ currentPhase: ["motion"] })).toBeUndefined();
+    });
+
+    it("returns undefined for unknown / forged phase values (allowlist enforcement)", () => {
+      expect(extractCurrentPhase({ currentPhase: "nonexistent_phase" })).toBeUndefined();
+      expect(extractCurrentPhase({ currentPhase: "" })).toBeUndefined();
+      expect(extractCurrentPhase({ currentPhase: "MOTION" })).toBeUndefined(); // case-sensitive
+      expect(extractCurrentPhase({ currentPhase: "ingest " })).toBeUndefined(); // trailing space
+    });
+
+    it("accepts every documented AnalysisPhase value (exhaustive allowlist)", () => {
+      const allPhases = [
+        "ingest",
+        "layout",
+        "motion",
+        "quality",
+        "narrative",
+        "responsive",
+        "embedding",
+      ] as const;
+      for (const phase of allPhases) {
+        expect(extractCurrentPhase({ currentPhase: phase })).toBe(phase);
+      }
+    });
+
+    // ----------------------------------------------------------------
+    // C-4 Statement 2 / SEC S-2: prototype-pollution negative tests.
+    // ----------------------------------------------------------------
+    // The previous implementation used the `in` operator, which traverses
+    // the prototype chain — meaning `constructor` (inherited from
+    // Object.prototype) would erroneously satisfy the carrier check. The
+    // new implementation uses `Object.hasOwn`, closing this attack surface.
+    //
+    // 旧実装は `in` 演算子で prototype chain を辿り、`constructor` のような
+    // 継承プロパティが carrier check を通過していた。新実装は `Object.hasOwn`
+    // を使用し、prototype 経由の汚染ベクトルを構造的に閉じる。
+    it("rejects __proto__ pollution attempts in progress payload", () => {
+      // JSON.parse stores `__proto__` as an own data property (it does NOT
+      // assign to the prototype), so this exercises the explicit Array /
+      // own-property hardening path.
+      const malicious = JSON.parse(
+        '{"__proto__": {"polluted": true, "currentPhase": "motion"}}'
+      ) as unknown;
+      // The helper must not return the inherited "motion" value, and global
+      // Object.prototype must remain untouched.
+      expect(extractCurrentPhase(malicious)).toBeUndefined();
+      expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+      expect(({} as Record<string, unknown>).currentPhase).toBeUndefined();
+    });
+
+    it("rejects constructor-key pollution (own-property guard)", () => {
+      // Without the `Object.hasOwn` guard, `"constructor" in {}` is `true`
+      // (inherited from Object.prototype) — a forged JSON like
+      // `{"constructor": "motion"}` would have leaked.
+      // `Object.hasOwn` guard なしでは `"constructor" in {}` は true となり、
+      // `{"constructor": "motion"}` のような偽造 JSON が通過してしまう。
+      const forged = { constructor: "motion" };
+      expect(extractCurrentPhase(forged)).toBeUndefined();
+      // And an empty object must NOT report its inherited `constructor`
+      // as a currentPhase carrier.
+      expect(extractCurrentPhase({})).toBeUndefined();
+    });
+
+    it("rejects prototype-only carriers crafted via Object.create", () => {
+      // Even when `currentPhase` exists ONLY on the prototype, the helper
+      // must reject it (the Worker contract is to write own-properties).
+      const prototypeOnly = Object.create({ currentPhase: "motion" }) as object;
+      expect(extractCurrentPhase(prototypeOnly)).toBeUndefined();
+    });
+
+    it("does not leak when both __proto__ and own currentPhase are present", () => {
+      // Mixed payload: own currentPhase is "ingest" (valid), prototype-route
+      // attempts to inject "motion". Helper must read the own-property only.
+      const mixed = JSON.parse(
+        '{"__proto__": {"currentPhase": "motion"}, "currentPhase": "ingest"}'
+      ) as unknown;
+      expect(extractCurrentPhase(mixed)).toBe("ingest");
+    });
+  });
+
   describe("getJobStatus currentPhase logic", () => {
+    // C-4 (Plan V1 §3.4) note: these end-to-end Redis integration tests are
+    // **smoke checks** retained for backward compatibility with the previous
+    // C-4 framing. The deterministic `extractCurrentPhase (pure helper)`
+    // block above is the **primary verifier** of the extraction contract
+    // (incl. prototype-pollution defense / SEC S-2 / Statement 2). When
+    // Redis is unavailable they short-circuit; when available they exercise
+    // the BullMQ round-trip but are subject to BullMQ's internal connection
+    // ordering quirks that are NOT representative of production polling
+    // (Worker writes → many-ms-later MCP client read).
+    //
+    // C-4 (Plan V1 §3.4): 以下の Redis 統合テストは smoke check。primary verifier
+    // は上の pure helper 決定論テスト。Production の polling 経路では BullMQ の
+    // internal connection 順序 quirk は影響しない。
     it("should extract currentPhase from object progress data", async () => {
       // getJobStatus requires a real queue, but we can verify the logic
       // by testing with a mock queue that returns a job with object progress
@@ -415,14 +629,19 @@ describe("Page Analyze Queue", () => {
       const queue = createPageAnalyzeQueue();
       try {
         const webPageId = "019bc999-0001-7000-a000-000000000001";
-        const job = await addPageAnalyzeJob(queue, {
+        const result = await addPageAnalyzeJobWithGuard(queue, {
           webPageId,
           url: "https://example.com/phase-test",
           options: { features: { layout: true } },
         });
 
+        // WithGuard returns EnqueueResult (no `.updateProgress`); retrieve the
+        // real Job via the URL-stable jobId to drive progress updates.
+        const job = await queue.getJob(result.jobId);
+        expect(job).toBeDefined();
+
         // Simulate Worker updating progress with object data (as ExecutionStatusTrackerV2 does)
-        await job.updateProgress({
+        await job!.updateProgress({
           overallProgress: 35,
           currentPhase: "motion",
           phases: {},
@@ -432,7 +651,7 @@ describe("Page Analyze Queue", () => {
           lastUpdatedAt: new Date().toISOString(),
         });
 
-        const status = await getJobStatus(queue, webPageId);
+        const status = await getJobStatus(queue, result.jobId);
 
         expect(status).not.toBeNull();
         expect(status?.currentPhase).toBe("motion");
@@ -453,16 +672,19 @@ describe("Page Analyze Queue", () => {
       const queue = createPageAnalyzeQueue();
       try {
         const webPageId = "019bc999-0002-7000-a000-000000000002";
-        const job = await addPageAnalyzeJob(queue, {
+        const result = await addPageAnalyzeJobWithGuard(queue, {
           webPageId,
           url: "https://example.com/numeric-progress",
           options: { features: { layout: true } },
         });
 
-        // Simulate numeric-only progress (legacy behavior)
-        await job.updateProgress(50);
+        const job = await queue.getJob(result.jobId);
+        expect(job).toBeDefined();
 
-        const status = await getJobStatus(queue, webPageId);
+        // Simulate numeric-only progress (legacy behavior)
+        await job!.updateProgress(50);
+
+        const status = await getJobStatus(queue, result.jobId);
 
         expect(status).not.toBeNull();
         expect(status?.progress).toBe(50);
@@ -483,14 +705,17 @@ describe("Page Analyze Queue", () => {
       const queue = createPageAnalyzeQueue();
       try {
         const webPageId = "019bc999-0003-7000-a000-000000000003";
-        const job = await addPageAnalyzeJob(queue, {
+        const result = await addPageAnalyzeJobWithGuard(queue, {
           webPageId,
           url: "https://example.com/invalid-phase",
           options: {},
         });
 
+        const job = await queue.getJob(result.jobId);
+        expect(job).toBeDefined();
+
         // Simulate progress with an invalid phase name
-        await job.updateProgress({
+        await job!.updateProgress({
           overallProgress: 20,
           currentPhase: "nonexistent_phase",
           phases: {},
@@ -500,7 +725,7 @@ describe("Page Analyze Queue", () => {
           lastUpdatedAt: new Date().toISOString(),
         });
 
-        const status = await getJobStatus(queue, webPageId);
+        const status = await getJobStatus(queue, result.jobId);
 
         expect(status).not.toBeNull();
         expect(status?.currentPhase).toBeUndefined();

@@ -29,8 +29,24 @@ import { prisma as sharedPrismaClient } from "@reftrixmcp/database";
 import { logger } from "../utils/logger";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
 import { truncateId } from "../utils/truncate-id";
-import { getAuditLogService } from "../services/audit-log.service";
-import { AUDIT_ACTION_EMBEDDING_PART_VISUAL_SKIPPED } from "../audit/audit-actions";
+import { AUDIT_LOG_CONSTANTS, getAuditLogService } from "../services/audit-log.service";
+import {
+  AUDIT_ACTION_EMBEDDING_PART_VISUAL_SKIPPED,
+  AUDIT_ACTION_WORKER_CONFIG_LEGACY_ENV_VAR_DETECTED,
+  AUDIT_ACTION_WORKER_PER_JOB_FORK_LOCK_ACQUIRED,
+  AUDIT_ACTION_WORKER_PER_JOB_FORK_LOCK_RACE_LOST,
+  AUDIT_ACTION_WORKER_LOCK_SERVICE_UNREACHABLE,
+  AUDIT_ACTION_WORKER_SUB_CHILD_SPAWN_RATE_LIMIT_VIOLATED,
+  AUDIT_ACTOR_WORKER_CONFIG_VALIDATOR,
+  AUDIT_ACTOR_EMBEDDING_BACKFILL_WORKER,
+  getWorkerActorName,
+} from "../audit/audit-actions";
+import { resolveForkMode } from "./embedding-backfill-fork-mode";
+import {
+  WorkerActiveLockService,
+  type PerJobAcquireLockResult,
+} from "../services/worker-active-lock.service";
+import { randomUUID } from "node:crypto";
 import {
   backfillBackgroundsForPage,
   backfillJsAnimationsForPage,
@@ -44,6 +60,8 @@ import {
 } from "../services/embedding-backfill.service";
 import {
   runVisualEmbeddingSubPhases,
+  markResidualBboxUnresolvableParts,
+  emitSectionVisualPiiExcludedMarkersForPage,
   type EmbeddingPhasePrismaClient,
 } from "../workers/phases/phase-5-embedding";
 import { resolvePartBoundingBoxesWithFallback } from "../workers/phases/shared/bbox-resolution.helper";
@@ -66,6 +84,20 @@ import {
 
 const PROGRESS_AFTER_FETCH = 10;
 const PROGRESS_AFTER_EMBEDDING = 90;
+
+/**
+ * PR-G1 RC1 (SEC-05): backfill bbox scroll-sweep の lock 延長 duration (ms)。
+ * `embedding-backfill-fork-orchestrator` の `BACKFILL_EXTEND_LOCK_DURATION_MS`
+ * (60s) と同値だが、本ファイルで局所定義する。理由: fork orchestrator を
+ * static import すると non-js_animation category の lazy-load 契約
+ * (`tests/queues/embedding-backfill-processors.test.ts` T-new-03) を破壊するため。
+ *
+ * Lock-extension duration (ms) for the backfill bbox scroll sweep. Mirrors the
+ * fork orchestrator's `BACKFILL_EXTEND_LOCK_DURATION_MS` (60s) but is defined
+ * locally: a static import of the fork orchestrator would break the
+ * non-js_animation lazy-load contract (T-new-03).
+ */
+const BBOX_SWEEP_EXTEND_LOCK_DURATION_MS = 60_000;
 
 // =====================================================
 // Types
@@ -261,31 +293,224 @@ function makeOnProgress(
  *   `sanitizeErrorMessage(error)` は CWE-209 PII 漏洩を防止。新 category
  *   Processor は本 helper 経由で自動的に同 invariant を継承する。
  */
-async function runForkOrFallback(
-  category: EmbeddingBackfillCategory,
-  ctx: BackfillProcessContext,
-  inProcessFallback: () => Promise<BackfillCategoryResult>,
-  loggerLabel: string
-): Promise<BackfillCategoryResult> {
-  if (process.env["EMBEDDING_BACKFILL_FORK_ENABLED"] !== "true") {
-    return inProcessFallback();
+/**
+ * Plan v4.5 PR3 Track 2 §4.2.2: resolve the supervisor boot epoch the Layer 2
+ * worker shares with its parent supervisor (Layer 1). The supervisor injects a
+ * per-type boot token UUID; we use the backfill boot token as the bootEpoch so
+ * per-job locks store an own-origin marker that the supervisor's
+ * `cleanupOrphanPerJobLocks()` can verify (CWE-367 double-verify). Falls back to
+ * a fresh UUID when unset (manual-worker path), which is conservatively never
+ * matched by the supervisor's own bootEpoch (so manual locks are never
+ * auto-deleted by a foreign supervisor).
+ *
+ * Layer 2 worker が parent supervisor (Layer 1) と共有する boot epoch を解決する
+ * (§4.2.2)。supervisor 注入の per-type boot token を bootEpoch として使う。
+ */
+function resolveSupervisorBootEpoch(): string {
+  const injected =
+    process.env["REFTRIX_WORKER_SUPERVISOR_BOOT_TOKEN_BACKFILL"] ??
+    process.env["REFTRIX_WORKER_SUPERVISOR_BOOT_TOKEN"];
+  return injected !== undefined && injected !== "" ? injected : randomUUID();
+}
+
+/**
+ * Plan v4.5 PR3 Track 2 §4.2.1: emit the appropriate audit_logs action for a
+ * fail-closed per-job lock acquire result. Returns the lock nonce + bootEpoch
+ * on success so the caller can release the lock after the sub-child exits.
+ *
+ * §4.2.1: per-job lock acquire 結果に応じた audit_logs を emit し、success 時は
+ * release 用の nonce + bootEpoch を返す。
+ *
+ * @returns `{ ok: true, nonce, bootEpoch }` on acquire; `{ ok: false, failOpen }`
+ *   otherwise (caller decides spawn vs retry vs fail-open per discriminated union).
+ */
+async function acquirePerJobLockWithAudit(
+  jobId: string,
+  category: EmbeddingBackfillCategory
+): Promise<{ ok: true; nonce: string; bootEpoch: string } | { ok: false; failOpen: boolean }> {
+  const nonce = randomUUID();
+  const bootEpoch = resolveSupervisorBootEpoch();
+  const lockService = new WorkerActiveLockService();
+  const actor = getWorkerActorName("embedding-backfill");
+  try {
+    // Boot-time pin is idempotent (SCRIPT LOAD on an already-cached SHA is a
+    // no-op); pinning here guarantees EVALSHA resolves on first acquire.
+    await lockService.pinLuaScripts();
+    const result: PerJobAcquireLockResult = await lockService.acquirePerJobSubChildLock(
+      jobId,
+      nonce,
+      bootEpoch
+    );
+    switch (result.ok) {
+      case true:
+        await emitForkLockAudit(actor, AUDIT_ACTION_WORKER_PER_JOB_FORK_LOCK_ACQUIRED, jobId, {
+          category,
+          result: "success",
+        });
+        return { ok: true, nonce, bootEpoch };
+      case false:
+        return await handleForkLockFailure(actor, result, jobId, category);
+    }
+  } catch (error) {
+    // Defensive: pin / acquire threw unexpectedly → fail-open (SEC-M-3).
+    logger.warn("[EmbeddingBackfill] per-job lock acquire threw (fail-open)", {
+      jobId: truncateId(jobId),
+      error: sanitizeErrorMessage(error),
+    });
+    return { ok: false, failOpen: true };
+  } finally {
+    void lockService.close().catch(() => {
+      /* best-effort */
+    });
   }
-  // Fix-2 (INFRA-EMBEDDING-MOTION-SIGABRT-001): dispose the parent Worker
-  // Thread's ONNX session BEFORE fork() so the child does not inherit a
-  // mid-inference native pthread state via copy-on-write. ONNX Runtime's
-  // pthread COW inheritance is the same race that drives Fix-1; pre-fork
-  // dispose is the parent-side complement that prevents SIGABRT during the
-  // fork-orchestrator handoff.
-  //
-  // Best-effort: dispose failure must never block the fork (SEC-M-3 fail-open
-  // semantics; the in-process fallback path remains the safety net).
-  //
-  // Observability (TPA-MOTION-02 M): emit `pre_fork_dispose_duration_ms` so
-  // future regressions where dispose stalls (>500ms warn threshold) surface
-  // in production logs. Future SLO: Loki rate query on the warn line.
-  //
-  // Cross-ref: IO §13.16.4 Plan Decision (Fix-2 mandated co-landing with
-  //            Fix-1), ADR-0015 §SEC-M-3 fail-open.
+}
+
+/** §4.2.1: emit the fail-closed / fail-open audit for a non-ok acquire result. */
+async function handleForkLockFailure(
+  actor: string,
+  result: Extract<PerJobAcquireLockResult, { ok: false }>,
+  jobId: string,
+  category: EmbeddingBackfillCategory
+): Promise<{ ok: false; failOpen: boolean }> {
+  switch (result.reason) {
+    case "rate_limited":
+      await emitForkLockAudit(
+        actor,
+        AUDIT_ACTION_WORKER_SUB_CHILD_SPAWN_RATE_LIMIT_VIOLATED,
+        jobId,
+        {
+          category,
+          retryAfterMs: result.retryAfterMs,
+          result: "denied",
+        }
+      );
+      return { ok: false, failOpen: false };
+    case "race_lost":
+      await emitForkLockAudit(actor, AUDIT_ACTION_WORKER_PER_JOB_FORK_LOCK_RACE_LOST, jobId, {
+        category,
+        result: "denied",
+      });
+      return { ok: false, failOpen: false };
+    case "redis_unreachable":
+      await emitForkLockAudit(actor, AUDIT_ACTION_WORKER_LOCK_SERVICE_UNREACHABLE, jobId, {
+        category,
+        result: "failure",
+      });
+      return { ok: false, failOpen: true };
+    default: {
+      // Exhaustiveness gate (`never`): a new fail reason without a branch is a
+      // compile-time error. Reaching here at runtime is impossible; fail-open.
+      const _exhaustive: never = result;
+      void _exhaustive;
+      return { ok: false, failOpen: true };
+    }
+  }
+}
+
+/** Best-effort audit emit for per-job fork lock events (PII-safe targetId). */
+async function emitForkLockAudit(
+  actor: string,
+  action: string,
+  jobId: string,
+  details: Record<string, unknown>
+): Promise<void> {
+  try {
+    await getAuditLogService().log({
+      action,
+      actor,
+      targetType: "worker",
+      targetId: truncateId(jobId, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH),
+      details,
+      result: (details["result"] as "success" | "failure" | "denied" | undefined) ?? "success",
+    });
+  } catch {
+    // AuditLogService.log() logs its own warn; best-effort emit.
+  }
+}
+
+/** §5.3: emit `worker_config_legacy_env_var_detected` once on legacy-flag drift. */
+async function emitLegacyEnvVarDetectedAudit(category: EmbeddingBackfillCategory): Promise<void> {
+  try {
+    await getAuditLogService().log({
+      action: AUDIT_ACTION_WORKER_CONFIG_LEGACY_ENV_VAR_DETECTED,
+      actor: AUDIT_ACTOR_WORKER_CONFIG_VALIDATOR,
+      targetType: "worker",
+      targetId: "embedding-backfill",
+      details: { category, result: "success" },
+      result: "success",
+    });
+  } catch {
+    // best-effort emit (observability of stale-config deployments).
+  }
+}
+
+/**
+ * Per-job lock handle returned by {@link resolvePerJobLockHandle} on success or
+ * fail-open. `null` handle = no lock held (fail-open redis_unreachable path);
+ * release is then a no-op.
+ *
+ * Plan v4.5 PR3 Track 2 §4.3 per-job lock handle。`null` は fail-open 経路。
+ */
+type PerJobLockHandle = { nonce: string; bootEpoch: string };
+
+/**
+ * Plan v4.5 PR3 Track 2 §4.3 / §4.2.1: acquire the per-job sub-child lock and
+ * map the discriminated-union outcome to one of three caller dispositions.
+ *
+ * Extracted from `runForkOrFallback` (FIND-IMPL-TDA-PR3-CC) to keep the host
+ * function's cyclomatic complexity ≤ 10. The outcome union below preserves the
+ * exact fail-open / fail-closed contract:
+ *   - `proceed` + non-null handle → lock acquired (release after sub-child exit)
+ *   - `proceed` + null handle     → fail-open (redis_unreachable, SEC-M-3)
+ *   - `fallback`                  → fail-closed (rate_limited / race_lost): do
+ *                                   NOT spawn this dispatch; in-process completes
+ *
+ * §4.2.1: per-job lock acquire 結果を 3 disposition に map する helper。
+ */
+async function resolvePerJobLockHandle(
+  jobId: string,
+  category: EmbeddingBackfillCategory
+): Promise<
+  { disposition: "proceed"; handle: PerJobLockHandle | null } | { disposition: "fallback" }
+> {
+  const lockOutcome = await acquirePerJobLockWithAudit(jobId, category);
+  if (lockOutcome.ok) {
+    return {
+      disposition: "proceed",
+      handle: { nonce: lockOutcome.nonce, bootEpoch: lockOutcome.bootEpoch },
+    };
+  }
+  if (lockOutcome.failOpen) {
+    // failOpen (redis_unreachable) → proceed without a lock handle (no release).
+    return { disposition: "proceed", handle: null };
+  }
+  // Fail-closed (rate_limited / race_lost): do NOT spawn a sub-child this
+  // dispatch. In-process fallback keeps the job completing without violating
+  // the rate-limit; BullMQ will redistribute subsequent jobs across the
+  // interval window.
+  return { disposition: "fallback" };
+}
+
+/**
+ * Fix-2 (INFRA-EMBEDDING-MOTION-SIGABRT-001): dispose the parent Worker Thread's
+ * ONNX session BEFORE fork() so the child does not inherit a mid-inference
+ * native pthread state via copy-on-write. ONNX Runtime's pthread COW inheritance
+ * is the same race that drives Fix-1; pre-fork dispose is the parent-side
+ * complement that prevents SIGABRT during the fork-orchestrator handoff.
+ *
+ * Best-effort: dispose failure must never block the fork (SEC-M-3 fail-open
+ * semantics; the in-process fallback path remains the safety net).
+ *
+ * Observability (TPA-MOTION-02 M): emit `pre_fork_dispose_duration_ms` so future
+ * regressions where dispose stalls (>500ms warn threshold) surface in logs.
+ *
+ * Extracted from `runForkOrFallback` (FIND-IMPL-TDA-PR3-CC) to keep the host
+ * function's cyclomatic complexity ≤ 10.
+ *
+ * Cross-ref: IO §13.16.4 Plan Decision (Fix-2 co-landing with Fix-1),
+ *            ADR-0015 §SEC-M-3 fail-open.
+ */
+async function disposeParentOnnxBeforeFork(): Promise<void> {
   const preForkDisposeStart = Date.now();
   try {
     const { embeddingService: mlEmbeddingService } = await import("@reftrixmcp/ml");
@@ -308,53 +533,141 @@ async function runForkOrFallback(
       threshold_ms: 500,
     });
   }
+}
+
+/**
+ * Execute the fork orchestrator and map its IPC result to a
+ * {@link BackfillCategoryResult}. TPA-H-1 observability symmetry: propagate
+ * failedCount / memorySkipCount / errors from the fork child's `backfill.done`
+ * IPC into the in-process-shaped result.
+ *
+ * Extracted from `runForkOrFallback` (FIND-IMPL-TDA-PR3-CC) to keep the host
+ * function's cyclomatic complexity ≤ 10. Throws on fork failure so the caller's
+ * catch routes to in-process fallback (SEC-M-3 + TPA-M-2).
+ */
+async function executeForkAndMapResult(
+  category: EmbeddingBackfillCategory,
+  ctx: BackfillProcessContext
+): Promise<BackfillCategoryResult> {
+  const { runEmbeddingBackfillFork, BACKFILL_EXTEND_LOCK_DURATION_MS } =
+    await import("../workers/phases/embedding-backfill-fork-orchestrator.js");
+  const jobToken = ctx.job.token;
+  const forkResult = await runEmbeddingBackfillFork({
+    jobId: String(ctx.job.id),
+    webPageId: ctx.webPageId,
+    category,
+    // TPA-M-1 (PR2b-β audit): Single source of truth — see
+    // `BACKFILL_PARTS_LIMIT_DEFAULT` in embedding-backfill-ipc.ts.
+    // TPA-M-1 (PR2b-β 監査): ADR-0007 head-100 contract の single source。
+    partsLimit: BACKFILL_PARTS_LIMIT_DEFAULT,
+    onProgress: async (processed: number, total: number): Promise<void> => {
+      await ctx.job.updateProgress({ processed, total });
+    },
+    // BullMQ `job.extendLock(token, duration)` requires the worker's lock
+    // token. When `ctx.job.token` is undefined (e.g. Job manufactured outside
+    // a Worker context) we skip relay; orchestrator heartbeat + SIGKILL
+    // escalation handles the stuck case.
+    //
+    // BullMQ の `job.extendLock(token, duration)` は Worker 由来の token が
+    // 必要。`ctx.job.token` 未定義時は relay を skip する。stall 対応は
+    // orchestrator 側 heartbeat / SIGKILL に委譲。
+    extendLock: async (): Promise<void> => {
+      if (jobToken) {
+        await ctx.job.extendLock(jobToken, BACKFILL_EXTEND_LOCK_DURATION_MS);
+      }
+    },
+  });
+  return {
+    category,
+    generated: forkResult.processedCount,
+    failed: forkResult.failedCount ?? 0,
+    memorySkips: forkResult.memorySkipCount ?? 0,
+    errors: forkResult.errors ?? [],
+  };
+}
+
+/**
+ * Plan v4.5 PR3 Track 2 §4.3: explicit per-job lock release after the sub-child
+ * has exited (success OR fork-failure). A `null` handle (fail-open path) is a
+ * no-op. Sub-child SIGKILL before release is covered by the 60s TTL
+ * auto-release (§5.1). nonce + bootEpoch double-verify (§4.2.2) prevents
+ * deleting a later owner's lock.
+ *
+ * Extracted from `runForkOrFallback` (FIND-IMPL-TDA-PR3-CC) to keep the host
+ * function's cyclomatic complexity ≤ 10.
+ */
+async function releasePerJobLock(jobId: string, handle: PerJobLockHandle | null): Promise<void> {
+  if (handle === null) {
+    return;
+  }
+  const releaseService = new WorkerActiveLockService();
   try {
-    const { runEmbeddingBackfillFork, BACKFILL_EXTEND_LOCK_DURATION_MS } =
-      await import("../workers/phases/embedding-backfill-fork-orchestrator.js");
-    const jobToken = ctx.job.token;
-    const forkResult = await runEmbeddingBackfillFork({
-      jobId: String(ctx.job.id),
-      webPageId: ctx.webPageId,
-      category,
-      // TPA-M-1 (PR2b-β audit): Single source of truth — see
-      // `BACKFILL_PARTS_LIMIT_DEFAULT` in embedding-backfill-ipc.ts.
-      // TPA-M-1 (PR2b-β 監査): ADR-0007 head-100 contract の single source。
-      partsLimit: BACKFILL_PARTS_LIMIT_DEFAULT,
-      onProgress: async (processed: number, total: number): Promise<void> => {
-        await ctx.job.updateProgress({ processed, total });
-      },
-      // BullMQ `job.extendLock(token, duration)` requires the worker's lock
-      // token. When `ctx.job.token` is undefined (e.g. Job manufactured outside
-      // a Worker context) we skip relay; orchestrator heartbeat + SIGKILL
-      // escalation handles the stuck case.
-      //
-      // BullMQ の `job.extendLock(token, duration)` は Worker 由来の token が
-      // 必要。`ctx.job.token` 未定義時は relay を skip する。stall 対応は
-      // orchestrator 側 heartbeat / SIGKILL に委譲。
-      extendLock: async (): Promise<void> => {
-        if (jobToken) {
-          await ctx.job.extendLock(jobToken, BACKFILL_EXTEND_LOCK_DURATION_MS);
-        }
-      },
+    await releaseService.releasePerJobSubChildLock(jobId, handle.nonce, handle.bootEpoch);
+  } catch (releaseError) {
+    logger.warn("[EmbeddingBackfill] per-job lock release failed (non-fatal, TTL covers)", {
+      jobId: truncateId(jobId),
+      error: sanitizeErrorMessage(releaseError),
     });
-    return {
-      category,
-      generated: forkResult.processedCount,
-      failed: forkResult.failedCount ?? 0,
-      memorySkips: forkResult.memorySkipCount ?? 0,
-      errors: forkResult.errors ?? [],
-    };
+  } finally {
+    void releaseService.close().catch(() => {
+      /* best-effort */
+    });
+  }
+}
+
+async function runForkOrFallback(
+  category: EmbeddingBackfillCategory,
+  ctx: BackfillProcessContext,
+  inProcessFallback: () => Promise<BackfillCategoryResult>,
+  loggerLabel: string
+): Promise<BackfillCategoryResult> {
+  // Plan v4.5 PR3 Track 2 §5.3: resolve fork mode via SSOT resolver (new flag
+  // wins; default true). Emit `worker_config_legacy_env_var_detected` when a
+  // legacy deployment still sets `EMBEDDING_BACKFILL_FORK_ENABLED`.
+  const forkMode = resolveForkMode(process.env);
+  if (forkMode.shouldEmitLegacyDetected) {
+    await emitLegacyEnvVarDetectedAudit(category);
+  }
+
+  if (!forkMode.forkOnlyMode) {
+    // §4.2 LEGACY FALLBACK (new flag explicitly false): runtime guard. The
+    // in-process path is obsoleted by Plan v4.5 PR3; we still preserve the
+    // catch-block fallback for SEC-M-3 fail-open. Operators who explicitly opt
+    // out get the legacy in-process path so rollback (L1) remains available.
+    logger.warn(`[${loggerLabel}] fork-only mode disabled (legacy in-process fallback active)`, {
+      finding: "PLAN-V4.5-PR3-TRACK2",
+    });
+    return inProcessFallback();
+  }
+
+  // Plan v4.5 PR3 Track 2 §4.3: acquire per-job sub-child lock (Lua atomic
+  // ≥500ms server-side rate-limit) BEFORE forking. Discriminated union (§4.2.1)
+  // is resolved in `resolvePerJobLockHandle`: `fallback` disposition → in-process
+  // (fail-closed); `proceed` → spawn with an optional release handle.
+  const jobId = String(ctx.job.id);
+  const lockDecision = await resolvePerJobLockHandle(jobId, category);
+  if (lockDecision.disposition === "fallback") {
+    return inProcessFallback();
+  }
+  const lockHandle = lockDecision.handle;
+
+  await disposeParentOnnxBeforeFork();
+
+  try {
+    return await executeForkAndMapResult(category, ctx);
   } catch (error) {
     // SEC-M-3 + TPA-M-2: fall back to in-process so the Job completes; no
     // further automatic fallback (errors propagate to BullMQ retry / DLQ).
     // SEC-M-3 + TPA-M-2: in-process fallback で Job を完走させる。さらなる
     // 自動 fallback は無し (BullMQ retry / DLQ に委譲)。
     // Canary runbook は本 warn の発火頻度を監視し、非ゼロ継続時は
-    // `EMBEDDING_BACKFILL_FORK_ENABLED` を即 rollback すること。
+    // fork-only mode を即 rollback すること (L1: EMBEDDING_BACKFILL_FORK_ONLY_MODE_ENABLED=false)。
     logger.warn(`[${loggerLabel}] Fork path unavailable, falling back to in-process`, {
       error: sanitizeErrorMessage(error),
     });
     return inProcessFallback();
+  } finally {
+    await releasePerJobLock(jobId, lockHandle);
   }
 }
 
@@ -511,35 +824,33 @@ class PartVisualProcessor implements BackfillCategoryProcessor {
    * null to indicate the caller should proceed with the standard visual
    * embedding path.
    */
+  // Plan v2 PR-C (FIND-IMPL-TDA-PR3-CC-CARRYOVER closure, UB-4): refactored from
+  // CC=17 to CC≤10 by extracting (1) the URL fetch + early-return branches into
+  // `fetchPageUrlForBboxResolve` and (2) the residual audit-emit branch into
+  // `emitResidualBboxSkipAudit` (mirrors the PR3 runForkOrFallback split). The
+  // inline `eslint-disable complexity` is REMOVED so the file-scoped
+  // `complexity: ["error", 10]` gate machine-enforces the bound.
   private async resolveAndPersistBboxes(
     ctx: BackfillProcessContext
   ): Promise<BackfillCategoryResult | null> {
-    // URL は DB から取得 (job.data に無いため)。失敗時は bbox 解決をスキップ。
-    // Fetch URL from DB (not present on job.data). On failure, skip bbox
-    // resolution and fall through to standard path.
-    let pageUrl: string | null = null;
-    try {
-      const row = await sharedPrismaClient.webPage.findUnique({
-        where: { id: ctx.webPageId },
-        select: { url: true },
-      });
-      pageUrl = row?.url ?? null;
-    } catch (dbError) {
-      logger.warn("[PartVisualProcessor] Failed to fetch URL for bbox resolution", {
-        error: sanitizeErrorMessage(dbError),
-        webPageId: ctx.webPageId.slice(0, 8) + "...",
-      });
-      return null; // fall through to standard path
+    const pageUrl = await this.fetchPageUrlForBboxResolve(ctx.webPageId);
+    if (!pageUrl) {
+      return null; // fall through to standard path (no URL / DB error logged in helper)
     }
 
-    if (!pageUrl) {
-      if (process.env["NODE_ENV"] !== "production") {
-        logger.info("[PartVisualProcessor] No URL recorded; skipping bbox resolution", {
-          webPageId: ctx.webPageId.slice(0, 8) + "...",
-        });
+    // PR-G1 RC1 (SEC-05): scroll sweep の各 iteration 境界で backfill job の lock を
+    // 延長する。`ctx.job.token` 未定義時 (Worker 外で manufacture された Job) は
+    // relay を skip — stall 対応は Worker lockDuration / heartbeat に委譲 (既存の
+    // executeForkAndMapResult の extendLock relay と同パターン)。
+    // Extend the backfill job lock at each scroll-sweep iteration boundary.
+    // Skips relay when `ctx.job.token` is undefined (mirrors the existing
+    // executeForkAndMapResult extendLock relay).
+    const bboxJobToken = ctx.job.token;
+    const onBboxLockExtend = async (): Promise<void> => {
+      if (bboxJobToken) {
+        await ctx.job.extendLock(bboxJobToken, BBOX_SWEEP_EXTEND_LOCK_DURATION_MS);
       }
-      return null;
-    }
+    };
 
     try {
       const bboxResult = await resolvePartBoundingBoxesWithFallback({
@@ -547,6 +858,7 @@ class PartVisualProcessor implements BackfillCategoryProcessor {
         url: pageUrl,
         prisma: sharedPrismaClient,
         sharedBrowser: null,
+        onLockExtend: onBboxLockExtend,
         // validateUrl は default (再検証あり) — SEC HIGH-1 / PR7e-α
       });
 
@@ -573,54 +885,141 @@ class PartVisualProcessor implements BackfillCategoryProcessor {
         reloadBudgetExhausted: bboxResult.reloadBudgetExhausted ?? false,
       });
 
-      // PR-D-9 Wave 4 (C-04 + C-06 / ADR-0018 §Decision 1 Supplement S3 + S4):
-      // emit `embedding_part_visual_skipped` audit_logs entry per residual
-      // unresolved part. Triggered when:
-      //   (a) reload budget was exhausted (`reloadBudgetExhausted=true`), OR
-      //   (b) reload pass disabled but parts remain unresolved
-      //       (`skippedCount > 0` after 1st-pass).
-      //
-      // GDPR Art.30 audit trail: action SSOT constant +
-      // `details.skipReason='bbox_unresolvable'` per ADR-0018 §Decision 1
-      // Supplement S4. PII: `targetId` is `truncateTargetId()`-truncated
-      // automatically by `AuditLogService.log()`.
-      if (bboxResult.skippedCount > 0) {
-        const classification = classifyBboxFailure(
-          bboxResult.reloadBudgetExhausted ? "dom_disposed" : "default"
-        );
-        try {
-          await getAuditLogService().log({
-            action: AUDIT_ACTION_EMBEDDING_PART_VISUAL_SKIPPED,
-            actor: "system:embedding-backfill-worker",
-            targetType: "web_page",
-            targetId: ctx.webPageId,
-            details: {
-              skipReason: classification.skipReason,
-              skippedCount: bboxResult.skippedCount,
-              resolvedCount: bboxResult.resolvedCount,
-              reloadCount: bboxResult.reloadCount ?? 0,
-              reloadTotalTimeMs: bboxResult.reloadTotalTimeMs ?? 0,
-              reloadBudgetExhausted: bboxResult.reloadBudgetExhausted ?? false,
-            },
-            result: "failure",
-          });
-        } catch (auditError) {
-          // Audit emit failure must NOT halt backfill. Logged only.
-          logger.warn("[PartVisualProcessor] audit_logs emit failed (non-fatal)", {
-            error: sanitizeErrorMessage(auditError),
-            webPageId: truncateId(ctx.webPageId, 8),
-          });
-        }
-      }
+      await this.emitResidualBboxSkipAudit(ctx.webPageId, bboxResult);
+
+      // PR-BT-4 (ADR-0018 Amendment 10 Decision 10.2; design V1 §4.3.1) — gap B:
+      // in addition to the GDPR Art.30 audit emit above, write the per-row
+      // Layer-1 `visual_skip_reason='bbox_unresolvable'` marker for residual
+      // bbox-zero pending parts so they leave the part_visual pending query and
+      // the page can reach `completed`. Layer-2 NON-propagation (TPA-H-01 / U2):
+      // this is a per-row marker ONLY — we deliberately do NOT set a run-level
+      // `skipReason` here and STILL `return null` (fall-through to the standard
+      // path), so the residual skip is never routed to the `skipped_fork_error`
+      // retry bucket. The helper is data-driven + non-fatal (no-op when there are
+      // no residual rows). Pinned by INV-BACKFILL-PART-RESIDUAL-MARKER-009.
+      await this.markResidualBboxUnresolvableMarkers(ctx.webPageId);
     } catch (resolveError) {
       // Non-fatal — proceed to standard visual embedding path with whatever
       // bboxes are already in the DB.
       logger.warn("[PartVisualProcessor] bbox resolution failed (non-fatal)", {
         error: sanitizeErrorMessage(resolveError),
-        webPageId: ctx.webPageId.slice(0, 8) + "...",
+        webPageId: ctx.webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
       });
     }
     return null;
+  }
+
+  /**
+   * PR-BT-4 (ADR-0018 Amendment 10 Decision 10.2): write the Layer-1
+   * `visual_skip_reason='bbox_unresolvable'` per-row markers for residual
+   * bbox-zero pending parts, delegating to the SSOT writer in phase-5-embedding
+   * (`markResidualBboxUnresolvableParts`). Layer-1 ONLY — the caller keeps the
+   * `return null` fall-through so no run-level `skipReason` is propagated
+   * (Layer-2 non-propagation, TPA-H-01 / U2). Failure is non-fatal (logged).
+   */
+  private async markResidualBboxUnresolvableMarkers(webPageId: string): Promise<void> {
+    try {
+      const marked = await markResidualBboxUnresolvableParts(sharedPrismaClient, webPageId);
+      if (marked > 0) {
+        logger.info("[PartVisualProcessor] wrote residual bbox_unresolvable markers (backfill)", {
+          webPageId: truncateId(webPageId, 8),
+          markedCount: marked,
+        });
+      }
+    } catch (markerError) {
+      logger.warn(
+        "[PartVisualProcessor] residual bbox_unresolvable marker write failed (non-fatal)",
+        {
+          error: sanitizeErrorMessage(markerError),
+          webPageId: truncateId(webPageId, 8),
+        }
+      );
+    }
+  }
+
+  /**
+   * Plan v2 PR-C (FIND-IMPL-TDA-PR3-CC-CARRYOVER): extract the URL fetch +
+   * early-return branches from `resolveAndPersistBboxes` (CC reduction).
+   *
+   * @returns the page URL, or `null` when there is no URL recorded OR the DB
+   *   read failed (both cases mean "skip bbox resolution, fall through to the
+   *   standard path"). The DB error / no-URL log lines are emitted here.
+   */
+  private async fetchPageUrlForBboxResolve(webPageId: string): Promise<string | null> {
+    let pageUrl: string | null = null;
+    try {
+      const row = await sharedPrismaClient.webPage.findUnique({
+        where: { id: webPageId },
+        select: { url: true },
+      });
+      pageUrl = row?.url ?? null;
+    } catch (dbError) {
+      logger.warn("[PartVisualProcessor] Failed to fetch URL for bbox resolution", {
+        error: sanitizeErrorMessage(dbError),
+        webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
+      });
+      return null; // fall through to standard path
+    }
+
+    if (!pageUrl && process.env["NODE_ENV"] !== "production") {
+      logger.info("[PartVisualProcessor] No URL recorded; skipping bbox resolution", {
+        webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
+      });
+    }
+    return pageUrl;
+  }
+
+  /**
+   * Plan v2 PR-C (FIND-IMPL-TDA-PR3-CC-CARRYOVER): extract the residual
+   * `embedding_part_visual_skipped` audit-emit branch from
+   * `resolveAndPersistBboxes` (CC reduction).
+   *
+   * PR-D-9 Wave 4 (C-04 + C-06 / ADR-0018 §Decision 1 Supplement S3 + S4): emit
+   * one `embedding_part_visual_skipped` audit_logs entry per residual unresolved
+   * part when (a) reload budget was exhausted, OR (b) the reload pass is disabled
+   * but parts remain unresolved after the 1st pass. GDPR Art.30 audit trail:
+   * action SSOT constant + `details.skipReason='bbox_unresolvable'`. PII:
+   * `targetId` is `truncateTargetId()`-truncated by `AuditLogService.log()`.
+   * Audit emit failure is non-fatal (logged, never halts backfill).
+   */
+  private async emitResidualBboxSkipAudit(
+    webPageId: string,
+    bboxResult: {
+      skippedCount: number;
+      resolvedCount: number;
+      reloadCount?: number;
+      reloadTotalTimeMs?: number;
+      reloadBudgetExhausted?: boolean;
+    }
+  ): Promise<void> {
+    if (bboxResult.skippedCount <= 0) return;
+
+    const classification = classifyBboxFailure(
+      bboxResult.reloadBudgetExhausted ? "dom_disposed" : "default"
+    );
+    try {
+      await getAuditLogService().log({
+        action: AUDIT_ACTION_EMBEDDING_PART_VISUAL_SKIPPED,
+        actor: AUDIT_ACTOR_EMBEDDING_BACKFILL_WORKER,
+        targetType: "web_page",
+        targetId: webPageId,
+        details: {
+          skipReason: classification.skipReason,
+          skippedCount: bboxResult.skippedCount,
+          resolvedCount: bboxResult.resolvedCount,
+          reloadCount: bboxResult.reloadCount ?? 0,
+          reloadTotalTimeMs: bboxResult.reloadTotalTimeMs ?? 0,
+          reloadBudgetExhausted: bboxResult.reloadBudgetExhausted ?? false,
+        },
+        result: "failure",
+      });
+    } catch (auditError) {
+      // Audit emit failure must NOT halt backfill. Logged only.
+      logger.warn("[PartVisualProcessor] audit_logs emit failed (non-fatal)", {
+        error: sanitizeErrorMessage(auditError),
+        webPageId: truncateId(webPageId, 8),
+      });
+    }
   }
 
   /** 空結果 (Graceful Degradation) — 共通化で complexity 削減 */
@@ -650,14 +1049,27 @@ class SectionVisualProcessor implements BackfillCategoryProcessor {
   }
 
   /**
-   * v0.4.0 PR7e-β4 PR2d (HIGH-β): fork-or-fallback dispatch. fork 経路では
-   * child 側 dispatch が `backfillSectionVisualsForPage` (text 部分) を実行
-   * する。DINOv2 sub-path は本 Processor の `processInProcess` 内で in-process
-   * fallback として継続実行される (PR3b で fork 経路に統合予定)。
+   * v0.4.0 PR-BT-3 (FIND 019e5a11): fork-or-fallback dispatch, symmetric with
+   * `PartVisualProcessor`. When fork-only mode is active, `runForkOrFallback`
+   * attempts the fork path; the child dispatch deliberately THROWS for
+   * `section_visual` (the heavy DINOv2 + `writeSectionVisionSkipReason` terminal-
+   * skip marker flow is not yet wrapped in the service layer — tracked for PR3b).
+   * The helper's catch routes to `processInProcess`, which runs the DINOv2 path
+   * (`runVisualEmbeddingSubPhases({ fallbackEnabled: false })`) and writes the
+   * PR-BT-2 terminal-skip marker — so a page with uncroppable/duplicate sections
+   * reaches `section_visual` pending=0 and the Job completes.
    *
-   * PR2d (HIGH-β): fork attempts `backfillSectionVisualsForPage` (text part).
-   * The DINOv2 sub-path stays in-process via `processInProcess` until PR3b
-   * unifies the visual path into the fork.
+   * Pre-PR-BT-3 the child returned a text-only `backfillSectionVisualsForPage`
+   * SUCCESS, so the fork result short-circuited the catch-fallback and the
+   * in-process marker path was NEVER reached in production fork-only mode (the
+   * PR-BT-2 goal 未達 root cause). PR3b's service-layer wrapper will then activate
+   * fork automatically without further Processor changes.
+   *
+   * PR-BT-3 (FIND 019e5a11): `PartVisualProcessor` と対称。fork 経路では child
+   * dispatch が `section_visual` を意図的に throw し (DINOv2 + 終端 marker flow が
+   * service layer 未実装、PR3b で対応)、helper catch が `processInProcess` に
+   * fallback して in-process DINOv2 + PR-BT-2 marker path を走らせる。pre-PR-BT-3
+   * は text-only success を返し marker path に未到達だった (PR-BT-2 goal 未達)。
    */
   async process(ctx: BackfillProcessContext): Promise<BackfillCategoryResult> {
     return runForkOrFallback(
@@ -706,6 +1118,20 @@ class SectionVisualProcessor implements BackfillCategoryProcessor {
     //    is applied inside `runVisualEmbeddingSubPhases`.
     const { pendingCount } = await countSectionVisualBackfillTargets(ctx.webPageId);
     if (pendingCount === 0) {
+      // PR-C4 B6 (TPA-RV2-01 hoist closure): even when the SSOT pending count is
+      // 0 (every non-high-PII section is already terminal), a page whose ONLY
+      // pending sections are high-PII (e.g. w3.org navigation) must still emit
+      // the `section_visual_pii_excluded` terminal marker + GDPR Art.30 audit
+      // trail. The SSOT pending predicate excludes high-PII rows, so they never
+      // count toward `pendingCount` and `runVisualEmbeddingSubPhases` (which
+      // carries the hoisted marker write) is not invoked on this branch. Fire
+      // the marker here via the single SSOT entry point. No double-emit: the
+      // marker terminalizes the rows, so the work-loop path / next run sees the
+      // empty set. Requires `ctx.prisma` (DINOv2 path is not reached, but the
+      // marker write needs a client); skip gracefully when absent.
+      if (ctx.prisma) {
+        await emitSectionVisualPiiExcludedMarkersForPage(ctx.prisma, ctx.webPageId);
+      }
       return {
         category: this.category,
         generated: textResult.generated,
@@ -1099,7 +1525,7 @@ export async function enqueueAllCategoriesForSkipRecovery(
         logger.info(`[EmbeddingBackfillProcessors] Skip-recovery enqueue outcome (${source})`, {
           outcome: result.outcome,
           collision: result.collision,
-          webPageId: webPageId.slice(0, 8) + "...",
+          webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
           category,
           source,
         });
@@ -1110,7 +1536,7 @@ export async function enqueueAllCategoriesForSkipRecovery(
         `[EmbeddingBackfillProcessors] Failed to enqueue skip-recovery category (${source}, non-fatal)`,
         {
           error: sanitizeErrorMessage(enqueueError),
-          webPageId: webPageId.slice(0, 8) + "...",
+          webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
           category,
           source,
         }

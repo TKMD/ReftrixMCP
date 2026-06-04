@@ -1497,8 +1497,21 @@ export type PageAnalyzeErrorOutput = z.infer<typeof pageAnalyzeErrorOutputSchema
 export const pageAnalyzeAsyncOutputSchema = z.object({
   /** 非同期モードフラグ */
   async: z.literal(true),
-  /** ジョブID（BullMQ Job ID、webPageIdと同一） */
+  /**
+   * ジョブID（BullMQ Job ID）。ADR-0018 Amendment 11 以降は URL-stable UUIDv5
+   * (`buildUrlStableJobId`)。client は本値で page.getJobStatus を polling する。
+   * BullMQ Job ID — URL-stable UUIDv5 (`buildUrlStableJobId`) since ADR-0018
+   * Amendment 11; clients poll page.getJobStatus with this value.
+   */
   jobId: z.string().uuid(),
+  /**
+   * WebPage ID（per-call UUIDv7、web_pages FK）。ADR-0018 Amendment 11 で additive
+   * 追加。jobId は URL-stable UUIDv5 のため、web_pages 行を参照したい client は
+   * 本 field を使う。
+   * Per-call UUIDv7 web_pages FK, added additively (ADR-0018 Amendment 11) since
+   * jobId is now the URL-stable UUIDv5.
+   */
+  webPageId: z.string().uuid(),
   /** ジョブステータス */
   status: z.literal("queued"),
   /** ポーリング用メッセージ */

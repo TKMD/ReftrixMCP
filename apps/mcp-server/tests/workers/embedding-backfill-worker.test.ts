@@ -166,9 +166,31 @@ describe("EmbeddingBackfillWorker (v0.4.0 PR4)", () => {
   });
 
   describe("PII-safe logging", () => {
-    it("should truncate webPageId in logs", () => {
-      // All logger calls involving webPageId should slice(0, 8) + "..."
-      expect(workerSource).toMatch(/webPageId\.slice\(0, 8\) \+ "\.\.\."/);
+    it("should truncate webPageId in logs via SSOT-derived TARGET_ID_TRUNCATE_LENGTH", () => {
+      // Wave 5 LCC canonical CWE-209 PII protection pattern (FIND-IMPL-LCC-PATCH-W5-02
+      // anchor 019df7ab-2f5a): all logger calls involving webPageId MUST derive the
+      // truncation length from `AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH` SSOT,
+      // NOT a hardcoded literal `slice(0, 8)`. See `.claude/rules/security.md`
+      // §Canonical CWE-209 PII Protection Pattern (LCC-endorsed).
+      //
+      // The canonical surface is:
+      //   webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "..."
+      //
+      // CO-21 closure (Wave 4 V4, 2026-05-13): the previously-residual
+      // `webPageId.slice(0, 8)` literal in the job.log() start interpolation
+      // at line ~833 of `apps/mcp-server/src/workers/embedding-backfill-worker.ts`
+      // has been migrated to the SSOT-derived form. All callsites in the worker
+      // now satisfy the canonical contract above. See root CHANGELOG entry
+      // [Wave-4-V4-2026-05-13] for the full migration record.
+      expect(workerSource).toMatch(
+        /webPageId\.slice\(0,\s*AUDIT_LOG_CONSTANTS\.TARGET_ID_TRUNCATE_LENGTH\)\s*\+\s*"\.\.\."/
+      );
+    });
+
+    it("should import AUDIT_LOG_CONSTANTS SSOT from audit-log.service", () => {
+      // SSOT import precondition for the PII truncation pattern above.
+      expect(workerSource).toMatch(/AUDIT_LOG_CONSTANTS/);
+      expect(workerSource).toMatch(/from ["']\.\.\/services\/audit-log\.service["']/);
     });
   });
 
@@ -215,7 +237,7 @@ describe("EmbeddingBackfillWorker (v0.4.0 PR4)", () => {
       expect(body).not.toContain("_workerInstanceRef.pause(true)");
     });
 
-    it("should declare finalizeBackfillJob owning Post-Job Memory Gate + failed transition", () => {
+    it("should declare finalizeBackfillJob owning Post-Job Memory Gate + failed transition (Plan v1.1 candidate B / ADR-0034 Amendment 5)", () => {
       const start = workerSource.indexOf("async function finalizeBackfillJob(");
       // Find end as the next top-level async function declaration
       const rest = workerSource.substring(start + 1);
@@ -223,29 +245,31 @@ describe("EmbeddingBackfillWorker (v0.4.0 PR4)", () => {
       const end = nextFn >= 0 ? start + 1 + nextFn : workerSource.length;
       const body = workerSource.substring(start, end);
 
-      // v0.4.0 PR7c: Pre-Return Pause + memory gate は shared helper に抽出された。
-      //   旧: worker.pause(true) + setImmediate(performMemoryCheckAndExit) をここで直接実行
-      //   新: applyPostJobMemoryGate() 一行で内包
-      // v0.4.0 PR7e-β2 hotfix: pause/resume 経路完全削除
-      // v0.4.0 PR7e-β2 audit carryover: helper を applyPostJobMemoryGate に
-      //   リネームし workerRef 引数も削除 → finalize は enabled flag と loggerPrefix
-      //   の 2 引数のみ渡す。
-      // finalizeBackfillJob delegates the post-job memory gate to the shared helper
-      // with a 2-arg signature (no workerRef).
-      expect(body).toContain("applyPostJobMemoryGate");
-      // workerRef 引数は削除済み — finalize 内で _workerInstanceRef は参照されない
-      expect(body).not.toContain("_workerInstanceRef");
+      // Plan v1.1 candidate B (ADR-0034 Amendment 5) で Stage 2
+      // `worker.pause(true)` を formal removal。success path も failure path も
+      // `applyPostJobMemoryGate` のみを呼ぶ統一構造に変更。`applyPostJobLifecycleGate`
+      // および `_workerInstanceRef` の参照は finalizeBackfillJob から削除された。
+      //
+      // Plan v1.1 candidate B (ADR-0034 Amendment 5): Stage 2 `worker.pause(true)`
+      // is formally removed. Both success and failure paths invoke only
+      // `applyPostJobMemoryGate`. References to `applyPostJobLifecycleGate` and
+      // `_workerInstanceRef` are removed from finalizeBackfillJob.
+      expect(body).toContain("applyPostJobMemoryGate"); // unified success + failure path
       expect(body).toContain("_preReturnPauseEnabled");
 
       // Failed-transition logic remains inside finalizeBackfillJob
       expect(body).toContain("isFinalAttempt");
       expect(body).toContain("job.attemptsMade >= (job.opts.attempts ?? 1)");
 
-      // Legacy direct references must be absent
+      // Plan v1.1 candidate B: legacy references must be absent
       expect(body).not.toContain("_workerInstanceRef.pause(true)");
       expect(body).not.toContain("performMemoryCheckAndExit");
       // Legacy helper name must not remain
       expect(body).not.toContain("applyPreReturnPauseAndMemoryGate");
+      // Plan v1.1 candidate B: `applyPostJobLifecycleGate` callsite is removed
+      // from finalizeBackfillJob (helper itself remains as no-op stub for
+      // legacy test-caller backward compat per ADR-0034 Amendment 5 §Decision 4).
+      expect(body).not.toMatch(/applyPostJobLifecycleGate\s*\(/);
     });
 
     it("should keep processBackfillJob as a thin orchestrator", () => {
@@ -360,9 +384,12 @@ describe("EmbeddingBackfillWorker (v0.4.0 PR4)", () => {
       expect(helperSource).toContain("prisma.componentPart.count");
       // part_visual: countPartVisualBackfillTargetsWithPrisma
       expect(helperSource).toContain("countPartVisualBackfillTargetsWithPrisma");
-      // section_visual: raw SQL on section_embeddings
+      // section_visual: raw SQL on section_embeddings via the SSOT
+      // sectionVisualPendingExclusionPredicate (PR-BT-2: terminal-skip exclusion;
+      // the vision_embedding IS NULL conjunct is now inside the predicate fragment,
+      // no longer an inline literal in this file).
       expect(helperSource).toContain("section_embeddings se");
-      expect(helperSource).toContain("vision_embedding IS NULL");
+      expect(helperSource).toContain('sectionVisualPendingExclusionPredicate("se")');
       // motion: prisma.motionPattern.count
       expect(helperSource).toContain("prisma.motionPattern.count");
       // background: prisma.backgroundDesign.count

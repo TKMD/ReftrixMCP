@@ -45,7 +45,7 @@ vi.mock("../../../src/config/redis", () => ({
 vi.mock("../../../src/queues/page-analyze-queue", () => ({
   PAGE_ANALYZE_QUEUE_NAME: "page-analyze",
   createPageAnalyzeQueue: vi.fn(),
-  addPageAnalyzeJob: vi.fn(),
+  addPageAnalyzeJobWithGuard: vi.fn(),
   getJobStatus: vi.fn(),
   closeQueue: vi.fn(),
   checkQueueHealth: vi.fn(),
@@ -63,9 +63,8 @@ vi.mock("../../../src/workers/page-analyze-worker", () => ({
 
 import { isRedisAvailable, checkRedisConnection } from "../../../src/config/redis";
 import {
-  addPageAnalyzeJob,
+  addPageAnalyzeJobWithGuard,
   getJobStatus,
-  type PageAnalyzeJobData,
   type PageAnalyzeJobResult,
   type PageAnalyzeJobStatus,
 } from "../../../src/queues/page-analyze-queue";
@@ -102,25 +101,6 @@ const PHASE_TIMEOUTS = {
 // ============================================================================
 // テストユーティリティ
 // ============================================================================
-
-/**
- * モックジョブデータを生成
- */
-function createMockJobData(
-  url: string,
-  overrides?: Partial<PageAnalyzeJobData>
-): PageAnalyzeJobData {
-  return {
-    webPageId: TEST_WEB_PAGE_ID,
-    url,
-    options: {
-      timeout: 60000,
-      features: { layout: true, motion: true, quality: true },
-    },
-    createdAt: new Date().toISOString(),
-    ...overrides,
-  };
-}
 
 /**
  * モックジョブ結果を生成
@@ -310,14 +290,15 @@ describe("Full Pipeline Integration: Phase1-4", () => {
     it("should queue heavy WebGL site in async mode", async () => {
       // Arrange
       (isRedisAvailable as Mock).mockResolvedValue(true);
-      const mockJob = {
-        id: TEST_WEB_PAGE_ID,
-        data: createMockJobData("https://resn.co.nz"),
+      const mockEnqueueResult = {
+        outcome: "enqueued_new",
+        jobId: TEST_WEB_PAGE_ID,
+        collision: null,
       };
-      (addPageAnalyzeJob as Mock).mockResolvedValue(mockJob);
+      (addPageAnalyzeJobWithGuard as Mock).mockResolvedValue(mockEnqueueResult);
 
       // Act
-      const job = await addPageAnalyzeJob({} as unknown, {
+      const result = await addPageAnalyzeJobWithGuard({} as unknown, {
         webPageId: TEST_WEB_PAGE_ID,
         url: "https://resn.co.nz",
         options: {
@@ -326,8 +307,9 @@ describe("Full Pipeline Integration: Phase1-4", () => {
       });
 
       // Assert
-      expect(addPageAnalyzeJob).toHaveBeenCalled();
-      expect(job.id).toBe(TEST_WEB_PAGE_ID);
+      expect(addPageAnalyzeJobWithGuard).toHaveBeenCalled();
+      expect(result.jobId).toBe(TEST_WEB_PAGE_ID);
+      expect(result.outcome).toBe("enqueued_new");
     });
 
     it("should track async job progress through phases", async () => {

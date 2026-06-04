@@ -18,6 +18,13 @@ import { z } from "zod";
 
 import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { safeParseInt } from "../../utils/safe-parse-int";
+// PR-BT-5 (M-1-RSS, ADR-0039 Decision 3, Conflict 1): the additive `subPhase`
+// IPC discriminator is SSOT-derived from these const arrays via `z.enum(...)`
+// — NO hand-written enum literals (enforced by
+// `inv-schema-enum-004-phase5-subphase.test.ts`). Scope = IPC-internal 2-site
+// (TS const ↔ Zod); Prisma↔MCP 4-site is N/A (subPhase is neither persisted nor
+// MCP-exposed, IO V-4).
+import { PHASE5_TEXT_SUBPHASES, PHASE5_VISUAL_SUBPHASES } from "./phase-5-subphases.const";
 
 // ============================================================================
 // Constants
@@ -47,69 +54,107 @@ const idMappingEntrySchema = z.tuple([
 /**
  * Parent → Child: Initialize text embedding child process
  */
-export const parentInitTextSchema = z.object({
-  type: z.literal("init-text"),
-  webPageId: z.string().uuid(),
-  url: z.string().max(IPC_STRING_MAX_LENGTH),
-  // SaveResult idMappings serialized as [key, value][] arrays
-  sectionIdMapping: z.array(idMappingEntrySchema).nullable(),
-  motionIdMapping: z.array(idMappingEntrySchema).nullable(),
-  jsIdMapping: z.array(idMappingEntrySchema).nullable(),
-  bgIds: z.array(z.string().max(IPC_STRING_MAX_LENGTH)).nullable(),
-  scrollVisionIdMapping: z.array(idMappingEntrySchema).nullable(),
-  // Serialized analysis results (JSON strings for large payloads)
-  layoutResultJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
-  motionResultJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
-  jsAnimationsJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
-  scrollVisionResultJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
-  responsiveAnalysisId: z.string().max(IPC_STRING_MAX_LENGTH).optional(),
-  partsSavedCount: z.number().int().min(0).optional(),
-  /**
-   * v0.4.0 PR4: 子プロセスで処理する Part text embedding の上限件数。
-   * 100 件超のページで 100 に設定される。
-   *
-   * v0.4.0 PR4: Cap on the number of Part text embeddings processed in the
-   * child. Set to 100 when a page has more than 100 Parts.
-   */
-  partsLimit: z.number().int().min(1).optional(),
-});
+export const parentInitTextSchema = z
+  .object({
+    type: z.literal("init-text"),
+    webPageId: z.string().uuid(),
+    url: z.string().max(IPC_STRING_MAX_LENGTH),
+    // SaveResult idMappings serialized as [key, value][] arrays
+    sectionIdMapping: z.array(idMappingEntrySchema).nullable(),
+    motionIdMapping: z.array(idMappingEntrySchema).nullable(),
+    jsIdMapping: z.array(idMappingEntrySchema).nullable(),
+    bgIds: z.array(z.string().max(IPC_STRING_MAX_LENGTH)).nullable(),
+    scrollVisionIdMapping: z.array(idMappingEntrySchema).nullable(),
+    // Serialized analysis results (JSON strings for large payloads)
+    layoutResultJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
+    motionResultJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
+    jsAnimationsJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
+    scrollVisionResultJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
+    responsiveAnalysisId: z.string().max(IPC_STRING_MAX_LENGTH).optional(),
+    partsSavedCount: z.number().int().min(0).optional(),
+    /**
+     * v0.4.0 PR4: 子プロセスで処理する Part text embedding の上限件数。
+     * 100 件超のページで 100 に設定される。
+     *
+     * v0.4.0 PR4: Cap on the number of Part text embeddings processed in the
+     * child. Set to 100 when a page has more than 100 Parts.
+     */
+    partsLimit: z.number().int().min(1).optional(),
+    /**
+     * PR-BT-5 (M-1-RSS, ADR-0039 Decision 3): per-sub-phase fork discriminator.
+     * When set, the text child runs ONLY this single text sub-phase and
+     * `exit(0)`s (the per-sub-phase fork model — each fork reclaims its arena on
+     * exit, rooting out the inter-sub-phase reload). When **omitted**, the child
+     * grandfathers to the legacy "run all 7 text sub-phases" behaviour
+     * (backward-compatible). SSOT-derived via `z.enum(PHASE5_TEXT_SUBPHASES)`
+     * — no hand-written literals.
+     *
+     * PR-BT-5 (M-1-RSS): per-sub-phase fork 識別子。指定時は当 1 sub-phase のみ
+     * 実行して exit(0)。省略時は legacy 全 7 sub-phase 実行に grandfather。
+     */
+    subPhase: z.enum(PHASE5_TEXT_SUBPHASES).optional(),
+    // FIND-PLAN-M-02 (SEC-M-1, SEC H-2 parity): reject unknown keys at the IPC
+    // boundary (CWE-20 improper input validation). PR-1 GPU-COORD adds .strict()
+    // to all 10 phase-5-child-ipc schemas (was 0 before; ADR/master-plan prose
+    // claiming "existing .strict()" is a known doc-error per FIND-PLAN-DOC-01).
+    // PR-BT-5 keeps .strict() while adding the additive `subPhase` field above.
+  })
+  .strict();
 
 /**
  * Parent → Child: Initialize visual embedding child process
  */
-export const parentInitVisualSchema = z.object({
-  type: z.literal("init-visual"),
-  webPageId: z.string().uuid(),
-  url: z.string().max(IPC_STRING_MAX_LENGTH),
-  screenshotPngPath: z.string().max(IPC_STRING_MAX_LENGTH),
-  sectionIdMapping: z.array(idMappingEntrySchema).nullable(),
-  partsSavedCount: z.number().int().min(0).optional(),
-  /**
-   * v0.4.0 PR4: 子プロセスで処理する Part visual embedding の上限件数。
-   * v0.4.0 PR4: Cap on the number of Part visual embeddings processed in the child.
-   */
-  partsLimit: z.number().int().min(1).optional(),
-  layoutResultJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
-  viewportWidth: z.number().int().min(1).max(4096).optional(),
-  viewportHeight: z.number().int().min(1).max(4096).optional(),
-  fallbackEnabled: z.boolean(),
-  dinov2ModelPath: z.string().max(IPC_STRING_MAX_LENGTH),
-});
+export const parentInitVisualSchema = z
+  .object({
+    type: z.literal("init-visual"),
+    webPageId: z.string().uuid(),
+    url: z.string().max(IPC_STRING_MAX_LENGTH),
+    screenshotPngPath: z.string().max(IPC_STRING_MAX_LENGTH),
+    sectionIdMapping: z.array(idMappingEntrySchema).nullable(),
+    partsSavedCount: z.number().int().min(0).optional(),
+    /**
+     * v0.4.0 PR4: 子プロセスで処理する Part visual embedding の上限件数。
+     * v0.4.0 PR4: Cap on the number of Part visual embeddings processed in the child.
+     */
+    partsLimit: z.number().int().min(1).optional(),
+    layoutResultJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
+    viewportWidth: z.number().int().min(1).max(4096).optional(),
+    viewportHeight: z.number().int().min(1).max(4096).optional(),
+    fallbackEnabled: z.boolean(),
+    dinov2ModelPath: z.string().max(IPC_STRING_MAX_LENGTH),
+    /**
+     * PR-BT-5 (M-1-RSS, ADR-0039 Decision 3): per-sub-phase fork discriminator.
+     * When set, the visual child runs ONLY this single visual sub-phase and
+     * `exit(0)`s. When **omitted**, the child grandfathers to the legacy "run
+     * both section_visual + part_visual" behaviour (backward-compatible).
+     * SSOT-derived via `z.enum(PHASE5_VISUAL_SUBPHASES)` — no hand-written
+     * literals.
+     *
+     * PR-BT-5 (M-1-RSS): per-sub-phase fork 識別子。指定時は当 1 sub-phase のみ
+     * 実行して exit(0)。省略時は legacy 全 visual sub-phase 実行に grandfather。
+     */
+    subPhase: z.enum(PHASE5_VISUAL_SUBPHASES).optional(),
+  })
+  .strict();
 
 /**
  * Parent → Child: Relay lock extension acknowledgment
  */
-export const parentLockAckSchema = z.object({
-  type: z.literal("lock-ack"),
-  success: z.boolean(),
-});
+export const parentLockAckSchema = z
+  .object({
+    type: z.literal("lock-ack"),
+    success: z.boolean(),
+  })
+  .strict();
 
 /**
  * Parent → Child: Graceful shutdown request
  */
-export const parentShutdownSchema = z.object({
-  type: z.literal("shutdown"),
-});
+export const parentShutdownSchema = z
+  .object({
+    type: z.literal("shutdown"),
+  })
+  .strict();
 
 /**
  * Union of all parent → child message types
@@ -142,44 +187,86 @@ export type ParentToChildMessage = z.infer<typeof parentToChildSchema>;
  * 絶対値 `rssMb`（可観測性 / DB ログ用）と delta（`currentRss - initialRss`、
  * 閾値判定用）の両方を報告する。
  */
-export const childHeartbeatSchema = z.object({
-  type: z.literal("heartbeat"),
-  rssMb: z.number().min(0),
-  rssDeltaMb: z.number(),
-  phase: z.string().max(200),
-});
+export const childHeartbeatSchema = z
+  .object({
+    type: z.literal("heartbeat"),
+    rssMb: z.number().min(0),
+    rssDeltaMb: z.number(),
+    phase: z.string().max(200),
+  })
+  .strict();
 
 /**
  * Child → Parent: Request lock extension relay
  */
-export const childLockRequestSchema = z.object({
-  type: z.literal("lock-request"),
-  label: z.string().max(200),
-});
+export const childLockRequestSchema = z
+  .object({
+    type: z.literal("lock-request"),
+    label: z.string().max(200),
+  })
+  .strict();
 
 /**
  * Child → Parent: Progress update
  */
-export const childProgressSchema = z.object({
-  type: z.literal("progress"),
-  completed: z.number().int().min(0),
-  total: z.number().int().min(0),
-  phase: z.string().max(200),
-});
+export const childProgressSchema = z
+  .object({
+    type: z.literal("progress"),
+    completed: z.number().int().min(0),
+    total: z.number().int().min(0),
+    phase: z.string().max(200),
+  })
+  .strict();
 
 /**
  * Child → Parent: Text embedding result (success)
+ *
+ * PR-V3-T1a §3.2 C1/C3 (FIND-V3-IO-H-01 closure): additively added optional
+ * `chunkedEncoderTelemetry` to surface streaming chunked encoder hardening
+ * outcomes — per-chunk RSS overshoot (C1) and partial-completion (C3) — back
+ * to the parent so the parent can emit `audit_logs` entries via the SSOT
+ * AUDIT_ACTION constants. Legacy child messages (without this field) are
+ * accepted via `optional()` to preserve forward compatibility (parents on
+ * the new schema accept old children).
+ *
+ * `partialCompletion` semantic (C3): `chunksDone < totalChunks` indicates the
+ * text-section chunk loop broke early; chunks `[0..chunksDone-1]` are durable
+ * forward intent (already persisted), chunks `[chunksDone..totalChunks-1]`
+ * are skipped and surfaced via post-Phase-5 backfill enumeration.
+ *
+ * `budgetExceededChunkIndex` semantic (C1): the chunk index whose per-chunk
+ * peak RSS exceeded `PER_CHUNK_RSS_BUDGET_MB`. When set, `partialCompletion`
+ * is also set with `chunksDone = budgetExceededChunkIndex`.
+ *
+ * PR-V3-T1a §3.2 C1/C3: additively added optional `chunkedEncoderTelemetry`
+ * carrying C1 (per-chunk RSS overshoot) and C3 (partial completion) outcomes
+ * back to the parent for `audit_logs` emission. Optional for forward
+ * compatibility.
  */
-export const childTextResultSchema = z.object({
-  type: z.literal("text-result"),
-  sectionEmbeddingsGenerated: z.number().int().min(0),
-  motionEmbeddingsGenerated: z.number().int().min(0),
-  bgEmbeddingsGenerated: z.number().int().min(0),
-  jsAnimationEmbeddingsGenerated: z.number().int().min(0),
-  responsiveEmbeddingsGenerated: z.number().int().min(0),
-  partEmbeddingsGenerated: z.number().int().min(0),
-  embeddingFailedChunks: z.number().int().min(0),
-});
+export const childTextResultSchema = z
+  .object({
+    type: z.literal("text-result"),
+    sectionEmbeddingsGenerated: z.number().int().min(0),
+    motionEmbeddingsGenerated: z.number().int().min(0),
+    bgEmbeddingsGenerated: z.number().int().min(0),
+    jsAnimationEmbeddingsGenerated: z.number().int().min(0),
+    responsiveEmbeddingsGenerated: z.number().int().min(0),
+    partEmbeddingsGenerated: z.number().int().min(0),
+    embeddingFailedChunks: z.number().int().min(0),
+    chunkedEncoderTelemetry: z
+      .object({
+        partialCompletion: z
+          .object({
+            chunksDone: z.number().int().min(0),
+            totalChunks: z.number().int().min(1),
+          })
+          .optional(),
+        budgetExceededChunkIndex: z.number().int().min(0).optional(),
+        idempotencyChunkSkippedCount: z.number().int().min(0).optional(),
+      })
+      .optional(),
+  })
+  .strict();
 
 /**
  * Child → Parent: Visual embedding result (success)
@@ -192,22 +279,31 @@ export const childTextResultSchema = z.object({
  * `partVisualSkippedBboxInvalid`. Legacy child messages (missing this field)
  * default to 0 via Zod, preserving backward compatibility.
  */
-export const childVisualResultSchema = z.object({
-  type: z.literal("visual-result"),
-  sectionVisualEmbeddingsGenerated: z.number().int().min(0),
-  partVisualEmbeddingsGenerated: z.number().int().min(0),
-  partVisualSkippedBboxInvalid: z.number().int().min(0).optional().default(0),
-  embeddingFailedChunks: z.number().int().min(0),
-});
+export const childVisualResultSchema = z
+  .object({
+    type: z.literal("visual-result"),
+    sectionVisualEmbeddingsGenerated: z.number().int().min(0),
+    partVisualEmbeddingsGenerated: z.number().int().min(0),
+    partVisualSkippedBboxInvalid: z.number().int().min(0).optional().default(0),
+    // ADR-0018 Amendment 7 §7.6 exit #2 (Plan v2 PR-B): additively added optional
+    // `partVisualSkippedBboxUnresolvable`. Legacy child messages (missing this
+    // field) default to 0 via Zod, preserving backward compatibility (symmetric
+    // with partVisualSkippedBboxInvalid).
+    partVisualSkippedBboxUnresolvable: z.number().int().min(0).optional().default(0),
+    embeddingFailedChunks: z.number().int().min(0),
+  })
+  .strict();
 
 /**
  * Child → Parent: Error report
  */
-export const childErrorSchema = z.object({
-  type: z.literal("error"),
-  message: z.string().max(IPC_ERROR_MESSAGE_MAX_LENGTH),
-  phase: z.string().max(200).optional(),
-});
+export const childErrorSchema = z
+  .object({
+    type: z.literal("error"),
+    message: z.string().max(IPC_ERROR_MESSAGE_MAX_LENGTH),
+    phase: z.string().max(200).optional(),
+  })
+  .strict();
 
 /**
  * Union of all child → parent message types

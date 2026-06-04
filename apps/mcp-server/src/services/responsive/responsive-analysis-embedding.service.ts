@@ -246,13 +246,19 @@ export async function generateResponsiveAnalysisEmbeddings(
 ): Promise<ResponsiveAnalysisEmbeddingResult>;
 /**
  * 標準オーバーロード: ResponsiveAnalysisForText 配列 + DIファクトリ
+ *
+ * Note: FIND-WAVE4-TPA-V4-H-01 canonical fix moved `no-redeclare` enforcement to
+ * `@typescript-eslint/no-redeclare` (overload-aware), so the per-line
+ * `eslint-disable-next-line no-redeclare` directives are no longer needed.
+ *
+ * 注: FIND-WAVE4-TPA-V4-H-01 canonical fix により `no-redeclare` 強制を
+ * `@typescript-eslint/no-redeclare` (overload-aware) に移行したため、
+ * 行単位の `eslint-disable-next-line no-redeclare` 指示は不要になった。
  */
-// eslint-disable-next-line no-redeclare -- TypeScript function overloads
 export async function generateResponsiveAnalysisEmbeddings(
   analyses: ResponsiveAnalysisForText[],
   onProgress?: (completed: number, total: number) => void
 ): Promise<ResponsiveAnalysisEmbeddingResult>;
-// eslint-disable-next-line no-redeclare -- TypeScript function overloads
 export async function generateResponsiveAnalysisEmbeddings(
   analysesOrIds: ResponsiveAnalysisForText[] | string[],
   embeddingServiceOrProgress?:

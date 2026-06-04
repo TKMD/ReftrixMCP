@@ -1,0 +1,84 @@
+-- SPDX-License-Identifier: AGPL-3.0-only
+-- secvisual-blank-terminal (Plan V1 §4): Additively extend the section_visual
+-- terminal-skip CHECK constraint on `section_embeddings.vision_skip_reason` with
+-- the two new values `section_visual_blank` + `section_visual_no_position`
+-- (3 values -> 5 values).
+--
+-- INV-SECTION-VISUAL-BLANK-TERMINAL-015 (large-page) +
+-- INV-SCHEMA-ENUM-004 additive (25-value lockstep)
+-- Companion plan: 
+-- IO Plan Decision V1 anchor: 019e7f1c-0b66 (APPROVE)
+-- Precedent:      20260530120000_add_section_visual_pii_excluded_skip_reason (3-value CHECK)
+-- Precedent:      20260524192012_add_section_visual_skip_reason (initial 2-value CHECK + column + index)
+--
+-- Root cause (degraded-coverage permanent pending): two backfill-path
+-- `processSingleSectionVisualEmbedding` exits previously RETURNED without writing
+-- a terminal `vision_skip_reason` marker, leaving the section permanently pending
+-- (`text_embedding IS NOT NULL AND vision_embedding IS NULL AND vision_skip_reason
+-- IS NULL`), so the page never reached `completed`:
+--   - exit#1 (no-position): `!sectionPos || sectionPos.height < 10` — the section's
+--     `layoutInfo.position` geometry is absent/degenerate, so there is no crop
+--     region (structurally un-embeddable). Marker: `section_visual_no_position`.
+--   - exit#2 (blank): `cropResult.isBlank === true` — the section was rendered but
+--     is a uniform/blank image; on the backfill path the dynamic-fallback
+--     re-capture queue is not drained, so the blank crop is terminal. Marker:
+--     `section_visual_blank`.
+-- Both are written at the corresponding exit ONLY on the backfill path
+-- (`fallbackEnabled === false`); the main path writes no marker (INV-007 Block D
+-- orthogonality). A non-NULL value excludes the row from the section_visual
+-- pending query (single SSOT exclusion predicate
+-- `sectionVisualPendingExclusionPredicate`), allowing the page to reach
+-- `completed`. `skipReasonToBackfillStatus()` maps both to `not_required`.
+--
+-- The literal set MUST stay in lockstep with EMBEDDING_SECTION_VISUAL_SKIP_REASONS
+-- (TS SSOT derived from EMBEDDING_SKIP_REASONS via .filter()); INV-SCHEMA-ENUM-004
+-- additive test pins the migration CHECK <-> TS SSOT <-> Prisma schema field
+-- equality (now 5 values). Future terminal-reason additions MUST extend both this
+-- CHECK and the SSOT subset additively (ADR-0018 §7.5 req4).
+--
+-- Non-breaking additive migration: the CHECK is re-created with two additional
+-- allowed literals. Existing rows are unaffected (NULL stays valid, the three prior
+-- values stay valid); no row is rejected by the widened constraint, so this cannot
+-- fail on existing data. The DROP/ADD CONSTRAINT idiom mirrors the precedent
+-- migrations 20260530120000 lines 60-65 / 20260524192012 lines 47-52. SQL injection
+-- surface: none — the literal set is enum-bound and there is no user-input
+-- interpolation (SEC-RV1-01 confirmed pattern).
+--
+-- Rollback: db:restore from the db:migrate:safe auto-backup, OR
+--   `prisma migrate resolve --rolled-back 20260531090000_add_section_visual_blank_no_position_skip_reasons`
+--   then re-create the CHECK with only the prior three values:
+--     ALTER TABLE "section_embeddings"
+--       DROP CONSTRAINT IF EXISTS "section_embeddings_vision_skip_reason_check";
+--     ALTER TABLE "section_embeddings"
+--       ADD CONSTRAINT "section_embeddings_vision_skip_reason_check"
+--       CHECK ("vision_skip_reason" IS NULL
+--         OR "vision_skip_reason" IN ('section_visual_uncroppable', 'section_visual_duplicate', 'section_visual_pii_excluded'));
+--
+-- Privacy (mirrors precedent migrations 20260530120000 lines 48-55 / 20260524192012
+-- Privacy block lines 28-34): vision_skip_reason stores only an enum value
+-- (section_visual_uncroppable / section_visual_duplicate / section_visual_pii_excluded
+-- / section_visual_blank / section_visual_no_position), no PII, not personal data
+-- under GDPR Art.4(1). CASCADE-deleted with the parent section_patterns -> web_pages
+-- row; no independent retention horizon; subsumed by GDPR Art.17 data.delete row
+-- deletion (no additional erasure step).
+--
+-- IMPORTANT (FIND-PLAN-L-07 / LCC-L-01): the two NEW values are NON-PII
+-- degraded-coverage TECHNICAL terminals and are distinct in meaning from the
+-- existing `section_visual_pii_excluded` reason (a GDPR Art.5(1)(c)
+-- data-minimisation PII exclusion). `section_visual_blank` = rendered-but-empty
+-- (uniform/blank crop, no visual content); `section_visual_no_position` =
+-- absent/degenerate `layoutInfo.position` geometry (no crop region). Neither is a
+-- PII exclusion and neither carries any GDPR Art.5(1)(c) data-minimisation or
+-- Art.30 processing-records semantics beyond the technical record of why the
+-- section's visual was not generated. They MUST NOT be conflated with the PII
+-- exclusion reason.
+
+-- Additively widen the CHECK constraint to the 5-value SSOT-derived terminal subset
+-- (or NULL). The partial index from migration 20260524192012 already covers all
+-- non-NULL terminal-skip rows and requires no change (it is value-agnostic).
+ALTER TABLE "section_embeddings"
+  DROP CONSTRAINT IF EXISTS "section_embeddings_vision_skip_reason_check";
+ALTER TABLE "section_embeddings"
+  ADD CONSTRAINT "section_embeddings_vision_skip_reason_check"
+  CHECK ("vision_skip_reason" IS NULL
+    OR "vision_skip_reason" IN ('section_visual_uncroppable', 'section_visual_duplicate', 'section_visual_pii_excluded', 'section_visual_blank', 'section_visual_no_position'));

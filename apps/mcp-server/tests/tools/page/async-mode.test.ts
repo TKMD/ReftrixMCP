@@ -32,7 +32,7 @@ vi.mock("../../../src/config/redis", () => ({
 vi.mock("../../../src/queues/page-analyze-queue", () => ({
   PAGE_ANALYZE_QUEUE_NAME: "page-analyze",
   createPageAnalyzeQueue: vi.fn(),
-  addPageAnalyzeJob: vi.fn(),
+  addPageAnalyzeJobWithGuard: vi.fn(),
   getJobStatus: vi.fn(),
   closeQueue: vi.fn(),
 }));
@@ -41,7 +41,7 @@ vi.mock("../../../src/queues/page-analyze-queue", () => ({
 import { isRedisAvailable } from "../../../src/config/redis";
 import {
   createPageAnalyzeQueue,
-  addPageAnalyzeJob,
+  addPageAnalyzeJobWithGuard,
   getJobStatus,
 } from "../../../src/queues/page-analyze-queue";
 
@@ -61,19 +61,15 @@ describe("page.analyze async mode (Phase3-2)", () => {
         add: vi.fn(),
         close: vi.fn(),
       };
-      const mockJob = {
-        id: "test-job-id-123",
-        data: {
-          webPageId: "test-web-page-id",
-          url: "https://example.com",
-          options: {},
-          createdAt: new Date().toISOString(),
-        },
+      const mockEnqueueResult = {
+        outcome: "enqueued_new",
+        jobId: "test-job-id-123",
+        collision: null,
       };
 
       (isRedisAvailable as Mock).mockResolvedValue(true);
       (createPageAnalyzeQueue as Mock).mockReturnValue(mockQueue);
-      (addPageAnalyzeJob as Mock).mockResolvedValue(mockJob);
+      (addPageAnalyzeJobWithGuard as Mock).mockResolvedValue(mockEnqueueResult);
 
       // Act - pageAnalyzeAsyncHandler をインポートして呼び出す
       // 実際の実装前なので、期待する動作を記述
@@ -91,7 +87,7 @@ describe("page.analyze async mode (Phase3-2)", () => {
       // expect(result.async).toBe(true);
       // expect(result.jobId).toBe('test-job-id-123');
       // expect(result.status).toBe('queued');
-      // expect(addPageAnalyzeJob).toHaveBeenCalled();
+      // expect(addPageAnalyzeJobWithGuard).toHaveBeenCalled();
     });
 
     it("should return error when async=true but Redis is unavailable", async () => {
@@ -126,7 +122,7 @@ describe("page.analyze async mode (Phase3-2)", () => {
       // Assert - 同期処理が行われる（キューに投入されない）
       // const result = await pageAnalyzeHandler(input);
       // expect(result.async).toBeUndefined();
-      // expect(addPageAnalyzeJob).not.toHaveBeenCalled();
+      // expect(addPageAnalyzeJobWithGuard).not.toHaveBeenCalled();
       expect(true).toBe(true);
     });
   });

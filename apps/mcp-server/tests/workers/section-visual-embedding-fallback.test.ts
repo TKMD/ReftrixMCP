@@ -38,8 +38,8 @@ import * as path from "node:path";
 const EMBEDDING_PHASE_SLICE = 75000;
 /** Section Visual Embedding ブロックのスライスサイズ（抽出関数を含むフルスキャン用） */
 const SECTION_VISUAL_SLICE = 70000;
-/** processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック） */
-const SINGLE_SECTION_SLICE = 10000;
+/** processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック。secvisual blank/no-position terminal exit 2件追加で実関数長 ~10992 文字に拡大、result.generated++ は rel offset 10587） */
+const SINGLE_SECTION_SLICE = 12000;
 
 describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", () => {
   // After TDA-C1 refactoring, processEmbeddingPhase, fallback logic, and visual
@@ -223,17 +223,21 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
     });
 
     it("should preserve text_embedding even when visual embedding fails", () => {
-      // In fork path, text embedding runs in a separate child process before visual
-      // Fork orchestrator runs text child → visual child sequentially
+      // PR-BT-5 (ADR-0039): in the per-sub-phase fork path, the text sub-phase
+      // forks run sequentially BEFORE the visual sub-phase forks (text dispatch
+      // loop → resolvePartBboxFn → visual dispatch loop). So a visual fork
+      // failure cannot lose already-persisted text embeddings (they ran in
+      // earlier, separate forks that exit(0)'d). Assert the text-before-visual
+      // dispatch ordering via the new Step markers.
       const fnStart = workerSource.indexOf("async function runPhase5ViaFork");
       expect(fnStart).toBeGreaterThan(-1);
       const fnBody = workerSource.slice(fnStart, fnStart + 20000);
-      // Text child runs before visual child
-      const textChildPos = fnBody.indexOf("Text Embedding Child");
-      const visualChildPos = fnBody.indexOf("Visual Embedding Child");
-      expect(textChildPos).toBeGreaterThan(-1);
-      expect(visualChildPos).toBeGreaterThan(-1);
-      expect(textChildPos).toBeLessThan(visualChildPos);
+      // Text sub-phase forks dispatched before visual sub-phase forks.
+      const textForksPos = fnBody.indexOf("Step 1: Text sub-phase forks");
+      const visualForksPos = fnBody.indexOf("Step 3: Visual sub-phase forks");
+      expect(textForksPos).toBeGreaterThan(-1);
+      expect(visualForksPos).toBeGreaterThan(-1);
+      expect(textForksPos).toBeLessThan(visualForksPos);
     });
   });
 
@@ -346,17 +350,37 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
     });
 
     it("PII filtering should apply before the section visual embedding loop", () => {
-      // PII フィルタリングは processSectionVisualEmbeddingLoop 呼び出しの前に実行される
-      // (runVisualEmbeddingSubPhases 内)
+      // PR-C4/CO-5 リファクタ追従、SSOT canonical 化: PII 保護は worker インラインの
+      // `pii_risk_level = 'high'` literal grep ではなく、SSOT exclusion predicate
+      // (`sectionVisualPendingExclusionPredicate`) + 高PII pending set 由来の
+      // `highPiiSectionIdSet` で適用される。GDPR Art.5(1)(c) data-minimisation の
+      // 「PII フィルタが visual embedding loop の前に適用される」順序 invariant は
+      // 新 shape (predicate + highPiiSectionIdSet → sectionsFiltered → loop) で保持。
+      // PR-C4/CO-5 refactor follow-up, SSOT canonicalisation: PII protection is now
+      // applied via the SSOT exclusion predicate (`sectionVisualPendingExclusionPredicate`)
+      // + the `highPiiSectionIdSet` derived from the high-PII pending set — NOT via an
+      // inline `pii_risk_level = 'high'` literal grep in the worker. The GDPR Art.5(1)(c)
+      // ordering invariant ("PII filter applies before the visual embedding loop") is
+      // preserved by the new shape (predicate + highPiiSectionIdSet → sectionsFiltered → loop).
       const fnStart = workerSource.indexOf("async function runVisualEmbeddingSubPhases");
       expect(fnStart).toBeGreaterThan(-1);
       const fnBody = workerSource.slice(fnStart, fnStart + 20000);
 
-      const piiCheckPos = fnBody.indexOf("pii_risk_level = 'high'");
+      // PII 除外は SSOT predicate 経由 (NOT EXISTS pii_risk_level='high' を内包)
+      // PII exclusion via the SSOT predicate (which embeds NOT EXISTS pii_risk_level='high')
+      const predicatePos = fnBody.indexOf("sectionVisualPendingExclusionPredicate");
+      // 高PII pending set の導出 (queryHighPiiPendingSectionPatternIds 由来)
+      // High-PII pending set derivation (from queryHighPiiPendingSectionPatternIds)
+      const highPiiSetPos = fnBody.indexOf("highPiiSectionIdSet");
       const loopPos = fnBody.indexOf("processSectionVisualEmbeddingLoop");
-      expect(piiCheckPos).toBeGreaterThan(-1);
+
+      expect(predicatePos).toBeGreaterThan(-1);
+      expect(highPiiSetPos).toBeGreaterThan(-1);
       expect(loopPos).toBeGreaterThan(-1);
-      expect(piiCheckPos).toBeLessThan(loopPos);
+      // PII フィルタリング (predicate + 高PII set) は loop 呼び出しの前に位置する
+      // PII filtering (predicate + high-PII set) is positioned before the loop call
+      expect(predicatePos).toBeLessThan(loopPos);
+      expect(highPiiSetPos).toBeLessThan(loopPos);
     });
   });
 

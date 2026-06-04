@@ -72,6 +72,13 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: AST Gate (worker.once listener synchronous-only)
+        # Plan v4.2 SEC M-NEW-3 closure / INV-WORKER-NO-RESUME-001 enforce
+        # Detects async keyword + await expression inside worker.once('completed', ...)
+        # listener body and fails CI on violation (CWE-362 race condition prevention).
+        # IO Impl Decision V2 condition 4 (anchor 019e2ce2-9859).
+        run: pnpm verify:listener-sync
+
       - name: Format check
         run: pnpm format:check
 

@@ -16,6 +16,11 @@
  */
 
 import { randomUUID } from "node:crypto";
+import {
+  AUDIT_ACTION_WORKER_LOCK_TTL_FALLBACK,
+  AUDIT_ACTION_WORKER_ORPHAN_BACKFILL_SKIPPED_DUE_TO_LIVE_LOCK,
+  AUDIT_ACTOR_WORKER_SUPERVISOR,
+} from "../audit/audit-actions";
 import { getAuditLogService } from "./audit-log.service";
 import { parseWorkerIpcStrict, type WorkerIpcMessage } from "../schemas/worker-ipc.schema";
 import { assertNeverWorkerType, type WorkerType } from "../types/worker-type";
@@ -181,7 +186,7 @@ export function emitSupervisorAuditLog(
     void getAuditLogService()
       .log({
         action,
-        actor: "system:worker-supervisor",
+        actor: AUDIT_ACTOR_WORKER_SUPERVISOR,
         targetType: "worker",
         targetId: workerType,
         details,
@@ -259,8 +264,10 @@ export async function executeSelfChainedRespawn(
     logger.warn("[respawn] stale self-lock detected, falling back to TTL wait", {
       workerType,
     });
+    // SSOT 定数経由 (INV-AUDIT-EMIT-SSOT-IMPORT-001、bare literal hardcode 禁止)。
+    // Via SSOT constant (INV-AUDIT-EMIT-SSOT-IMPORT-001; bare literal forbidden).
     emitSupervisorAuditLog(
-      "worker_lock_ttl_fallback",
+      AUDIT_ACTION_WORKER_LOCK_TTL_FALLBACK,
       workerType,
       { reason: "stale_self_lock" },
       "success"
@@ -745,4 +752,176 @@ export function scheduleSigabrtAwareRespawn(
     if (isShuttingDownGetter()) return;
     scheduleRespawn();
   }, delay).unref?.();
+}
+
+// ============================================================================
+// Plan v3 Track T4 (PR-V3-T4) — Pre-Return Pause failure-path race closure
+// helpers (5 NEW helpers per design §7.1).
+// ============================================================================
+
+/**
+ * Default retention days for `worker_job_lifecycle` cleanup cron (LCC H-01
+ * IO-accepted retention selection per OQ-LCC-T4-01).
+ */
+const DEFAULT_ORPHAN_RETENTION_DAYS = 30;
+
+/**
+ * Read the orphan retention days from env (`REFTRIX_ORPHAN_RETENTION_DAYS`)
+ * with safe fallback to {@link DEFAULT_ORPHAN_RETENTION_DAYS} (30 days).
+ *
+ * Plan v3 Track T4 (PR-V3-T4) M-05 / LCC H-01 named-constant export. Used by
+ * the cleanup cron (`apps/mcp-server/scripts/cleanup-orphaned-web-pages.ts`)
+ * and supervisor backfill audit_log emission so retention is centrally
+ * tunable for ops without source rebuilds.
+ *
+ * Plan v3 T4 LCC H-01 retention helper (default 30d, env-tunable).
+ *
+ * @returns Retention days (≥ 1)
+ */
+export function getOrphanRetentionDays(): number {
+  return safeParseInt(process.env.REFTRIX_ORPHAN_RETENTION_DAYS, DEFAULT_ORPHAN_RETENTION_DAYS, 1);
+}
+
+/**
+ * Prisma client interface used by {@link recordWorkerSpawn} /
+ * {@link recordWorkerRelease} (DI-friendly; matches the actual Prisma
+ * client without pulling the full `@prisma/client` import surface here).
+ */
+export interface WorkerJobLifecyclePrismaClient {
+  workerJobLifecycle: {
+    create: (args: {
+      data: {
+        webPageId: string;
+        workerPid: number;
+        workerSpawnTime: Date;
+        workerType: WorkerType;
+        eventType: "spawn" | "release" | "restart" | "dispose_start" | "dispose_end";
+        nonce: string;
+      };
+    }) => Promise<{ id: string }>;
+  };
+}
+
+/**
+ * Sub-A write hook (INV-WORKER-PID-IDENTITY-005). Records a `spawn` event
+ * row in `worker_job_lifecycle` linking the freshly spawned Worker process
+ * to the `web_pages` row it will analyse.
+ *
+ * Fire-and-forget; never throws. Failure to write is logged and ignored
+ * (Graceful Degradation per AuditLogService convention) — the supervisor
+ * backfill mechanism degrades to `phase_reconstruction='best_effort'` if
+ * the spawn row is missing later.
+ *
+ * Plan v3 T4 INV-WORKER-PID-IDENTITY-005 Sub-A write hook (fire-and-forget).
+ *
+ * @param prismaClient - Prisma client (DI-friendly)
+ * @param params.webPageId - WebPage UUID being analysed
+ * @param params.workerPid - Worker process PID at spawn time
+ * @param params.workerSpawnTime - Worker process boot timestamp
+ * @param params.workerType - WorkerType ('page' | 'embedding-backfill')
+ * @param params.nonce - ADR-0011 lock nonce (observability link)
+ */
+export async function recordWorkerSpawn(
+  prismaClient: WorkerJobLifecyclePrismaClient,
+  params: {
+    webPageId: string;
+    workerPid: number;
+    workerSpawnTime: Date;
+    workerType: WorkerType;
+    nonce: string;
+  }
+): Promise<void> {
+  try {
+    await prismaClient.workerJobLifecycle.create({
+      data: {
+        webPageId: params.webPageId,
+        workerPid: params.workerPid,
+        workerSpawnTime: params.workerSpawnTime,
+        workerType: params.workerType,
+        eventType: "spawn",
+        nonce: params.nonce,
+      },
+    });
+  } catch (error) {
+    logger.warn("[WorkerSupervisor] recordWorkerSpawn failed (non-fatal)", {
+      workerType: params.workerType,
+      error: sanitizeErrorMessage(error),
+    });
+  }
+}
+
+/**
+ * Sub-B clear hook (INV-WORKER-PID-IDENTITY-005). Records a paired
+ * `release` event row in `worker_job_lifecycle` on planned exit (catch-tail
+ * failure path OR success-path post-pause). Used by supervisor backfill to
+ * detect "orphan vs gracefully released" via paired-row presence.
+ *
+ * Plan v3 T4 INV-WORKER-PID-IDENTITY-005 Sub-B clear hook (fire-and-forget).
+ *
+ * @param prismaClient - Prisma client (DI-friendly)
+ * @param params.webPageId - WebPage UUID being analysed
+ * @param params.workerPid - Worker process PID
+ * @param params.workerSpawnTime - Worker process boot timestamp
+ * @param params.workerType - WorkerType ('page' | 'embedding-backfill')
+ * @param params.nonce - ADR-0011 lock nonce (observability link)
+ */
+export async function recordWorkerRelease(
+  prismaClient: WorkerJobLifecyclePrismaClient,
+  params: {
+    webPageId: string;
+    workerPid: number;
+    workerSpawnTime: Date;
+    workerType: WorkerType;
+    nonce: string;
+  }
+): Promise<void> {
+  try {
+    await prismaClient.workerJobLifecycle.create({
+      data: {
+        webPageId: params.webPageId,
+        workerPid: params.workerPid,
+        workerSpawnTime: params.workerSpawnTime,
+        workerType: params.workerType,
+        eventType: "release",
+        nonce: params.nonce,
+      },
+    });
+  } catch (error) {
+    logger.warn("[WorkerSupervisor] recordWorkerRelease failed (non-fatal)", {
+      workerType: params.workerType,
+      error: sanitizeErrorMessage(error),
+    });
+  }
+}
+
+/**
+ * Compact wrapper around {@link emitSupervisorAuditLog} for the
+ * `worker_orphan_backfill_skipped_due_to_live_lock` secondary audit_log
+ * action (SEC H-03 fail-closed entry point).
+ *
+ * Emitted when supervisor backfill detects a live foreign lock via
+ * `probeExistingLock(workerType)` returning `{exists: true}`; backfill is
+ * fail-closed skipped to avoid trampling the fresh Worker's in-flight job.
+ * INV-WORKER-SUPERVISOR-BACKFILL-FAIL-CLOSED-001 Sub-A.
+ *
+ * Plan v3 T4 SEC H-03 secondary audit emit (fail-closed skip on live lock).
+ *
+ * @param workerType - WorkerType whose backfill was skipped
+ * @param truncatedChildPid - Truncated PID `pid_<sha256_8chars>` (SEC H-02
+ *   redaction)
+ */
+export function emitOrphanBackfillSkippedAudit(
+  workerType: WorkerType,
+  truncatedChildPid: string
+): void {
+  emitSupervisorAuditLog(
+    AUDIT_ACTION_WORKER_ORPHAN_BACKFILL_SKIPPED_DUE_TO_LIVE_LOCK,
+    workerType,
+    {
+      child_pid: truncatedChildPid,
+      probe_outcome: "existing_live_lock",
+      reason: "backfill_skipped_due_to_live_lock",
+    },
+    "denied"
+  );
 }

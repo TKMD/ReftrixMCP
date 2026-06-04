@@ -23,6 +23,25 @@ import type { ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
 
 // ============================================================================
+// PR-M-A respawn delay constant (Plan v4.3 PR-M / ADR-0035 §Decision 3 +
+// Plan v4.4 PR-N-A / ADR-0035 Amendment 1 §Decision 5)
+// ----------------------------------------------------------------------------
+// All tests in this file exercise the `page` workerType (default; no
+// `workerArgs: ["--backfill"]` is passed to WorkerSupervisor). After PR-M-A
+// landed, `getRestartDelayMsForType("page")` resolves to
+// `DEFAULT_PAGE_RESTART_DELAY_MS = 3000ms`. PR-N-A subsequently removed the
+// per-instance config field (env var `WORKER_RESTART_DELAY_MS` is the only
+// remaining override surface for the `page` workerType).
+//
+// This constant matches the production default in
+// `apps/mcp-server/src/services/worker-supervisor.service.ts`
+// (`DEFAULT_PAGE_RESTART_DELAY_MS = 3000`). Tests consume this many ms via
+// `vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS)` to drain the
+// `scheduleRespawn` timer after `emit("exit", ...)`.
+// ============================================================================
+const PAGE_RESPAWN_DELAY_MS = 3000;
+
+// ============================================================================
 // モック設定
 // ============================================================================
 
@@ -100,8 +119,9 @@ interface WorkerSupervisorOptions {
   maxRestartAttempts: number;
   /** graceful shutdown のタイムアウト（ms）。超過でSIGKILL送信 */
   shutdownTimeoutMs: number;
-  /** 再起動間の最小間隔（ms）。連続クラッシュのスロットリング */
-  restartDelayMs?: number;
+  // Plan v4.4 PR-N-A / ADR-0035 Amendment 1 §Decision 5:
+  // `restartDelayMs` field removed. Per-type cooldown is resolved via
+  // `getRestartDelayMsForType(workerType)` (module-level SSOT).
 }
 
 /**
@@ -223,8 +243,8 @@ describe("WorkerSupervisor", () => {
       // ワーカーがクラッシュをシミュレート（exit code 134 = SIGABRT/OOM）
       mockChild.emit("exit", 134, null);
 
-      // 再起動の遅延を消化
-      await vi.advanceTimersByTimeAsync(1000);
+      // 再起動の遅延を消化 (PR-M-A: page workerType respawn cooldown 3000ms)
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
 
       // Act: ensureWorkerRunning呼び出し
       supervisor.ensureWorkerRunning();
@@ -296,15 +316,15 @@ describe("WorkerSupervisor", () => {
       // Phase 1: IPC 'shutdown' メッセージが送信される
       expect(mockChild.send).toHaveBeenCalledWith({ type: "shutdown" });
 
-      // Phase 2: 2秒後にSIGTERMが送信される
-      await vi.advanceTimersByTimeAsync(2000);
+      // Phase 2: IPC_SHUTDOWN_GRACE_MS (Plan v2 §1 S1.2 default 30,000ms) 後にSIGTERM
+      await vi.advanceTimersByTimeAsync(30_000);
       expect(mockChild.kill).toHaveBeenCalledWith("SIGTERM");
 
       // 子プロセスが正常終了をシミュレート
       mockChild.emit("exit", 0, null);
 
-      // 再起動の遅延を消化
-      await vi.advanceTimersByTimeAsync(1000);
+      // 再起動の遅延を消化 (PR-M-A: page workerType respawn cooldown 3000ms)
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
 
       // Assert: 新しいワーカーがforkされる
       expect(mockFork.mock.calls.length).toBeGreaterThanOrEqual(2);
@@ -353,12 +373,13 @@ describe("WorkerSupervisor", () => {
       supervisor.notifyJobCompleted();
       supervisor.notifyJobCompleted(); // → restart トリガー
 
-      // P1-E: Phase 2のSIGTERMタイマーを消化
-      await vi.advanceTimersByTimeAsync(2000);
+      // P1-E: Phase 2 SIGTERM タイマー (Plan v2 §1 S1.2 default 30,000ms) を消化
+      await vi.advanceTimersByTimeAsync(30_000);
 
       // 旧ワーカー終了
       mockChild.emit("exit", 0, null);
-      await vi.advanceTimersByTimeAsync(1000);
+      // PR-M-A: page workerType respawn cooldown 3000ms
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
 
       // Assert: ジョブカウントがリセットされている
       expect(supervisor.getCompletedJobCount()).toBe(0);
@@ -390,8 +411,8 @@ describe("WorkerSupervisor", () => {
       // Act: OOMクラッシュをシミュレート
       mockChild.emit("exit", 134, null);
 
-      // 再起動遅延を消化
-      await vi.advanceTimersByTimeAsync(1000);
+      // 再起動遅延を消化 (PR-M-A: page workerType respawn cooldown 3000ms)
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
 
       // Assert: 自動再起動された
       expect(mockFork.mock.calls.length).toBeGreaterThanOrEqual(2);
@@ -418,8 +439,8 @@ describe("WorkerSupervisor", () => {
       // Act: graceful exitをシミュレート（ワーカーが自発的にメモリ閾値で終了）
       mockChild.emit("exit", 0, null);
 
-      // 再起動遅延を消化
-      await vi.advanceTimersByTimeAsync(1000);
+      // 再起動遅延を消化 (PR-M-A: page workerType respawn cooldown 3000ms)
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
 
       // Assert: 再起動された（ワーカーは常に復帰すべき）
       expect(mockFork.mock.calls.length).toBeGreaterThanOrEqual(2);
@@ -438,23 +459,23 @@ describe("WorkerSupervisor", () => {
 
       supervisor.ensureWorkerRunning(); // 初回起動
 
-      // 1回目のクラッシュ → 再起動
+      // 1回目のクラッシュ → 再起動 (PR-M-A: 3000ms cooldown)
       const child2 = createMockChildProcess(12346);
       mockFork.mockReturnValue(child2);
       mockChild.emit("exit", 134, null);
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
       expect(supervisor.getRestartCount()).toBe(1);
 
-      // 2回目のクラッシュ → 再起動
+      // 2回目のクラッシュ → 再起動 (PR-M-A: 3000ms cooldown)
       const child3 = createMockChildProcess(12347);
       mockFork.mockReturnValue(child3);
       child2.emit("exit", 134, null);
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
       expect(supervisor.getRestartCount()).toBe(2);
 
-      // 3回目のクラッシュ → 再起動停止
+      // 3回目のクラッシュ → 再起動停止 (PR-M-A: 3000ms cooldown)
       child3.emit("exit", 134, null);
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
 
       // Assert: maxRestartAttempts(2)で停止、forkは3回まで（初回 + 2回再起動）
       expect(mockFork).toHaveBeenCalledTimes(3);
@@ -474,21 +495,21 @@ describe("WorkerSupervisor", () => {
 
       supervisor.ensureWorkerRunning(); // 初回起動
 
-      // 1回目のクラッシュ → 再起動
+      // 1回目のクラッシュ → 再起動 (PR-M-A: 3000ms cooldown)
       const child2 = createMockChildProcess(12346);
       mockFork.mockReturnValue(child2);
       mockChild.emit("exit", 134, null);
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
 
-      // 2回目のクラッシュ → 再起動
+      // 2回目のクラッシュ → 再起動 (PR-M-A: 3000ms cooldown)
       const child3 = createMockChildProcess(12347);
       mockFork.mockReturnValue(child3);
       child2.emit("exit", 134, null);
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
 
-      // 3回目のクラッシュ → crashed状態
+      // 3回目のクラッシュ → crashed状態 (PR-M-A: 3000ms cooldown)
       child3.emit("exit", 134, null);
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
       expect(supervisor.getState()).toBe("crashed");
       expect(mockFork).toHaveBeenCalledTimes(3);
 
@@ -516,15 +537,15 @@ describe("WorkerSupervisor", () => {
 
       supervisor.ensureWorkerRunning(); // 初回起動
 
-      // 1回目のクラッシュ → 再起動
+      // 1回目のクラッシュ → 再起動 (PR-M-A: 3000ms cooldown)
       const child2 = createMockChildProcess(12346);
       mockFork.mockReturnValue(child2);
       mockChild.emit("exit", 134, null);
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
 
-      // 2回目のクラッシュ → crashed状態
+      // 2回目のクラッシュ → crashed状態 (PR-M-A: 3000ms cooldown)
       child2.emit("exit", 134, null);
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
       expect(supervisor.getState()).toBe("crashed");
 
       // Act: crashed状態からリセット
@@ -534,16 +555,16 @@ describe("WorkerSupervisor", () => {
       expect(supervisor.getState()).toBe("running");
       expect(supervisor.getRestartCount()).toBe(0);
 
-      // リセット後、再び1回再起動できる
+      // リセット後、再び1回再起動できる (PR-M-A: 3000ms cooldown)
       const child4 = createMockChildProcess(12348);
       mockFork.mockReturnValue(child4);
       child3.emit("exit", 134, null);
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
       expect(supervisor.getRestartCount()).toBe(1);
 
-      // もう1回クラッシュ → 再びcrashed
+      // もう1回クラッシュ → 再びcrashed (PR-M-A: 3000ms cooldown)
       child4.emit("exit", 134, null);
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
       expect(supervisor.getState()).toBe("crashed");
     });
 
@@ -562,12 +583,14 @@ describe("WorkerSupervisor", () => {
       const child2 = createMockChildProcess(12346);
       mockFork.mockReturnValue(child2);
       mockChild.emit("exit", 134, null);
-      await vi.advanceTimersByTimeAsync(1000);
+      // PR-M-A: page workerType respawn cooldown 3000ms
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
       expect(supervisor.getRestartCount()).toBe(1);
 
       supervisor.notifyJobCompleted();
       child2.emit("exit", 0, null);
-      await vi.advanceTimersByTimeAsync(1000);
+      // PR-M-A: page workerType respawn cooldown 3000ms
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
 
       expect(supervisor.getRestartCount()).toBe(0);
       expect(supervisor.getState()).toBe("running");
@@ -592,7 +615,8 @@ describe("WorkerSupervisor", () => {
       // Act: SIGKILLでクラッシュ（OOMキラーなど）
       mockChild.emit("exit", null, "SIGKILL");
 
-      await vi.advanceTimersByTimeAsync(1000);
+      // PR-M-A: page workerType respawn cooldown 3000ms
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
 
       // Assert: 自動再起動された
       expect(mockFork.mock.calls.length).toBeGreaterThanOrEqual(2);
@@ -612,7 +636,8 @@ describe("WorkerSupervisor", () => {
         workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 10,
         maxRestartAttempts: 5,
-        shutdownTimeoutMs: 5000,
+        // Plan v2 §1 S1.2: IPC_SHUTDOWN_GRACE_MS default 30,000ms より長く設定
+        shutdownTimeoutMs: 35_000,
       });
 
       supervisor.ensureWorkerRunning();
@@ -629,9 +654,9 @@ describe("WorkerSupervisor", () => {
       // Act
       const shutdownPromise = supervisor.shutdown();
       // Phase 1: IPC 'shutdown' メッセージ送信（即時）
-      // Phase 2: 2秒後にSIGTERMを送信（BullMQ close()に時間を与える）
-      // → 2500ms進めてSIGTERMタイマーを発火させる
-      await vi.advanceTimersByTimeAsync(2500);
+      // Phase 2: IPC_SHUTDOWN_GRACE_MS (Plan v2 §1 S1.2 default 30,000ms) 後に SIGTERM
+      // → 30500ms進めてSIGTERMタイマーを発火させる
+      await vi.advanceTimersByTimeAsync(30_500);
       await shutdownPromise;
 
       // Assert
@@ -647,7 +672,8 @@ describe("WorkerSupervisor", () => {
         workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 10,
         maxRestartAttempts: 5,
-        shutdownTimeoutMs: 3000, // 3秒タイムアウト
+        // Plan v2 §1 S1.2: IPC grace 30,000ms + 余裕で SIGKILL escalation を verify
+        shutdownTimeoutMs: 35_000,
       });
 
       supervisor.ensureWorkerRunning();
@@ -665,8 +691,8 @@ describe("WorkerSupervisor", () => {
       // Act
       const shutdownPromise = supervisor.shutdown();
 
-      // タイムアウトまで時間を進める
-      await vi.advanceTimersByTimeAsync(3500);
+      // タイムアウトまで時間を進める (shutdownTimeoutMs 35,000ms より長い 36,000ms)
+      await vi.advanceTimersByTimeAsync(36_000);
       await shutdownPromise;
 
       // Assert: SIGTERMの後にSIGKILLが送信される
@@ -698,7 +724,8 @@ describe("WorkerSupervisor", () => {
         workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 10,
         maxRestartAttempts: 5,
-        shutdownTimeoutMs: 5000,
+        // Plan v2 §1 S1.2: IPC_SHUTDOWN_GRACE_MS default 30,000ms より長く設定
+        shutdownTimeoutMs: 35_000,
       });
 
       supervisor.ensureWorkerRunning();
@@ -714,8 +741,8 @@ describe("WorkerSupervisor", () => {
 
       // Act: shutdownを実行
       const shutdownPromise = supervisor.shutdown();
-      // Phase 2: 2秒後にSIGTERMを送信するため、2500ms進める
-      await vi.advanceTimersByTimeAsync(2500);
+      // Phase 2: IPC_SHUTDOWN_GRACE_MS (Plan v2 §1 S1.2 default 30,000ms) 後にSIGTERM
+      await vi.advanceTimersByTimeAsync(30_500);
       await shutdownPromise;
 
       // Assert: shutdown後はexitイベントで再起動されない
@@ -1091,7 +1118,8 @@ describe("WorkerSupervisor", () => {
         workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 10,
         maxRestartAttempts: 5,
-        shutdownTimeoutMs: 5000,
+        // Plan v2 §1 S1.2: IPC_SHUTDOWN_GRACE_MS default 30,000ms より長く設定
+        shutdownTimeoutMs: 35_000,
       });
 
       supervisor.ensureWorkerRunning();
@@ -1110,10 +1138,10 @@ describe("WorkerSupervisor", () => {
       // Assert: IPC 'shutdown' メッセージが送信された
       expect(mockChild.send).toHaveBeenCalledWith({ type: "shutdown" });
 
-      // SIGTERMはまだ送信されていない（2秒後）
+      // SIGTERMはまだ送信されていない（IPC_SHUTDOWN_GRACE_MS = Plan v2 §1 S1.2 default 30秒後）
       expect(mockChild.kill).not.toHaveBeenCalled();
 
-      await vi.advanceTimersByTimeAsync(2500);
+      await vi.advanceTimersByTimeAsync(30_500);
       await shutdownPromise;
 
       // Phase 2でSIGTERMが送信される
@@ -1127,7 +1155,9 @@ describe("WorkerSupervisor", () => {
         workerScript: "./dist/scripts/start-workers.js",
         maxJobsBeforeRestart: 10,
         maxRestartAttempts: 5,
-        shutdownTimeoutMs: 5000,
+        // Plan v2 §1 S1.2: IPC grace 30,000ms より長い shutdownTimeout で
+        // SIGTERM 経路 verify 用 (SIGKILL escalation は別 test で確認)
+        shutdownTimeoutMs: 35_000,
       });
 
       supervisor.ensureWorkerRunning();
@@ -1146,7 +1176,7 @@ describe("WorkerSupervisor", () => {
 
       // Act: shutdown は IPC 失敗でもクラッシュしない
       const shutdownPromise = supervisor.shutdown();
-      await vi.advanceTimersByTimeAsync(2500);
+      await vi.advanceTimersByTimeAsync(30_500);
       await shutdownPromise;
 
       // Assert: SIGTERMが送信され正常終了
@@ -1267,24 +1297,34 @@ describe("WorkerSupervisor", () => {
       // This complements INV-007 case (7) which performs the same assertion at
       // the standing regression suite layer; here we keep the unit-test layer
       // self-contained by re-asserting the production contract.
+      // CO-26 split: crashed-entry paths moved to Module B (lifecycle).
+      // Module B accesses Module C's lockHeartbeatTimers via Module A facade
+      // indirect path: `this.supervisor.getLockOrchestrator().getLockHeartbeatTimers()`.
       const fs = await import("node:fs");
       const path = await import("node:path");
       const supSrcPath = path.resolve(__dirname, "../../src/services/worker-supervisor.service.ts");
-      const supSrc = fs.readFileSync(supSrcPath, "utf-8");
+      const lifecycleSrcPath = path.resolve(
+        __dirname,
+        "../../src/services/worker-supervisor-lifecycle.service.ts"
+      );
+      const supSrc =
+        fs.readFileSync(supSrcPath, "utf-8") + "\n" + fs.readFileSync(lifecycleSrcPath, "utf-8");
 
+      // Accept both legacy `this.lockHeartbeatTimers` and CO-26 indirect-path forms.
       const helperCalls = supSrc.match(
-        /clearLockHeartbeatTimer\(workerType,\s*this\.lockHeartbeatTimers\)/g
+        /clearLockHeartbeatTimer\(\s*workerType,\s*(?:this\.lockHeartbeatTimers|this\.supervisor\.getLockOrchestrator\(\)\.getLockHeartbeatTimers\(\))/g
       );
       expect(helperCalls).not.toBeNull();
       expect(helperCalls!.length).toBeGreaterThanOrEqual(2);
 
       // crash_max_attempts path proximity.
+      // CO-26 split: state mutation now via `this.supervisor.markWorkerCrashed(workerType)`.
       expect(supSrc).toMatch(
-        /state\.state\s*=\s*"crashed";\s*\n\s*clearLockHeartbeatTimer\(workerType,\s*this\.lockHeartbeatTimers\)[^\n]*\n\s*emitWorkerRestartAudit\(/
+        /(state\.state\s*=\s*"crashed"|this\.supervisor\.markWorkerCrashed\(workerType\))[\s\S]{0,200}clearLockHeartbeatTimer\(\s*workerType,[\s\S]{0,200}emitWorkerRestartAudit\(/
       );
       // foreign_lock case branch proximity.
       expect(supSrc).toMatch(
-        /case\s*"foreign_lock":[\s\S]{0,400}state\.state\s*=\s*"crashed";\s*\n\s*clearLockHeartbeatTimer\(workerType,\s*this\.lockHeartbeatTimers\)[^\n]*\n\s*break;/
+        /case\s*"foreign_lock":[\s\S]{0,500}(state\.state\s*=\s*"crashed"|this\.supervisor\.markWorkerCrashed\(workerType\))[\s\S]{0,400}clearLockHeartbeatTimer\(\s*workerType,[\s\S]{0,200}break;/
       );
     });
   });

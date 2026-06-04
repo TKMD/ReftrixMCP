@@ -75,6 +75,34 @@ const MOCK_SECTION_ID_2 = "bbbb2222-2222-7222-2222-222222222222";
 // Mock Factories / モックファクトリー
 // ============================================================================
 
+/**
+ * PR-G1 RC1: the scroll sweep calls `page.evaluate` for several distinct
+ * purposes — `window.scrollTo(0, y)` (1 numeric arg), the rAF 2-frame wait
+ * (0 args), the bbox measurement (`runBboxPageEvaluate`: fn + selectorData[]),
+ * and `document.documentElement.scrollHeight` (0 args). The bbox-measurement
+ * call is identified by its 2nd argument being the selectorData array. A test
+ * that wants to control the bbox result passes `bboxEvaluate`; all other
+ * `page.evaluate` shapes resolve to a benign default (scrollHeight=0 ends the
+ * sweep after one iteration).
+ */
+function createSweepEvaluateMock(
+  bboxEvaluate?: ReturnType<typeof vi.fn>
+): ReturnType<typeof vi.fn> {
+  const bbox = bboxEvaluate ?? vi.fn().mockResolvedValue([]);
+  return vi.fn((arg: unknown, selectorData?: unknown) => {
+    // The bbox measurement (runBboxPageEvaluate) is the only call that passes a
+    // 2nd argument (the selectorData array). Delegate to `bbox` so callers can
+    // assert on the selectorData it received and control its return value.
+    if (Array.isArray(selectorData)) {
+      return bbox(arg, selectorData);
+    }
+    // scrollTo(0, y) passes a single number; rAF / scrollHeight pass a function
+    // with no 2nd arg. scrollHeight reads expect a finite number; returning 0
+    // terminates the sweep after the first iteration (page-bottom reached).
+    return Promise.resolve(0);
+  });
+}
+
 function createMockPage(overrides?: {
   goto?: ReturnType<typeof vi.fn>;
   evaluate?: ReturnType<typeof vi.fn>;
@@ -83,7 +111,7 @@ function createMockPage(overrides?: {
 }): Page {
   return {
     goto: overrides?.goto ?? vi.fn().mockResolvedValue({ status: () => 200 }),
-    evaluate: overrides?.evaluate ?? vi.fn().mockResolvedValue([]),
+    evaluate: overrides?.evaluate ?? createSweepEvaluateMock(),
     waitForTimeout: overrides?.waitForTimeout ?? vi.fn().mockResolvedValue(undefined),
     close: overrides?.close ?? vi.fn().mockResolvedValue(undefined),
   } as unknown as Page;
@@ -165,8 +193,12 @@ function createMockDbPart(
 import {
   resolvePartBoundingBoxes,
   buildSelectorsForPart,
+  computeSweepStepPx,
   type ResolvePartBoundingBoxesParams,
 } from "../../../src/services/part/part-bbox-playwright.service";
+// PR-G1 RC1 (SEC-02): the sweep cap is sourced from the page-ingest-adapter SSOT;
+// the service MUST import this (re-declaring `50` is forbidden — CWE-770 cap drift).
+import { getLazyScrollMaxIterations } from "../../../src/services/page-ingest-adapter";
 
 // ============================================================================
 // Tests
@@ -671,11 +703,14 @@ describe("PartBboxPlaywrightService", () => {
           }),
         ];
 
-        const capturedEvaluateArg = vi
+        // PR-G1 RC1: the bbox-measurement call (runBboxPageEvaluate) is the only
+        // page.evaluate that receives selectorData as its 2nd argument. The sweep
+        // mock routes that call to `bboxEvaluate`, while scrollTo / rAF /
+        // scrollHeight resolve to a benign default.
+        const bboxEvaluate = vi
           .fn()
           .mockResolvedValue([{ id: MOCK_PART_ID_1, x: 10, y: 50, width: 100, height: 40 }]);
-
-        const mockPage = createMockPage({ evaluate: capturedEvaluateArg });
+        const mockPage = createMockPage({ evaluate: createSweepEvaluateMock(bboxEvaluate) });
         const mockContext = createMockContext(mockPage);
         const mockBrowser = createMockBrowser(mockContext);
 
@@ -697,9 +732,10 @@ describe("PartBboxPlaywrightService", () => {
           prisma: mockPrisma as unknown as ResolvePartBoundingBoxesParams["prisma"],
         });
 
-        // Assert: page.evaluate に渡される selectorData の sectionStartY が正しい
-        expect(capturedEvaluateArg).toHaveBeenCalledTimes(1);
-        const selectorDataArg = capturedEvaluateArg.mock.calls[0][1] as Array<{
+        // Assert: the selectorData passed to the bbox-measurement call carries the
+        // correct sectionStartY (behavioural contract preserved across the sweep).
+        expect(bboxEvaluate).toHaveBeenCalled();
+        const selectorDataArg = bboxEvaluate.mock.calls[0][1] as Array<{
           sectionStartY: number;
         }>;
         expect(selectorDataArg[0].sectionStartY).toBe(sectionStartY);
@@ -709,8 +745,8 @@ describe("PartBboxPlaywrightService", () => {
         // Arrange
         const mockParts = [createMockDbPart()];
 
-        const capturedEvaluateArg = vi.fn().mockResolvedValue([null]);
-        const mockPage = createMockPage({ evaluate: capturedEvaluateArg });
+        const bboxEvaluate = vi.fn().mockResolvedValue([null]);
+        const mockPage = createMockPage({ evaluate: createSweepEvaluateMock(bboxEvaluate) });
         const mockContext = createMockContext(mockPage);
         const mockBrowser = createMockBrowser(mockContext);
 
@@ -731,7 +767,8 @@ describe("PartBboxPlaywrightService", () => {
         });
 
         // Assert
-        const selectorDataArg = capturedEvaluateArg.mock.calls[0][1] as Array<{
+        expect(bboxEvaluate).toHaveBeenCalled();
+        const selectorDataArg = bboxEvaluate.mock.calls[0][1] as Array<{
           sectionStartY: number;
         }>;
         expect(selectorDataArg[0].sectionStartY).toBe(0);
@@ -1114,6 +1151,337 @@ describe("PartBboxPlaywrightService", () => {
       const selectors = buildSelectorsForPart("card", ['"onmouseover="alert(1)"']);
 
       expect(selectors[0]).toContain('\\"');
+    });
+  });
+
+  // ==========================================================================
+  // PR-G1 RC1: full-page scroll sweep (真因 RC1 修正)
+  // ==========================================================================
+
+  describe("PR-G1 RC1: full-page scroll sweep", () => {
+    /**
+     * Builds a sweep-aware page.evaluate mock where the bbox measurement is
+     * driven by a per-scroll-step resolver. `bboxByStep(stepIndex, scrollY)`
+     * returns the `Array<BboxResult | null>` for the bbox-measurement call at
+     * that sweep step. scrollTo is tracked via `scrolledTo`; scrollHeight is
+     * fixed at `scrollHeight` so the sweep walks multiple steps.
+     */
+    function createMultiStepSweepPage(opts: {
+      scrollHeight: number;
+      bboxByStep: (scrollY: number) => Array<unknown | null>;
+      scrolledTo: number[];
+    }): { page: Page; bboxCalls: Array<{ scrollY: number; selectorData: unknown }> } {
+      const bboxCalls: Array<{ scrollY: number; selectorData: unknown }> = [];
+      let currentScrollY = 0;
+      const evaluate = vi.fn((arg: unknown, selectorData?: unknown) => {
+        // bbox measurement (2nd arg = selectorData array)
+        if (Array.isArray(selectorData)) {
+          bboxCalls.push({ scrollY: currentScrollY, selectorData });
+          return Promise.resolve(opts.bboxByStep(currentScrollY));
+        }
+        // window.scrollTo(0, y): a 1st numeric arg encodes the target y. The
+        // production code calls `page.evaluate((sy) => window.scrollTo(0, sy), y)`
+        // so `arg` is the (sy)=>... function and the 2nd positional arg is y.
+        // Playwright passes the value as the function's bound arg; in the mock we
+        // observe it as the 2nd positional. Since selectorData is undefined here,
+        // detect a numeric 2nd arg.
+        if (typeof selectorData === "number") {
+          currentScrollY = selectorData;
+          opts.scrolledTo.push(selectorData);
+          return Promise.resolve(undefined);
+        }
+        // rAF wait (function, no 2nd arg) → resolve; scrollHeight read (function,
+        // no 2nd arg) → return the configured scrollHeight. We disambiguate by
+        // returning scrollHeight for any remaining 0-arg-shaped evaluate; the rAF
+        // path ignores the return value.
+        return Promise.resolve(opts.scrollHeight);
+      });
+      const page = {
+        goto: vi.fn().mockResolvedValue({ status: () => 200 }),
+        evaluate,
+        waitForTimeout: vi.fn().mockResolvedValue(undefined),
+        close: vi.fn().mockResolvedValue(undefined),
+      } as unknown as Page;
+      return { page, bboxCalls };
+    }
+
+    it("scrollY=0 で zero-size の fold 下要素が、scrollY>0 の sweep step で non-zero として解決される", async () => {
+      // Arrange: a fold-below part that resolves ONLY after the sweep scrolls
+      // past y=1080 (its lazy-loaded section). At scrollY=0 the bbox is null
+      // (zero-size off-screen, RC1 root cause); at scrollY>=1080 it is non-zero.
+      const FOLD_SCROLL_Y = 1080;
+      const mockParts = [
+        createMockDbPart({ id: MOCK_PART_ID_1, sectionPatternId: MOCK_SECTION_ID_1 }),
+      ];
+      const scrolledTo: number[] = [];
+      const { page, bboxCalls } = createMultiStepSweepPage({
+        scrollHeight: 5000,
+        scrolledTo,
+        bboxByStep: (scrollY) => {
+          if (scrollY >= FOLD_SCROLL_Y) {
+            // section-relative y measured from sectionStartY=2000.
+            return [{ id: MOCK_PART_ID_1, x: 0, y: 50, width: 200, height: 40 }];
+          }
+          // fold-below element is zero-size at scrollY=0 → unresolved (null)
+          return [null];
+        },
+      });
+      const mockContext = createMockContext(page);
+      const mockBrowser = createMockBrowser(mockContext);
+      const mockTransaction = vi.fn().mockResolvedValue([]);
+      const mockPrisma = createMockPrisma({
+        componentPartFindMany: vi.fn().mockResolvedValue(mockParts),
+        sectionPatternFindMany: vi
+          .fn()
+          .mockResolvedValue([
+            { id: MOCK_SECTION_ID_1, layoutInfo: { position: { startY: 2000 } } },
+          ]),
+        $transaction: mockTransaction,
+      });
+      mockChromiumLaunch.mockResolvedValue(mockBrowser);
+
+      // Act
+      const result = await resolvePartBoundingBoxes({
+        webPageId: MOCK_WEB_PAGE_ID,
+        url: MOCK_URL,
+        prisma: mockPrisma as unknown as ResolvePartBoundingBoxesParams["prisma"],
+      });
+
+      // Assert: the fold-below part is resolved (would be skipped by the legacy
+      // no-scroll single-evaluate implementation).
+      expect(result.resolvedCount).toBe(1);
+      expect(result.skippedCount).toBe(0);
+      // The sweep actually scrolled the page (scrollY>0 occurred) — proves the
+      // measurement was taken at a non-zero scroll position (RC1 fix).
+      expect(scrolledTo.some((y) => y >= FOLD_SCROLL_Y)).toBe(true);
+      // The bbox measurement ran at least at one scrollY >= FOLD_SCROLL_Y.
+      expect(bboxCalls.some((c) => c.scrollY >= FOLD_SCROLL_Y)).toBe(true);
+    });
+
+    it("sweep の上限は getLazyScrollMaxIterations() (SEC-02 SSOT)。要素が解決されなければ上限まで sweep する", async () => {
+      // Arrange: a part that NEVER resolves → the sweep must walk up to the SSOT
+      // cap of getLazyScrollMaxIterations() iterations (not a hardcoded literal).
+      const mockParts = [createMockDbPart({ id: MOCK_PART_ID_1 })];
+      const scrolledTo: number[] = [];
+      const { page } = createMultiStepSweepPage({
+        scrollHeight: 1_000_000, // very tall page so scrollHeight never bounds the sweep
+        scrolledTo,
+        bboxByStep: () => [null], // never resolves
+      });
+      const mockContext = createMockContext(page);
+      const mockBrowser = createMockBrowser(mockContext);
+      const mockPrisma = createMockPrisma({
+        componentPartFindMany: vi.fn().mockResolvedValue(mockParts),
+        sectionPatternFindMany: vi
+          .fn()
+          .mockResolvedValue([{ id: MOCK_SECTION_ID_1, layoutInfo: { position: { startY: 0 } } }]),
+      });
+      mockChromiumLaunch.mockResolvedValue(mockBrowser);
+
+      // Act
+      const result = await resolvePartBoundingBoxes({
+        webPageId: MOCK_WEB_PAGE_ID,
+        url: MOCK_URL,
+        prisma: mockPrisma as unknown as ResolvePartBoundingBoxesParams["prisma"],
+      });
+
+      // Assert: never resolved → skipped, and the sweep iterated exactly up to
+      // the SSOT cap (scrolledTo length === getLazyScrollMaxIterations()).
+      expect(result.resolvedCount).toBe(0);
+      expect(result.skippedCount).toBe(1);
+      expect(scrolledTo.length).toBe(getLazyScrollMaxIterations());
+    });
+
+    it("NaN/Infinity の width/height を持つ測定値は確定されない (SEC-01)", async () => {
+      // Arrange: the bbox measurement returns NaN width — `typeof === number` is
+      // true but `Number.isFinite` is false. The SEC-01 guard must reject it so
+      // the part stays unresolved (no NaN bbox flows to Sharp crop / pgvector).
+      const mockParts = [createMockDbPart({ id: MOCK_PART_ID_1 })];
+      const scrolledTo: number[] = [];
+      const { page } = createMultiStepSweepPage({
+        scrollHeight: 2000,
+        scrolledTo,
+        bboxByStep: () => [{ id: MOCK_PART_ID_1, x: 0, y: 10, width: NaN, height: 40 }],
+      });
+      const mockContext = createMockContext(page);
+      const mockBrowser = createMockBrowser(mockContext);
+      const mockTransaction = vi.fn().mockResolvedValue([]);
+      const mockPrisma = createMockPrisma({
+        componentPartFindMany: vi.fn().mockResolvedValue(mockParts),
+        sectionPatternFindMany: vi
+          .fn()
+          .mockResolvedValue([{ id: MOCK_SECTION_ID_1, layoutInfo: { position: { startY: 0 } } }]),
+        $transaction: mockTransaction,
+      });
+      mockChromiumLaunch.mockResolvedValue(mockBrowser);
+
+      // Act
+      const result = await resolvePartBoundingBoxes({
+        webPageId: MOCK_WEB_PAGE_ID,
+        url: MOCK_URL,
+        prisma: mockPrisma as unknown as ResolvePartBoundingBoxesParams["prisma"],
+      });
+
+      // Assert: NaN measurement rejected → unresolved, no DB write.
+      expect(result.resolvedCount).toBe(0);
+      expect(result.skippedCount).toBe(1);
+      expect(mockTransaction).not.toHaveBeenCalled();
+    });
+
+    it("Infinity の height を持つ測定値も確定されない (SEC-01)", async () => {
+      const mockParts = [createMockDbPart({ id: MOCK_PART_ID_1 })];
+      const scrolledTo: number[] = [];
+      const { page } = createMultiStepSweepPage({
+        scrollHeight: 2000,
+        scrolledTo,
+        bboxByStep: () => [{ id: MOCK_PART_ID_1, x: 0, y: 10, width: 100, height: Infinity }],
+      });
+      const mockContext = createMockContext(page);
+      const mockBrowser = createMockBrowser(mockContext);
+      const mockPrisma = createMockPrisma({
+        componentPartFindMany: vi.fn().mockResolvedValue(mockParts),
+        sectionPatternFindMany: vi
+          .fn()
+          .mockResolvedValue([{ id: MOCK_SECTION_ID_1, layoutInfo: { position: { startY: 0 } } }]),
+      });
+      mockChromiumLaunch.mockResolvedValue(mockBrowser);
+
+      const result = await resolvePartBoundingBoxes({
+        webPageId: MOCK_WEB_PAGE_ID,
+        url: MOCK_URL,
+        prisma: mockPrisma as unknown as ResolvePartBoundingBoxesParams["prisma"],
+      });
+
+      expect(result.resolvedCount).toBe(0);
+      expect(result.skippedCount).toBe(1);
+    });
+
+    it("onLockExtend (SEC-05) が sweep の各 iteration 境界で呼ばれる", async () => {
+      // Arrange: a never-resolving part forces multiple sweep iterations; assert
+      // the lock-extension callback fires at least once per iteration.
+      const mockParts = [createMockDbPart({ id: MOCK_PART_ID_1 })];
+      const scrolledTo: number[] = [];
+      const { page } = createMultiStepSweepPage({
+        scrollHeight: 1_000_000,
+        scrolledTo,
+        bboxByStep: () => [null],
+      });
+      const mockContext = createMockContext(page);
+      const mockBrowser = createMockBrowser(mockContext);
+      const mockPrisma = createMockPrisma({
+        componentPartFindMany: vi.fn().mockResolvedValue(mockParts),
+        sectionPatternFindMany: vi
+          .fn()
+          .mockResolvedValue([{ id: MOCK_SECTION_ID_1, layoutInfo: { position: { startY: 0 } } }]),
+      });
+      mockChromiumLaunch.mockResolvedValue(mockBrowser);
+      const onLockExtend = vi.fn().mockResolvedValue(undefined);
+
+      // Act
+      await resolvePartBoundingBoxes({
+        webPageId: MOCK_WEB_PAGE_ID,
+        url: MOCK_URL,
+        prisma: mockPrisma as unknown as ResolvePartBoundingBoxesParams["prisma"],
+        onLockExtend,
+      });
+
+      // Assert: called once per sweep iteration (== number of scroll steps).
+      expect(onLockExtend).toHaveBeenCalledTimes(scrolledTo.length);
+      expect(onLockExtend.mock.calls.length).toBeGreaterThan(1);
+    });
+
+    it("onLockExtend の失敗は non-fatal — sweep は継続し例外を投げない", async () => {
+      const mockParts = [createMockDbPart({ id: MOCK_PART_ID_1 })];
+      const scrolledTo: number[] = [];
+      const { page } = createMultiStepSweepPage({
+        scrollHeight: 2000,
+        scrolledTo,
+        bboxByStep: () => [{ id: MOCK_PART_ID_1, x: 0, y: 10, width: 100, height: 40 }],
+      });
+      const mockContext = createMockContext(page);
+      const mockBrowser = createMockBrowser(mockContext);
+      const mockPrisma = createMockPrisma({
+        componentPartFindMany: vi.fn().mockResolvedValue(mockParts),
+        sectionPatternFindMany: vi
+          .fn()
+          .mockResolvedValue([{ id: MOCK_SECTION_ID_1, layoutInfo: { position: { startY: 0 } } }]),
+      });
+      mockChromiumLaunch.mockResolvedValue(mockBrowser);
+      const onLockExtend = vi.fn().mockRejectedValue(new Error("lock lost"));
+
+      // Act: must NOT throw; the part still resolves.
+      const result = await resolvePartBoundingBoxes({
+        webPageId: MOCK_WEB_PAGE_ID,
+        url: MOCK_URL,
+        prisma: mockPrisma as unknown as ResolvePartBoundingBoxesParams["prisma"],
+        onLockExtend,
+      });
+
+      expect(result.resolvedCount).toBe(1);
+    });
+  });
+
+  // ==========================================================================
+  // PR-G1 RC1: viewport 統一 (1920x1080) + computeSweepStepPx (SEC-01 finite)
+  // ==========================================================================
+
+  describe("PR-G1 RC1: viewport unification (1920x1080)", () => {
+    it("viewport 未指定時に 1920x1080 が使われる (DEFAULT_VIEWPORT 統一)", async () => {
+      // Arrange
+      const mockParts = [createMockDbPart()];
+      const mockPage = createMockPage();
+      const mockContext = createMockContext(mockPage);
+      const mockBrowser = createMockBrowser(mockContext);
+      const mockPrisma = createMockPrisma({
+        componentPartFindMany: vi.fn().mockResolvedValue(mockParts),
+        sectionPatternFindMany: vi
+          .fn()
+          .mockResolvedValue([{ id: MOCK_SECTION_ID_1, layoutInfo: null }]),
+      });
+      mockChromiumLaunch.mockResolvedValue(mockBrowser);
+
+      // Act
+      await resolvePartBoundingBoxes({
+        webPageId: MOCK_WEB_PAGE_ID,
+        url: MOCK_URL,
+        prisma: mockPrisma as unknown as ResolvePartBoundingBoxesParams["prisma"],
+      });
+
+      // Assert: newContext receives the unified 1920x1080 default viewport (was
+      // 1440x900 before RC1 — Phase 5 crop coordinate-system alignment).
+      expect(mockBrowser.newContext).toHaveBeenCalledWith(
+        expect.objectContaining({ viewport: { width: 1920, height: 1080 } })
+      );
+    });
+  });
+
+  describe("computeSweepStepPx (SEC-01 finite guard)", () => {
+    it("有効な viewportHeight ではその値 (>= 500px) を返す", () => {
+      expect(computeSweepStepPx(1080)).toBe(1080);
+      expect(computeSweepStepPx(900)).toBe(900);
+    });
+
+    it("viewportHeight が 500px 未満なら最小ステップ 500px にフォールバックする", () => {
+      expect(computeSweepStepPx(300)).toBe(500);
+    });
+
+    it("NaN / Infinity / <=0 は 500px にフォールバックする (0-step 無限ループ防止)", () => {
+      expect(computeSweepStepPx(NaN)).toBe(500);
+      expect(computeSweepStepPx(Infinity)).toBe(500);
+      expect(computeSweepStepPx(0)).toBe(500);
+      expect(computeSweepStepPx(-100)).toBe(500);
+    });
+  });
+
+  // ==========================================================================
+  // PR-G1 RC1: SEC-02 SSOT cap (getLazyScrollMaxIterations, no re-declaration)
+  // ==========================================================================
+
+  describe("PR-G1 RC1: SEC-02 cap SSOT", () => {
+    it("getLazyScrollMaxIterations() は 50 を返す (Phase 0 lazy-scroll と共有)", () => {
+      // The sweep cap is sourced from the page-ingest-adapter SSOT export, NOT a
+      // re-declared `50` literal in the part-bbox service (CWE-770 cap drift).
+      expect(getLazyScrollMaxIterations()).toBe(50);
     });
   });
 });

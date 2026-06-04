@@ -319,6 +319,33 @@ export function buildChildEnv(options: BuildChildEnvOptions): Record<string, str
     baseEnv.MALLOC_ARENA_MAX = "2";
   }
 
+  // PR-BT-5 (M-1-RSS): one-shot fork 内では e5-base の in-process pipeline recycle
+  // (EmbeddingService.recyclePipelineIfNeeded, threshold=30) を無効化する。本 helper は
+  // EmbeddingBackfillWorker の fork child でも使われ、backfill child も
+  // embedding-backfill.service.ts 経由で LayoutEmbeddingService.generateFromText
+  // (= mlEmbeddingService 経由 recycle) を呼ぶため page.analyze fork と同じ harm を持つ。
+  // chunk size (=30) と threshold (=30) が一致するとき各 chunk 末で recycle が arena を
+  // reset し、直後の C1 per-chunk RSS budget check の post-encode 計測を mask して
+  // runaway loop 検出を阻害する (実機検証: background_text delta 4711MB SIGKILL)。
+  // fork は exit(0) で OS が arena 全回収するため recycle は冗長。既存 guard
+  // `if (threshold <= 0) return;` を再利用し threshold=0 で no-op 化。chunk-boundary
+  // disposeEmbeddingPipeline() の arena reset は不変。
+  //
+  // PR-BT-5 (M-1-RSS): disable the e5-base in-process pipeline recycle inside the
+  // one-shot fork. This shared helper is also used by the EmbeddingBackfillWorker
+  // fork child, which calls LayoutEmbeddingService.generateFromText (→ the same
+  // mlEmbeddingService recycle) via embedding-backfill.service.ts, so it carries
+  // the identical harm as the page.analyze fork: when chunk size (=30) equals
+  // threshold (=30) the recycle resets the arena at chunk end and masks the
+  // immediately-following C1 per-chunk RSS budget check's post-encode reading,
+  // defeating runaway-loop detection (real-machine: background_text delta 4711MB
+  // SIGKILL). The fork exit(0)s so the OS reclaims the whole arena — the recycle
+  // is redundant. Reuses the existing `if (threshold <= 0) return;` guard so
+  // threshold=0 makes recycle a no-op; the chunk-boundary disposeEmbeddingPipeline()
+  // arena reset is unchanged. See phase-5-fork-orchestrator.ts buildChildEnv() for
+  // the full root-cause analysis.
+  baseEnv.PIPELINE_RECYCLE_THRESHOLD = "0";
+
   return baseEnv;
 }
 

@@ -70,12 +70,17 @@ describe("PageAnalyzeWorker - analysisStatus DB Update", () => {
   });
 
   describe("Phase 0 Early INSERT (PR-B v0.4.0 PR7e P4)", () => {
-    it("orchestrator declares PHASE0_EARLY_INSERT feature flag (default OFF)", () => {
-      // オーケストレーター側に opt-in フラグ関数がある
-      // Orchestrator must expose the opt-in flag helper
+    it("orchestrator declares PHASE0_EARLY_INSERT feature flag (default ON, opt-out)", () => {
+      // オーケストレーター側に opt-out フラグ関数がある
+      // Orchestrator must expose the opt-out flag helper
       expect(orchestratorSource).toContain("isPhase0EarlyInsertEnabled");
-      // env var は PHASE0_EARLY_INSERT でデフォルトは false (opt-in)
-      expect(orchestratorSource).toMatch(/process\.env\.PHASE0_EARLY_INSERT\s*===\s*"true"/);
+      // PR-INGEST-FAIL-ROW / ADR-0016 Amendment 6 §Decision 1: env var は
+      // PHASE0_EARLY_INSERT で default は true (opt-out)。判定式は `!== "false"`
+      // (default ON、"false" 明示で legacy opt-out)。
+      // PR-INGEST-FAIL-ROW / ADR-0016 Amendment 6 §Decision 1: PHASE0_EARLY_INSERT
+      // defaults to true (opt-out); the predicate is `!== "false"` (default ON,
+      // explicit "false" opts out to legacy).
+      expect(orchestratorSource).toMatch(/process\.env\.PHASE0_EARLY_INSERT\s*!==\s*"false"/);
     });
 
     it("orchestrator performs W0 upsert before processIngestPhase when flag=true", () => {
@@ -178,7 +183,12 @@ describe("PageAnalyzeWorker - analysisStatus DB Update", () => {
       // v0.4.0 PR7e-α (バグ④): PhasedDbHandler 経路拡張により catch block が
       // ~2x に拡大。slice 窓を 4000 に広げる / catch block expanded ~2x;
       // widened slice window to 4000.
-      const catchSection = orchestratorSource.slice(catchStart, catchStart + 4000);
+      //
+      // Plan v3 Track T4 (PR-V3-T4) UNBLOCK-T4-02: catch block additionally
+      // contains the failure-path `recordWorkerRelease` clear hook (Sub-B)
+      // which adds ~500 chars; widen to 6000 to keep the heuristic stable.
+      // Plan v3 T4 UNBLOCK-T4-02 catch block widening: 4000 → 6000.
+      const catchSection = orchestratorSource.slice(catchStart, catchStart + 6000);
       // The catch block must re-throw to let BullMQ record the failure
       expect(catchSection).toContain("throw error");
     });

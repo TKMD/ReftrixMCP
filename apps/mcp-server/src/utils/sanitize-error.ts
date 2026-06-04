@@ -135,6 +135,56 @@ export function sanitizeErrorCode(
 // extractPrismaCode / Prismaエラーコード抽出
 // =====================================================
 
+// =====================================================
+// sanitizeAnalysisErrorForClient / 解析エラーのクライアント向けサニタイズ
+// =====================================================
+
+/**
+ * Plan v3 Track T4 (PR-V3-T4) SEC H-01 client-facing sanitiser for the
+ * `FailedKnownReason` internal canonical enum.
+ *
+ * Maps the verbatim internal `worker_restart_during_inflight_phase_<N>` enum
+ * values (which leak phase taxonomy via `data.export` GDPR Art.20 paths and
+ * `audit.query` raw output — CWE-209 information exposure) to the 1:1
+ * generic `analysis_pipeline_interrupted` literal per OQ-T4-SEC-01 IO ruling.
+ *
+ * Two-tier surface contract:
+ *   - **Internal canonical**: `worker_restart_during_inflight_phase_<N>` enum
+ *     value as-stored in `web_pages.failed_with_known_reason` and
+ *     `audit_logs.metadata.failed_known_reason`. Used for operator dashboards
+ *     and supervisor backfill `findOrphanWebPageIds` matching only.
+ *   - **Client-facing generic**: `analysis_pipeline_interrupted` literal
+ *     surfaced through `data.export`, `audit.query` (raw), and
+ *     `page.getJobStatus` (`failedReason` field). Phase number is redacted.
+ *
+ * Plan v3 Track T4 (PR-V3-T4) SEC H-01 client-facing sanitiser. Maps
+ * `worker_restart_during_inflight_phase_<N>` → `analysis_pipeline_interrupted`
+ * (1:1 generic mapping per OQ-T4-SEC-01 IO ruling) to prevent CWE-209
+ * information exposure of internal phase taxonomy.
+ *
+ * @param internalReason - Internal canonical reason (FailedKnownReason enum
+ *   value or arbitrary string) or null
+ * @returns Client-safe literal or pass-through for non-T4 reasons
+ *
+ * @see PR-V3-T4 design.md §6.3 (SEC H-01 sanitisation contract)
+ */
+export function sanitizeAnalysisErrorForClient(
+  internalReason: string | null | undefined
+): string | null {
+  if (internalReason === null || internalReason === undefined) {
+    return null;
+  }
+  if (typeof internalReason !== "string") {
+    return null;
+  }
+  if (internalReason.startsWith("worker_restart_during_inflight_phase_")) {
+    // 1:1 generic mapping per OQ-T4-SEC-01 IO ruling — CWE-209 defense.
+    return "analysis_pipeline_interrupted";
+  }
+  // Pass-through for non-T4 reasons (legacy errors, BullMQ messages, etc.).
+  return internalReason;
+}
+
 /**
  * Extract a Prisma-shaped error code (`P\d{4}` such as `P2002`, `P2025`) from
  * an unknown error-like value.

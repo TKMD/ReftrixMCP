@@ -136,7 +136,13 @@ describe("PageAnalyzeWorker Counter Reconciliation (v0.4.0 PR5)", () => {
 
     it("sets backfillPending only when backfill jobs were actually enqueued", () => {
       // enqueued.length > 0 check must still guard backfillPending population.
-      expect(workerSource).toContain("backfillEnqueuedCategories.length > 0");
+      // PR-C2 (Layer 2, ADR-0007 Amendment 3): the sync_overflow enqueue body
+      // was relocated into the `runSyncOverflowEnqueue` closure (executed after
+      // markComplete via `enqueueBackfillAfterMarkComplete`); the former
+      // `backfillEnqueuedCategories` local is now `enqueuedCategories` inside
+      // that closure. The contract (length > 0 guards backfillPending) is
+      // unchanged.
+      expect(workerSource).toContain("enqueuedCategories.length > 0");
     });
 
     it("assigns backfillPending onto results.embedding when builder returns non-null", () => {

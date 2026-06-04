@@ -36,22 +36,23 @@
  *   failure messages do not carry PII, so we simulate them with mechanical
  *   strings (equivalent to post-sanitize output).
  *
- * ## FIND-PR-B-002 alignment
+ * ## PR-INGEST-FAIL-ROW CONS-2 (real catch-path)
  *
- *   regression guard は直接 `prisma.webPage.update` で P2025 を assert する
- *   のではなく、worker の catch block が `if (state.actualWebPageId)` guard で
- *   SSRF 早期ブロック時に update を skip する挙動を反映する: row は
- *   create されず、findUnique で null を確認する。
+ *   従来の no-op model (SSRF 早期ブロック時に `prisma.update` を呼ばないこと
+ *   で worker skip を模倣) を **real catch-path 化** する。SSRF 由来 fetch
+ *   fail でも production の `markFailedAndAuditAtomic` (url-key upsert) を
+ *   real-DB に対して実呼出し、row 不在でも terminal `failed` が create される
+ *   ことを assert する (NOROW closure)。no-op 偽前提 PASS に依存しない。
  *
- *   Regression guard reflects real worker behavior: instead of directly
- *   asserting a P2025 throw on `prisma.webPage.update`, it models the
- *   worker's catch block guarded by `if (state.actualWebPageId)` which
- *   skips the update on SSRF early-block. The row stays absent (verified
- *   by findUnique returning null).
+ *   Replaces the legacy no-op model (which simulated the worker skip on SSRF
+ *   early-block by NOT calling `prisma.update`) with a **real catch-path**.
+ *   Invokes the production `markFailedAndAuditAtomic` (url-key upsert) against
+ *   the live DB even when the row is absent, asserting the terminal `failed`
+ *   row is created (NOROW closure). No reliance on a false-premise no-op PASS.
  *
+ * @see ADR-0016 Amendment 6 (PR-INGEST-FAIL-ROW: real catch-path, url-key upsert)
  * @see ADR-0016 § Invariants (INV-PAGE-QUEUE-001-D row — carry-over from PR-B)
- * @see ADR-0016 Am4 § FIND-PR-B-002 (test assert drift → real behavior)
- * @see apps/mcp-server/src/workers/page-analyze-worker.ts:2428 (guard)
+ * @see apps/mcp-server/src/services/worker-supervisor-failure-path.service.ts (markFailedAndAuditAtomic)
  * @see packages/core/src/utils/ssrf-validator.ts
  */
 
@@ -59,6 +60,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { assertInvName } from "../_setup/inv-assert";
+import {
+  markFailedAndAuditAtomic,
+  type FailurePathPrismaClient,
+} from "../../../../src/services/worker-supervisor-failure-path.service";
 import { cleanupSeededWebPage, seedWebPageWithParts } from "./_fixtures/seed-large-page";
 
 const LARGE_PAGE_PART_COUNT = 101 as const;
@@ -166,62 +171,73 @@ describe("INV-PAGE-QUEUE-001-D: Phase 0 Early INSERT guarantees failure-path upd
     }
   });
 
-  it("INV-PAGE-QUEUE-001-D-SSRF (regression guard): WITHOUT W0, worker's guard skips the SSRF failure update and row stays absent — mirrors real worker behavior", async () => {
+  it("INV-PAGE-QUEUE-001-D-SSRF (NOROW closure): SSRF-blocked URL with row ABSENT → real markFailedAndAuditAtomic url-key upsert CREATES terminal failed", async () => {
     // ------------------------------------------------------------------
-    // FIND-PR-B-002: 実 worker 挙動に即した regression guard。
+    // PR-INGEST-FAIL-ROW CONS-2 real catch-path. SSRF early-block happens
+    // right after URL normalization in Phase 0; without W0 the row is absent
+    // when control reaches the catch block (NOROW state).
     //
-    // SSRF 早期ブロックは Phase 0 の URL 正規化直後に起きるため、W0 なしでは
-    // `state.actualWebPageId` が未設定のまま catch block に到達する。worker の
-    // `if (state.actualWebPageId)` guard により failure-path の
-    // `prisma.webPage.update({where: {id}})` は一切呼ばれず、row は DB に
-    // create されない。findUnique で null を確認する。
+    // The legacy no-op model simulated the worker skip by NOT calling
+    // prisma.update — a false-premise PASS. We now invoke the REAL production
+    // helper `markFailedAndAuditAtomic` (url-key upsert) against the live DB
+    // with the row ABSENT.
     //
-    // これが PR-B 以前の legacy SSRF 挙動: W0 なしでは SSRF 由来の failure も
-    // `analysisStatus='failed'` として永続化されず silent skip になる。
+    // Pre-fix (id-key plain UPDATE): row absent → P2025 → transaction_aborted
+    //   → row STAYS absent (SSRF failure silently un-persisted = the bug).
+    // Post-fix (url-key upsert, Amendment 6 §Decision 2): row absent →
+    //   CREATE terminal `failed` row with the sanitize-equivalent SSRF
+    //   message → {committed:true} → row PERSISTS.
     //
-    // FIND-PR-B-002: regression guard aligned with real worker behavior.
-    //
-    // SSRF early-block happens right after URL normalization in Phase 0, so
-    // without W0 `state.actualWebPageId` stays unset when control reaches
-    // the catch block. The worker's `if (state.actualWebPageId)` guard
-    // means the failure-path `prisma.webPage.update({where: {id}})` is
-    // never invoked, and the row is never created in DB. Verified by
-    // findUnique returning null.
-    //
-    // This is the pre-PR-B legacy SSRF behavior: without W0, SSRF failures
-    // silently skip `analysisStatus='failed'` persistence.
-    //
-    // @see ADR-0016 Am4 § FIND-PR-B-002
-    // @see apps/mcp-server/src/workers/page-analyze-worker.ts:2428 (guard)
+    // Asserts the post-fix behavior against real DB (not a no-op model).
     // ------------------------------------------------------------------
-    const nonexistentId = randomUUID();
+    const orphanWebPageId = randomUUID();
+    // RFC 2606 reserved domain (ADR-0016 § Fixture URL Policy). Unique suffix.
+    const orphanUrl = `https://example.com/ingest-fail-ssrf-norow/${orphanWebPageId}`;
+    const ssrfFailureMessage = SSRF_FAILURE_MESSAGES[0]; // "SSRF: private IP rejected"
 
-    // Pre-condition: the row does not exist (no W0, no seed).
-    const preCheck = await prisma.webPage.findUnique({
-      where: { id: nonexistentId },
-      select: { id: true },
-    });
-    expect(preCheck).toBeNull();
+    try {
+      // Pre-condition: NO row exists for this url (NOROW state).
+      const preByUrl = await prisma.webPage.findUnique({
+        where: { url: orphanUrl },
+        select: { id: true },
+      });
+      expect(preByUrl).toBeNull();
 
-    // Simulate the worker's catch block: the guard
-    // `if (state.actualWebPageId)` is false, so the SSRF failure update is
-    // skipped entirely. We model this by NOT calling prisma.webPage.update.
-    // Silence lint noise about the unused SSRF message by referencing it in
-    // a type-level assertion (the message itself is covered by the sibling
-    // "sanitize-equivalent messages never leak internal IPs" test).
-    void SSRF_FAILURE_MESSAGES[0];
+      // REAL catch-path invocation with the row absent + SSRF message.
+      const result = await markFailedAndAuditAtomic(prisma as unknown as FailurePathPrismaClient, {
+        webPageId: orphanWebPageId,
+        normalizedUrl: orphanUrl,
+        errorMessage: ssrfFailureMessage,
+        phaseN: "0",
+        childPid: 4242,
+      });
+      expect(result.committed).toBe(true);
 
-    // Post-condition: the row still does not exist in DB. SSRF failure
-    // never reached `analysisStatus='failed'` (legacy RC-1 symptom).
-    const postCheck = await prisma.webPage.findUnique({
-      where: { id: nonexistentId },
-      select: {
-        id: true,
-        analysisStatus: true,
-        analysisError: true,
-        analysisCompletedAt: true,
-      },
-    });
-    expect(postCheck).toBeNull();
+      // Post-condition: url-key upsert created the terminal failed row.
+      const created = await prisma.webPage.findUnique({
+        where: { url: orphanUrl },
+        select: {
+          id: true,
+          analysisStatus: true,
+          analysisError: true,
+          analysisCompletedAt: true,
+          failedWithKnownReason: true,
+        },
+      });
+      expect(created).not.toBeNull();
+      expect(created!.id).toBe(orphanWebPageId);
+      expect(created!.analysisStatus).toBe(TERMINAL_FAILURE_STATUS);
+      expect(created!.analysisError).toBe(ssrfFailureMessage);
+      expect(created!.analysisCompletedAt).toBeInstanceOf(Date);
+      expect(created!.failedWithKnownReason).toBe("worker_restart_during_inflight_phase_0");
+    } finally {
+      const row = await prisma.webPage.findUnique({
+        where: { url: orphanUrl },
+        select: { id: true },
+      });
+      if (row) {
+        await cleanupSeededWebPage(prisma, row.id);
+      }
+    }
   }, 30_000);
 });

@@ -47,7 +47,7 @@
  * @see ADR-0007 (Phase 5 Queue-based Backfill)
  */
 
-import { beforeAll, afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { QueueEvents, type Queue } from "bullmq";
 import { assertInvName } from "../_setup/inv-assert";
@@ -62,7 +62,11 @@ import {
   createEmbeddingBackfillWorker,
   type EmbeddingBackfillWorkerInstance,
 } from "../../../../src/workers/embedding-backfill-worker";
-import { cleanupSeededWebPage, seedWebPageWithParts } from "./_fixtures/seed-large-page";
+import {
+  cleanupSeededWebPage,
+  seedPartialCompletionPage,
+  seedWebPageWithParts,
+} from "./_fixtures/seed-large-page";
 
 /**
  * INV-PAGE-QUEUE-001 の precondition 閾値 (100 parts)。
@@ -125,6 +129,7 @@ describe("INV-PAGE-QUEUE-001: page.analyze >100 parts reaches Queue-driven termi
   let queue: Queue<EmbeddingBackfillJobData, EmbeddingBackfillJobResult>;
   let queueEvents: QueueEvents;
   let workerHandle: EmbeddingBackfillWorkerInstance;
+  let processExitSpy: ReturnType<typeof vi.spyOn>;
 
   beforeAll(async () => {
     if (!process.env.DATABASE_URL || !process.env.REDIS_URL) {
@@ -193,6 +198,22 @@ describe("INV-PAGE-QUEUE-001: page.analyze >100 parts reaches Queue-driven termi
   beforeEach(() => {
     // ADR-0016 § ESLint Rule Strategy — runtime assertion (inv-assert.ts)
     assertInvName(expect.getState().currentTestName ?? "", "INV-PAGE-QUEUE-001");
+    // Plan v4.3 PR-M-A: `registerCompletedListenerAndExit` (post-job-lifecycle.ts:639)
+    // fires `Promise.race(...).finally(() => process.exit(0))` on BullMQ Worker
+    // "completed" events under the EmbeddingBackfillWorker (ADR-0035 §Decision 1
+    // canonical listener body). In vitest sandbox this terminates the test
+    // runner with "Unhandled Rejection: process.exit unexpectedly called with 0".
+    // Mock `process.exit` as a no-op so the listener body's `.finally(process.exit(0))`
+    // chain executes harmlessly while the test asserts the DB-side terminal
+    // status transition (the actual INV-PAGE-QUEUE-001 contract surface).
+    // Pattern aligned with PR-M-C canonical INV-EMBEDDING-WORKER-INIT-001 mock.
+    processExitSpy = vi
+      .spyOn(process, "exit")
+      .mockImplementation(((_code?: number) => undefined as never) as typeof process.exit);
+  });
+
+  afterEach(() => {
+    processExitSpy?.mockRestore();
   });
 
   it(
@@ -296,6 +317,108 @@ describe("INV-PAGE-QUEUE-001: page.analyze >100 parts reaches Queue-driven termi
         expect(["completed", "failed"]).toContain(terminal.kind);
       } finally {
         // ADR-0016 § Fixture Lifecycle — deletion contract for ephemeral seeds.
+        await cleanupSeededWebPage(prisma, seed.webPageId);
+      }
+    },
+    TERMINAL_WAIT_MS + 30_000
+  );
+
+  // ==========================================================================
+  // PR-PART30CAP (ADR-0007 Amendment 2): parts≤100 extension. The original
+  // INV-PAGE-QUEUE-001 case only exercised a parts>100 page (the masking that
+  // hid the parts≤100 partial-completion gap). This extension proves a parts≤100
+  // page is NOT structurally excluded from the Queue → Worker → DB terminal path:
+  // an 81-part page (fully embedded → no-op backfill, mirroring the post-drain
+  // state) reaches a terminal `completed`/`failed`/`skipped_*` state via the real
+  // BullMQ Queue, with the DB-side embedding completeness contract holding
+  // (componentPart.count({embedding:null})=0). Decision (Plan v1 §4.1 / TDA-L-02):
+  // folded into INV-PAGE-QUEUE-001 rather than a separate INV-PART-PARTIAL-
+  // COMPLETE-002 to avoid INV proliferation.
+  // ==========================================================================
+  it(
+    "INV-PAGE-QUEUE-001: parts≤100 page reaches a Queue-driven terminal state with embedding completeness (PR-PART30CAP extension)",
+    async () => {
+      // 81-part page fully embedded (mirrors the state AFTER the dual-trigger
+      // enqueued + the backfill drained the partial-completion residual). The
+      // Worker must reach a terminal state — parts≤100 is NOT excluded from the
+      // queue path. inlineEmbeddedCount=partCount → zero residual (no-op scan).
+      const seed = await seedPartialCompletionPage(prisma, {
+        partCount: 81,
+        inlineEmbeddedCount: 81,
+        embeddingBackfillStatus: "not_required",
+      });
+      try {
+        // Precondition: end-to-end completeness — no part is un-embedded.
+        const remainingNull = await prisma.componentPart.count({
+          where: {
+            webPageId: seed.webPageId,
+            piiRiskLevel: { not: "high" },
+            embedding: { is: null },
+          },
+        });
+        expect(
+          remainingNull,
+          "fully-embedded 81-part fixture must have zero un-embedded parts (completeness precondition)"
+        ).toBe(0);
+
+        const expectedJobId = buildBackfillJobId(seed.webPageId, "part_text");
+        await addEmbeddingBackfillJob(queue, {
+          webPageId: seed.webPageId,
+          category: "part_text",
+        });
+
+        const terminalPromise = new Promise<{ kind: "completed" | "failed"; jobId: string }>(
+          (resolve, reject) => {
+            const timer = setTimeout(() => {
+              reject(
+                new Error(
+                  `[INV-PAGE-QUEUE-001] parts≤100 terminal wait timed out after ${TERMINAL_WAIT_MS}ms for jobId=${expectedJobId}`
+                )
+              );
+            }, TERMINAL_WAIT_MS);
+            queueEvents.on("completed", ({ jobId }) => {
+              if (jobId === expectedJobId) {
+                clearTimeout(timer);
+                resolve({ kind: "completed", jobId });
+              }
+            });
+            queueEvents.on("failed", ({ jobId }) => {
+              if (jobId === expectedJobId) {
+                clearTimeout(timer);
+                resolve({ kind: "failed", jobId });
+              }
+            });
+          }
+        );
+        const terminal = await terminalPromise;
+
+        const STATUS_POLL_TIMEOUT_MS = 5_000;
+        const STATUS_POLL_INTERVAL_MS = 100;
+        const pollStart = Date.now();
+        let finalStatus: string | null = null;
+        while (Date.now() - pollStart < STATUS_POLL_TIMEOUT_MS) {
+          const page = await prisma.webPage.findUnique({
+            where: { id: seed.webPageId },
+            select: { embeddingBackfillStatus: true },
+          });
+          if (
+            page &&
+            (TERMINAL_STATUSES as readonly string[]).includes(page.embeddingBackfillStatus)
+          ) {
+            finalStatus = page.embeddingBackfillStatus;
+            break;
+          }
+          await new Promise((r) => setTimeout(r, STATUS_POLL_INTERVAL_MS));
+        }
+
+        expect(
+          finalStatus,
+          `parts≤100 DB status must reach terminal state, got ${finalStatus ?? "null"} after ${Date.now() - pollStart}ms`
+        ).not.toBeNull();
+        expect(TERMINAL_STATUSES).toContain(finalStatus);
+        expect(NON_TERMINAL_STATUSES).not.toContain(finalStatus);
+        expect(["completed", "failed"]).toContain(terminal.kind);
+      } finally {
         await cleanupSeededWebPage(prisma, seed.webPageId);
       }
     },

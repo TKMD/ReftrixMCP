@@ -245,6 +245,37 @@ it("should re-initialize after dispose via fresh mock cycle", async () => {
 - **Canonical example (file-level isolation)**: `packages/ml/tests/dinov2/service-mocked-onnx.test.ts` — Amendment 4 で `vi.mock` + `vi.hoisted` に rewrite した参照実装 (Path B' file split + Option A'' composition) / Reference implementation rewritten to `vi.mock` + `vi.hoisted` under Amendment 4 (Path B' file split + Option A'' composition)
 - **Canonical example (Pattern (a) per-test override, DRIFT-U20-01)**: `packages/ml/tests/dinov2/service-coverage.test.ts` — Amendment 4 §5.5 Scope Expansion で `vi.doMock`×5 + `vi.doUnmock`×4 → 1 `vi.mock` + 1 `vi.hoisted` に rewrite、isolation pass^10 + directory pass^10 = 20/20 PASS / Reference implementation rewritten under Amendment 4 §5.5 Scope Expansion: `vi.doMock`×5 + `vi.doUnmock`×4 → 1 `vi.mock` + 1 `vi.hoisted`; isolation pass^10 + directory pass^10 = 20/20 PASS
 
+### 7. Host-RAM-Dependent Threshold × Mocked Absolute RSS — Determinism Pattern / 実機RAM依存閾値 × mocked絶対rss の決定論化パターン (FIND-IMPL-V0-L-03, tracked, deadline 2026-05-31)
+
+memory 系 standing test が `MEMORY_DEGRADATION_THRESHOLD_MB` / `MEMORY_CRITICAL_THRESHOLD_MB` のような **実機 `os.totalmem()` から解決される閾値** (`export let` 値) を読みつつ、同じ test 内で **固定の絶対 rss を mock** (`vi.spyOn(process, "memoryUsage")`) する場合、**CI-only flake が構造的に発生する**。dev box (≥64GB RAM) では閾値が cap (12288/14336MB) に saturate するが、小型 CI runner (≤~9.4GB RAM) では `totalMb*0.7` に下がるため、固定 mock rss が dev box では閾値以下 (PASS) でも CI runner では閾値超過 (`shouldAbort=true` → branch 早期 break) となり、host RAM 依存で結果が分岐する。
+
+When a memory-domain standing test reads a **threshold resolved from the host's real `os.totalmem()`** (an `export let` value like `MEMORY_DEGRADATION_THRESHOLD_MB` / `MEMORY_CRITICAL_THRESHOLD_MB`) while **mocking a fixed absolute rss** (`vi.spyOn(process, "memoryUsage")`) in the same test, a **CI-only flake arises structurally**: on a dev box (≥64GB RAM) the threshold saturates at the cap (12288/14336MB), but on a small CI runner (≤~9.4GB RAM) it drops to `totalMb*0.7`, so a fixed mocked rss that is below the threshold on the dev box (PASS) exceeds it on the CI runner (`shouldAbort=true` → early branch break) — the outcome bifurcates by host RAM.
+
+**Canonical determinism pattern / 決定論化パターン**: 当該 test 内で **pressure-gate を固定 dev-baseline 閾値に spy stub** する。host RAM 由来の `export let` 閾値ではなく、固定リテラル (production cap と同値) に対して mocked rss を評価することで、結果を host-RAM 非依存に固定する。INV が検証する本来の対象 (例: 固定定数 `PER_CHUNK_RSS_BUDGET_MB` に対する budget delta) はそのまま mocked `process.memoryUsage()` を読み続けるよう **untouched** に残す。
+
+**Canonical determinism pattern**: **spy-stub the pressure gate to fixed dev-baseline thresholds** inside the test. Evaluate the mocked rss against a fixed literal (equal to the production cap) instead of the host-RAM-derived `export let` threshold, pinning the outcome host-RAM-independently. Leave the INV's actual subject (e.g. a budget delta against the fixed constant `PER_CHUNK_RSS_BUDGET_MB`) **untouched** so it keeps reading the mocked `process.memoryUsage()`.
+
+```typescript
+// ✅ Determinism pattern / 決定論化パターン
+const FIXED_DEGRADATION_THRESHOLD_MB = 12288; // = production DEGRADATION_CAP_MB
+const FIXED_CRITICAL_THRESHOLD_MB = 14336; // = production CRITICAL_CAP_MB
+// pressure gate を固定閾値で評価 (host RAM 非依存)。SSOT import 化が将来候補。
+vi.spyOn(phaseTypes, "checkMemoryPressure").mockImplementation(() => ({
+  shouldDegrade: currentRssMb >= FIXED_DEGRADATION_THRESHOLD_MB,
+  shouldAbort: currentRssMb >= FIXED_CRITICAL_THRESHOLD_MB,
+  rssMb: currentRssMb,
+  heapUsedMb: 32,
+}));
+```
+
+**横展開参照点 / Cross-cutting reference point**: memory pressure / RSS / VRAM 閾値を読む memory 系 standing test (large-page domain 等) は本パターンを適用すること。残課題 (tracked, deadline 2026-05-31): (i) 固定閾値の production cap (`worker-memory-profile.ts` の `DEGRADATION_CAP_MB` / `CRITICAL_CAP_MB`) からの **SSOT import 化** (coupling-drift 検出)、(ii) namespace-member spy (`vi.spyOn(<namespace>, "checkMemoryPressure")`) の esbuild-transform 依存を DI seam に置換。
+
+**Cross-cutting reference point**: memory-domain standing tests reading memory-pressure / RSS / VRAM thresholds (e.g. the large-page domain) should adopt this pattern. Tracked open items (deadline 2026-05-31): (i) **SSOT-import** the fixed thresholds from the production caps (`DEGRADATION_CAP_MB` / `CRITICAL_CAP_MB` in `worker-memory-profile.ts`) for coupling-drift detection, and (ii) replace the esbuild-transform-dependent namespace-member spy (`vi.spyOn(<namespace>, "checkMemoryPressure")`) with a DI seam.
+
+**Canonical example / 参照実装**: `apps/mcp-server/tests/regression/standing/large-page/inv-phase5-coldload-delta-exclusion-001.test.ts` (`installRssModel`) — branch 4 (loop-head 3× budget anomalous arena proceed) の CI-only flake を本パターンで決定論化 (IO 実測 6/6 PASS) / determinised the branch 4 (loop-head 3× budget anomalous arena proceed) CI-only flake via this pattern (IO-verified 6/6 PASS).
+
+**Cross-ref**: FIND-IMPL-V0-L-01 (固定閾値 SSOT-derive 候補) / FIND-IMPL-V0-L-02 (heap-abort OR-branch 非再現) / FIND-IMPL-V0-L-04 (namespace-spy esbuild 依存) / TDA-L-01 (canonical determinism pattern 横展開) / `apps/mcp-server/src/services/worker-memory-profile.ts` (`DEGRADATION_CAP_MB` / `CRITICAL_CAP_MB` SSOT).
+
 ## カバレッジ目標 / Coverage Targets
 
 | 指標 / Indicator           | 目標 / Target                         |
@@ -256,10 +287,10 @@ it("should re-initialize after dispose via fresh mock cycle", async () => {
 
 ## テストフレームワーク / Test Frameworks
 
-| 種別 / Type      | ツール / Tool | バージョン / Version                                           |
-| ---------------- | ------------- | -------------------------------------------------------------- |
-| Unit/Integration | Vitest        | 4.x（mcp-server, ml, core, webdesign-core）/ 3.2.x（database） |
-| E2E              | Playwright    | 1.57.0                                                         |
+| 種別 / Type      | ツール / Tool | バージョン / Version               |
+| ---------------- | ------------- | ---------------------------------- |
+| Unit/Integration | Vitest        | 4.x（全パッケージ / all packages） |
+| E2E              | Playwright    | 1.57.0                             |
 
 ## Vitest設定 / Vitest Configuration
 

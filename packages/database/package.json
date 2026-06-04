@@ -1,6 +1,6 @@
 {
   "name": "@reftrixmcp/database",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "license": "AGPL-3.0-only",
   "description": "Database schema and migrations for Reftrix",
   "files": [
@@ -47,11 +47,11 @@
   "dependencies": {},
   "devDependencies": {
     "@reftrixmcp/config": "workspace:*",
-    "@vitest/coverage-v8": "^3.2.0",
+    "@vitest/coverage-v8": "^4.1.0",
     "prisma": "^6.19.2",
     "tsx": "^4.0.0",
     "typescript": "^5.9.0",
-    "vitest": "^3.2.0",
+    "vitest": "^4.1.0",
     "@prisma/client": "^6.19.2"
   },
   "publishConfig": {

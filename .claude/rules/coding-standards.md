@@ -94,15 +94,15 @@ interface IUser {
 
 ## 技術スタック（2026-03時点） / Tech Stack (as of 2026-03)
 
-| カテゴリ / Category | 技術 / Technology     | バージョン / Version                                           |
-| ------------------- | --------------------- | -------------------------------------------------------------- |
-| Backend             | Node.js               | 20.x LTS (>=20.19.0)                                           |
-| Database            | PostgreSQL + pgvector | 18.x + 0.8.x                                                   |
-| Testing             | Vitest                | 4.x（mcp-server, ml, core, webdesign-core）/ 3.2.x（database） |
-| Testing             | Playwright            | <!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright -->  |
-| Cache               | lru-cache             | 11.x                                                           |
-| Queue UI            | @bull-board/express   | 6.x                                                            |
-| SBOM                | @cyclonedx/cdxgen     | 12.x                                                           |
+| カテゴリ / Category | 技術 / Technology     | バージョン / Version                                          |
+| ------------------- | --------------------- | ------------------------------------------------------------- |
+| Backend             | Node.js               | 20.x LTS (>=20.19.0)                                          |
+| Database            | PostgreSQL + pgvector | 18.x + 0.8.x                                                  |
+| Testing             | Vitest                | 4.x（全パッケージ / all packages）                            |
+| Testing             | Playwright            | <!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright --> |
+| Cache               | lru-cache             | 11.x                                                          |
+| Queue UI            | @bull-board/express   | 6.x                                                           |
+| SBOM                | @cyclonedx/cdxgen     | 12.x                                                          |
 
 ## コンソールログ / Console Logging
 

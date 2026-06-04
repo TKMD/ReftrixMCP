@@ -106,6 +106,13 @@ function buildPrismaMock(args: BuildPrismaMockArgs): PrismaClient {
         // Section B (skipped_*); not used by these CO-30 cases.
         return [];
       }
+      // Plan v3 Section C (`queued`-stuck rescue) scans `embeddingBackfillStatus
+      // === "queued"`. These CO-30 cases seed only `in_progress` pages, so the
+      // queued scan returns no candidates (mock fidelity: do not re-return the
+      // in_progress page for the Section C query).
+      if (status === "queued") {
+        return [];
+      }
       return args.pages;
     }
   );
@@ -215,9 +222,17 @@ describe("INV-DATA-DELETE-002: BackfillReconciliationCron picks up orphaned in_p
     expect(result.errors).toBe(0);
 
     // CAS UPDATE WHERE-clause locks status='in_progress' for race-safety.
+    // defect B fix (INV-BACKFILL-RECONCILE-METADATA-010): the completed path now
+    // also clears any stale failure metadata (failure_reason / failed_at → null)
+    // so a row that became completed after a prior partial failure does not retain
+    // stale failure metadata.
     expect(updateManySpy).toHaveBeenCalledWith({
       where: { id: page.id, embeddingBackfillStatus: "in_progress" },
-      data: { embeddingBackfillStatus: "completed" },
+      data: {
+        embeddingBackfillStatus: "completed",
+        embeddingBackfillFailureReason: null,
+        embeddingBackfillFailedAt: null,
+      },
     });
   });
 
@@ -247,19 +262,32 @@ describe("INV-DATA-DELETE-002: BackfillReconciliationCron picks up orphaned in_p
     expect(result.errors).toBe(0);
 
     // CAS UPDATE was attempted but no row matched (worker won the race).
+    // defect B fix: completed path clears stale failure metadata (see case 1).
     expect(updateManySpy).toHaveBeenCalledWith({
       where: { id: page.id, embeddingBackfillStatus: "in_progress" },
-      data: { embeddingBackfillStatus: "completed" },
+      data: {
+        embeddingBackfillStatus: "completed",
+        embeddingBackfillFailureReason: null,
+        embeddingBackfillFailedAt: null,
+      },
     });
   });
 
-  it("INV-DATA-DELETE-002: should pin in_progress to failed via cron when DB still shows residual gaps in any of 7 categories (worker drop after partial completion)", async () => {
+  it("INV-DATA-DELETE-002: should pin in_progress to failed_with_known_reason (+ failure metadata) via cron when DB still shows residual gaps in any of 7 categories (worker drop after partial completion)", async () => {
     // INV-DATA-DELETE-002
     // Arrange: stale in_progress row whose embeddings are still incomplete
     //          (e.g. motion category has 5 pending) — worker dropped the per-job
-    //          UPDATE while the row was genuinely incomplete. Cron must pin to
-    //          'failed' so the row can be re-enqueued by separate recovery
-    //          paths (skip-recovery TTL flow).
+    //          UPDATE while the row was genuinely incomplete.
+    //
+    // defect B fix (INV-BACKFILL-RECONCILE-METADATA-010): the cron MUST pin the
+    // row to `failed_with_known_reason` + `failure_reason='supervisor_restart_orphan'`
+    // + `failed_at` (NOT plain `failed`). The previous plain-`failed` transition
+    // left failure metadata NULL (observability gap) AND kept the row OUTSIDE the
+    // recovery service's scan window (`fetchFailedWithKnownReasonRows` scans
+    // `failed_with_known_reason` only) — so the row could never auto-recover even
+    // after the residual category (e.g. motion) was backfilled. The
+    // `failed_with_known_reason` transition routes the row into the auto-recovery
+    // path (re_enqueue → all 7 categories → terminal `completed` once complete).
     const page = makeStaleInProgressPage("019dd610-cccc-7000-cccc-000000000003");
     const updateManySpy = vi.fn(async () => ({ count: 1 }));
     const prisma = buildPrismaMock({
@@ -275,13 +303,17 @@ describe("INV-DATA-DELETE-002: BackfillReconciliationCron picks up orphaned in_p
       queue,
     });
 
-    // Assert: pinned to failed (terminal state) — NOT completed.
+    // Assert: pinned to failed_with_known_reason + failure metadata (recovery-eligible).
     expect(result.totalChecked).toBe(1);
     expect(result.staleDetected).toBe(1);
     expect(result.remediated).toBe(1);
     expect(updateManySpy).toHaveBeenCalledWith({
       where: { id: page.id, embeddingBackfillStatus: "in_progress" },
-      data: { embeddingBackfillStatus: "failed" },
+      data: {
+        embeddingBackfillStatus: "failed_with_known_reason",
+        embeddingBackfillFailureReason: "supervisor_restart_orphan",
+        embeddingBackfillFailedAt: expect.any(Date),
+      },
     });
   });
 

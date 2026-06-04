@@ -14,12 +14,26 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // PrismaClientのモック
-vi.mock("@prisma/client", () => {
-  const mockPrismaClient = vi.fn(() => ({
-    $connect: vi.fn(),
-    $disconnect: vi.fn(),
-  }));
+// 注: vitest 4.x では `new` で呼ばれる mock 実装はコンストラクタ可能でなければならない。
+// arrow function は [[Construct]] を持たないため `function` で定義する (semantics は不変)。
+// Note: in vitest 4.x, a mock implementation invoked with `new` must be constructable.
+// Arrow functions lack [[Construct]], so use a `function` declaration (semantics unchanged).
+// hoisted scope に mock を昇格し、beforeEach で call history を clear できるようにする。
+// vitest 4.x では vi.restoreAllMocks() が vi.fn() の mock.calls を clear しなくなったため
+// (`vi.spyOn` 由来の spy のみ restore)、各テストで mockPrismaClient.mockClear() を明示する。
+// Hoist the mock so beforeEach can clear its call history. In vitest 4.x,
+// vi.restoreAllMocks() no longer clears vi.fn() mock.calls (only restores vi.spyOn spies),
+// so each test must explicitly call mockPrismaClient.mockClear().
+const { mockPrismaClient } = vi.hoisted(() => ({
+  mockPrismaClient: vi.fn(function () {
+    return {
+      $connect: vi.fn(),
+      $disconnect: vi.fn(),
+    };
+  }),
+}));
 
+vi.mock("@prisma/client", () => {
   return {
     PrismaClient: mockPrismaClient,
     Prisma: {
@@ -32,6 +46,8 @@ describe("Prisma Client Singleton", () => {
   // 各テスト前に環境をリセット
   beforeEach(() => {
     vi.resetModules();
+    // mock の call history を clear (vitest 4.x: restoreAllMocks は vi.fn を clear しない)
+    mockPrismaClient.mockClear();
     // globalThisのprismaをクリア
     const globalForPrisma = globalThis as unknown as {
       prisma: unknown | undefined;

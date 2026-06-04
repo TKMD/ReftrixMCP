@@ -23,6 +23,7 @@ import type { EmbeddingTextType, EmbeddingServiceConfig, CacheStats } from "./ty
 import type { WorkerMessage, WorkerResponse } from "./worker-thread-types.js";
 import { OnnxRuntimeUnavailableError } from "../onnx-availability.js";
 import { getMLWorkerThreadOptions } from "../config/worker-resource-limits.js";
+import { detectExecutionProvider, isLdLibraryPathSetAtOsLevel } from "../onnx-provider-detect.js";
 
 /**
  * Disposable pipeline interface (used only in in-process fallback mode).
@@ -453,9 +454,58 @@ export class EmbeddingService {
    * If the configured device is 'cuda' but initialization fails (e.g. because
    * LD_LIBRARY_PATH was not set at the OS level), automatically falls back to CPU.
    */
+  /**
+   * Resolve the safe execution device for the in-process pipeline.
+   *
+   * PR-1 GPU-COORD H regression fix (FIND-IMPL-PR1-H-NEW-01): the Phase 5 fork
+   * child's VRAM probe wires `ONNX_EXECUTION_PROVIDER=cuda` when free VRAM is
+   * available, but that does NOT guarantee the CUDA EP shared library
+   * (`libonnxruntime_providers_cuda.so`) is installed on the host. Previously
+   * the in-process path trusted `this.config.device` (set straight from the env
+   * var in the constructor) and passed `device:"cuda"` to transformers, which
+   * raw-throws on the native dlopen failure when the EP `.so` is absent.
+   *
+   * This gate mirrors the DINOv2 in-process path (`dinov2/worker-thread.ts`
+   * `initializeSession`): it resolves via `detectExecutionProvider` (which calls
+   * `verifyCudaAvailability` for an EP `.so` filesystem check) and also requires
+   * `LD_LIBRARY_PATH` at the OS level. If either fails, it returns "cpu" so the
+   * pipeline is never asked to create a CUDA session it cannot back. When the
+   * configured device is not "cuda", the configured device is returned as-is.
+   */
+  private resolveInProcessDevice(): "cpu" | "cuda" {
+    if (this.config.device !== "cuda") {
+      return this.config.device === undefined ? "cpu" : (this.config.device as "cpu" | "cuda");
+    }
+
+    // CUDA requested — gate on EP `.so` availability and OS-level LD_LIBRARY_PATH.
+    const resolved = detectExecutionProvider("EmbeddingService");
+    if (resolved === "cuda" && !isLdLibraryPathSetAtOsLevel()) {
+      console.warn(
+        "[ML] CUDA requested but LD_LIBRARY_PATH not set at OS level. " +
+          "dlopen() cannot find CUDA libraries. Falling back to CPU."
+      );
+      return "cpu";
+    }
+    if (resolved !== "cuda") {
+      console.warn(
+        "[ML] CUDA requested but CUDA EP not available (libonnxruntime_providers_cuda.so absent). " +
+          "Falling back to CPU."
+      );
+    }
+    return resolved;
+  }
+
   private async initializeInProcess(): Promise<void> {
     if (this.pipeline) return;
     if (this.initPromise) return this.initPromise;
+
+    // Resolve the safe device BEFORE init so we never pass an unbacked CUDA
+    // device to the pipeline (FIND-IMPL-PR1-H-NEW-01 — gate parity with DINOv2).
+    const effectiveDevice = this.resolveInProcessDevice();
+    if (effectiveDevice !== this.config.device) {
+      this.config = { ...this.config, device: effectiveDevice };
+      this.currentProvider = effectiveDevice;
+    }
 
     this.initPromise = (async (): Promise<void> => {
       try {

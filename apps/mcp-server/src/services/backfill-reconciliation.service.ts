@@ -53,7 +53,17 @@ import {
 } from "../queues/embedding-backfill-queue";
 import { enqueueAllCategoriesForSkipRecovery } from "../queues/embedding-backfill-processors";
 import { computeRemainingStatusWithPrisma } from "./backfill-status.helper";
-import { getAuditLogService } from "./audit-log.service";
+import { getAuditLogService, truncateAuditTargetId } from "./audit-log.service";
+import {
+  AUDIT_ACTION_BACKFILL_RECONCILE_IN_PROGRESS_FAILED,
+  AUDIT_ACTION_BACKFILL_RESCUE_QUEUED,
+  AUDIT_ACTION_BACKFILL_RESCUE_QUEUED_GAVE_UP,
+  AUDIT_ACTOR_BACKFILL_RECONCILIATION_CRON,
+} from "../audit/audit-actions";
+// Plan v3 §V2.4 threshold-ordering rule: Section C (queued rescue) aligns its
+// dedicated `rescueStaleThresholdMs` (default + clamp ceiling) to the give-up
+// scan's 10min time-anchor so the 50min先食い window cannot re-open.
+import { VISION_UNLOAD_FINAL_TIMEOUT_MS } from "./vision/vision-unload-handshake";
 import { logger } from "../utils/logger";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
 
@@ -122,6 +132,28 @@ export interface BackfillReconciliationResult {
    */
   retryCapExhausted: number;
   /**
+   * Plan v3 Section C: `queued`-stuck rescue で re-enqueue した件数（P2）。
+   * BullMQ job を失った `queued` 固着ページを worker-present で救済し全 7 カテゴリ
+   * を再投入した回数（job-loss recovery → completed への駆動）。
+   *
+   * Plan v3 Section C: Number of `queued`-stuck rows rescued (P2) by re-arming +
+   * re-enqueueing all 7 categories. Observes how often the worker-present rescue
+   * recovers a page whose BullMQ job was lost (driving job-loss → completed).
+   */
+  queuedRescueEnqueued: number;
+  /**
+   * Plan v3 Section C: `queued`-stuck rescue で give-up した件数（P3）。
+   * 共有 retry budget (`SKIP_RECOVERY_RETRY_CAP` = 5) を使い切った `queued` 固着
+   * ページを `failed_with_known_reason` + `supervisor_restart_orphan` に遷移させ、
+   * recovery cron が最終 terminal `failed` に到達させる（poison-page guard）。
+   *
+   * Plan v3 Section C: Number of `queued`-stuck rows given up (P3) after
+   * exhausting the shared retry budget (cap 5). Transitioned to
+   * `failed_with_known_reason` + `supervisor_restart_orphan`; the recovery cron
+   * drives the final terminal `failed` (poison-page guard).
+   */
+  queuedGaveUp: number;
+  /**
    * Dry-run モード中は実 update を行わず、対象ページの一覧のみを返す（PR6 SEC LOW-2）
    * In dry-run mode, no real updates are performed; only a preview of target pages is
    * returned (PR6 SEC LOW-2).
@@ -142,6 +174,24 @@ export interface ReconcileOptions {
    * for remediation. Default: 60 minutes (3,600,000ms).
    */
   staleThresholdMs?: number;
+  /**
+   * Plan v3 Section C: `queued` 固着 row を rescue 対象とする経過時間（ms）。
+   * Section A/B の `staleThresholdMs` (60min) とは **独立** にし、give-up scan の
+   * time-anchor (`VISION_UNLOAD_FINAL_TIMEOUT_MS` = 10min) と整合させる
+   * (§V2.4 threshold-ordering rule)。デフォルト 10 分。
+   *
+   * **NEW-TPA-L-01 hazard 構造的封じ込め (CO-PLAN-04)**: Zod で
+   * `min(0).max(VISION_UNLOAD_FINAL_TIMEOUT_MS)` に clamp し、operator が env
+   * override で give-up time-anchor を超える値を設定して 50min先食い window を
+   * 再出現させることを schema-level で防止する。
+   *
+   * Plan v3 Section C: Staleness threshold (ms) for `queued`-stuck rescue.
+   * Independent of Section A/B's `staleThresholdMs` (60min) and aligned to (≤)
+   * the give-up scan's 10min time-anchor (§V2.4). Default 10 minutes. Zod-clamped
+   * to `max(VISION_UNLOAD_FINAL_TIMEOUT_MS)` (CO-PLAN-04) so an env override
+   * cannot re-open the 50-min先食い window structurally.
+   */
+  rescueStaleThresholdMs?: number;
   /**
    * 1 回で処理する最大行数（誤発火時のブラスト半径を限定）。
    * Maximum rows per invocation (caps blast radius on misfire). Default 500.
@@ -167,12 +217,25 @@ const OptionsSchema = z.object({
     .positive()
     .max(7 * 24 * 60 * 60 * 1000)
     .optional(),
+  // Plan v3 §V2.4 / CO-PLAN-04: clamp to ≤ give-up time-anchor (10min). min(0)
+  // allows a 0ms threshold in tests (rescue everything immediately), max() is
+  // the structural封じ込め that prevents the 50min先食い window from re-opening.
+  rescueStaleThresholdMs: z.number().int().min(0).max(VISION_UNLOAD_FINAL_TIMEOUT_MS).optional(),
   batchLimit: z.number().int().positive().max(10000).optional(),
   dryRun: z.boolean().optional(),
 });
 
 const DEFAULT_STALE_THRESHOLD_MS = 60 * 60 * 1000; // 1 hour
 const DEFAULT_BATCH_LIMIT = 500;
+
+/**
+ * Plan v3 Section C default: `queued` 固着 rescue は give-up scan の 10min
+ * time-anchor (`VISION_UNLOAD_FINAL_TIMEOUT_MS`) と整合させる (§V2.4)。
+ *
+ * Plan v3 Section C default: aligns the `queued` rescue threshold to the give-up
+ * scan's 10min time-anchor (§V2.4 threshold-ordering rule).
+ */
+const DEFAULT_RESCUE_STALE_THRESHOLD_MS = VISION_UNLOAD_FINAL_TIMEOUT_MS;
 
 /**
  * v0.4.0 PR7b (ADR-0008 #6 / LCC M-3): skipped_* 状態の TTL（ms）。
@@ -358,11 +421,15 @@ export async function reconcileStaleBackfillJobs(
   // Zod validation — rejects invalid values from CLI/cron call sites.
   const parsed = OptionsSchema.parse({
     staleThresholdMs: options.staleThresholdMs,
+    rescueStaleThresholdMs: options.rescueStaleThresholdMs,
     batchLimit: options.batchLimit,
     dryRun: options.dryRun,
   });
 
   const thresholdMs = parsed.staleThresholdMs ?? DEFAULT_STALE_THRESHOLD_MS;
+  // Plan v3 Section C: `?? default` covers an undefined option but NOT a
+  // legitimately-passed 0 (which `??` preserves), so a 0ms test override is honoured.
+  const rescueThresholdMs = parsed.rescueStaleThresholdMs ?? DEFAULT_RESCUE_STALE_THRESHOLD_MS;
   const batchLimit = parsed.batchLimit ?? DEFAULT_BATCH_LIMIT;
   const dryRun = parsed.dryRun ?? false;
   const { prisma, queue } = options;
@@ -376,6 +443,8 @@ export async function reconcileStaleBackfillJobs(
     skipRecoveryEnqueued: 0,
     ttlExpired: 0,
     retryCapExhausted: 0,
+    queuedRescueEnqueued: 0,
+    queuedGaveUp: 0,
     dryRun,
   };
 
@@ -401,6 +470,17 @@ export async function reconcileStaleBackfillJobs(
     result,
   });
 
+  // -- Section C: queued-stuck rescue (Plan v3, job-loss → completed) --------
+  // Section C: queued-stuck rescue (Plan v3, job-loss recovery → completed)
+  await reconcileQueuedRows({
+    prisma,
+    queue,
+    rescueThresholdMs,
+    batchLimit,
+    dryRun,
+    result,
+  });
+
   logger.info("[BackfillReconciliation] Batch complete", {
     totalChecked: result.totalChecked,
     staleDetected: result.staleDetected,
@@ -409,6 +489,8 @@ export async function reconcileStaleBackfillJobs(
     skipRecoveryEnqueued: result.skipRecoveryEnqueued,
     ttlExpired: result.ttlExpired,
     retryCapExhausted: result.retryCapExhausted,
+    queuedRescueEnqueued: result.queuedRescueEnqueued,
+    queuedGaveUp: result.queuedGaveUp,
     errors: result.errors,
     dryRun: result.dryRun,
   });
@@ -475,17 +557,50 @@ async function reconcileInProgressRows(args: {
         prisma
       );
       // reconciliation の責務は stale 行の status pin。
-      // `completed` はそのまま、`in_progress` 相当 (残余あり) は `failed` に固定。
-      // reconciliation pins stale rows. `completed` maps through; any remaining
-      // (`in_progress`) is pinned to `failed`.
-      const newStatus: "completed" | "failed" =
-        remainingStatus === "completed" ? "completed" : "failed";
+      // `completed` はそのまま。`in_progress` 相当 (残余あり) は **plain `failed`
+      // ではなく** `failed_with_known_reason` + `failure_reason` + `failed_at` に
+      // 遷移させる (defect B fix)。
+      //
+      // **defect B root cause (10-site CPU 検証で発見)**: 旧実装は残余ありの stale
+      // 行を `embeddingBackfillStatus: 'failed'` のみで pin し、`failure_reason` /
+      // `failed_at` を埋めていなかった。その結果:
+      //   (1) `failure_reason=null` / `failed_at=null` の不整合 (observability 欠落、
+      //       「失敗したが理由不明」)。
+      //   (2) `failed` は recovery service (`runRecoveryCycle`) の scan 対象外
+      //       (`fetchFailedWithKnownReasonRows` は `failed_with_known_reason` のみ
+      //       scan) のため、後から別カテゴリ (e.g. motion) の backfill が完走し DB が
+      //       完全になっても **自動復帰しない** (terminal `failed` に貼り付く)。
+      // `failed_with_known_reason` + `supervisor_restart_orphan` reason に遷移させる
+      // ことで、recovery service が auto_recoverable policy で scan → `re_enqueued`
+      // → 全 7 カテゴリ再投入 → DB 完全なら最終的に `completed` 到達、という既存
+      // Plan v3 T3-Backfill recovery 経路に正しく乗せる。
+      //
+      // `supervisor_restart_orphan` を reason に選ぶ根拠: stale `in_progress` 行は
+      // 「worker がジョブを開始したが queue に active/waiting/delayed job が無く、
+      // status 遷移を完了しないまま放置された孤児」であり、まさに supervisor 再起動
+      // 等での orphan の状況に該当する (`classifyFailureReasonPolicy` で
+      // `auto_recoverable` バケット)。
+      //
+      // The reconciliation pins stale rows. `completed` maps through; any
+      // remaining (`in_progress`) is transitioned to `failed_with_known_reason`
+      // with `failure_reason='supervisor_restart_orphan'` + `failed_at` set (defect
+      // B fix). Previously it pinned plain `failed` WITHOUT failure metadata, which
+      // (1) left `failure_reason`/`failed_at` NULL (observability gap) and (2) kept
+      // the row outside the recovery service's scan window (`failed_with_known_reason`
+      // only), so a row never auto-recovered even after the DB became complete. The
+      // `failed_with_known_reason` + `supervisor_restart_orphan` transition routes
+      // the row into the existing auto-recovery path (re_enqueue → all 7 categories
+      // → terminal `completed` once the DB is complete).
+      const isRemaining = remainingStatus !== "completed";
+      const newStatus: "completed" | "failed_with_known_reason" = isRemaining
+        ? "failed_with_known_reason"
+        : "completed";
 
       if (dryRun) {
         // PR6 SEC LOW-2: dry-run は DB 書き込みをスキップし target 一覧を logger.info 出力
         // PR6 SEC LOW-2: dry-run skips DB writes and logs the target list
         logger.info("[BackfillReconciliation] [dry-run] Would reconcile in_progress page", {
-          webPageId: row.id.slice(0, 8) + "...",
+          webPageId: truncateAuditTargetId(row.id),
           remainingStatus,
           wouldTransitionTo: newStatus,
           stalenessMs: Date.now() - row.startedAt.getTime(),
@@ -495,36 +610,80 @@ async function reconcileInProgressRows(args: {
 
       // PR6 TPA #1 (CAS): WHERE 句に embeddingBackfillStatus = 'in_progress' を含めて、
       // Worker が先に遷移させていた場合 updated.count === 0 になり書き込みを抑止する。
+      // defect B fix: 残余ありの場合は failure metadata (reason + failed_at) も同時に
+      // 書き込む。completed 遷移時は failure metadata を null にクリアする
+      // (再 backfill 成功で completed に到達したケースで stale metadata を残さない)。
       // PR6 TPA #1 (CAS): WHERE-clause guards `embeddingBackfillStatus = 'in_progress'`.
-      // If the worker already transitioned the row, updated.count === 0 and we skip.
+      // defect B fix: on the remaining path, write failure metadata atomically; on
+      // the completed path, clear any stale failure metadata.
+      const updateData = isRemaining
+        ? {
+            embeddingBackfillStatus: newStatus,
+            embeddingBackfillFailureReason: "supervisor_restart_orphan",
+            embeddingBackfillFailedAt: new Date(),
+          }
+        : {
+            embeddingBackfillStatus: newStatus,
+            embeddingBackfillFailureReason: null,
+            embeddingBackfillFailedAt: null,
+          };
       const updated = await prisma.webPage.updateMany({
         where: {
           id: row.id,
           embeddingBackfillStatus: "in_progress",
         },
-        data: { embeddingBackfillStatus: newStatus },
+        data: updateData,
       });
 
       if (updated.count === 0) {
         result.concurrentUpdatesSkipped += 1;
         logger.info("[BackfillReconciliation] Status changed by worker during check — skipping", {
-          webPageId: row.id.slice(0, 8) + "...",
+          webPageId: truncateAuditTargetId(row.id),
           attemptedTransition: newStatus,
         });
         continue;
       }
 
       result.remediated += 1;
+      const stalenessMs = Date.now() - row.startedAt.getTime();
       logger.info("[BackfillReconciliation] Reconciled stale in_progress page", {
-        webPageId: row.id.slice(0, 8) + "...",
+        webPageId: truncateAuditTargetId(row.id),
         remainingStatus,
         newStatus,
-        stalenessMs: Date.now() - row.startedAt.getTime(),
+        stalenessMs,
       });
+
+      // ADR-0018 Amendment 7 §7.8: emit GDPR Art.30 audit_logs entry for the
+      // terminal in_progress → failed_with_known_reason reconciliation transition
+      // (SSOT actor, PII-free numeric/enum details only — NO raw error message).
+      // Audit emit failure is non-fatal (logged, not thrown).
+      // defect B fix: details に failureReason を含めて GDPR Art.30 trail を完全化。
+      if (isRemaining) {
+        try {
+          await getAuditLogService().log({
+            action: AUDIT_ACTION_BACKFILL_RECONCILE_IN_PROGRESS_FAILED,
+            actor: AUDIT_ACTOR_BACKFILL_RECONCILIATION_CRON,
+            targetType: "web_page",
+            targetId: row.id,
+            details: {
+              remainingStatus,
+              failureReason: "supervisor_restart_orphan",
+              newStatus,
+              stalenessMs,
+            },
+            result: "failure",
+          });
+        } catch (auditError) {
+          logger.warn("[BackfillReconciliation] audit_logs emit failed (non-fatal)", {
+            webPageId: truncateAuditTargetId(row.id),
+            error: sanitizeErrorMessage(auditError),
+          });
+        }
+      }
     } catch (error) {
       result.errors += 1;
       logger.warn("[BackfillReconciliation] Failed to reconcile in_progress page (non-fatal)", {
-        webPageId: row.id.slice(0, 8) + "...",
+        webPageId: truncateAuditTargetId(row.id),
         error: sanitizeErrorMessage(error),
       });
     }
@@ -555,7 +714,7 @@ async function expireSkippedRowOverTTL(args: {
 
   if (dryRun) {
     logger.info("[BackfillReconciliation] [dry-run] Would expire skipped_* page (TTL)", {
-      webPageId: row.id.slice(0, 8) + "...",
+      webPageId: truncateAuditTargetId(row.id),
       status: row.status,
       skippedAgeMs,
       ttlMs,
@@ -594,7 +753,7 @@ async function expireSkippedRowOverTTL(args: {
     /* audit log 失敗は致命的でない / non-fatal */
   }
   logger.info("[BackfillReconciliation] Expired skipped_* page via 7d TTL", {
-    webPageId: row.id.slice(0, 8) + "...",
+    webPageId: truncateAuditTargetId(row.id),
     status: row.status,
     skippedAgeMs,
     ttlMs,
@@ -618,7 +777,7 @@ async function pinSkippedRowOverRetryCap(args: {
 
   if (dryRun) {
     logger.info("[BackfillReconciliation] [dry-run] Would pin skipped_* page (retry cap)", {
-      webPageId: row.id.slice(0, 8) + "...",
+      webPageId: truncateAuditTargetId(row.id),
       retryCount: row.retryCount,
       cap: SKIP_RECOVERY_RETRY_CAP,
     });
@@ -656,7 +815,7 @@ async function pinSkippedRowOverRetryCap(args: {
     /* audit log 失敗は致命的でない / non-fatal */
   }
   logger.warn("[BackfillReconciliation] Pinned skipped_* page (retry cap exceeded)", {
-    webPageId: row.id.slice(0, 8) + "...",
+    webPageId: truncateAuditTargetId(row.id),
     retryCount: row.retryCount,
     cap: SKIP_RECOVERY_RETRY_CAP,
   });
@@ -743,7 +902,7 @@ async function reconcileSkippedRows(args: {
         logger.warn(
           "[BackfillReconciliation] Back-pressure exceeded; skipping skip recovery this tick",
           {
-            webPageId: row.id.slice(0, 8) + "...",
+            webPageId: truncateAuditTargetId(row.id),
             waitingCount: backPressure.waitingCount,
           }
         );
@@ -753,7 +912,7 @@ async function reconcileSkippedRows(args: {
       // -- Step 5: dry-run preview ------------------------------------------
       if (dryRun) {
         logger.info("[BackfillReconciliation] [dry-run] Would re-enqueue skipped_* page", {
-          webPageId: row.id.slice(0, 8) + "...",
+          webPageId: truncateAuditTargetId(row.id),
           status: row.status,
           retryCount: row.retryCount,
           screenshotPresent: row.screenshotStoragePath !== null,
@@ -778,7 +937,7 @@ async function reconcileSkippedRows(args: {
         logger.info(
           "[BackfillReconciliation] skipped_* status changed concurrently — skipping recovery",
           {
-            webPageId: row.id.slice(0, 8) + "...",
+            webPageId: truncateAuditTargetId(row.id),
           }
         );
         continue;
@@ -805,7 +964,7 @@ async function reconcileSkippedRows(args: {
       result.skipRecoveryEnqueued += 1;
       result.remediated += 1;
       logger.info("[BackfillReconciliation] Re-enqueued skipped_* page for recovery", {
-        webPageId: row.id.slice(0, 8) + "...",
+        webPageId: truncateAuditTargetId(row.id),
         status: row.status,
         retryCountAfter: row.retryCount + 1,
         enqueuedCategories,
@@ -815,7 +974,289 @@ async function reconcileSkippedRows(args: {
     } catch (error) {
       result.errors += 1;
       logger.warn("[BackfillReconciliation] Failed to reconcile skipped_* page (non-fatal)", {
-        webPageId: row.id.slice(0, 8) + "...",
+        webPageId: truncateAuditTargetId(row.id),
+        error: sanitizeErrorMessage(error),
+      });
+    }
+  }
+}
+
+// ============================================================================
+// Section C — `queued`-stuck rescue (Plan v3, job-loss recovery → completed)
+// ============================================================================
+
+/**
+ * Plan v3 Section C: stale `queued` 行の判定用メタデータ。
+ * Plan v3 Section C: stale `queued` row metadata.
+ */
+interface WebPageQueuedRow {
+  id: string;
+  startedAt: Date;
+  retryCount: number;
+  screenshotStoragePath: string | null;
+}
+
+/**
+ * Plan v3 Section C: `queued` 状態で `rescueThresholdMs` を超過した web_pages 行を
+ * 取得する。BullMQ job を失った（worker 中断 / Redis flush / retention 切れ）疑い
+ * のある固着 row が対象。`LIMIT batchLimit` が 1 tick あたりの aggregate hard bound
+ * （`batchLimit × 7` enqueue 上限、FIND-PLAN-M-06 / 判断6' の CWE-770 縮退）。
+ *
+ * NOTE (M-05): candidate レベルで high-PII filter は **不要**。PII symmetry は
+ * downstream の worker pending predicate (`computeRemainingStatusWithPrisma`) で
+ * 構造的に保証される（§5.PII real-code 確証）。
+ *
+ * Plan v3 Section C: Fetches `queued` rows older than `rescueThresholdMs`
+ * (suspected lost BullMQ job). `LIMIT batchLimit` is the per-tick aggregate hard
+ * bound (≤ `batchLimit × 7` enqueues, CWE-770 reduction). No candidate-level
+ * high-PII filter is needed — PII symmetry is enforced downstream by the worker's
+ * pending predicate.
+ */
+async function fetchStaleQueuedPages(
+  prisma: PrismaClient,
+  thresholdMs: number,
+  limit: number
+): Promise<WebPageQueuedRow[]> {
+  const cutoff = new Date(Date.now() - thresholdMs);
+  const rows = await prisma.webPage.findMany({
+    where: {
+      embeddingBackfillStatus: "queued",
+      embeddingBackfillStartedAt: { lt: cutoff, not: null },
+    },
+    select: {
+      id: true,
+      embeddingBackfillStartedAt: true,
+      embeddingBackfillRetryCount: true,
+      screenshotStoragePath: true,
+    },
+    take: limit,
+    orderBy: { embeddingBackfillStartedAt: "asc" },
+  });
+  return rows
+    .filter(
+      (row): row is typeof row & { embeddingBackfillStartedAt: Date } =>
+        row.embeddingBackfillStartedAt !== null
+    )
+    .map((row) => ({
+      id: row.id,
+      startedAt: row.embeddingBackfillStartedAt,
+      retryCount: row.embeddingBackfillRetryCount ?? 0,
+      screenshotStoragePath: row.screenshotStoragePath,
+    }));
+}
+
+/**
+ * Plan v3 Section C P2 (rescue): `queued`→`queued` re-arm + 全 7 カテゴリ
+ * re-enqueue。CAS `where status='queued'` で先勝ち（give-up が先に terminal 化
+ * すれば count=0 no-op、M-A from-status 排他）。re-arm `startedAt=now()` により
+ * give-up scan の 10min time-anchor から外れる（M-B time-anchor 排他）。
+ *
+ * Plan v3 Section C P2 (rescue): CAS re-arm (`queued`→`queued`, `startedAt=now`,
+ * `retryCount`+1) then enqueue all 7 categories. CAS-success-before-enqueue
+ * (M-A) makes a lost give-up race a no-op (count=0). The re-arm excludes the row
+ * from the give-up time-anchor window (M-B). Cyclomatic complexity ≤ 10.
+ */
+async function rescueQueuedRow(args: {
+  prisma: PrismaClient;
+  queue: Queue<EmbeddingBackfillJobData, EmbeddingBackfillJobResult>;
+  row: WebPageQueuedRow;
+  dryRun: boolean;
+  result: BackfillReconciliationResult;
+}): Promise<void> {
+  const { prisma, queue, row, dryRun, result } = args;
+  const stalenessMs = Date.now() - row.startedAt.getTime();
+
+  if (dryRun) {
+    logger.info("[BackfillReconciliation] [dry-run] Would rescue queued page", {
+      webPageId: truncateAuditTargetId(row.id),
+      retryCount: row.retryCount,
+      stalenessMs,
+    });
+    return;
+  }
+
+  // CAS-success-before-enqueue: only enqueue when the re-arm actually claimed
+  // the row (count>0). A concurrent give-up (queued→failed_with_known_reason)
+  // makes this count=0 (no-op), so we never inject 7 jobs onto a non-queued row.
+  const reArmed = await prisma.webPage.updateMany({
+    where: { id: row.id, embeddingBackfillStatus: "queued" },
+    data: {
+      embeddingBackfillStatus: "queued",
+      embeddingBackfillStartedAt: new Date(),
+      embeddingBackfillRetryCount: { increment: 1 },
+    },
+  });
+  if (reArmed.count === 0) {
+    result.concurrentUpdatesSkipped += 1;
+    return;
+  }
+
+  const { enqueued } = await enqueueAllCategoriesForSkipRecovery(queue, {
+    webPageId: row.id,
+    screenshotStoragePath: row.screenshotStoragePath ?? undefined,
+    initialDelayMs: 0,
+    source: "cron",
+  });
+
+  result.queuedRescueEnqueued += 1;
+  result.remediated += 1;
+  // GDPR Art.30 audit (PII-free numeric/enum details, SSOT action + actor).
+  try {
+    await getAuditLogService().log({
+      action: AUDIT_ACTION_BACKFILL_RESCUE_QUEUED,
+      actor: AUDIT_ACTOR_BACKFILL_RECONCILIATION_CRON,
+      targetType: "web_page",
+      targetId: row.id,
+      details: {
+        retryCountAfter: row.retryCount + 1,
+        stalenessMs,
+        enqueuedCategories: enqueued.length,
+      },
+      result: "failure",
+    });
+  } catch (auditError) {
+    logger.warn("[BackfillReconciliation] queued rescue audit emit failed (non-fatal)", {
+      webPageId: truncateAuditTargetId(row.id),
+      error: sanitizeErrorMessage(auditError),
+    });
+  }
+  logger.info("[BackfillReconciliation] Rescued queued page (re-enqueued)", {
+    webPageId: truncateAuditTargetId(row.id),
+    retryCountAfter: row.retryCount + 1,
+    enqueuedCategories: enqueued.length,
+    stalenessMs,
+  });
+}
+
+/**
+ * Plan v3 Section C P3 (give-up): 共有 retry budget 枯渇時に
+ * `queued`→`failed_with_known_reason` (reason `supervisor_restart_orphan`) へ
+ * CAS 遷移。recovery cron が最終 terminal `failed` を駆動（poison-page guard）。
+ *
+ * Plan v3 Section C P3 (give-up): on shared-budget exhaustion, CAS-transition
+ * `queued`→`failed_with_known_reason` (`supervisor_restart_orphan`); the recovery
+ * cron drives the final terminal `failed`. Cyclomatic complexity ≤ 10.
+ */
+async function giveUpQueuedRow(args: {
+  prisma: PrismaClient;
+  row: WebPageQueuedRow;
+  dryRun: boolean;
+  result: BackfillReconciliationResult;
+}): Promise<void> {
+  const { prisma, row, dryRun, result } = args;
+
+  if (dryRun) {
+    logger.info("[BackfillReconciliation] [dry-run] Would give up queued page (retry cap)", {
+      webPageId: truncateAuditTargetId(row.id),
+      retryCount: row.retryCount,
+      cap: SKIP_RECOVERY_RETRY_CAP,
+    });
+    return;
+  }
+
+  const gaveUp = await prisma.webPage.updateMany({
+    where: { id: row.id, embeddingBackfillStatus: "queued" },
+    data: {
+      embeddingBackfillStatus: "failed_with_known_reason",
+      embeddingBackfillFailureReason: "supervisor_restart_orphan",
+      embeddingBackfillFailedAt: new Date(),
+    },
+  });
+  if (gaveUp.count === 0) {
+    result.concurrentUpdatesSkipped += 1;
+    return;
+  }
+
+  result.queuedGaveUp += 1;
+  result.remediated += 1;
+  // GDPR Art.30 audit — remedy (a): the action name fixes the `queued` origin
+  // (distinct RoPA entry from the `in_progress`-origin reconcile action).
+  try {
+    await getAuditLogService().log({
+      action: AUDIT_ACTION_BACKFILL_RESCUE_QUEUED_GAVE_UP,
+      actor: AUDIT_ACTOR_BACKFILL_RECONCILIATION_CRON,
+      targetType: "web_page",
+      targetId: row.id,
+      details: {
+        failureReason: "supervisor_restart_orphan",
+        originStatus: "queued",
+        retryCountAtCap: row.retryCount,
+      },
+      result: "failure",
+    });
+  } catch (auditError) {
+    logger.warn("[BackfillReconciliation] queued give-up audit emit failed (non-fatal)", {
+      webPageId: truncateAuditTargetId(row.id),
+      error: sanitizeErrorMessage(auditError),
+    });
+  }
+  logger.warn("[BackfillReconciliation] Gave up queued page (retry cap exceeded)", {
+    webPageId: truncateAuditTargetId(row.id),
+    retryCount: row.retryCount,
+    cap: SKIP_RECOVERY_RETRY_CAP,
+  });
+}
+
+/**
+ * Section C: `queued` 起源の固着行を reconcile する（Plan v3、job-loss → completed）。
+ *
+ * 各行に対し（評価順序 P3 → P1 → P2、判断1）:
+ *   - (P3) retry cap (5) 到達 → give-up（`failed_with_known_reason` +
+ *     `supervisor_restart_orphan`）。live job の有無に関わらず terminal 化
+ *     （poison page は再投入しない）。
+ *   - (P1) active queue job 残存 → skip（in-flight、`staleDetected` 非計上）。
+ *   - (P2) live job 無 + retryCount<5 + back-pressure OK → rescue（re-arm +
+ *     全 7 カテゴリ re-enqueue）。back-pressure NG なら次 tick で再評価。
+ *
+ * Section C: Reconcile `queued`-origin stuck rows (Plan v3, job-loss →
+ * completed). Per row, evaluation order P3 (cap give-up) → P1 (in-flight skip) →
+ * P2 (rescue). Cyclomatic complexity ≤ 10.
+ */
+async function reconcileQueuedRows(args: {
+  prisma: PrismaClient;
+  queue: Queue<EmbeddingBackfillJobData, EmbeddingBackfillJobResult>;
+  rescueThresholdMs: number;
+  batchLimit: number;
+  dryRun: boolean;
+  result: BackfillReconciliationResult;
+}): Promise<void> {
+  const { prisma, queue, rescueThresholdMs, batchLimit, dryRun, result } = args;
+  const candidates = await fetchStaleQueuedPages(prisma, rescueThresholdMs, batchLimit);
+  result.totalChecked += candidates.length;
+
+  for (const row of candidates) {
+    try {
+      // (P3) cap give-up — evaluated first so poison pages terminalize
+      // regardless of live-job presence (判断1 evaluation order).
+      if (row.retryCount >= SKIP_RECOVERY_RETRY_CAP) {
+        await giveUpQueuedRow({ prisma, row, dryRun, result });
+        continue;
+      }
+
+      // (P1) in-flight skip — a live BullMQ job is still processing this page.
+      if (await hasActiveQueueJob(queue, row.id)) {
+        continue;
+      }
+      result.staleDetected += 1;
+
+      // (P2) back-pressure gate then rescue. fail-open back-pressure is bounded
+      // structurally by the candidate `LIMIT batchLimit` (≤ batchLimit × 7).
+      const backPressure = await checkBackfillQueueBackPressure(queue);
+      if (!backPressure.allowEnqueue) {
+        logger.warn(
+          "[BackfillReconciliation] Back-pressure exceeded; skipping queued rescue this tick",
+          {
+            webPageId: truncateAuditTargetId(row.id),
+            waitingCount: backPressure.waitingCount,
+          }
+        );
+        continue;
+      }
+      await rescueQueuedRow({ prisma, queue, row, dryRun, result });
+    } catch (error) {
+      result.errors += 1;
+      logger.warn("[BackfillReconciliation] Failed to reconcile queued page (non-fatal)", {
+        webPageId: truncateAuditTargetId(row.id),
         error: sanitizeErrorMessage(error),
       });
     }

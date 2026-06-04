@@ -29,7 +29,7 @@ import { z } from "zod";
 import { getRedisConfig, type RedisConfig } from "../config/redis";
 import { getAuditLogService } from "../services/audit-log.service";
 import { logger } from "../utils/logger";
-import { sanitizeErrorMessage } from "../utils/sanitize-error";
+import { sanitizeAnalysisErrorForClient, sanitizeErrorMessage } from "../utils/sanitize-error";
 import { truncateId } from "../utils/truncate-id";
 import { enqueueWithCollisionGuard, type EnqueueResult } from "./enqueue-with-collision-guard";
 
@@ -195,6 +195,56 @@ export const EMBEDDING_BACKFILL_CATEGORIES = [
  * Backfill category type (derived from the const assertion array)
  */
 export type EmbeddingBackfillCategory = (typeof EMBEDDING_BACKFILL_CATEGORIES)[number];
+
+/**
+ * Embedding backfill 失敗理由 SSOT (Single Source of Truth)
+ *
+ * Plan v3 T3-Backfill V1 §3.1 + ADR-0030 で定義された
+ * `failed_with_known_reason` ステータス用の失敗理由列挙。
+ * `BackfillRecoveryReconciliationService` が auto_recoverable /
+ * terminal_unrecoverable / legacy_existing_path のいずれかに classify する
+ * (`classifyFailureReasonPolicy`)。
+ *
+ * 新理由の追加時:
+ *   1. この const tuple に push (alphabetic order 推奨)
+ *   2. `classifyFailureReasonPolicy` switch を update (exhaustiveness check 強制)
+ *   3. ADR-0030 ↔ Plan v3 T3-Backfill cross-ref を update
+ *
+ * Embedding backfill failure reason SSOT enum (Wave 2 T3-Backfill).
+ * Consumed by `BackfillRecoveryReconciliationService` +
+ * `embedding-backfill-failure-reason-helpers` for classification and audit
+ * emit. Adding a new reason requires updating
+ * `classifyFailureReasonPolicy` switch (TS exhaustiveness check enforces).
+ *
+ * Exported as `EMBEDDING_BACKFILL_FAILURE_REASONS` (FIND-WAVE4-TDA-V2-H-01
+ * export contract).
+ */
+export const EMBEDDING_BACKFILL_FAILURE_REASONS = [
+  // Auto-recoverable bucket (T3-Backfill axis A/B/C — recovery service drives)
+  "vision_residual",
+  "vision_unload_timeout",
+  "memory_pressure",
+  "stall_timeout",
+  "lock_lost",
+  "supervisor_restart_orphan",
+  "dual_run_race",
+  // Terminal unrecoverable bucket (SEC contract — never retry)
+  "ssrf_blocked",
+  // Legacy existing path bucket (covered by existing skipped_* retry)
+  "parity_check_failed",
+  "bbox_unresolvable",
+  "screenshot_missing",
+  "fork_error",
+] as const;
+
+/**
+ * Embedding backfill 失敗理由型（const assertion から派生）
+ * Embedding backfill failure reason type (derived from the const assertion).
+ *
+ * Exported as `EmbeddingBackfillFailureReason` (FIND-WAVE4-TDA-V2-H-01 export
+ * contract).
+ */
+export type EmbeddingBackfillFailureReason = (typeof EMBEDDING_BACKFILL_FAILURE_REASONS)[number];
 
 /**
  * screenshotStoragePath の最大長（byte ではなく UTF-16 code unit 数）
@@ -406,22 +456,34 @@ export function createEmbeddingBackfillQueue(
     {
       connection: toConnectionOptions(config),
       defaultJobOptions: {
-        // 一時的な OOM / VRAM 逼迫から回復するため、最大 3 回まで再試行
-        // Retry up to 3 times to recover from transient OOM / VRAM pressure
-        attempts: 3,
+        // Plan v2 Cond 7 (anchor 019dedb1-ef6f) closure: SEC FIND-PLAN-SEC-V1-03
+        // (commitment 原則 A7 retry amplification アンチパターン、CWE-693+754) を
+        // formal closure するため、`attempts: 3` を撤回し `attempts: 1` に統一。
+        // BullMQ job-level retry は ZERO、structural fix は Plan v2 §1 (Pre-Return
+        // Pause 復活 + Phase-by-Phase tx) で transient race を排除する。
+        // INV-RETRY-AMPLIFICATION-001 (worker-lifecycle standing regression) で
+        // CI gate。例外は HTTP client / Playwright nav / Ollama Vision / Prisma
+        // deadlock layer の internal retry のみ allowed。
+        //
+        // Plan v2 Cond 7 (anchor 019dedb1-ef6f) closure: retracts `attempts: 3`
+        // (Plan v1) and uniforms to `attempts: 1`. SEC FIND-PLAN-SEC-V1-03
+        // (commitment principle A7 retry amplification anti-pattern, CWE-693+754)
+        // is formally closed; structural fix is delivered in Plan v2 §1 (Pre-Return
+        // Pause restore + Phase-by-Phase tx). BullMQ job-level retry is ZERO.
+        // INV-RETRY-AMPLIFICATION-001 (worker-lifecycle standing regression) gates
+        // this in CI. Allowed retry layers (internal): HTTP client / Playwright
+        // navigation / Ollama Vision / Prisma deadlock only.
+        attempts: 1,
         backoff: {
           type: "exponential",
           delay: 5000,
-          // PR7b-convergence (SEC MEDIUM-1): Thundering Herd 対策として ±50%
-          // jitter を付与。BullMQ 5.x built-in strategy に組み込まれており、
-          // exponential delay × (1 ± jitter) の範囲で randomize される。
-          // 複数ページが同時刻に失敗→再試行するケースで VRAM / Redis に一気に
-          // 負荷が集中することを防止。
+          // backoff は `attempts: 1` のため事実上 dead code だが、将来 idempotency
+          // contract 確立後に `attempts > 1` を条件付きで再導入する場合の保留として
+          // ±50% jitter 設定を残す (Cond 7 §2.2 (4) gating contract 参照)。
           //
-          // PR7b-convergence (SEC MEDIUM-1): ±50% jitter for Thundering Herd
-          // defense. Provided by BullMQ 5.x built-in strategy; randomizes within
-          // exponential delay × (1 ± jitter). Prevents concurrent failure→retry
-          // across multiple pages from bursting VRAM / Redis simultaneously.
+          // backoff is effectively dead code under `attempts: 1` but retained as
+          // reserve for the conditional re-introduction of `attempts > 1` once
+          // idempotency contracts land (see Cond 7 §2.2 (4) gating contract).
           jitter: 0.5,
         },
         // 24h 保持（クライアントポーリング用） / 24h retention (for client polling)
@@ -601,7 +663,14 @@ export async function getEmbeddingBackfillJobStatus(
     status.result = job.returnvalue;
   }
   if (state === "failed" && job.failedReason) {
-    status.error = job.failedReason;
+    // Plan v3 Track T4 SEC L-03 / CO-T4-02: sanitise BullMQ failedReason to
+    // client-safe `analysis_pipeline_interrupted` for T4 reasons; pass-through
+    // for non-T4 reasons. Defense-in-depth at queue boundary. CWE-209.
+    // Plan v3 T4 SEC L-03: BullMQ `failedReason` 生暴露を queue 境界で sanitise。
+    const sanitised = sanitizeAnalysisErrorForClient(job.failedReason);
+    if (sanitised !== null) {
+      status.error = sanitised;
+    }
   }
 
   return status;

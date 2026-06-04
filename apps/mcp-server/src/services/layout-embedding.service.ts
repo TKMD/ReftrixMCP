@@ -744,6 +744,23 @@ function generateCacheKey(text: string, modelName: string): string {
 export class LayoutEmbeddingService {
   private readonly options: Required<LayoutEmbeddingOptions>;
   private embeddingService: IEmbeddingService | null = null;
+  /**
+   * Plan v4.3 PR-M-B (FIND-PLAN-V43-H-01 closure): in-flight dispose Promise
+   * tracker for the disposeEmbeddingPipeline() idempotency mutex.
+   *
+   * Concurrent invocations from (a) ADR-0019 close() shutdown path and
+   * (b) ADR-0034 callback-exit listener (PR-M-A disposeFn) under planned
+   * restart race the same `service.dispose()` call against ONNX
+   * InferenceSession teardown. Sharing the same in-flight Promise guarantees
+   * the underlying dispose runs exactly once and that all callers observe
+   * the same completion — preventing the double-release SIGABRT race that
+   * FIND-PLAN-V43-H-01 disclosed.
+   *
+   * Plan v4.3 PR-M-B (FIND-PLAN-V43-H-01 closure): in-flight dispose Promise
+   * tracker for the disposeEmbeddingPipeline() idempotency mutex. Concurrent
+   * close()+callback-exit invocations share one promise so dispose runs once.
+   */
+  private inFlightDispose: Promise<void> | null = null;
 
   constructor(options?: LayoutEmbeddingOptions) {
     this.options = {
@@ -1324,67 +1341,92 @@ export class LayoutEmbeddingService {
    *
    * サブフェーズ間で呼び出すことで、Embedding Phase全体のメモリピークを抑制する。
    * 次回のgenerateFromText()呼び出し時にパイプラインは自動的に再初期化される。
+   *
+   * Plan v4.3 PR-M-B (FIND-PLAN-V43-H-01 closure): idempotency mutex
+   * ===============================================================
+   * ADR-0019 close-before-dispose shutdown path と ADR-0034 callback-exit
+   * planned-restart path (PR-M-A `disposeFn`) は **同一プロセス内で並行**
+   * 走り得るため、本 method の 2 回 parallel 呼出を `inFlightDispose`
+   * Promise 共有で**冪等化** する:
+   *   1. 既に in-flight が存在する場合は同 Promise を await し、
+   *      下層 `service.dispose()` が **1 回だけ** 実行されることを保証
+   *   2. side-effect (logger.info "ONNX pipeline disposed") も 1 回のみ
+   *   3. completion 後 `inFlightDispose = null` で reset し次回 dispose
+   *      (e.g. sub-phase 末尾の terminateAndRespawn fallback) は通常実行
+   *   4. 内部失敗は `doDisposePipeline()` 側で catch + warn し、
+   *      Promise 自体は resolve のみ (caller 側の double-throw を防止)
+   *
+   * Plan v4.3 PR-M-B idempotency mutex: concurrent ADR-0019 close path and
+   * ADR-0034 callback-exit `disposeFn` path share one in-flight Promise so
+   * the underlying `service.dispose()` and its side effects run exactly
+   * once. Completion resets `inFlightDispose` for subsequent dispose calls.
+   *
+   * @see ADR-0035 §Decision 1 (callback-exit canonical listener body)
+   * @see ADR-0019 (Embedding Worker Close-Before-Dispose Ordering)
+   * @see FIND-PLAN-V43-H-01 (dispose idempotency race under concurrent
+   *      close+callback-exit)
    */
   async disposeEmbeddingPipeline(): Promise<void> {
+    if (this.inFlightDispose) {
+      // 既に in-flight: 同 Promise を await して double-dispose を防止。
+      // Concurrent caller observes the same completion as the originator.
+      return this.inFlightDispose;
+    }
+
     if (!this.embeddingService) {
+      // No pipeline initialised — nothing to dispose, no mutex needed.
       return;
     }
 
-    // IEmbeddingServiceにdispose()がない場合でも、実体がEmbeddingServiceならdispose可能
-    const service = this.embeddingService as { dispose?: () => Promise<void> };
-    if (typeof service.dispose === "function") {
-      try {
-        await service.dispose();
-        if (isDevelopment()) {
-          logger.info("[LayoutEmbedding] ONNX pipeline disposed for memory recovery");
-        }
-      } catch (disposeError) {
-        logger.warn("[LayoutEmbedding] Pipeline dispose warning", {
-          error: disposeError instanceof Error ? disposeError.message : "Unknown error",
-        });
-      }
-    }
+    this.inFlightDispose = this.doDisposePipeline().finally(() => {
+      // Completion (success or already-handled failure) resets the slot so
+      // a subsequent dispose (e.g. after lazy re-init) can run normally.
+      this.inFlightDispose = null;
+    });
+    return this.inFlightDispose;
   }
 
   /**
-   * Worker Threadをterminate→re-spawnしてOSメモリを完全回収
+   * Internal dispose implementation. Wraps the actual
+   * `IEmbeddingService.dispose()` invocation, logs success in development,
+   * and contains failure within a `logger.warn` (does NOT rethrow) so the
+   * shared `inFlightDispose` Promise always resolves cleanly — concurrent
+   * callers must not observe asymmetric error semantics.
    *
-   * dispose()はONNX Runtime C++アリーナ内のメモリを解放するが、glibc malloc
-   * 断片化によりOSにメモリが返却されない。terminateAndRespawnはWorker Thread
-   * プロセス自体を終了し、OSがメモリを全回収した後、次回のembedding生成時に
-   * 自動的に新しいWorker Threadを起動する。
-   *
-   * サブフェーズ末尾で呼び出し、チャンク間ではdisposeEmbeddingPipeline()を使用する。
-   *
-   * Terminates the Worker Thread and prepares for re-spawn on next use.
-   * Unlike disposeEmbeddingPipeline() which only releases ONNX pipeline
-   * within the existing worker, this terminates the entire worker process
-   * to force OS memory reclamation from glibc malloc fragmentation.
-   *
-   * Called at sub-phase endings; chunk boundaries still use disposeEmbeddingPipeline().
+   * Internal dispose implementation. Logs success in dev and contains
+   * failures via `logger.warn` (no rethrow) so the in-flight Promise
+   * resolves cleanly for all concurrent callers.
    */
-  async terminateAndRespawnEmbeddingPipeline(): Promise<void> {
-    if (!this.embeddingService) {
+  private async doDisposePipeline(): Promise<void> {
+    // IEmbeddingServiceにdispose()がない場合でも、実体がEmbeddingServiceならdispose可能
+    const service = this.embeddingService as { dispose?: () => Promise<void> } | null;
+    if (!service || typeof service.dispose !== "function") {
       return;
     }
-
-    const service = this.embeddingService as { terminateAndRespawn?: () => Promise<void> };
-    if (typeof service.terminateAndRespawn === "function") {
-      try {
-        await service.terminateAndRespawn();
-        if (isDevelopment()) {
-          logger.info("[LayoutEmbedding] Worker Thread terminated and ready for respawn");
-        }
-      } catch (terminateError) {
-        logger.warn("[LayoutEmbedding] Worker Thread terminate-and-respawn warning", {
-          error: terminateError instanceof Error ? terminateError.message : "Unknown error",
-        });
+    try {
+      await service.dispose();
+      if (isDevelopment()) {
+        logger.info("[LayoutEmbedding] ONNX pipeline disposed for memory recovery");
       }
-    } else {
-      // Fallback: if terminateAndRespawn is not available, use dispose
-      await this.disposeEmbeddingPipeline();
+    } catch (disposeError) {
+      logger.warn("[LayoutEmbedding] Pipeline dispose warning", {
+        error: disposeError instanceof Error ? disposeError.message : "Unknown error",
+      });
     }
   }
+
+  // PR-BT-5 (M-1-RSS, ADR-0039 Decision 2 / CO-PRBT5-04): the
+  // `terminateAndRespawnEmbeddingPipeline()` wrapper was REMOVED. It was a
+  // Phase-5-only wrapper called exclusively from the 7 sub-phase endings of
+  // `phase-5-embedding.ts`. In the per-sub-phase fork model each sub-phase runs
+  // in its own fork that `exit(0)`s, so the OS reclaims the whole arena at the
+  // fork boundary and the wrapper (a structural OS-reclamation no-op in
+  // fork-child mode, since EMBEDDING_WORKER_THREAD=false → this.worker===null)
+  // is no longer needed. After removing the 7 call sites the wrapper became
+  // orphaned (grep-verified 0 production callers) and was deleted per
+  // CO-PRBT5-04. The base `EmbeddingService.terminateAndRespawn()` (used by the
+  // worker-thread restart path elsewhere) is RETAINED, as is
+  // `disposeEmbeddingPipeline()` (chunk-boundary transient recovery).
 
   /**
    * ONNX実行プロバイダーを動的に切り替え

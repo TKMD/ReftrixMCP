@@ -281,11 +281,31 @@ async function dispatchBackfillByCategory(
       });
     }
     case "section_visual": {
-      const fn: CategoryServiceWrapper = serviceModule.backfillSectionVisualsForPage;
-      return fn(params.webPageId, {
-        partsLimit: params.partsLimit,
-        onProgress: options.onProgress,
-      });
+      // v0.4.0 PR-BT-3 (FIND 019e5a11): The `section_visual` category requires
+      // DINOv2 `vision_embedding` regeneration PLUS the PR-BT-2 terminal-skip
+      // marker (`section_visual_uncroppable` / `section_visual_duplicate`), both
+      // of which live ONLY in the in-process `SectionVisualProcessor
+      // .processInProcess` (`runVisualEmbeddingSubPhases` + `writeSection
+      // VisionSkipReason`). A text-only `backfillSectionVisualsForPage` success
+      // return would make `runForkOrFallback` return the fork result, so the
+      // in-process marker path is NEVER reached and the page stays in_progress in
+      // production fork-only mode (PR-BT-2 goal 未達 root cause). Mirroring
+      // `part_visual` (LCC-M-2), this child throws so the orchestrator's
+      // catch-fallback (SEC-M-3) routes to the in-process DINOv2 + marker path.
+      //
+      // PR-BT-3 (FIND 019e5a11): `section_visual` は DINOv2 vision_embedding 再生成
+      // と PR-BT-2 terminal-skip marker を要し、現状 in-process `SectionVisual
+      // Processor.processInProcess` (`runVisualEmbeddingSubPhases` + `writeSection
+      // VisionSkipReason`) に閉じている。text-only `backfillSectionVisualsForPage`
+      // を success で返すと `runForkOrFallback` が fork 結果を return し、production
+      // fork-only mode で in-process marker path に永久到達せず page が in_progress
+      // に残る (PR-BT-2 goal 未達 root cause)。`part_visual` (LCC-M-2) と同パターンで
+      // throw し、orchestrator catch-fallback (SEC-M-3) を経由して in-process
+      // DINOv2 + marker path に到達させる。PR3b で fork-child に DINOv2+marker を
+      // 統合した時点で本 case を通常 dispatch に統合予定。
+      throw new Error(
+        "section_visual fork path requires in-process visual embedding + terminal-skip marker (PR-BT-3); falling back to in-process per ADR-0015 LCC-M-2 (mirrors part_visual)"
+      );
     }
     case "motion": {
       const fn: CategoryServiceWrapper = serviceModule.backfillMotionsForPage;

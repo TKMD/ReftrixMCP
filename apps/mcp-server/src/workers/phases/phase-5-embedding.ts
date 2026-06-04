@@ -57,6 +57,8 @@ import {
   DINOV2_CHUNK_SIZE,
   DINOV2_RECYCLE_THRESHOLD,
   JS_ANIMATION_EMBEDDING_CHUNK_SIZE,
+  type ChunkedEncoderTelemetry,
+  isPhase5TextChunkedEncoderHardenedEnabled,
   checkMemoryPressure,
   tryGarbageCollect,
   extendJobLock,
@@ -65,7 +67,14 @@ import {
   generateJsAnimationTextRepresentation,
   saveJsAnimationEmbeddingChunk,
   truncateSkipDetail,
+  partVisualPendingExclusionPredicate,
+  sectionVisualPendingExclusionPredicate,
+  type PartVisualTerminalSkipReason,
+  type SectionVisualTerminalSkipReason,
 } from "./types";
+// PR-BT-5 chunk-fork contingency: canonical chunked text-embedding loop driver
+// (C1 per-chunk RSS budget break) consumed by all text sub-phases.
+import { runChunkedTextEmbeddingLoop } from "./phase-5-chunked-text-loop";
 
 // Phase 5 RAW decode optimization
 // v0.4.0 PR7d-2 (TDA LOW-1): also import createPhase5TempDir/cleanupPhase5TempDir
@@ -85,10 +94,23 @@ import {
   type RawScreenshotMetadata,
 } from "./phase-5-raw-decode";
 
-// GPU Resource Manager type
-import type { GpuResourceManager } from "../../services/gpu-resource-manager";
 // LayoutEmbeddingService type
 import type { LayoutEmbeddingService } from "../../services/layout-embedding.service";
+
+// PR-C4 (ADR-0018 Amendment, section_visual PII asymmetry closure): audit emit
+// for the work-side `section_visual_pii_excluded` terminal marker. `log()`
+// internally applies `truncateAuditTargetId` to `targetId` (SSOT PII
+// minimisation, SEC-RV1-03), so we pass the raw webPageId (same pattern as the
+// existing `embedding_part_visual_skipped` emit in embedding-backfill-processors).
+import { getAuditLogService, truncateAuditTargetId } from "../../services/audit-log.service";
+import {
+  AUDIT_ACTION_EMBEDDING_SECTION_VISUAL_PII_EXCLUDED,
+  AUDIT_ACTOR_PAGE_ANALYZE_WORKER,
+} from "../../audit/audit-actions";
+
+// PR-BT-5 (M-1-RSS, ADR-0039 Decision 1/3): per-sub-phase fork filter types
+// (SSOT-derived sub-phase identifiers).
+import type { Phase5TextSubPhase, Phase5VisualSubPhase } from "./phase-5-subphases.const";
 
 // ============================================================================
 // Dependency Injection Interface
@@ -98,14 +120,24 @@ import type { LayoutEmbeddingService } from "../../services/layout-embedding.ser
  * Dependencies injected from the orchestrator (module-level singletons).
  *
  * dispatchEmbeddingPhase は page-analyze-worker.ts のモジュールレベルシングルトン
- * (sharedLayoutEmbeddingService, gpuResourceManager, prisma) を
+ * (sharedLayoutEmbeddingService, prisma) を
  * このインターフェースを通じて受け取る。
+ *
+ * PR-1 GPU-COORD (FIND-IMPL-TDA-L-01): `gpuResourceManager` は本 interface の
+ * 注入 dep から削除済み。fork child の provider 選択は probe 配線
+ * (`detectExecutionProvider`/DINOv2 init pre-flight) が駆動するため、
+ * in-process full GpuResourceManager は embedding phase へ注入しない
+ * (ADR-0037 fork-only 境界保全)。
+ *
+ * PR-1 GPU-COORD (FIND-IMPL-TDA-L-01): `gpuResourceManager` was removed from this
+ * interface's injected deps. The fork child's provider selection is driven by the
+ * probe wiring (`detectExecutionProvider`/DINOv2 init pre-flight), so the in-process
+ * full GpuResourceManager is not injected into the embedding phase
+ * (ADR-0037 fork-only boundary preservation).
  */
 export interface EmbeddingPhaseDeps {
   /** Shared ONNX session singleton for all text embedding sub-phases */
   sharedLayoutEmbeddingService: LayoutEmbeddingService;
-  /** GPU resource manager singleton (Vision/Embedding dynamic switching) */
-  gpuResourceManager: GpuResourceManager;
   /** Prisma client instance */
   prisma: EmbeddingPhasePrismaClient;
 }
@@ -164,6 +196,16 @@ async function isAllowedScreenshotPath(absolutePath: string): Promise<boolean> {
 // Sub-phase shared context (for extracted sub-phase functions)
 // ============================================================================
 
+// PR-V3-T1a §3.2 C1/C3 (FIND-V3-IO-H-01 closure): chunked encoder telemetry,
+// surfaced from a fork-child text sub-phase to the parent via the `text-result`
+// IPC message for `audit_logs` emission. PR-BT-5 chunk-fork contingency
+// (ADR-0039 §Consequences #2a) relocated the `ChunkedEncoderTelemetry` interface
+// to `types.ts` so the shared `runChunkedTextEmbeddingLoop` driver
+// (phase-5-chunked-text-loop.ts) can mutate it without a circular import on this
+// orchestrator. Re-exported here for backward compatibility (existing importers
+// of `ChunkedEncoderTelemetry` from phase-5-embedding.ts continue to resolve).
+export type { ChunkedEncoderTelemetry } from "./types";
+
 /**
  * Sub-phase context shared across all text embedding sub-phases.
  *
@@ -178,10 +220,15 @@ interface EmbeddingSubPhaseContext {
   effectiveToken: string;
   effectiveLockDuration: number;
   sharedLayoutEmbeddingService: LayoutEmbeddingService;
-  gpuResourceManager: GpuResourceManager;
   prisma: EmbeddingPhasePrismaClient;
   result: EmbeddingPhaseResult;
   reportEmbeddingSubProgress: (subCompleted: number, subTotal: number) => void;
+  /**
+   * PR-V3-T1a §3.2: chunked encoder telemetry mutated by
+   * `processSectionTextEmbeddingChunks` and surfaced to the parent via the
+   * IPC `text-result` message in `runTextEmbeddingSubPhases`.
+   */
+  chunkedEncoderTelemetry: ChunkedEncoderTelemetry;
 }
 
 // ============================================================================
@@ -197,6 +244,17 @@ interface EmbeddingSubPhaseContext {
 
 /**
  * 1. Section text embedding (chunked)
+ *
+ * PR-V3-T1a §3.2 (FIND-V3-IO-H-01 closure): delta-restructured to apply the
+ * C1-C4 hardening contracts — per-chunk RSS budget enforcement (C1), streaming
+ * flush ordering invariant (C2), failure-path partial-flush prevention (C3),
+ * and idempotency on retry via skip-detection (C4). Hardening is gated by the
+ * `PHASE5_TEXT_CHUNKED_ENCODER_HARDENED` env feature flag (default on); when
+ * disabled, the legacy chunk loop runs unchanged.
+ *
+ * PR-V3-T1a §3.2: delta-restructured for C1-C4 hardening contracts (per-chunk
+ * RSS budget, flush ordering invariant, partial-flush prevention, idempotent
+ * retry skip-detection). Feature-flag gated; legacy path preserved.
  */
 async function processSectionTextEmbeddingChunks(
   ctx: EmbeddingSubPhaseContext,
@@ -213,39 +271,76 @@ async function processSectionTextEmbeddingChunks(
   }
 
   const allSections = layoutResultForNarrative.sections as SectionDataForEmbedding[];
-  let sectionChunkSize = EMBEDDING_CHUNK_SIZE;
 
-  for (let offset = 0; offset < allSections.length; offset += sectionChunkSize) {
-    const memCheck = checkMemoryPressure();
-    if (memCheck.shouldAbort) {
-      logger.warn("[PageAnalyzeWorker] Critical memory, stopping section embedding", {
-        rssMb: memCheck.rssMb,
-      });
-      break;
-    }
-    if (memCheck.shouldDegrade) {
-      sectionChunkSize = Math.max(5, Math.floor(sectionChunkSize / 2));
-      logger.warn("[PageAnalyzeWorker] Memory pressure, reducing section chunk size", {
-        rssMb: memCheck.rssMb,
-        newChunkSize: sectionChunkSize,
-      });
-    }
+  // PR-V3-T1a §3.2 C1: clamp chunk size to EMBEDDING_CHUNK_SIZE upper bound.
+  const sectionChunkSize = EMBEDDING_CHUNK_SIZE;
 
-    const chunkSections = allSections.slice(offset, offset + sectionChunkSize);
-    await extendJobLock(
-      ctx.job,
-      ctx.effectiveToken,
-      ctx.effectiveLockDuration,
-      "embedding-sections"
-    );
-
-    const chunkIdMapping = new Map<string, string>();
-    for (const section of chunkSections) {
-      const dbId = sectionSaveResult.idMapping.get(section.id);
-      if (dbId) chunkIdMapping.set(section.id, dbId);
-    }
-
+  // PR-V3-T1a §3.2 C4: idempotency-on-retry skip-detection at loop entry.
+  // Best-effort COUNT; failure → no skip (Prisma uniqueness still prevents dup).
+  // (section_text is the only sub-phase with head-chunk skip semantics — the
+  // computed `skippedHeadChunks` is threaded into the canonical loop driver.)
+  const hardeningEnabled = isPhase5TextChunkedEncoderHardenedEnabled();
+  let skippedHeadChunks = 0;
+  if (hardeningEnabled) {
     try {
+      // Count existing rows for this page; chunks fully covered are skipped.
+      const existingRowsRaw = (await ctx.prisma.$queryRawUnsafe(
+        `SELECT COUNT(*)::int AS count FROM section_embeddings
+         WHERE section_pattern_id IN (
+           SELECT id FROM section_patterns WHERE web_page_id = $1::uuid
+         )`,
+        ctx.webPageId
+      )) as Array<{ count: number }>;
+      const existingCount = existingRowsRaw[0]?.count ?? 0;
+      if (existingCount > 0 && existingCount < allSections.length) {
+        // Fully-covered head chunks = floor(existingCount / sectionChunkSize)
+        skippedHeadChunks = Math.floor(existingCount / sectionChunkSize);
+      }
+      if (skippedHeadChunks > 0) {
+        ctx.chunkedEncoderTelemetry.idempotencyChunkSkippedCount = skippedHeadChunks;
+        logger.info(
+          "[PageAnalyzeWorker] PR-V3-T1a C4 idempotency: skipping head chunks (prior partial run)",
+          {
+            existingCount,
+            skippedHeadChunks,
+            totalSections: allSections.length,
+            sectionChunkSize,
+          }
+        );
+      }
+    } catch (countError) {
+      // Best-effort: COUNT failure collapses to no skip (Prisma uniqueness
+      // still prevents duplicates).
+      logger.warn(
+        "[PageAnalyzeWorker] PR-V3-T1a C4 idempotency COUNT failed (non-fatal, falling back to no skip)",
+        {
+          error: countError instanceof Error ? countError.message : String(countError),
+        }
+      );
+      skippedHeadChunks = 0;
+    }
+  }
+
+  // PR-BT-5 chunk-fork contingency (ADR-0039 §Consequences #2a): section_text is
+  // the canonical origin of the C1/C2/C3/C4 hardening pattern — it now consumes
+  // the SHARED `runChunkedTextEmbeddingLoop` driver (which the other text
+  // sub-phases also consume), eliminating the per-processor duplication. The
+  // section-specific C4 head-chunk skip is threaded in via `skippedHeadChunks`.
+  await runChunkedTextEmbeddingLoop(ctx, {
+    items: allSections,
+    lockLabel: "embedding-sections",
+    hardeningEnabled,
+    skippedHeadChunks,
+    onEncodeError: () => {
+      ctx.result.embeddingFailedChunks++;
+    },
+    encodeChunk: async (chunkSections, chunkIndex, offset) => {
+      const chunkIdMapping = new Map<string, string>();
+      for (const section of chunkSections) {
+        const dbId = sectionSaveResult.idMapping.get(section.id);
+        if (dbId) chunkIdMapping.set(section.id, dbId);
+      }
+
       const sectionEmbResult = await generateSectionEmbeddings(chunkSections, chunkIdMapping, {
         webPageId: ctx.webPageId,
         onProgress: ctx.reportEmbeddingSubProgress,
@@ -256,30 +351,15 @@ async function processSectionTextEmbeddingChunks(
       if (isDevelopment()) {
         logger.info("[PageAnalyzeWorker] SectionEmbeddings chunk completed", {
           chunkOffset: offset,
+          chunkIndex,
           chunkSize: chunkSections.length,
           generatedCount: sectionEmbResult.generatedCount,
           failedCount: sectionEmbResult.failedCount,
           totalSoFar: ctx.result.sectionEmbeddingsGenerated,
         });
       }
-    } catch (sectionEmbError) {
-      ctx.result.embeddingFailedChunks++;
-      logger.warn("[PageAnalyzeWorker] SectionEmbedding chunk failed (non-fatal)", {
-        chunkOffset: offset,
-        error: sectionEmbError instanceof Error ? sectionEmbError.message : String(sectionEmbError),
-      });
-    }
-
-    if (offset + sectionChunkSize < allSections.length) {
-      await ctx.sharedLayoutEmbeddingService.disposeEmbeddingPipeline();
-      tryGarbageCollect();
-      // Yield to event loop: allow BullMQ heartbeats and IPC between chunks
-      await new Promise<void>((resolve) => setImmediate(resolve));
-    }
-  }
-
-  await ctx.sharedLayoutEmbeddingService.terminateAndRespawnEmbeddingPipeline();
-  tryGarbageCollect();
+    },
+  });
 }
 
 /**
@@ -300,39 +380,25 @@ async function processMotionTextEmbeddingChunks(
   }
 
   const allMotionPatterns = motionResultForEmbedding.patterns as MotionPatternForEmbedding[];
-  let motionChunkSize = EMBEDDING_CHUNK_SIZE;
 
-  for (let offset = 0; offset < allMotionPatterns.length; offset += motionChunkSize) {
-    const memCheck = checkMemoryPressure();
-    if (memCheck.shouldAbort) {
-      logger.warn("[PageAnalyzeWorker] Critical memory, stopping motion embedding", {
-        rssMb: memCheck.rssMb,
-      });
-      break;
-    }
-    if (memCheck.shouldDegrade) {
-      motionChunkSize = Math.max(5, Math.floor(motionChunkSize / 2));
-      logger.warn("[PageAnalyzeWorker] Memory pressure, reducing motion chunk size", {
-        rssMb: memCheck.rssMb,
-        newChunkSize: motionChunkSize,
-      });
-    }
+  // PR-BT-5 chunk-fork contingency (ADR-0039 §Consequences #2a): route through
+  // the canonical chunked loop driver so motion_text gets the C1 per-chunk RSS
+  // budget break (real-machine CPU verification: motion_text reached 4010MB,
+  // near the 4096MB fork kill threshold, because it lacked the budget break).
+  await runChunkedTextEmbeddingLoop(ctx, {
+    items: allMotionPatterns,
+    lockLabel: "embedding-motions",
+    hardeningEnabled: isPhase5TextChunkedEncoderHardenedEnabled(),
+    onEncodeError: () => {
+      ctx.result.embeddingFailedChunks++;
+    },
+    encodeChunk: async (chunkPatterns, chunkIndex, offset) => {
+      const chunkIdMapping = new Map<string, string>();
+      for (const pattern of chunkPatterns) {
+        const dbId = motionSaveResult.idMapping.get(pattern.id);
+        if (dbId) chunkIdMapping.set(pattern.id, dbId);
+      }
 
-    const chunkPatterns = allMotionPatterns.slice(offset, offset + motionChunkSize);
-    await extendJobLock(
-      ctx.job,
-      ctx.effectiveToken,
-      ctx.effectiveLockDuration,
-      "embedding-motions"
-    );
-
-    const chunkIdMapping = new Map<string, string>();
-    for (const pattern of chunkPatterns) {
-      const dbId = motionSaveResult.idMapping.get(pattern.id);
-      if (dbId) chunkIdMapping.set(pattern.id, dbId);
-    }
-
-    try {
       const motionEmbResult = await generateMotionEmbeddings(chunkPatterns, {
         webPageId: ctx.webPageId,
         sourceUrl: ctx.url,
@@ -344,29 +410,15 @@ async function processMotionTextEmbeddingChunks(
       if (isDevelopment()) {
         logger.info("[PageAnalyzeWorker] MotionEmbeddings chunk completed", {
           chunkOffset: offset,
+          chunkIndex,
           chunkSize: chunkPatterns.length,
           savedCount: motionEmbResult.savedCount,
           errorCount: motionEmbResult.errors.length,
           totalSoFar: ctx.result.motionEmbeddingsGenerated,
         });
       }
-    } catch (motionEmbError) {
-      ctx.result.embeddingFailedChunks++;
-      logger.warn("[PageAnalyzeWorker] MotionEmbedding chunk failed (non-fatal)", {
-        chunkOffset: offset,
-        error: motionEmbError instanceof Error ? motionEmbError.message : String(motionEmbError),
-      });
-    }
-
-    if (offset + motionChunkSize < allMotionPatterns.length) {
-      await ctx.sharedLayoutEmbeddingService.disposeEmbeddingPipeline();
-      tryGarbageCollect();
-      await new Promise<void>((resolve) => setImmediate(resolve));
-    }
-  }
-
-  await ctx.sharedLayoutEmbeddingService.terminateAndRespawnEmbeddingPipeline();
-  tryGarbageCollect();
+    },
+  });
 }
 
 /**
@@ -412,39 +464,24 @@ async function processVisionMotionEmbeddingChunks(
       },
     }));
 
-  let visionChunkSize = EMBEDDING_CHUNK_SIZE;
+  // PR-BT-5 chunk-fork contingency (ADR-0039 §Consequences #2a): route through
+  // the canonical chunked loop driver so vision_motion_text gets the C1 per-chunk
+  // RSS budget break (uniform robustness — vision-detected animation counts can
+  // grow with page complexity; bound it identically to motion_text).
+  await runChunkedTextEmbeddingLoop(ctx, {
+    items: visionPatterns,
+    lockLabel: "embedding-motions",
+    hardeningEnabled: isPhase5TextChunkedEncoderHardenedEnabled(),
+    onEncodeError: () => {
+      ctx.result.embeddingFailedChunks++;
+    },
+    encodeChunk: async (chunkVisionPatterns, _chunkIndex, offset) => {
+      const chunkVisionIdMapping = new Map<string, string>();
+      for (const pattern of chunkVisionPatterns) {
+        const dbId = scrollVisionSaveResult.idMapping.get(pattern.id);
+        if (dbId) chunkVisionIdMapping.set(pattern.id, dbId);
+      }
 
-  for (let offset = 0; offset < visionPatterns.length; offset += visionChunkSize) {
-    const memCheck = checkMemoryPressure();
-    if (memCheck.shouldAbort) {
-      logger.warn("[PageAnalyzeWorker] Critical memory, stopping vision motion embedding", {
-        rssMb: memCheck.rssMb,
-      });
-      break;
-    }
-    if (memCheck.shouldDegrade) {
-      visionChunkSize = Math.max(5, Math.floor(visionChunkSize / 2));
-      logger.warn(
-        "[PageAnalyzeWorker] Memory pressure detected, reducing vision-motion chunk size",
-        { rssMb: memCheck.rssMb, newChunkSize: visionChunkSize }
-      );
-    }
-
-    const chunkVisionPatterns = visionPatterns.slice(offset, offset + visionChunkSize);
-    await extendJobLock(
-      ctx.job,
-      ctx.effectiveToken,
-      ctx.effectiveLockDuration,
-      "embedding-motions"
-    );
-
-    const chunkVisionIdMapping = new Map<string, string>();
-    for (const pattern of chunkVisionPatterns) {
-      const dbId = scrollVisionSaveResult.idMapping.get(pattern.id);
-      if (dbId) chunkVisionIdMapping.set(pattern.id, dbId);
-    }
-
-    try {
       const visionEmbResult = await generateMotionEmbeddings(chunkVisionPatterns, {
         webPageId: ctx.webPageId,
         sourceUrl: ctx.url,
@@ -460,23 +497,8 @@ async function processVisionMotionEmbeddingChunks(
           errorCount: visionEmbResult.errors.length,
         });
       }
-    } catch (visionEmbError) {
-      ctx.result.embeddingFailedChunks++;
-      logger.warn("[PageAnalyzeWorker] Vision-detected MotionEmbedding chunk failed (non-fatal)", {
-        chunkOffset: offset,
-        error: visionEmbError instanceof Error ? visionEmbError.message : String(visionEmbError),
-      });
-    }
-
-    if (offset + visionChunkSize < visionPatterns.length) {
-      await ctx.sharedLayoutEmbeddingService.disposeEmbeddingPipeline();
-      tryGarbageCollect();
-      await new Promise<void>((resolve) => setImmediate(resolve));
-    }
-  }
-
-  await ctx.sharedLayoutEmbeddingService.terminateAndRespawnEmbeddingPipeline();
-  tryGarbageCollect();
+    },
+  });
 }
 
 /**
@@ -528,41 +550,30 @@ async function processBackgroundTextEmbeddingChunks(
       })
     );
 
-  let bgChunkSize = EMBEDDING_CHUNK_SIZE;
+  // PR-BT-5 chunk-fork contingency (ADR-0039 §Consequences #2a): route through
+  // the canonical chunked loop driver. background_text is the HIGHEST-priority
+  // target — real-machine CPU verification SIGKILLed it at delta=4711MB with only
+  // 130 background designs (no per-chunk RSS budget break; the gradient/color
+  // text representations grow the e5 arena fast). The C1 break now stops the loop
+  // at PER_CHUNK_RSS_BUDGET_MB (1536MB) so the rest is surfaced to backfill BEFORE
+  // the 4096MB fork kill threshold. Note: the `chunkIds` slice is realigned by
+  // offset + chunk length so adaptive chunk-size halving keeps ids/bgs paired.
+  await runChunkedTextEmbeddingLoop(ctx, {
+    items: allBackgroundsForText,
+    lockLabel: "embedding-backgrounds",
+    hardeningEnabled: isPhase5TextChunkedEncoderHardenedEnabled(),
+    onEncodeError: () => {
+      ctx.result.embeddingFailedChunks++;
+    },
+    encodeChunk: async (chunkBgs, _chunkIndex, offset) => {
+      const chunkIds = bgSaveResult.ids.slice(offset, offset + chunkBgs.length);
 
-  for (let offset = 0; offset < allBackgroundsForText.length; offset += bgChunkSize) {
-    const memCheck = checkMemoryPressure();
-    if (memCheck.shouldAbort) {
-      logger.warn("[PageAnalyzeWorker] Critical memory, stopping background embedding", {
-        rssMb: memCheck.rssMb,
-      });
-      break;
-    }
-    if (memCheck.shouldDegrade) {
-      bgChunkSize = Math.max(5, Math.floor(bgChunkSize / 2));
-      logger.warn("[PageAnalyzeWorker] Memory pressure, reducing background chunk size", {
-        rssMb: memCheck.rssMb,
-        newChunkSize: bgChunkSize,
-      });
-    }
+      const chunkIdMapping = new Map<string, string>();
+      for (const bg of chunkBgs) {
+        const dbId = bgSaveResult.idMapping.get(bg.name);
+        if (dbId) chunkIdMapping.set(bg.name, dbId);
+      }
 
-    const chunkBgs = allBackgroundsForText.slice(offset, offset + bgChunkSize);
-    const chunkIds = bgSaveResult.ids.slice(offset, offset + bgChunkSize);
-
-    const chunkIdMapping = new Map<string, string>();
-    for (const bg of chunkBgs) {
-      const dbId = bgSaveResult.idMapping.get(bg.name);
-      if (dbId) chunkIdMapping.set(bg.name, dbId);
-    }
-
-    await extendJobLock(
-      ctx.job,
-      ctx.effectiveToken,
-      ctx.effectiveLockDuration,
-      "embedding-backgrounds"
-    );
-
-    try {
       const bgEmbResult = await generateBackgroundDesignEmbeddings(chunkBgs, chunkIdMapping, {
         webPageId: ctx.webPageId,
         backgroundDesignIds: chunkIds,
@@ -579,23 +590,8 @@ async function processBackgroundTextEmbeddingChunks(
           totalSoFar: ctx.result.bgEmbeddingsGenerated,
         });
       }
-    } catch (bgEmbError) {
-      ctx.result.embeddingFailedChunks++;
-      logger.warn("[PageAnalyzeWorker] BackgroundDesignEmbedding chunk failed (non-fatal)", {
-        chunkOffset: offset,
-        error: bgEmbError instanceof Error ? bgEmbError.message : String(bgEmbError),
-      });
-    }
-
-    if (offset + bgChunkSize < allBackgroundsForText.length) {
-      await ctx.sharedLayoutEmbeddingService.disposeEmbeddingPipeline();
-      tryGarbageCollect();
-      await new Promise<void>((resolve) => setImmediate(resolve));
-    }
-  }
-
-  await ctx.sharedLayoutEmbeddingService.terminateAndRespawnEmbeddingPipeline();
-  tryGarbageCollect();
+    },
+  });
 }
 
 /**
@@ -616,102 +612,91 @@ async function processJsAnimationEmbeddingChunks(
     return;
   }
 
-  try {
-    const jsEmbService = ctx.sharedLayoutEmbeddingService;
-    const embeddingItems: Array<{
-      originalId: string;
-      dbId: string;
-      textRepresentation: string;
-      embedding: number[];
-    }> = [];
+  const jsEmbService = ctx.sharedLayoutEmbeddingService;
 
-    for (const [originalId, dbId] of jsSaveResult.idMapping) {
-      const memCheck = checkMemoryPressure();
-      if (memCheck.shouldAbort) {
-        logger.warn("[PageAnalyzeWorker] Critical memory, stopping JS animation embedding", {
-          rssMb: memCheck.rssMb,
-        });
-        break;
-      }
-      if (memCheck.shouldDegrade) {
-        logger.warn("[PageAnalyzeWorker] Memory pressure detected in JS animation embedding", {
-          rssMb: memCheck.rssMb,
-        });
-      }
+  // PR-BT-5 chunk-fork contingency (ADR-0039 §Consequences #2a): convert the
+  // historically item-by-item js_animation loop to slice-based chunking over the
+  // idMapping entries so it consumes the canonical driver and gets the C1
+  // per-chunk RSS budget break + chunk-boundary dispose. The chunk size keeps
+  // its historically separate, larger JS_ANIMATION_EMBEDDING_CHUNK_SIZE (passed
+  // via initialChunkSize) so the DB-save batching behaviour is preserved.
+  const jsEntries: Array<[string, string]> = Array.from(jsSaveResult.idMapping);
 
-      try {
-        const textRepresentation = generateJsAnimationTextRepresentation(
-          originalId,
-          jsAnimationsForEmbedding
-        );
-        const embeddingResult = await jsEmbService.generateFromText(textRepresentation);
+  await runChunkedTextEmbeddingLoop(ctx, {
+    items: jsEntries,
+    lockLabel: "embedding-js-animations",
+    hardeningEnabled: isPhase5TextChunkedEncoderHardenedEnabled(),
+    initialChunkSize: JS_ANIMATION_EMBEDDING_CHUNK_SIZE,
+    onEncodeError: () => {
+      ctx.result.embeddingFailedChunks++;
+    },
+    encodeChunk: async (chunkEntries) => {
+      const embeddingItems: Array<{
+        originalId: string;
+        dbId: string;
+        textRepresentation: string;
+        embedding: number[];
+      }> = [];
 
-        embeddingItems.push({
-          originalId,
-          dbId,
-          textRepresentation,
-          embedding: embeddingResult.embedding,
-        });
-
+      for (const [originalId, dbId] of chunkEntries) {
         try {
-          ctx.reportEmbeddingSubProgress(0, 0);
-        } catch {
-          /* fire-and-forget */
-        }
-
-        if (embeddingItems.length >= JS_ANIMATION_EMBEDDING_CHUNK_SIZE) {
-          const savedCount = await saveJsAnimationEmbeddingChunk(
-            embeddingItems,
-            ctx.prisma as never
+          const textRepresentation = generateJsAnimationTextRepresentation(
+            originalId,
+            jsAnimationsForEmbedding
           );
-          ctx.result.jsAnimationEmbeddingsGenerated += savedCount;
+          const embeddingResult = await jsEmbService.generateFromText(textRepresentation);
 
-          if (isDevelopment()) {
-            logger.info("[PageAnalyzeWorker] JSAnimationEmbeddings chunk saved", {
-              chunkSize: savedCount,
-              totalSoFar: ctx.result.jsAnimationEmbeddingsGenerated,
-            });
+          embeddingItems.push({
+            originalId,
+            dbId,
+            textRepresentation,
+            embedding: embeddingResult.embedding,
+          });
+
+          try {
+            ctx.reportEmbeddingSubProgress(0, 0);
+          } catch {
+            /* fire-and-forget */
           }
-
-          embeddingItems.length = 0;
-          tryGarbageCollect();
-          await new Promise<void>((resolve) => setImmediate(resolve));
+        } catch (jsEmbItemError) {
+          try {
+            ctx.reportEmbeddingSubProgress(0, 0);
+          } catch {
+            /* fire-and-forget */
+          }
+          ctx.result.embeddingFailedChunks++;
+          logger.warn(
+            "[PageAnalyzeWorker] JSAnimationEmbedding item generation failed (non-fatal)",
+            {
+              originalId,
+              dbId,
+              error:
+                jsEmbItemError instanceof Error ? jsEmbItemError.message : String(jsEmbItemError),
+            }
+          );
         }
-      } catch (jsEmbItemError) {
-        try {
-          ctx.reportEmbeddingSubProgress(0, 0);
-        } catch {
-          /* fire-and-forget */
-        }
-        ctx.result.embeddingFailedChunks++;
-        logger.warn("[PageAnalyzeWorker] JSAnimationEmbedding item generation failed (non-fatal)", {
-          originalId,
-          dbId,
-          error: jsEmbItemError instanceof Error ? jsEmbItemError.message : String(jsEmbItemError),
-        });
       }
-    }
 
-    if (embeddingItems.length > 0) {
-      const savedCount = await saveJsAnimationEmbeddingChunk(embeddingItems, ctx.prisma as never);
-      ctx.result.jsAnimationEmbeddingsGenerated += savedCount;
-    }
+      if (embeddingItems.length > 0) {
+        const savedCount = await saveJsAnimationEmbeddingChunk(embeddingItems, ctx.prisma as never);
+        ctx.result.jsAnimationEmbeddingsGenerated += savedCount;
 
-    if (isDevelopment()) {
-      logger.info("[PageAnalyzeWorker] JSAnimationEmbeddings generated", {
-        generatedCount: ctx.result.jsAnimationEmbeddingsGenerated,
-        totalPatterns: jsSaveResult.idMapping.size,
-      });
-    }
-  } catch (jsEmbError) {
-    ctx.result.embeddingFailedChunks++;
-    logger.warn("[PageAnalyzeWorker] JSAnimationEmbedding generation failed (non-fatal)", {
-      error: jsEmbError instanceof Error ? jsEmbError.message : String(jsEmbError),
+        if (isDevelopment()) {
+          logger.info("[PageAnalyzeWorker] JSAnimationEmbeddings chunk saved", {
+            chunkSize: savedCount,
+            totalSoFar: ctx.result.jsAnimationEmbeddingsGenerated,
+          });
+        }
+      }
+    },
+  });
+
+  if (isDevelopment()) {
+    logger.info("[PageAnalyzeWorker] JSAnimationEmbeddings generated", {
+      generatedCount: ctx.result.jsAnimationEmbeddingsGenerated,
+      totalPatterns: jsSaveResult.idMapping.size,
     });
   }
-
-  await ctx.sharedLayoutEmbeddingService.terminateAndRespawnEmbeddingPipeline();
-  tryGarbageCollect();
 }
 
 /**
@@ -758,7 +743,15 @@ async function processResponsiveEmbeddingChunks(
     });
   }
 
-  await ctx.sharedLayoutEmbeddingService.terminateAndRespawnEmbeddingPipeline();
+  // PR-BT-5 chunk-fork contingency (ADR-0039 §Consequences #2a): responsive_text
+  // processes exactly ONE `responsiveAnalysisId` → ONE e5 inference. It is
+  // **inherently bounded** (no cross-chunk arena accumulation; the intra-fork
+  // reload count is the `max(1, chunkCount) = 1` floor by construction), so it is
+  // deliberately NOT routed through the `runChunkedTextEmbeddingLoop` driver
+  // (single-item chunking would be artificial abstraction with no RSS benefit —
+  // there is no second chunk to dispose between). The real-machine CPU
+  // verification did NOT flag responsive_text. The fork-boundary OS reclamation
+  // (ADR-0039 Decision 2) reclaims the single inference's arena on exit(0).
   tryGarbageCollect();
 }
 
@@ -845,33 +838,21 @@ async function processPartTextEmbeddingChunks(
       });
     }
 
-    let partChunkSize = EMBEDDING_CHUNK_SIZE;
-
-    for (let offset = 0; offset < partsForEmbedding.length; offset += partChunkSize) {
-      const memCheck = checkMemoryPressure();
-      if (memCheck.shouldAbort) {
-        logger.warn("[PageAnalyzeWorker] Critical memory, stopping part embedding", {
-          rssMb: memCheck.rssMb,
-        });
-        break;
-      }
-      if (memCheck.shouldDegrade) {
-        partChunkSize = Math.max(5, Math.floor(partChunkSize / 2));
-        logger.warn("[PageAnalyzeWorker] Memory pressure, reducing part chunk size", {
-          rssMb: memCheck.rssMb,
-          newChunkSize: partChunkSize,
-        });
-      }
-
-      const chunkParts = partsForEmbedding.slice(offset, offset + partChunkSize);
-      await extendJobLock(
-        ctx.job,
-        ctx.effectiveToken,
-        ctx.effectiveLockDuration,
-        "embedding-parts"
-      );
-
-      try {
+    // PR-BT-5 chunk-fork contingency (ADR-0039 §Consequences #2a): route the
+    // (already-chunked) part_text loop through the canonical driver so it gets
+    // the C1 per-chunk RSS budget break UNIFORMLY (part_text survived the
+    // real-machine CPU verification at 254 parts / 2760MB — its short
+    // CSS-attribute text representations grow the arena slowly — but applying
+    // the budget break here too makes the bound robust to future part-count or
+    // attribute-size growth, matching all other text sub-phases).
+    await runChunkedTextEmbeddingLoop(ctx, {
+      items: partsForEmbedding,
+      lockLabel: "embedding-parts",
+      hardeningEnabled: isPhase5TextChunkedEncoderHardenedEnabled(),
+      onEncodeError: () => {
+        ctx.result.embeddingFailedChunks++;
+      },
+      encodeChunk: async (chunkParts, _chunkIndex, offset) => {
         const chunkEmbeddings: PartEmbeddingResult[] = [];
 
         for (const part of chunkParts) {
@@ -912,7 +893,7 @@ async function processPartTextEmbeddingChunks(
               /* fire-and-forget */
             }
             logger.warn("[PageAnalyzeWorker] Part embedding failed for item (non-fatal)", {
-              partId: part.id.slice(0, 8) + "...",
+              partId: truncateAuditTargetId(part.id),
               error: partItemError instanceof Error ? partItemError.message : String(partItemError),
             });
           }
@@ -948,20 +929,8 @@ async function processPartTextEmbeddingChunks(
             totalSoFar: ctx.result.partEmbeddingsGenerated,
           });
         }
-      } catch (partChunkError) {
-        ctx.result.embeddingFailedChunks++;
-        logger.warn("[PageAnalyzeWorker] PartEmbedding chunk failed (non-fatal)", {
-          chunkOffset: offset,
-          error: partChunkError instanceof Error ? partChunkError.message : String(partChunkError),
-        });
-      }
-
-      if (offset + partChunkSize < partsForEmbedding.length) {
-        await ctx.sharedLayoutEmbeddingService.disposeEmbeddingPipeline();
-        tryGarbageCollect();
-        await new Promise<void>((resolve) => setImmediate(resolve));
-      }
-    }
+      },
+    });
 
     if (isDevelopment()) {
       logger.info("[PageAnalyzeWorker] PartEmbeddings generation complete", {
@@ -976,8 +945,144 @@ async function processPartTextEmbeddingChunks(
     });
   }
 
-  await ctx.sharedLayoutEmbeddingService.terminateAndRespawnEmbeddingPipeline();
+  // PR-BT-5 (M-1-RSS, ADR-0039 Decision 2): the sub-phase-tail
+  // `terminateAndRespawnEmbeddingPipeline()` is REMOVED from the fork-child path.
+  // In the per-sub-phase fork model each sub-phase runs in its own fork that
+  // `exit(0)`s, so the OS reclaims the whole arena at the fork boundary — the
+  // inter-sub-phase reload (the M-1-RSS root cause) is rooted out by the fork
+  // boundary. The intra-sub-phase chunk-boundary `disposeEmbeddingPipeline()`
+  // (transient recovery, max(1, chunkCount) reload upper bound) lives in the
+  // shared `runChunkedTextEmbeddingLoop` driver (phase-5-chunked-text-loop.ts).
+  // Source-pinned by INV-PHASE5-SUBPHASE-NO-RELOAD-001 (AST sweep: 0
+  // terminateAndRespawn call sites across the fork-child path).
   tryGarbageCollect();
+}
+
+/**
+ * ADR-0018 Amendment 7 §7.6 (Plan v2 PR-B, UB-8, NF-TPA-02): write a per-row
+ * terminal-skip marker to `component_part_embeddings.visual_skip_reason` so the
+ * part is permanently excluded from the part_visual pending query (single SSOT
+ * exclusion predicate). Only the 2 **terminal** silent-skip exits call this:
+ *   - exit #1 `:1373` bbox_invalid (JSDOM-origin structurally invalid bbox)
+ *   - exit #2 `:1390` bbox_unresolvable (off-screen clamp → zero-size crop)
+ * The transient DINOv2-catch exit (#3) does NOT call this (keeps the row pending
+ * for retry — INV-(b) orthogonality, ADR §7.5 req3).
+ *
+ * Marker write failure is non-fatal (logged, not thrown): a missed marker
+ * degrades to the legacy re-fetch behaviour for that single row, never aborting
+ * the run (Graceful Degradation). The `reason` is the SSOT-derived terminal
+ * subset type so a non-terminal reason cannot be passed by construction.
+ */
+async function writePartVisualTerminalSkipMarker(
+  // PR-BT-4 (ADR-0018 Amendment 10 Decision 10.2): narrowed to the minimal
+  // prisma-bearing shape so the backfill residual-path helper
+  // (`markResidualBboxUnresolvableParts`) can reuse this single SSOT writer
+  // without fabricating a full `EmbeddingSubPhaseContext`. The main-path loop
+  // still passes its `ctx` (which structurally satisfies `{ prisma }`).
+  ctx: { prisma: Pick<EmbeddingPhasePrismaClient, "$executeRawUnsafe"> },
+  embeddingId: string,
+  reason: PartVisualTerminalSkipReason
+): Promise<void> {
+  try {
+    await ctx.prisma.$executeRawUnsafe(
+      `UPDATE component_part_embeddings
+         SET visual_skip_reason = $1
+       WHERE id = $2::uuid AND visual_skip_reason IS NULL`,
+      reason,
+      embeddingId
+    );
+  } catch (markerError) {
+    // Non-fatal: a missed marker degrades to legacy re-fetch for this row only.
+    logger.warn("[PageAnalyzeWorker] Failed to write part visual_skip_reason marker (non-fatal)", {
+      partEmbeddingId: truncateAuditTargetId(embeddingId),
+      reason,
+      error: markerError instanceof Error ? markerError.message : String(markerError),
+    });
+  }
+}
+
+/**
+ * PR-BT-4 (ADR-0018 Amendment 10 Decision 10.2; design V1 §4.3.1) — gap B
+ * closure for the backfill `PartVisualProcessor` residual bbox path.
+ *
+ * After `resolveAndPersistBboxes` runs the Playwright bbox re-resolution, some
+ * parts remain **residual**: their `bounding_box` is still null or zero-size
+ * (the selector matched nothing / the element was never measurable) AND they
+ * are still part_visual pending (`visual_embedding IS NULL AND
+ * visual_skip_reason IS NULL`). DINOv2 can never produce a visual embedding for
+ * a zero-size crop, so these parts would otherwise stay pending forever and the
+ * 60-min reconciliation cron would force-pin the page to `failed`.
+ *
+ * This helper writes a **Layer-1 per-row** `visual_skip_reason='bbox_unresolvable'`
+ * marker for each such residual part by REUSING the idempotent
+ * {@link writePartVisualTerminalSkipMarker} (the marker SSOT writer), so each
+ * part is excluded by {@link partVisualPendingExclusionPredicate} and the page
+ * can reach `completed`.
+ *
+ * **Layer-2 non-propagation (TPA-H-01 / U2)**: this is a per-row marker only.
+ * The caller (`PartVisualProcessor.resolveAndPersistBboxes`) does NOT promote
+ * this to the run-level `skipReason` channel — residual bbox skip is a valid
+ * per-part terminal state, not a run failure, so it must not be routed to the
+ * `skipped_fork_error` retry bucket (which would re-consume the retry budget and
+ * risk a false `failed`). Pinned by INV-BACKFILL-PART-RESIDUAL-MARKER-009.
+ *
+ * Residual selection mirrors the bbox service's `partsNeedingBbox` predicate
+ * (null OR width/height <= 0) and the main-path loop's PII guard
+ * (`piiRiskLevel != 'high'`). The marker reason `bbox_unresolvable` is the
+ * SSOT-derived terminal subset value (no new enum / no migration).
+ *
+ * Failures are non-fatal (Graceful Degradation): a residual query / marker error
+ * is logged and the run continues — the reconciliation cron remains the safety
+ * net. Returns the number of residual parts marked (0 when none / on error).
+ *
+ * @param prisma A prisma client exposing raw query/execute (worker or shared).
+ * @param webPageId The owning web page id (residual parts scoped to this page).
+ * @returns Number of residual parts marked `bbox_unresolvable`.
+ */
+export async function markResidualBboxUnresolvableParts(
+  prisma: Pick<EmbeddingPhasePrismaClient, "$queryRawUnsafe" | "$executeRawUnsafe">,
+  webPageId: string
+): Promise<number> {
+  let residualEmbeddingIds: string[];
+  try {
+    // Residual = bbox still null/zero-size AND part_visual pending. The bbox-zero
+    // condition matches the bbox service's `partsNeedingBbox` filter; the pending
+    // condition is the single SSOT exclusion predicate (no inline WHERE drift).
+    const rows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+      `SELECT cpe.id AS id
+         FROM component_part_embeddings cpe
+         JOIN component_parts cp ON cp.id = cpe.component_part_id
+        WHERE cp.web_page_id = $1::uuid
+          AND cp.pii_risk_level <> 'high'
+          AND (
+            cp.bounding_box IS NULL
+            OR COALESCE((cp.bounding_box->>'width')::float8, 0) <= 0
+            OR COALESCE((cp.bounding_box->>'height')::float8, 0) <= 0
+          )
+          AND ${partVisualPendingExclusionPredicate("cpe")}`,
+      webPageId
+    );
+    residualEmbeddingIds = rows.map((r) => r.id);
+  } catch (queryError) {
+    logger.warn("[PartVisualProcessor] residual bbox_unresolvable query failed (non-fatal)", {
+      webPageId: truncateAuditTargetId(webPageId),
+      error: queryError instanceof Error ? queryError.message : String(queryError),
+    });
+    return 0;
+  }
+
+  if (residualEmbeddingIds.length === 0) return 0;
+
+  const ctx = { prisma };
+  let marked = 0;
+  for (const embeddingId of residualEmbeddingIds) {
+    // Reuse the idempotent SSOT writer (4th `(ctx,` callsite,
+    // INV-PART-VISUAL-SKIP-TERMINAL-001 Block (c) toBe(4)). Per-row failure is
+    // non-fatal inside the writer; we count attempted residual rows.
+    await writePartVisualTerminalSkipMarker(ctx, embeddingId, "bbox_unresolvable");
+    marked += 1;
+  }
+  return marked;
 }
 
 /**
@@ -1046,9 +1151,13 @@ async function processPartVisualEmbeddingLoop(
       .map((p) => p.embedding.id);
 
     if (embeddingIds.length > 0) {
+      // ADR-0018 Amendment 7 §7.1 (UB-3, NF-TPA-01): SSOT exclusion predicate so
+      // terminal-skip parts (visual_skip_reason non-NULL) are excluded from the
+      // partsNeedingVisual collection (same single SSOT predicate as the 2 backfill
+      // count callsites). The predicate is applied to the bare table (no JOIN alias).
       const nullVisualRows = await ctx.prisma.$queryRawUnsafe<Array<{ id: string }>>(
         `SELECT id FROM component_part_embeddings
-       WHERE id = ANY($1::uuid[]) AND visual_embedding IS NULL`,
+       WHERE id = ANY($1::uuid[]) AND ${partVisualPendingExclusionPredicate("component_part_embeddings")}`,
         embeddingIds
       );
       const nullVisualIds = new Set(nullVisualRows.map((r) => r.id));
@@ -1151,6 +1260,15 @@ async function processPartVisualEmbeddingLoop(
           !bbox ||
           typeof bbox.width !== "number" ||
           typeof bbox.height !== "number" ||
+          // PR-G1 RC1 (SEC-01): `Number.isFinite` で NaN/Infinity を弾く。
+          // `typeof === "number"` は NaN/Infinity を素通りさせ、後続の
+          // `NaN <= 0 === false` gap で除外されないため、bbox_invalid 判定の手前で
+          // finite 検証を追加する (NaN bbox が Sharp crop / pgvector へ流れるのを防止)。
+          // `Number.isFinite` rejects NaN/Infinity that `typeof === "number"` lets
+          // through (the `NaN <= 0 === false` gap), preventing a NaN bbox from
+          // reaching the Sharp crop / pgvector downstream.
+          !Number.isFinite(bbox.width) ||
+          !Number.isFinite(bbox.height) ||
           bbox.width <= 0 ||
           bbox.height <= 0
         ) {
@@ -1168,6 +1286,10 @@ async function processPartVisualEmbeddingLoop(
           // partsNeedingVisual are skipped this way (per Plan §3.3's 3-condition
           // gate, handled at the caller).
           ctx.result.partVisualSkippedBboxInvalid++;
+          // ADR-0018 Amendment 7 §7.6 exit #1 (UB-8, terminal): JSDOM-origin
+          // invalid bbox cannot resolve on retry → write terminal marker so the
+          // part is excluded from the part_visual pending query (NF-TPA-01).
+          await writePartVisualTerminalSkipMarker(ctx, part.embeddingId, "bbox_invalid");
           continue;
         }
 
@@ -1181,10 +1303,44 @@ async function processPartVisualEmbeddingLoop(
 
         const left = Math.max(0, Math.round(absoluteBbox.x));
         const top = Math.max(0, Math.round(absoluteBbox.y));
+
+        // ADR-0018 Amendment 7 §7.6 exit #2a (UB-8, terminal — off-screen
+        // precondition): a part whose clamped left-top edge already sits at or
+        // beyond the screenshot bounds (`top >= imgHeight` or `left >= imgWidth`)
+        // has ZERO croppable pixels — `Math.max(1, imgHeight - top)` /
+        // `Math.max(1, imgWidth - left)` would otherwise floor the available
+        // span to 1 and let `cropHeight`/`cropWidth` stay > 0, so the
+        // `cropWidth <= 0 || cropHeight <= 0` guard below never fires and Sharp
+        // `.extract({left, top})` throws `extract_area: bad extract area` →
+        // routed to the transient DINOv2 catch (exit #3) → permanent pending
+        // (NF-TPA-02). Detect the fully-off-screen case here, BEFORE the clamp,
+        // and write the terminal `bbox_unresolvable` marker so the row is
+        // excluded from the part_visual pending query.
+        //
+        // Over-termination guard (TPA-IMPL-L-01): only the FULLY off-screen edge
+        // (left-top corner outside the image) is terminal. A partially-visible
+        // part (`top < imgHeight && top + height > imgHeight`, or the analogous
+        // horizontal case) still has croppable pixels inside the viewport and
+        // MUST keep flowing through the clamp below — it is NOT marked here.
+        if (top >= imgHeight || left >= imgWidth) {
+          ctx.result.partVisualSkippedBboxUnresolvable++;
+          await writePartVisualTerminalSkipMarker(ctx, part.embeddingId, "bbox_unresolvable");
+          continue;
+        }
+
         const cropWidth = Math.min(Math.round(absoluteBbox.width), Math.max(1, imgWidth - left));
         const cropHeight = Math.min(Math.round(absoluteBbox.height), Math.max(1, imgHeight - top));
 
-        if (cropWidth <= 0 || cropHeight <= 0) continue;
+        if (cropWidth <= 0 || cropHeight <= 0) {
+          // ADR-0018 Amendment 7 §7.6 exit #2 (UB-8, terminal): off-screen clamp
+          // yields a zero-size crop (M3 = off-screen non-zero bbox); retry is
+          // pointless after reload-budget exhaustion. Replaces the legacy silent
+          // bare `continue` with an observable counter + per-row terminal marker
+          // (bbox_unresolvable) so the part is excluded from the pending query.
+          ctx.result.partVisualSkippedBboxUnresolvable++;
+          await writePartVisualTerminalSkipMarker(ctx, part.embeddingId, "bbox_unresolvable");
+          continue;
+        }
 
         let partSharpInput: sharp.Sharp;
         if (partRawBuffer && rawScreenshotMeta) {
@@ -1225,7 +1381,7 @@ async function processPartVisualEmbeddingLoop(
         ctx.result.partVisualEmbeddingsGenerated++;
       } catch (partVisualError) {
         logger.warn("[PageAnalyzeWorker] DINOv2 visual embedding failed for part (non-fatal)", {
-          partId: part.id.slice(0, 8) + "...",
+          partId: truncateAuditTargetId(part.id),
           error:
             partVisualError instanceof Error ? partVisualError.message : String(partVisualError),
         });
@@ -1743,6 +1899,276 @@ interface SingleSectionVisualResult {
 }
 
 /**
+ * PR-BT-2 (系統B、ADR-0018 Amendment): `section_embeddings.vision_skip_reason` に
+ * per-row terminal-skip マーカーを書込み、section を section_visual pending クエリ
+ * から恒久除外する (single SSOT exclusion predicate
+ * `sectionVisualPendingExclusionPredicate`、part_visual の
+ * `writePartVisualTerminalSkipMarker` と対称)。backfill path
+ * (`fallbackEnabled === false`) の 4 つの terminal exit のみが呼ぶ:
+ *   - no_position exit: `section_visual_no_position` (sectionPositionMap に position
+ *     無し、または `height < 10` の degenerate geometry)
+ *   - blank exit: `section_visual_blank` (crop が white/uniform、`isBlank === true`)
+ *   - no_crop_buffer exit: `section_visual_uncroppable` (`isOutOfRange === true`)
+ *   - dedup exit: `section_visual_duplicate`
+ * (secvisual-blank-terminal (Plan V1 §4) で no_position / blank の 2 exit を追加、
+ * 2 → 4 exit)。transient/main-path exit は呼ばない (row を pending に残し retry、
+ * INV-(b) orthogonality、INV-007 Block D)。
+ *
+ * marker write 失敗は非致命 (logged, not thrown): marker 欠落は当該 1 row のみ
+ * legacy re-fetch に degrade し、run を abort しない (Graceful Degradation)。
+ * `reason` は SSOT-derive terminal subset 型ゆえ非 terminal reason は構造的に
+ * 渡せない。
+ *
+ * PR-BT-2 (System B, ADR-0018 Amendment): write a per-row terminal-skip marker to
+ * `section_embeddings.vision_skip_reason` so the section is permanently excluded
+ * from the section_visual pending query (symmetry with
+ * `writePartVisualTerminalSkipMarker`). Only the 4 backfill-path terminal exits
+ * call this (no_position / blank / uncroppable / duplicate; secvisual-blank-terminal
+ * (Plan V1 §4) added the no_position + blank exits, 2 -> 4). Marker-write failure
+ * is non-fatal (logged); the `reason` is the SSOT-derived terminal subset type so a
+ * non-terminal reason cannot be passed.
+ */
+async function writeSectionVisionSkipReason(
+  p: SingleSectionVisualParams,
+  reason: SectionVisualTerminalSkipReason
+): Promise<void> {
+  try {
+    await p.prisma.$executeRawUnsafe(
+      `UPDATE section_embeddings
+         SET vision_skip_reason = $1
+       WHERE id = $2::uuid AND vision_skip_reason IS NULL`,
+      reason,
+      p.section.id
+    );
+  } catch (markerError) {
+    // Non-fatal: a missed marker degrades to legacy re-fetch for this row only.
+    logger.warn(
+      "[PageAnalyzeWorker] Failed to write section vision_skip_reason marker (non-fatal)",
+      {
+        sectionEmbeddingId: truncateAuditTargetId(p.section.id),
+        reason,
+        error: markerError instanceof Error ? markerError.message : String(markerError),
+      }
+    );
+  }
+}
+
+/**
+ * PR-C4 (ADR-0018 Amendment, section_visual PII asymmetry closure, Path B):
+ * write the `section_visual_pii_excluded` terminal marker for the high-PII
+ * sections that the work side intentionally excludes from the DINOv2 visual
+ * loop (GDPR Art.5(1)(c) data-minimisation).
+ *
+ * Why a work-side bulk write (not `processSingleSectionVisualEmbedding`): the
+ * high-PII sections are filtered out **before** the per-section loop
+ * (`highPiiSectionIdSet`), so they never reach
+ * `processSingleSectionVisualEmbedding` — an in-function marker write is
+ * structurally impossible. Writing the marker here (a) records the intentional
+ * non-generation as a GDPR Art.30 processing trail and (b) provides a second
+ * pending-exclusion defense layer alongside Path A's PII NOT EXISTS predicate
+ * (`vision_skip_reason IS NULL` excludes these rows even if the NOT EXISTS is
+ * ever changed). Extracted as a helper so `runVisualEmbeddingSubPhases` gains no
+ * inline branch complexity (TDA-PLAN-02).
+ *
+ * Idempotent: the bulk UPDATE is guarded by `vision_embedding IS NULL AND
+ * vision_skip_reason IS NULL`, so re-runs do not overwrite a generated embedding
+ * or an existing marker. Marker-write / audit failures are non-fatal (logged,
+ * not thrown) — a missed marker degrades to Path A's NOT EXISTS pending
+ * exclusion only (Graceful Degradation, RISKS R2).
+ *
+ * The audit emit passes the raw `webPageId` to `getAuditLogService().log()`,
+ * which internally applies `truncateAuditTargetId` (SSOT PII minimisation,
+ * SEC-RV1-03 / U1; same pattern as the `embedding_part_visual_skipped` emit).
+ * `details` is PII-free (enum + numeric count only).
+ *
+ * PR-C4 (ADR-0018 Amendment, Path B): writes the `section_visual_pii_excluded`
+ * marker for high-PII sections excluded by the work side (GDPR Art.30 trail +
+ * second pending-exclusion layer). Idempotent bulk UPDATE; non-fatal on failure.
+ *
+ * @param prisma                 Prisma client bound to `$executeRawUnsafe`
+ * @param webPageId              target page UUID (audit targetId, truncated internally)
+ * @param highPiiSectionPatternIds  section_pattern_id list excluded for PII
+ */
+async function writeSectionVisualPiiExcludedMarkers(
+  prisma: Pick<EmbeddingPhasePrismaClient, "$executeRawUnsafe">,
+  webPageId: string,
+  highPiiSectionPatternIds: string[]
+): Promise<void> {
+  if (highPiiSectionPatternIds.length === 0) return;
+
+  let markedCount = 0;
+  try {
+    // Bulk UPDATE: mark all pending section_embeddings rows whose section_pattern
+    // is high-PII. Parameterized ($1 = reason enum literal, $2.. = section_pattern
+    // UUIDs); no reason-literal interpolation into the SQL string (SEC-RV1-02).
+    // Guarded by `vision_embedding IS NULL AND vision_skip_reason IS NULL` for
+    // idempotency. `markedCount` is the affected-row count for the audit detail.
+    const placeholders = highPiiSectionPatternIds.map((_, i) => `$${i + 2}::uuid`).join(", ");
+    const affected = await prisma.$executeRawUnsafe(
+      `UPDATE section_embeddings
+         SET vision_skip_reason = $1
+       WHERE section_pattern_id IN (${placeholders})
+         AND vision_embedding IS NULL
+         AND vision_skip_reason IS NULL`,
+      "section_visual_pii_excluded",
+      ...highPiiSectionPatternIds
+    );
+    markedCount = typeof affected === "number" && Number.isFinite(affected) ? affected : 0;
+  } catch (markerError) {
+    // Non-fatal: a missed marker degrades to Path A's NOT EXISTS pending exclusion.
+    logger.warn(
+      "[PageAnalyzeWorker] Failed to write section_visual_pii_excluded markers (non-fatal)",
+      {
+        webPageId: truncateAuditTargetId(webPageId),
+        highPiiSectionCount: highPiiSectionPatternIds.length,
+        error: markerError instanceof Error ? markerError.message : String(markerError),
+      }
+    );
+    return;
+  }
+
+  // GDPR Art.30 processing trail: record intentional high-PII section visual
+  // non-generation. `log()` truncates `targetId` via the SSOT helper (SEC-RV1-03).
+  try {
+    await getAuditLogService().log({
+      action: AUDIT_ACTION_EMBEDDING_SECTION_VISUAL_PII_EXCLUDED,
+      actor: AUDIT_ACTOR_PAGE_ANALYZE_WORKER,
+      targetType: "web_page",
+      targetId: webPageId,
+      details: {
+        skipReason: "section_visual_pii_excluded",
+        excludedSectionCount: markedCount,
+      },
+      result: "success",
+    });
+  } catch (auditError) {
+    // Non-fatal: the marker write (the functional contract) already succeeded;
+    // a failed audit emit must not abort the run (Graceful Degradation).
+    logger.warn(
+      "[PageAnalyzeWorker] Failed to emit section_visual_pii_excluded audit (non-fatal)",
+      {
+        webPageId: truncateAuditTargetId(webPageId),
+        error: auditError instanceof Error ? auditError.message : String(auditError),
+      }
+    );
+  }
+}
+
+/**
+ * PR-C4 (ADR-0018 Amendment, Path B B3 live-marker closure): query the
+ * `section_pattern_id`s of **high-PII pending** sections for `webPageId`,
+ * derived from the **PII-filter-free** pending condition (NOT from the
+ * `sectionVisualPendingExclusionPredicate`, which already excludes high-PII rows
+ * via its `NOT EXISTS pii_risk_level='high'` clause).
+ *
+ * Why a dedicated query (TPA-IMPL-01 dead-code closure): the work-loop's
+ * `sectionsNeedingVisual` fetch uses the SSOT pending predicate, which already
+ * removes every high-PII section. Re-deriving the high-PII set from that
+ * already-filtered list therefore always produced an empty set, so
+ * `writeSectionVisualPiiExcludedMarkers` never executed and the GDPR Art.30
+ * audit emit was dead. This helper instead intersects the **non-PII** pending
+ * condition (`text_embedding IS NOT NULL AND vision_embedding IS NULL AND
+ * vision_skip_reason IS NULL`) with `component_parts.pii_risk_level='high'`,
+ * yielding exactly the sections the work side intentionally declines to embed —
+ * which is the correct input for the live marker write.
+ *
+ * Self-consistency with Path A: once the marker write sets
+ * `vision_skip_reason = 'section_visual_pii_excluded'`, the row becomes terminal
+ * and is excluded by the existing `vision_skip_reason IS NULL` clause in BOTH
+ * this query and the SSOT pending predicate. So this query naturally returns the
+ * empty set on subsequent runs (idempotent, no double-emit on re-run), and
+ * completion (pending → 0) is preserved. Path A's `NOT EXISTS` remains as
+ * belt-and-suspenders for the pre-marker window and for work-loop-skipped runs.
+ *
+ * The static SQL only embeds the enum-bound `pii_risk_level='high'` literal and
+ * `vision_skip_reason IS NULL` (no reason-literal interpolation, no runtime user
+ * input — no SQL-injection / enum-drift surface). `webPageId` is parameterized.
+ *
+ * @param prisma     Prisma client bound to `$queryRawUnsafe`
+ * @param webPageId  target page UUID (parameterized, $1)
+ * @returns distinct high-PII pending `section_pattern_id`s (possibly empty)
+ */
+async function queryHighPiiPendingSectionPatternIds(
+  prisma: Pick<EmbeddingPhasePrismaClient, "$queryRawUnsafe">,
+  webPageId: string
+): Promise<string[]> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ section_pattern_id: string }>>(
+    `SELECT DISTINCT se.section_pattern_id
+       FROM section_embeddings se
+      WHERE se.section_pattern_id IN (
+              SELECT id FROM section_patterns WHERE web_page_id = $1::uuid
+            )
+        AND se.text_embedding IS NOT NULL
+        AND se.vision_embedding IS NULL
+        AND se.vision_skip_reason IS NULL
+        AND EXISTS (
+              SELECT 1 FROM component_parts cp
+               WHERE cp.section_pattern_id = se.section_pattern_id
+                 AND cp.pii_risk_level = 'high'
+            )`,
+    webPageId
+  );
+  return rows.map((r) => r.section_pattern_id);
+}
+
+/**
+ * PR-C4 B6 (TPA-RV2-01 hoist closure): query the high-PII pending sections for
+ * `webPageId` and, if any exist, write the `section_visual_pii_excluded` terminal
+ * marker + emit the GDPR Art.30 audit trail (`writeSectionVisualPiiExcludedMarkers`).
+ *
+ * Why exported / why a single entry point: the high-PII marker must fire on a
+ * page whose ONLY pending sections are high-PII (e.g. w3.org, navigation is the
+ * sole pending section). In that case the work-loop's `sectionsNeedingVisual`
+ * (SSOT predicate, PII NOT EXISTS) is empty, and the backfill processor's
+ * `countSectionVisualBackfillTargets` (same SSOT predicate) returns
+ * `pendingCount === 0`. Both paths previously short-circuited BEFORE reaching the
+ * marker write → 0 GDPR Art.30 trail. This helper is the single SSOT entry point
+ * called from both:
+ *   1. the work-loop (`runVisualEmbeddingSubPhases`), hoisted OUT of the
+ *      `if (sectionsNeedingVisual.length > 0)` gate; and
+ *   2. the backfill `SectionVisualProcessor` early-return branch (when
+ *      `pendingCount === 0` so `runVisualEmbeddingSubPhases` is not invoked).
+ *
+ * No double-emit across paths: the marker write sets
+ * `vision_skip_reason = 'section_visual_pii_excluded'`, terminalizing the rows.
+ * Both this query's `vision_skip_reason IS NULL` clause AND Path A's SSOT
+ * predicate then exclude the rows, so a second run (or the other path on the
+ * same page) returns the empty set → no double-emit. Within a single page the
+ * two call sites are mutually exclusive: the work-loop fires it once per run;
+ * the backfill early-return only runs when the sub-phase (which would also fire
+ * it) is NOT invoked.
+ *
+ * Non-fatal: query/marker/audit failures are swallowed inside
+ * `writeSectionVisualPiiExcludedMarkers` (Graceful Degradation, RISKS R2). The
+ * outer try/catch here guards the query itself.
+ *
+ * @param prisma     Prisma client (query + executeRawUnsafe)
+ * @param webPageId  target page UUID
+ * @returns count of high-PII section_pattern_ids found (0 if none / on error)
+ */
+export async function emitSectionVisualPiiExcludedMarkersForPage(
+  prisma: Pick<EmbeddingPhasePrismaClient, "$queryRawUnsafe" | "$executeRawUnsafe">,
+  webPageId: string
+): Promise<number> {
+  try {
+    const highPiiSectionPatternIds = await queryHighPiiPendingSectionPatternIds(prisma, webPageId);
+    if (highPiiSectionPatternIds.length === 0) return 0;
+    await writeSectionVisualPiiExcludedMarkers(prisma, webPageId, highPiiSectionPatternIds);
+    return highPiiSectionPatternIds.length;
+  } catch (markerError) {
+    // Non-fatal: a missed marker degrades to Path A's NOT EXISTS pending exclusion.
+    logger.warn(
+      "[PageAnalyzeWorker] emitSectionVisualPiiExcludedMarkersForPage failed (non-fatal)",
+      {
+        webPageId: truncateAuditTargetId(webPageId),
+        error: markerError instanceof Error ? markerError.message : String(markerError),
+      }
+    );
+    return 0;
+  }
+}
+
+/**
  * 単一セクションに対するcrop→DINOv2→dedup判定→DB保存処理
  */
 async function processSingleSectionVisualEmbedding(
@@ -1760,11 +2186,33 @@ async function processSingleSectionVisualEmbedding(
     const sectionPos = p.sectionPositionMap.get(p.section.section_pattern_id);
     if (!sectionPos || sectionPos.height < 10) {
       result.diagSkipped++;
+      // secvisual-blank-terminal (Plan V1 §4, exit#1): backfill path
+      // (`p.fallbackEnabled === false`) で position が無い (`!sectionPos`) または
+      // height < 10 (degenerate geometry) の section は crop 領域を決定できず
+      // embedding 構造的に不能 = terminal。`section_visual_no_position` で terminal
+      // 化し永久 pending を解消する (degraded-coverage technical terminal、NON-PII)。
+      // `writeSectionVisionSkipReason` は `p.section.id` で UPDATE するため
+      // `sectionPos` 不在でも安全。main-path (`fallbackEnabled === true`) は marker
+      // 書込なし (INV-007 Block D orthogonality)。
+      //
+      // secvisual-blank-terminal (Plan V1 §4, exit#1): on the backfill path
+      // (`p.fallbackEnabled === false`), a section with no position (`!sectionPos`)
+      // or `height < 10` (degenerate geometry) has no determinable crop region and
+      // is structurally un-embeddable = terminal; terminal-mark it via
+      // `section_visual_no_position` to clear the permanent pending (a
+      // degraded-coverage technical terminal, NON-PII). The marker UPDATE keys on
+      // `p.section.id`, so it is safe even when `sectionPos` is absent. The main
+      // path (`fallbackEnabled === true`) writes NO marker (INV-007 Block D
+      // orthogonality).
+      if (p.fallbackEnabled === false) {
+        await writeSectionVisionSkipReason(p, "section_visual_no_position");
+      }
       if (isDevelopment()) {
         logger.info("[PageAnalyzeWorker] Section visual path", {
-          sectionId: p.section.section_pattern_id.slice(0, 8) + "...",
+          sectionId: truncateAuditTargetId(p.section.section_pattern_id),
           path: "skipped",
           skipReason: !sectionPos ? "no_position" : "height_too_small",
+          terminalSkip: p.fallbackEnabled === false,
         });
       }
       return result;
@@ -1813,13 +2261,32 @@ async function processSingleSectionVisualEmbedding(
           height: sectionPos.height,
         });
       }
+      // secvisual-blank-terminal (Plan V1 §4, exit#2): backfill path
+      // (`p.fallbackEnabled === false`) では dynamic fallback re-capture queue が
+      // drain されないため、blank crop は永久 pending になる。`section_visual_blank`
+      // で terminal 化し page が completed に到達できるようにする (degraded-coverage
+      // technical terminal、NON-PII)。main-path (`fallbackEnabled === true`) は
+      // marker 書込なし — dynamic fallback queue で後続回収されるため (Phase 5
+      // proper 非汚染、INV-007 Block D orthogonality)。
+      //
+      // secvisual-blank-terminal (Plan V1 §4, exit#2): on the backfill path
+      // (`p.fallbackEnabled === false`) the dynamic fallback re-capture queue is not
+      // drained, so a blank crop would stay permanently pending; terminal-mark it
+      // via `section_visual_blank` so the page can reach `completed` (a
+      // degraded-coverage technical terminal, NON-PII). The main path
+      // (`fallbackEnabled === true`) writes NO marker — the dynamic fallback queue
+      // recovers it later (INV-007 Block D orthogonality).
+      if (p.fallbackEnabled === false) {
+        await writeSectionVisionSkipReason(p, "section_visual_blank");
+      }
       if (isDevelopment()) {
         logger.info("[PageAnalyzeWorker] Section visual path", {
-          sectionId: p.section.section_pattern_id.slice(0, 8) + "...",
+          sectionId: truncateAuditTargetId(p.section.section_pattern_id),
           startY: sectionPos.startY,
           height: sectionPos.height,
           imgHeight: p.imgHeight,
           path: "dynamic",
+          terminalSkip: p.fallbackEnabled === false,
         });
       }
       return result;
@@ -1827,14 +2294,35 @@ async function processSingleSectionVisualEmbedding(
 
     if (!cropResult.rawCropBuffer) {
       result.diagSkipped++;
+      // PR-BT-2 (系統B、FIND-BT-H-01 + L-01): no_crop_buffer exit は複数原因で
+      // fire する。terminal-skip マーカーを書くのは
+      // `isOutOfRange === true && p.fallbackEnabled === false` (backfill path で
+      // 永続 screenshot に写らず Playwright fallback も起動しない = 構造的に
+      // crop 不能 = terminal) の場合のみに narrow する。
+      //   - transient decode 失敗 (`isOutOfRange === false`) は marker 書込なし
+      //     (recoverable、pending 継続 = retry、INV-(b) orthogonality 保全)。
+      //   - main-path (`fallbackEnabled === true`) は条件 false で marker 書込なし
+      //     (out-of-range section は fallback queue で回収可能、Phase 5 proper
+      //     非汚染、INV-007 Block D で assert)。
+      //
+      // PR-BT-2 (System B, FIND-BT-H-01 + L-01): the no_crop_buffer exit fires
+      // for multiple causes. Write the terminal-skip marker ONLY when
+      // `isOutOfRange === true && p.fallbackEnabled === false` (structurally
+      // uncroppable on the backfill path = terminal). Transient decode failures
+      // (`isOutOfRange === false`) and the main path (`fallbackEnabled === true`)
+      // write NO marker (recoverable; INV-007 Block D orthogonality).
+      if (isOutOfRange && p.fallbackEnabled === false) {
+        await writeSectionVisionSkipReason(p, "section_visual_uncroppable");
+      }
       if (isDevelopment()) {
         logger.info("[PageAnalyzeWorker] Section visual path", {
-          sectionId: p.section.section_pattern_id.slice(0, 8) + "...",
+          sectionId: truncateAuditTargetId(p.section.section_pattern_id),
           startY: sectionPos.startY,
           height: sectionPos.height,
           imgHeight: p.imgHeight,
           path: "skipped",
           skipReason: "no_crop_buffer",
+          terminalSkip: isOutOfRange && p.fallbackEnabled === false,
         });
       }
       return result;
@@ -1859,17 +2347,37 @@ async function processSingleSectionVisualEmbedding(
     if (isDuplicateVector) {
       result.diagDedupSkip++;
       logger.warn("[PageAnalyzeWorker] Duplicate vision embedding detected, skipping DB save", {
-        sectionId: p.section.section_pattern_id.slice(0, 8) + "...",
+        sectionId: truncateAuditTargetId(p.section.section_pattern_id),
         sectionType: currentSectionType,
       });
+      // PR-BT-2 (系統B、FIND-BT-H-02-RESIDUAL 案X): backfill path
+      // (`p.fallbackEnabled === false`) では dedup-skip された both-NULL same-type
+      // section を `section_visual_duplicate` で terminal 化する。同 type sibling
+      // が cosine>threshold で代表 visual を保持するため embedding は真に不要
+      // (Type-aware dedup 契約が意図的に抑制)。これにより永久 pending を解消し
+      // page が completed に到達できる。main-path (`fallbackEnabled === true`) は
+      // marker 書込なし (Phase 5 proper はループ scope 内で完結し inline parity で
+      // completed に到達、誤 terminal 化は INV-007 Block D で排除)。
+      //
+      // PR-BT-2 (System B, FIND-BT-H-02-RESIDUAL Option X): on the backfill path
+      // (`p.fallbackEnabled === false`), terminal-mark a dedup-skipped both-NULL
+      // same-type section via `section_visual_duplicate` (a same-type sibling at
+      // cosine>threshold represents the visual, so the embedding is genuinely
+      // unnecessary), resolving the permanent pending so the page can complete.
+      // The main path (`fallbackEnabled === true`) writes NO marker (INV-007
+      // Block D orthogonality).
+      if (p.fallbackEnabled === false) {
+        await writeSectionVisionSkipReason(p, "section_visual_duplicate");
+      }
       if (isDevelopment()) {
         logger.info("[PageAnalyzeWorker] Section visual path", {
-          sectionId: p.section.section_pattern_id.slice(0, 8) + "...",
+          sectionId: truncateAuditTargetId(p.section.section_pattern_id),
           startY: sectionPos.startY,
           height: sectionPos.height,
           imgHeight: p.imgHeight,
           path: "dedup",
           sectionType: currentSectionType,
+          terminalSkip: p.fallbackEnabled === false,
         });
       }
       return result;
@@ -1902,7 +2410,7 @@ async function processSingleSectionVisualEmbedding(
 
     if (isDevelopment()) {
       logger.info("[PageAnalyzeWorker] Section visual path", {
-        sectionId: p.section.section_pattern_id.slice(0, 8) + "...",
+        sectionId: truncateAuditTargetId(p.section.section_pattern_id),
         startY: sectionPos.startY,
         height: sectionPos.height,
         imgHeight: p.imgHeight,
@@ -1914,7 +2422,7 @@ async function processSingleSectionVisualEmbedding(
   } catch (sectionVisualError) {
     result.diagSkipped++;
     logger.warn("[PageAnalyzeWorker] DINOv2 visual embedding failed for section (non-fatal)", {
-      sectionEmbeddingId: p.section.id.slice(0, 8) + "...",
+      sectionEmbeddingId: truncateAuditTargetId(p.section.id),
       error:
         sectionVisualError instanceof Error
           ? sectionVisualError.message
@@ -2040,7 +2548,7 @@ async function processDynamicFallbackBatch(
           logger.warn(
             "[PageAnalyzeWorker] Duplicate vision embedding (dynamic fallback), skipping",
             {
-              sectionId: fbResult.sectionId.slice(0, 8) + "...",
+              sectionId: truncateAuditTargetId(fbResult.sectionId),
               sectionType: dynamicSectionType,
             }
           );
@@ -2070,7 +2578,7 @@ async function processDynamicFallbackBatch(
         logger.warn(
           "[PageAnalyzeWorker] DINOv2 visual embedding failed for dynamic fallback section (non-fatal)",
           {
-            sectionId: fbResult.sectionId.slice(0, 8) + "...",
+            sectionId: truncateAuditTargetId(fbResult.sectionId),
             error:
               dynamicEmbeddingError instanceof Error
                 ? dynamicEmbeddingError.message
@@ -2137,10 +2645,31 @@ export interface TextEmbeddingSubPhaseParams {
   prisma: EmbeddingPhasePrismaClient;
   onLockExtend: (label: string) => void;
   onProgress?: (completed: number, total: number) => void;
+  /**
+   * PR-BT-5 (M-1-RSS, ADR-0039 Decision 1/3): per-sub-phase fork filter. When
+   * set, ONLY this single text sub-phase runs (the per-sub-phase fork model —
+   * each fork processes one sub-phase then `exit(0)`s so the OS reclaims the
+   * arena). When **omitted**, ALL 7 text sub-phases run sequentially (legacy
+   * 2-fork grandfather behaviour, `PHASE5_SUBPHASE_FORK_ENABLED=false`).
+   * SSOT-typed via `Phase5TextSubPhase`.
+   *
+   * PR-BT-5 (M-1-RSS): per-sub-phase fork フィルタ。指定時は当 1 sub-phase のみ
+   * 実行。省略時は legacy 全 7 sub-phase 実行に grandfather。
+   */
+  subPhase?: Phase5TextSubPhase | undefined;
 }
 
 /**
  * Result from text embedding sub-phases (fork child process).
+ *
+ * PR-V3-T1a §3.2 C1/C3 (FIND-V3-IO-H-01 closure): additively added optional
+ * `chunkedEncoderTelemetry` so the parent can emit `audit_logs` entries for
+ * the C1 (per-chunk RSS overshoot) / C3 (partial completion) / C4
+ * (idempotency-on-retry skip) outcomes. Optional preserves backward
+ * compatibility with legacy callers and the `--feature-flag=false` fallback.
+ *
+ * PR-V3-T1a §3.2 C1/C3: additively added optional `chunkedEncoderTelemetry`
+ * for `audit_logs` emission via the parent.
  */
 export interface TextEmbeddingSubPhaseResult {
   sectionEmbeddingsGenerated: number;
@@ -2150,6 +2679,7 @@ export interface TextEmbeddingSubPhaseResult {
   responsiveEmbeddingsGenerated: number;
   partEmbeddingsGenerated: number;
   embeddingFailedChunks: number;
+  chunkedEncoderTelemetry?: ChunkedEncoderTelemetry;
 }
 
 /**
@@ -2172,6 +2702,7 @@ export async function runTextEmbeddingSubPhases(
     partEmbeddingsGenerated: 0,
     partVisualEmbeddingsGenerated: 0,
     partVisualSkippedBboxInvalid: 0,
+    partVisualSkippedBboxUnresolvable: 0,
     sectionVisualEmbeddingsGenerated: 0,
     embeddingFailedChunks: 0,
     completed: false,
@@ -2192,6 +2723,11 @@ export async function runTextEmbeddingSubPhases(
       /* fire-and-forget */
     }
   }
+
+  // PR-V3-T1a §3.2: chunked encoder telemetry container; mutated by
+  // `processSectionTextEmbeddingChunks` and surfaced via the IPC text-result
+  // message back to the parent for `audit_logs` emission.
+  const chunkedEncoderTelemetry: ChunkedEncoderTelemetry = {};
 
   const ctx: EmbeddingSubPhaseContext = {
     webPageId: textParams.webPageId,
@@ -2219,46 +2755,72 @@ export async function runTextEmbeddingSubPhases(
     effectiveToken: "fork-child",
     effectiveLockDuration: 0,
     sharedLayoutEmbeddingService: textParams.sharedLayoutEmbeddingService,
-    gpuResourceManager: createNoOpGpuResourceManager() as GpuResourceManager,
     prisma: textParams.prisma,
     result: textResult,
     reportEmbeddingSubProgress: reportProgress,
+    chunkedEncoderTelemetry,
   };
 
-  // Run all 7 text embedding sub-phases in order
-  await processSectionTextEmbeddingChunks(
-    ctx,
-    textParams.sectionSaveResult as EmbeddingPhaseParams["sectionSaveResult"],
-    textParams.layoutResultForNarrative
-  );
-  await processMotionTextEmbeddingChunks(
-    ctx,
-    textParams.motionSaveResult as EmbeddingPhaseParams["motionSaveResult"],
-    textParams.motionResultForEmbedding
-  );
-  await processVisionMotionEmbeddingChunks(
-    ctx,
-    textParams.scrollVisionSaveResult as EmbeddingPhaseParams["scrollVisionSaveResult"],
-    textParams.scrollVisionResultForEmbedding
-  );
-  await processBackgroundTextEmbeddingChunks(
-    ctx,
-    textParams.bgSaveResult as EmbeddingPhaseParams["bgSaveResult"],
-    textParams.layoutResultForNarrative
-  );
-  await processJsAnimationEmbeddingChunks(
-    ctx,
-    textParams.jsSaveResult as EmbeddingPhaseParams["jsSaveResult"],
-    textParams.jsAnimationsForEmbedding
-  );
-  await processResponsiveEmbeddingChunks(ctx, textParams.responsiveAnalysisId);
-  // v0.4.0 PR4: 同期フェーズは partsLimit に従って DB レベルで件数制限する
-  // v0.4.0 PR4: sync phase respects partsLimit (DB-level cap)
-  await processPartTextEmbeddingChunks(ctx, textParams.partsSavedCount, {
-    limit: textParams.partsLimit,
-  });
+  // PR-BT-5 (M-1-RSS, ADR-0039 Decision 1): per-sub-phase fork filter. When
+  // `subPhase` is set, ONLY the matching sub-phase runs (1 fork = 1 sub-phase →
+  // exit(0) → OS arena reclamation). When `subPhase` is undefined the legacy
+  // path runs all 7 sub-phases sequentially (grandfather,
+  // PHASE5_SUBPHASE_FORK_ENABLED=false). `runSub` returns true for the legacy
+  // (unset) case OR an exact match.
+  const runSub = (name: Phase5TextSubPhase): boolean =>
+    textParams.subPhase === undefined || textParams.subPhase === name;
 
-  return {
+  // Run the selected text embedding sub-phase(s) in order.
+  if (runSub("section_text")) {
+    await processSectionTextEmbeddingChunks(
+      ctx,
+      textParams.sectionSaveResult as EmbeddingPhaseParams["sectionSaveResult"],
+      textParams.layoutResultForNarrative
+    );
+  }
+  if (runSub("motion_text")) {
+    await processMotionTextEmbeddingChunks(
+      ctx,
+      textParams.motionSaveResult as EmbeddingPhaseParams["motionSaveResult"],
+      textParams.motionResultForEmbedding
+    );
+  }
+  if (runSub("vision_motion_text")) {
+    await processVisionMotionEmbeddingChunks(
+      ctx,
+      textParams.scrollVisionSaveResult as EmbeddingPhaseParams["scrollVisionSaveResult"],
+      textParams.scrollVisionResultForEmbedding
+    );
+  }
+  if (runSub("background_text")) {
+    await processBackgroundTextEmbeddingChunks(
+      ctx,
+      textParams.bgSaveResult as EmbeddingPhaseParams["bgSaveResult"],
+      textParams.layoutResultForNarrative
+    );
+  }
+  if (runSub("js_animation_text")) {
+    await processJsAnimationEmbeddingChunks(
+      ctx,
+      textParams.jsSaveResult as EmbeddingPhaseParams["jsSaveResult"],
+      textParams.jsAnimationsForEmbedding
+    );
+  }
+  if (runSub("responsive_text")) {
+    await processResponsiveEmbeddingChunks(ctx, textParams.responsiveAnalysisId);
+  }
+  if (runSub("part_text")) {
+    // v0.4.0 PR4: 同期フェーズは partsLimit に従って DB レベルで件数制限する
+    // v0.4.0 PR4: sync phase respects partsLimit (DB-level cap)
+    await processPartTextEmbeddingChunks(ctx, textParams.partsSavedCount, {
+      limit: textParams.partsLimit,
+    });
+  }
+
+  // PR-V3-T1a §3.2: surface chunked encoder telemetry only when populated.
+  // Returning `undefined` for the un-populated case keeps the legacy IPC
+  // payload byte-for-byte equivalent.
+  const result: TextEmbeddingSubPhaseResult = {
     sectionEmbeddingsGenerated: textResult.sectionEmbeddingsGenerated,
     motionEmbeddingsGenerated: textResult.motionEmbeddingsGenerated,
     bgEmbeddingsGenerated: textResult.bgEmbeddingsGenerated,
@@ -2267,6 +2829,15 @@ export async function runTextEmbeddingSubPhases(
     partEmbeddingsGenerated: textResult.partEmbeddingsGenerated,
     embeddingFailedChunks: textResult.embeddingFailedChunks,
   };
+  // Telemetry is propagated only when at least one field was populated.
+  if (
+    chunkedEncoderTelemetry.partialCompletion !== undefined ||
+    chunkedEncoderTelemetry.budgetExceededChunkIndex !== undefined ||
+    chunkedEncoderTelemetry.idempotencyChunkSkippedCount !== undefined
+  ) {
+    result.chunkedEncoderTelemetry = chunkedEncoderTelemetry;
+  }
+  return result;
 }
 
 /**
@@ -2296,6 +2867,17 @@ export interface VisualEmbeddingSubPhaseParams {
   prisma: EmbeddingPhasePrismaClient;
   onLockExtend: (label: string) => void;
   onProgress?: (completed: number, total: number) => void;
+  /**
+   * PR-BT-5 (M-1-RSS, ADR-0039 Decision 1/3): per-sub-phase fork filter. When
+   * set, ONLY this single visual sub-phase runs (1 fork = 1 sub-phase → exit(0)
+   * → OS reclaims DINOv2 arena + VRAM). When **omitted**, BOTH section_visual +
+   * part_visual run sequentially (legacy 2-fork grandfather behaviour).
+   * SSOT-typed via `Phase5VisualSubPhase`.
+   *
+   * PR-BT-5 (M-1-RSS): per-sub-phase fork フィルタ。指定時は当 1 sub-phase のみ
+   * 実行。省略時は legacy 全 visual sub-phase 実行に grandfather。
+   */
+  subPhase?: Phase5VisualSubPhase | undefined;
 }
 
 /**
@@ -2313,6 +2895,13 @@ export interface VisualEmbeddingSubPhaseResult {
    * via IPC.
    */
   partVisualSkippedBboxInvalid: number;
+  /**
+   * ADR-0018 Amendment 7 §7.6 exit #2: count of parts skipped because the
+   * off-screen-clamped crop is zero-size (bbox_unresolvable terminal marker
+   * written). Propagated from fork child → parent via IPC (symmetric with
+   * partVisualSkippedBboxInvalid).
+   */
+  partVisualSkippedBboxUnresolvable: number;
   embeddingFailedChunks: number;
 }
 
@@ -2330,11 +2919,19 @@ export async function runVisualEmbeddingSubPhases(
     sectionVisualEmbeddingsGenerated: 0,
     partVisualEmbeddingsGenerated: 0,
     partVisualSkippedBboxInvalid: 0,
+    partVisualSkippedBboxUnresolvable: 0,
     embeddingFailedChunks: 0,
   };
 
-  const hasSections = vParams.sectionIdMapping.size > 0;
-  const hasParts = vParams.partsSavedCount > 0;
+  // PR-BT-5 (M-1-RSS, ADR-0039 Decision 1): per-sub-phase fork filter. When
+  // `subPhase` is set, ONLY the matching visual sub-phase runs; when undefined
+  // both run (legacy grandfather). The data-presence checks (idMapping size /
+  // partsSavedCount) are AND-ed with the filter so an empty sub-phase still
+  // skips its block.
+  const wantSectionVisual = vParams.subPhase === undefined || vParams.subPhase === "section_visual";
+  const wantPartVisual = vParams.subPhase === undefined || vParams.subPhase === "part_visual";
+  const hasSections = wantSectionVisual && vParams.sectionIdMapping.size > 0;
+  const hasParts = wantPartVisual && vParams.partsSavedCount > 0;
 
   // Read screenshot buffer from file
   // SEC: 許可されたルート配下のみを受け入れる（Path Traversal 防御）
@@ -2436,18 +3033,60 @@ export async function runVisualEmbeddingSubPhases(
       try {
         vParams.onLockExtend("embedding-sections-visual");
 
+        // terminal-skip 行 (vision_skip_reason 非NULL) は SSOT exclusion predicate
+        // で work-fetch から除外し、terminal section を再取得しない (PR-BT-2、
+        // part_visual と対称、inline WHERE 禁止)。
+        // Terminal-skip rows (vision_skip_reason non-NULL) are excluded from the
+        // work-fetch via the SSOT exclusion predicate so terminal sections are not
+        // re-fetched (PR-BT-2, symmetry with part_visual).
         const sectionsNeedingVisual = await vParams.prisma.$queryRawUnsafe<
           Array<{ id: string; section_pattern_id: string }>
         >(
-          `SELECT id, section_pattern_id
-           FROM section_embeddings
-           WHERE section_pattern_id IN (
+          `SELECT se.id, se.section_pattern_id
+           FROM section_embeddings se
+           WHERE se.section_pattern_id IN (
              SELECT id FROM section_patterns WHERE web_page_id = $1::uuid
            )
-           AND text_embedding IS NOT NULL
-           AND vision_embedding IS NULL`,
+           AND ${sectionVisualPendingExclusionPredicate("se")}`,
           vParams.webPageId
         );
+
+        // PII protection (GDPR Art. 5(1)(c)).
+        //
+        // PR-C4 B3 (TPA-IMPL-01 dead-code closure): derive the high-PII set
+        // from the **PII-filter-free** pending condition keyed on web_page_id,
+        // NOT from `sectionsNeedingVisual` (which is already PII-filtered by the
+        // SSOT predicate's NOT EXISTS clause). This independent query returns
+        // exactly the high-PII pending sections the work side declines to embed
+        // — the correct, live marker input.
+        //
+        // PR-C4 B6 (TPA-RV2-01 hoist closure): the high-PII marker computation +
+        // write are hoisted OUT of the `if (sectionsNeedingVisual.length > 0)`
+        // gate. On a page whose only pending sections are high-PII (e.g. w3.org,
+        // navigation is high-PII), `sectionsNeedingVisual` is empty (the SSOT
+        // predicate excludes high-PII rows), so the marker write was previously
+        // unreachable → 0 GDPR Art.30 trail emitted. Hoisting guarantees the
+        // marker + audit fire whenever a high-PII pending set exists, regardless
+        // of whether any non-PII visual work remains.
+        const highPiiSectionIdSet = new Set(
+          await queryHighPiiPendingSectionPatternIds(vParams.prisma, vParams.webPageId)
+        );
+
+        // PR-C4 (ADR-0018 Amendment, Path B, B3 live / B6 hoist): write the
+        // `section_visual_pii_excluded` terminal marker for the high-PII
+        // pending sections found above. This (a) records the intentional
+        // non-generation as a GDPR Art.30 trail and (b) provides a second
+        // pending-exclusion defense layer alongside Path A's PII NOT EXISTS.
+        // Non-fatal; idempotent (marker write itself terminalizes the rows so
+        // subsequent runs see the empty set → no double-emit). Extracted helper
+        // keeps this site branch-free (TDA-PLAN-02).
+        if (highPiiSectionIdSet.size > 0) {
+          await writeSectionVisualPiiExcludedMarkers(
+            vParams.prisma,
+            vParams.webPageId,
+            Array.from(highPiiSectionIdSet)
+          );
+        }
 
         if (sectionsNeedingVisual.length > 0) {
           const sectionPatternIds = sectionsNeedingVisual.map((s) => s.section_pattern_id);
@@ -2469,18 +3108,9 @@ export async function runVisualEmbeddingSubPhases(
             });
           }
 
-          // PII protection (GDPR Art. 5(1)(c))
-          const highPiiSectionIds = await vParams.prisma.$queryRawUnsafe<
-            Array<{ section_pattern_id: string }>
-          >(
-            `SELECT DISTINCT cp.section_pattern_id
-             FROM component_parts cp
-             WHERE cp.section_pattern_id IN (${sectionPatternIds.map((_, i) => `$${i + 1}::uuid`).join(", ")})
-             AND cp.pii_risk_level = 'high'`,
-            ...sectionPatternIds
-          );
-          const highPiiSectionIdSet = new Set(highPiiSectionIds.map((r) => r.section_pattern_id));
-
+          // High-PII rows are already terminalized by the hoisted marker write
+          // above (and were never in `sectionsNeedingVisual`). Filter defensively
+          // so the per-section loop never attempts a high-PII section.
           const sectionsFiltered =
             highPiiSectionIdSet.size > 0
               ? sectionsNeedingVisual.filter((s) => !highPiiSectionIdSet.has(s.section_pattern_id))
@@ -2530,6 +3160,7 @@ export async function runVisualEmbeddingSubPhases(
           partEmbeddingsGenerated: 0,
           partVisualEmbeddingsGenerated: 0,
           partVisualSkippedBboxInvalid: 0,
+          partVisualSkippedBboxUnresolvable: 0,
           sectionVisualEmbeddingsGenerated: 0,
           embeddingFailedChunks: 0,
           completed: false,
@@ -2543,12 +3174,15 @@ export async function runVisualEmbeddingSubPhases(
           effectiveToken: "fork-child",
           effectiveLockDuration: 0,
           sharedLayoutEmbeddingService: null as unknown as LayoutEmbeddingService,
-          gpuResourceManager: createNoOpGpuResourceManager() as GpuResourceManager,
           prisma: vParams.prisma,
           result: partResultHolder,
           reportEmbeddingSubProgress: () => {
             /* no-op */
           },
+          // PR-V3-T1a §3.2: visual sub-phase does not exercise the chunked
+          // encoder hardening, but the structural type requires the field;
+          // an empty record keeps TS happy and the visual path never reads it.
+          chunkedEncoderTelemetry: {},
         };
 
         await processPartVisualEmbeddingLoop(
@@ -2568,6 +3202,9 @@ export async function runVisualEmbeddingSubPhases(
         // PR-D-2 / INV-EMBEDDING-INTEGRITY-005: bbox_invalid counter を親へ伝搬
         // PR-D-2 / INV-EMBEDDING-INTEGRITY-005: propagate bbox_invalid counter to parent
         vResult.partVisualSkippedBboxInvalid = partResultHolder.partVisualSkippedBboxInvalid;
+        // ADR-0018 Amendment 7 §7.6 exit #2: propagate bbox_unresolvable counter to parent
+        vResult.partVisualSkippedBboxUnresolvable =
+          partResultHolder.partVisualSkippedBboxUnresolvable;
       } catch (partVisErr) {
         vResult.embeddingFailedChunks++;
         logger.warn("[Phase5-VisualChild] Part DINOv2 visual embedding failed (non-fatal)", {
@@ -2651,6 +3288,17 @@ export async function dispatchEmbeddingPhase(
         sharedBrowser: params.sharedBrowser,
         viewportWidth: params.job.data.options?.layoutOptions?.viewport?.width,
         viewportHeight: params.job.data.options?.layoutOptions?.viewport?.height,
+        // PR-G1 RC1 (SEC-05): scroll sweep の各 iteration 境界で lock を延長し、
+        // 長尺ページの sweep による lock 失効 (dual-run / stall) を防止する。
+        // Extend the job lock at each scroll-sweep iteration boundary to prevent
+        // lock expiry (dual-run / stall) during a long-page sweep.
+        onLockExtend: () =>
+          extendJobLock(
+            params.job,
+            params.effectiveToken,
+            params.effectiveLockDuration,
+            "part-bbox-scroll-sweep"
+          ),
       });
       if (isDevelopment()) {
         logger.info("[Phase5-Dispatch] Resolved part bounding boxes via Playwright", {
@@ -2699,19 +3347,6 @@ function createNoOpJobProxy(onLockExtend: (label: string) => void): unknown {
       },
     }
   );
-}
-
-/**
- * Create a no-op GpuResourceManager for fork child processes.
- */
-function createNoOpGpuResourceManager(): unknown {
-  return {
-    acquireForDINOv2: async () => ({ mode: "cpu", message: "fork child - no GPU manager" }),
-    acquireForEmbedding: async () => ({ mode: "cpu", message: "fork child - no GPU manager" }),
-    release: async (): Promise<void> => {
-      /* no-op */
-    },
-  };
 }
 
 /**

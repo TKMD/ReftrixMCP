@@ -75,6 +75,7 @@ import {
 } from "./phase-5-child-ipc";
 import { type EmbeddingPhaseResult, initMemoryConstants } from "./types";
 import { runTextEmbeddingSubPhases } from "./phase-5-embedding";
+import { wireChildExecutionProvider } from "./phase-5-gpu-probe";
 
 import type { SaveResult } from "../../services/worker-db-save.service";
 import type { SaveBackgroundDesignsResult } from "../../services/background/background-design-db.service";
@@ -183,6 +184,14 @@ process.on("message", async (raw: unknown) => {
   // Initialize memory constants for chunk sizing
   initMemoryConstants();
 
+  // PR-1 GPU-COORD (ADR-0038 §1.1/§1.6, FIND-PLAN-H-01): child-local VRAM probe
+  // pre-flight. Sets ONNX_EXECUTION_PROVIDER child-locally BEFORE the e5-base
+  // in-process init reads it via detectExecutionProvider, so the probe result
+  // actually drives the CUDA-vs-CPU selection (zero new IPC types; the parent
+  // already emitted any degraded audit). Awaited before LayoutEmbeddingService
+  // construction so the provider is resolved prior to ONNX session creation.
+  await wireChildExecutionProvider("text");
+
   // Create shared LayoutEmbeddingService (in-process ONNX via EMBEDDING_WORKER_THREAD=false)
   const sharedLayoutEmbeddingService = new LayoutEmbeddingService();
   setupDI(sharedLayoutEmbeddingService);
@@ -198,6 +207,7 @@ process.on("message", async (raw: unknown) => {
     partEmbeddingsGenerated: 0,
     partVisualEmbeddingsGenerated: 0,
     partVisualSkippedBboxInvalid: 0,
+    partVisualSkippedBboxUnresolvable: 0,
     sectionVisualEmbeddingsGenerated: 0,
     embeddingFailedChunks: 0,
     completed: false,
@@ -244,6 +254,10 @@ process.on("message", async (raw: unknown) => {
       // v0.4.0 PR4: 同期フェーズの Part text embedding 上限を子プロセスに伝搬
       // v0.4.0 PR4: propagate sync-phase Part text embedding cap to the child
       partsLimit: msg.partsLimit,
+      // PR-BT-5 (M-1-RSS, ADR-0039 Decision 1): per-sub-phase fork filter. When
+      // set, only this single text sub-phase runs then the child exit(0)s.
+      // Undefined grandfathers to the legacy all-7-sub-phase behaviour.
+      subPhase: msg.subPhase,
       sharedLayoutEmbeddingService,
       prisma: prisma as never,
       onLockExtend: (label: string) => {
@@ -264,7 +278,10 @@ process.on("message", async (raw: unknown) => {
     result.embeddingFailedChunks = subResult.embeddingFailedChunks;
     result.completed = true;
 
-    // Send success result to parent (flush before exit to prevent IPC race)
+    // Send success result to parent (flush before exit to prevent IPC race).
+    // PR-V3-T1a §3.2: forward optional chunked encoder telemetry so the
+    // parent can emit audit_logs entries for C1 (per-chunk RSS overshoot) /
+    // C3 (partial completion) / C4 (idempotency-on-retry skip) outcomes.
     await sendToParentAndFlush({
       type: "text-result",
       sectionEmbeddingsGenerated: result.sectionEmbeddingsGenerated,
@@ -274,6 +291,9 @@ process.on("message", async (raw: unknown) => {
       responsiveEmbeddingsGenerated: result.responsiveEmbeddingsGenerated,
       partEmbeddingsGenerated: result.partEmbeddingsGenerated,
       embeddingFailedChunks: result.embeddingFailedChunks,
+      ...(subResult.chunkedEncoderTelemetry !== undefined
+        ? { chunkedEncoderTelemetry: subResult.chunkedEncoderTelemetry }
+        : {}),
     });
   } catch (error) {
     await sendToParentAndFlush({

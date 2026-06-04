@@ -28,6 +28,7 @@
 import type { Browser, BrowserContext, Page } from "playwright";
 import { chromium } from "playwright";
 import sharp from "sharp";
+import { ROBOTS_TXT } from "@reftrixmcp/core";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { logger, isDevelopment } from "../../utils/logger";
 
@@ -297,8 +298,23 @@ export async function captureSectionScreenshots(
 
     context = await browser.newContext({
       viewport,
-      userAgent:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.3.0",
+      // PR-C4 D2: honest declared-bot UA に統一 (SSOT `ROBOTS_TXT.USER_AGENT` 参照、
+      // hardcode 禁止)。Chrome-spoof UA を除去し ingest path (`ROBOTS_TXT.USER_AGENT`、
+      // 同一 host から 200 取得済) と内部一貫させる。これは bot-evasion ではなく
+      // Chrome-spoofing UA を透明な declared-bot (`+https://reftrix.dev/bot`) に置換する是正。
+      // robots.txt gating は Phase 0 ingest (`isUrlAllowedByRobotsTxt`,
+      // `REFTRIX_RESPECT_ROBOTS_TXT`) で実施済。本 path はその ingest 許可済 URL の
+      // 同一 host re-navigation であり、ここで robots.txt を再 check しない。
+      //
+      // PR-C4 D2: unified to the honest declared-bot UA (referencing the SSOT
+      // `ROBOTS_TXT.USER_AGENT`, no hardcode). Removes the Chrome-spoof UA for
+      // internal consistency with the ingest path (which already fetched 200 from
+      // the same host via `ROBOTS_TXT.USER_AGENT`). This is not bot-evasion but a
+      // correction replacing the Chrome-spoofing UA with a transparent declared-bot
+      // (`+https://reftrix.dev/bot`). robots.txt gating is performed in Phase 0
+      // ingest; this path is a same-host re-navigation of an ingest-permitted URL,
+      // so robots.txt is not re-checked here.
+      userAgent: ROBOTS_TXT.USER_AGENT,
       javaScriptEnabled: true,
       bypassCSP: false,
     });
@@ -314,7 +330,18 @@ export async function captureSectionScreenshots(
     if (response) {
       const status = response.status();
       if (status >= 400) {
-        logger.warn(`${LOG_PREFIX} HTTP error during navigation`, { url, status });
+        // PR-C4 D2 / LCC-C2: honest ReftrixBot UA で HTTP >= 400 (403 逆転含む) の場合、
+        // Chrome-spoof UA への revert は行わない (misrepresentation 復活防止)。
+        // 全対象セクションを skip (emptyResult) として扱う。
+        //
+        // PR-C4 D2 / LCC-C2: on HTTP >= 400 (incl. 403 reversal) with the honest
+        // ReftrixBot UA, do NOT revert to the Chrome-spoof UA (prevents
+        // re-introducing misrepresentation). All target sections are skipped.
+        logger.warn(`${LOG_PREFIX} HTTP error during navigation; skipping section captures`, {
+          url,
+          status,
+          skippedCount: targetSections.length,
+        });
         return emptyResult;
       }
     }

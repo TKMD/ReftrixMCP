@@ -20,21 +20,23 @@
 
 import { createLogger } from "../utils/logger.js";
 import { queryVram } from "./vision/vram-utils.js";
+// ADR-0038 §1.3 (FIND-PLAN-H-02): VRAM 閾値定数は fork-child-importable な
+// leaf module (`vram-thresholds.ts`) に SSOT 化済。in-process full manager も
+// leaf から import して literal 重複を排除する (SSOT 一元化)。
+// VRAM threshold constants are SSOT-defined in the fork-child-importable leaf
+// module (`vram-thresholds.ts`); the in-process manager imports from the leaf
+// to avoid literal duplication.
+import {
+  VISION_MIN_VRAM_MB,
+  EMBEDDING_MIN_VRAM_MB,
+  DINOV2_MIN_VRAM_MB,
+} from "./vision/vram-thresholds.js";
 
 const logger = createLogger("GpuResourceManager");
 
 // =============================================================================
 // 定数
 // =============================================================================
-
-/** Ollama Vision (llama3.2-vision) に必要な最小 VRAM (MB) */
-const VISION_MIN_VRAM_MB = 8192;
-
-/** ONNX Embedding CUDA に必要な最小 VRAM (MB) */
-const EMBEDDING_MIN_VRAM_MB = 2048;
-
-/** DINOv2 推論に必要な最小 VRAM (MB) — ~1-2GB */
-const DINOV2_MIN_VRAM_MB = 1536;
 
 /** VRAM ポーリング間隔 (ms) — 指数バックオフの初期値 */
 const VRAM_POLL_INITIAL_MS = 2000;

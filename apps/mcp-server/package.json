@@ -1,6 +1,6 @@
 {
   "name": "@reftrixmcp/mcp-server",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "license": "AGPL-3.0-only",
   "description": "MCP Server for Reftrix - AI agent integration for web design analysis, layout extraction, motion detection, and quality evaluation",
   "files": [
@@ -50,6 +50,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:smoke": "vitest run --config vitest.smoke.config.ts",
+    "test:smoke:24h-worker-lifecycle": "vitest run tests/smoke/worker-lifecycle-24h-smoke.test.ts --testTimeout=86400000 --hookTimeout=86400000",
     "test:regression:standing": "vitest run --config vitest.regression-standing.config.ts",
     "test:unit": "vitest run --exclude 'tests/smoke/**/*.test.ts' --exclude 'tests/integration/**/*.test.ts' --exclude 'tests/e2e/**/*.test.ts' --exclude 'tests/benchmark*/**/*.test.ts' --exclude 'tests/regression/standing/**/*.test.ts'",
     "test:integration": "vitest run tests/integration",
@@ -60,8 +61,10 @@
     "test:e2e:playwright:headed": "playwright test --headed",
     "bench": "vitest bench --config vitest.benchmark.config.ts",
     "bench:json": "vitest bench --config vitest.benchmark.config.ts --reporter=json --outputFile=./benchmark-results/results.json",
-    "worker:start": "NODE_ENV=development NODE_OPTIONS='--max-old-space-size=4096' tsx src/scripts/start-workers.ts",
-    "worker:start:page": "NODE_ENV=development NODE_OPTIONS='--max-old-space-size=4096' tsx src/scripts/start-workers.ts --page",
+    "verify:listener-sync": "node scripts/verify-completed-listener-sync.mjs",
+    "verify:no-worker-pause": "node scripts/verify-no-worker-pause.mjs",
+    "worker:start": "MALLOC_ARENA_MAX=\"${MALLOC_ARENA_MAX:-2}\" NODE_ENV=development NODE_OPTIONS='--max-old-space-size=4096 --expose-gc' tsx src/scripts/start-workers.ts",
+    "worker:start:page": "MALLOC_ARENA_MAX=\"${MALLOC_ARENA_MAX:-2}\" NODE_ENV=development NODE_OPTIONS='--max-old-space-size=4096 --expose-gc' tsx src/scripts/start-workers.ts --page",
     "check:embeddings": "tsx src/scripts/check-embedding-coverage.ts",
     "backfill:embeddings": "NODE_OPTIONS='--max-old-space-size=8192 --expose-gc' tsx src/scripts/backfill-embeddings.ts",
     "clean": "rm -rf dist node_modules .turbo"
@@ -105,7 +108,7 @@
     "testcontainers": "^11.14.0",
     "tsx": "^4.0.0",
     "typescript": "^5.9.0",
-    "vitest": "^4.0.14"
+    "vitest": "^4.1.0"
   },
   "publishConfig": {
     "access": "public"

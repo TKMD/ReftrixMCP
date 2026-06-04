@@ -1,6 +1,6 @@
 {
   "name": "@reftrixmcp/core",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "license": "AGPL-3.0-only",
   "description": "Core domain logic for Reftrix",
   "files": [
@@ -33,9 +33,9 @@
   "devDependencies": {
     "@reftrixmcp/config": "workspace:*",
     "@types/node": "^22.0.0",
-    "@vitest/coverage-v8": "^4.0.14",
+    "@vitest/coverage-v8": "^4.1.0",
     "typescript": "^5.9.0",
-    "vitest": "^4.0.14"
+    "vitest": "^4.1.0"
   },
   "publishConfig": {
     "access": "public"

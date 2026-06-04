@@ -80,6 +80,7 @@ import {
   resetAuditLogPrismaClientFactory,
   resetAuditLogService,
   AUDIT_LOG_CONSTANTS,
+  truncateAuditTargetId,
   type AuditLogPrismaClient,
 } from "../../../../src/services/audit-log.service";
 import { verifyWorkerIpcMessage } from "../../../../src/services/worker-supervisor-helpers";
@@ -1466,7 +1467,7 @@ describe("INV-WORKER-LOCK-003: real supervisor integration (TPA-IMPL-V11-09 M de
     const child2 = createMockChildProcess(22222);
     mockFork.mockReturnValueOnce(child2);
     child1.emit("exit", 134, null);
-    await vi.advanceTimersByTimeAsync(5000); // restartDelayMs (3s default) を消化
+    await vi.advanceTimersByTimeAsync(5000); // WORKER_RESTART_DELAY_MS (page workerType: 3s default) を消化
     await Promise.resolve();
     await Promise.resolve();
 
@@ -1986,9 +1987,21 @@ describe("INV-WORKER-LOCK-003: PR-D-9 Wave 1 auto-spawn + Wave 2 audit emit (cas
     const verifyVisionUnloadPreconditionSpy = vi
       .fn<[], Promise<{ status: "vision_unloaded"; sizeVramBytes: 0 }>>()
       .mockResolvedValue({ status: "vision_unloaded", sizeVramBytes: 0 });
-    vi.doMock("../../../../src/services/vision/vision-unload-handshake", () => ({
-      verifyVisionUnloadPrecondition: verifyVisionUnloadPreconditionSpy,
-    }));
+    // Override ONLY `verifyVisionUnloadPrecondition`; preserve the real SSOT
+    // exports (e.g. `VISION_RESIDUAL_BACKFILL_ENQUEUE_DELAY_MS` /
+    // `VISION_UNLOAD_FINAL_TIMEOUT_MS`) which the lifecycle module's
+    // deferred-spawn retry constants derive from at module-load time (ADR-0011
+    // Amendment 7 §A7.5). A bare `{ verifyVisionUnloadPrecondition }` factory
+    // would leave those undefined and break module init.
+    vi.doMock("../../../../src/services/vision/vision-unload-handshake", async () => {
+      const actual = await vi.importActual<
+        typeof import("../../../../src/services/vision/vision-unload-handshake")
+      >("../../../../src/services/vision/vision-unload-handshake");
+      return {
+        ...actual,
+        verifyVisionUnloadPrecondition: verifyVisionUnloadPreconditionSpy,
+      };
+    });
 
     // Build a thin partial WorkerSupervisor harness: per-type spawn observability
     // + a controllable `firstWorkerTypeOfPriority` map + an instant heartbeat
@@ -2014,9 +2027,10 @@ describe("INV-WORKER-LOCK-003: PR-D-9 Wave 1 auto-spawn + Wave 2 audit emit (cas
       );
       ensureForTypeSpy.mockImplementation(() => {});
       // Short-circuit waitForFirstHeartbeat so the test does not block.
-      // waitForFirstHeartbeat を bypass してテストを block させない。
+      // CO-26 split: waitForFirstHeartbeat moved to Module B (lifecycle).
+      // Spy on the lifecycle instance via supervisor.getLifecycle() indirect path.
       vi.spyOn(
-        supervisor as unknown as { waitForFirstHeartbeat: () => Promise<void> },
+        supervisor.getLifecycle() as unknown as { waitForFirstHeartbeat: () => Promise<void> },
         "waitForFirstHeartbeat"
       ).mockResolvedValue(undefined);
 
@@ -2052,8 +2066,9 @@ describe("INV-WORKER-LOCK-003: PR-D-9 Wave 1 auto-spawn + Wave 2 audit emit (cas
         "ensureWorkerRunningForType"
       );
       ensureForTypeSpy.mockImplementation(() => {});
+      // CO-26 split: waitForFirstHeartbeat moved to Module B (lifecycle).
       vi.spyOn(
-        supervisor as unknown as { waitForFirstHeartbeat: () => Promise<void> },
+        supervisor.getLifecycle() as unknown as { waitForFirstHeartbeat: () => Promise<void> },
         "waitForFirstHeartbeat"
       ).mockResolvedValue(undefined);
 
@@ -2493,4 +2508,65 @@ describe("INV-WORKER-LOCK-003: PR-D-9-patch Wave 2 composite jobId IPC schema ac
       "GDPR Art.5(1)(d) accuracy invariant cross-check: acceptedIpcCount MUST equal EMBEDDING_BACKFILL_CATEGORIES.length (7); divergence indicates the simulation loop was truncated (test-fixture regression) and the GDPR Art.5(1)(d) accuracy invariant assertion above would be misleading"
     ).toBe(EMBEDDING_BACKFILL_CATEGORIES.length);
   }, 90_000);
+
+  // ==========================================================================
+  // Case #34 (ADR-0032 T4-CO-① Wave 5 carryover closure):
+  // truncateAuditTargetId() SSOT-derive contract for page-analyze-worker.ts
+  // call path — canonical CWE-209 PII protection pattern (Wave 5 LCC-endorsed)
+  //
+  // ADR-0032-page-analyze-worker-truncation-literal-deferral.md §Tracked-issue
+  // §Definition of Done Step 5: Extend INV-WORKER-LOCK-003 with ≥1 new test
+  // case covering the page-analyze-worker.ts code path SSOT-derive assertion.
+  //
+  // Intent: Verify that truncateAuditTargetId() (the exported helper landing
+  // in audit-log.service.ts per T4-CO-① Step 1) produces the SAME output as
+  // the Wave 5 canonical SSOT-derive pattern used in Case #21 (backfill path).
+  // This coupling guard ensures both workers share the same PII truncation
+  // contract; any future change to TARGET_ID_TRUNCATE_LENGTH is immediately
+  // detected across both domains.
+  //
+  // 意図: truncateAuditTargetId() が Wave 5 正典 SSOT 由来パターンと
+  // 同一出力を返すことを検証。両 Worker が同一 PII 切詰め契約を共有することを
+  // 保証し、TARGET_ID_TRUNCATE_LENGTH の変更を両ドメインで即座に検出する。
+  // ==========================================================================
+
+  it("INV-WORKER-LOCK-003 #34: truncateAuditTargetId() SSOT-derive contract matches Wave 5 canonical pattern for page-analyze-worker call path (ADR-0032 T4-CO-①)", () => {
+    // INV-WORKER-LOCK-003: PII truncation SSOT-derive coupling guard
+    assertInvName(expect.getState().currentTestName ?? "", "INV-WORKER-LOCK-003");
+
+    // Scenario A: typical UUID webPageId (36 chars, exceeds TARGET_ID_TRUNCATE_LENGTH=8)
+    // 典型的な UUID webPageId (36 文字、TARGET_ID_TRUNCATE_LENGTH=8 を超える)
+    const typicalWebPageId = "019de376-abcd-7000-8abc-123456789012";
+
+    // SSOT-derive expectation: mirrors the Wave 5 canonical pattern from Case #21
+    // Wave 5 正典パターン (Case #21) と同一の SSOT 由来期待値
+    const expectedTruncated =
+      typicalWebPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...";
+
+    // truncateAuditTargetId() MUST produce the same result as the SSOT-derive literal
+    // truncateAuditTargetId() は SSOT 由来リテラルと同一結果を返さなければならない
+    expect(truncateAuditTargetId(typicalWebPageId)).toBe(expectedTruncated);
+
+    // Scenario B: short ID (length ≤ TARGET_ID_TRUNCATE_LENGTH) — must NOT be truncated
+    // 短い ID (TARGET_ID_TRUNCATE_LENGTH 以下) — 切詰めされてはならない
+    const shortId = "abc123";
+    expect(shortId.length <= AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH).toBe(true);
+    expect(truncateAuditTargetId(shortId)).toBe(shortId);
+
+    // Scenario C: exactly TARGET_ID_TRUNCATE_LENGTH chars — must NOT be truncated
+    // ちょうど TARGET_ID_TRUNCATE_LENGTH 文字 — 切詰めされてはならない
+    const exactId = "12345678"; // exactly 8 chars
+    expect(exactId.length).toBe(AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH);
+    expect(truncateAuditTargetId(exactId)).toBe(exactId);
+
+    // Scenario D: coupling contract — output format is "<N-chars>..." where N = SSOT constant
+    // 結合契約: 出力形式は "<N-chars>..." (N = SSOT 定数)
+    const result = truncateAuditTargetId(typicalWebPageId);
+    // Trailing "..." is always present when truncated
+    expect(result.endsWith("...")).toBe(true);
+    // Prefix length before "..." equals TARGET_ID_TRUNCATE_LENGTH
+    const prefix = result.slice(0, result.length - 3);
+    expect(prefix.length).toBe(AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH);
+    expect(prefix).toBe(typicalWebPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH));
+  });
 });

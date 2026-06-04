@@ -964,6 +964,10 @@ const result = await page.analyze({
 
 > **注意**: `summary` のデフォルトは `false`（詳細レスポンス）です。トークン消費を抑えるため、概要確認には `summary: true` の明示的な指定を推奨します。
 
+> **入力型の文字列強制変換（advertised schema coercion）**: `page.analyze` の advertised inputSchema は boolean/number/object フィールド（`async`、`summary`、`timeout`、`timeout_strategy`、`partial_results`、`layoutTimeout`/`motionTimeout`/`qualityTimeout`、`auto_retry`/`max_retries`、`layout_first`、`narrativeOptions`/`visionOptions` 等）を公開します。MCP クライアントが boolean/number を文字列（例: `async: "true"`、`timeout: "600000"`）として送っても、ツール層の `coerceArgs` が advertised schema の型ヒントに従って Zod 検証前に正しい型へ強制変換します。これにより文字列引数による `VALIDATION_ERROR` が発生しません。
+>
+> **Advertised-schema string coercion of inputs**: the `page.analyze` advertised inputSchema exposes its boolean/number/object fields (`async`, `summary`, `timeout`, `timeout_strategy`, `partial_results`, `layoutTimeout`/`motionTimeout`/`qualityTimeout`, `auto_retry`/`max_retries`, `layout_first`, `narrativeOptions`/`visionOptions`, etc.). When an MCP client sends a boolean/number as a string (e.g. `async: "true"`, `timeout: "600000"`), the tool-layer `coerceArgs` coerces it to the correct type before Zod validation using the advertised type hints, so string-typed arguments no longer cause `VALIDATION_ERROR`.
+
 **詳細レスポンス**
 
 ```typescript
@@ -1059,9 +1063,13 @@ const job = await page.analyze({
   async: true, // 非同期モード
 });
 
-// ジョブステータスを確認
+// 非同期レスポンス（ADR-0018 Amendment 11 以降）:
+// - jobId:     URL-stable UUIDv5（同一URLは同一jobId）。ポーリングにこの値を渡す
+// - webPageId: per-call UUIDv7（web_pages FK）。additive field（追加フィールド）
+//
+// ジョブステータスを確認（jobId = URL-stable UUIDv5 を渡す）
 const status = await page.getJobStatus({
-  job_id: job.job_id, // UUID形式
+  job_id: job.jobId, // UUIDv5（getJobStatus は queue.getJob(jobId) に渡す）
 });
 
 // レスポンス:
@@ -1071,6 +1079,15 @@ const status = await page.getJobStatus({
 // - result: { ... }（完了時の結果）
 // - failedReason: 'エラー詳細'（失敗時）
 ```
+
+**非同期レスポンスの jobId / webPageId 契約（ADR-0018 Amendment 11）/ Async Response jobId / webPageId Contract (ADR-0018 Amendment 11)**
+
+| フィールド / Field | 型 / Type         | 説明 / Description                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `jobId`            | URL-stable UUIDv5 | `uuidv5(normalizeUrlForValidation(url), v5.URL)` で生成。**同一URL → 同一jobId** のため BullMQ enqueue 層で重複投入を dedup。`page.getJobStatus(job_id=jobId)` は内部で `queue.getJob(jobId)` に渡すため jobId は UUIDv5 必須 / Generated via `uuidv5(...)`; **same URL → same jobId**, deduplicating re-submissions at the BullMQ enqueue layer. `page.getJobStatus` passes it to `queue.getJob(jobId)`, so jobId must be the UUIDv5 |
+| `webPageId`        | per-call UUIDv7   | `web_pages` 行を参照する FK。**additive 追加フィールド**（jobId が UUIDv5 化されたため、特定の解析実行（web_pages 行）を参照したい client 向けに別途付与） / `web_pages` FK; an **additive field** added because jobId is now the URL-stable UUIDv5, so clients needing the specific analysis run reference `webPageId`                                                                                                               |
+
+> **互換性 / Compatibility**: UUIDv5 は `z.string().uuid()` / MCP `format:"uuid"` を通過するため、ポーリング契約は維持され破壊的変更はありません。/ UUIDv5 passes `z.string().uuid()` / MCP `format:"uuid"`, so the polling contract is preserved with **no breaking change**.
 
 **ポーリングによる完了待機**
 
@@ -2175,6 +2192,11 @@ await data.delete({
 | `reason`               | string    | （必須 / required）  | 削除理由（GDPR監査要件、1-500文字） / Deletion reason (GDPR audit requirement)                   |
 | `confirm`              | boolean   | （必須 / required）  | 削除確認フラグ（`true`必須） / Deletion confirmation (must be `true`)                            |
 | `page_ids`             | string[]  | -                    | ページID配列（target=all_user_data時、最大100件） / Page IDs (for all_user_data target, max 100) |
+
+**v0.5.x (CO-5) — Audit trail enhancement / 監査トレース強化**:
+
+- 削除後 audit trail 強化 — `audit_logs.details` に `searchLogsAnonymized` count + `profileIdHash` (SHA-256) を記録 (GDPR Art.30 verification、8-char prefix collision audit-side mitigation)。
+- Post-deletion audit trail enhanced — `audit_logs.details` records `searchLogsAnonymized` count + `profileIdHash` (SHA-256, 256-bit collision-resistant) for GDPR Art.30 verification (8-char prefix collision audit-side mitigation).
 
 ---
 

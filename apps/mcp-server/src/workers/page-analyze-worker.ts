@@ -42,6 +42,7 @@
  * @module workers/page-analyze-worker
  */
 
+import { randomUUID } from "node:crypto";
 import { Worker, type Job } from "bullmq";
 import { getRedisConfig } from "../config/redis";
 import {
@@ -91,6 +92,25 @@ import {
 // Section Merge/Split Post-Processor（過剰分割修正 + 巨大セクション再分割）
 import { postProcessSections } from "../services/page/section-postprocessor.service";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
+// Plan v3 Track T4 (PR-V3-T4) — Pre-Return Pause failure-path race closure
+// Plan v3 Track T4 (PR-V3-T4) — Pre-Return Pause failure-path race closure
+import {
+  markFailedAndAuditAtomic,
+  type PhaseN,
+  type FailurePathPrismaClient,
+} from "../services/worker-supervisor-failure-path.service";
+// Plan v3 Track T4 (PR-V3-T4) UNBLOCK-T4-02 — INV-WORKER-PID-IDENTITY-005
+// write/clear hooks (Sub-A / Sub-B). recordWorkerSpawn writes the
+// `worker_job_lifecycle` row at job start; recordWorkerRelease writes the
+// paired `event_type='release'` row before planned exit (success or failure).
+//
+// UNBLOCK-T4-02: write/clear hook callsites for INV-WORKER-PID-IDENTITY-005.
+import {
+  recordWorkerRelease,
+  recordWorkerSpawn,
+  type WorkerJobLifecyclePrismaClient,
+} from "../services/worker-supervisor-helpers";
+import { readSupervisorInjectedSpawnTimeMs } from "./worker-ipc-spawn-recorded.schema";
 // Embedding generation (reuse from synchronous flow)
 import {
   setBackgroundEmbeddingServiceFactory,
@@ -172,7 +192,10 @@ import { processIngestPhase } from "./phases/phase-0-ingest";
 // only touched `analysis_status` / `analysis_completed_at`).
 import { PhasedDbHandler } from "../tools/page/handlers/phased-db-handler";
 import { createScreenshotPersistenceService } from "../services/screenshot-persistence.service";
-import { applyPostJobMemoryGate } from "./shared/post-job-lifecycle";
+import {
+  applyPostJobMemoryGate,
+  registerCompletedListenerAndExit,
+} from "./shared/post-job-lifecycle";
 import { processLayoutPhase } from "./phases/phase-1-layout";
 import { processMotionPhase } from "./phases/phase-2-motion";
 import { processQualityPhase } from "./phases/phase-3-quality";
@@ -195,6 +218,7 @@ import {
   checkBackfillQueueBackPressure,
   resolveMemoryPressureDelayMs,
   EMBEDDING_BACKFILL_QUEUE_WAITING_CAP,
+  EMBEDDING_BACKFILL_CATEGORIES,
   SKIP_RECOVERY_RETRY_CAP,
   type EmbeddingBackfillJobData,
   type EmbeddingBackfillJobResult,
@@ -214,13 +238,45 @@ import {
   isBackfillPendingSourceConflict,
 } from "../services/backfill-pending.builder";
 
+// PR-C2 (Layer 2, ADR-0007 Amendment 3): relocate BOTH backfill enqueue paths
+// (sync_overflow + skip_recovery) to AFTER markAnalysisCompleted so the analysis
+// guard sees a terminal status and returns `proceed` (re_enqueue churn removed
+// from the happy path). The ordering orchestration is a dedicated CC≤10 leaf so
+// it can be machine-enforced via the scope-limited eslint complexity override
+// without adding the 3470-LoC worker file (TDA-RE-M-01 / plan §3.4).
+//
+// PR-C2 (Layer 2, ADR-0007 Amendment 3): markComplete 後へ両 backfill enqueue path
+// を移動する relocation leaf (CC≤10、eslint complexity override IN)。
+import { enqueueBackfillAfterMarkComplete } from "./phases/backfill-enqueue-relocation";
+
+// PR-PART30CAP (ADR-0007 Amendment 2): dual-trigger enqueue 用の 1-call pending
+// snapshot 再利用。parts≤100 の inline partial-completion residual を
+// `hasPendingParts` bool として resolver に渡すため、終端 parity gate と同じ
+// helper を dispatch 前に 1 回だけ呼ぶ (N+1 なし、§3.3 SEC-M-01 10RPM bound)。
+//
+// PR-PART30CAP (ADR-0007 Amendment 2): reuse the 1-call pending snapshot for the
+// dual-trigger enqueue. Calls the same helper used by the terminal parity gate
+// once before dispatch (no N+1, §3.3 SEC-M-01 10RPM bound) to derive the
+// `hasPendingParts` bool passed into the resolver for parts≤100 inline
+// partial-completion residuals.
+import { collectCategoryPendingSnapshot } from "../services/backfill-status.helper";
+
 // v0.4.0 PR7b: Phase 5 親 RSS upstream guard
 // v0.4.0 PR7b: Phase 5 parent RSS upstream guard
-import { loadPhase5Config } from "../config/phase5-config";
+// PR-V3-T1a: parent_rss_ceiling_scaled audit emission helper
+import { emitParentRssCeilingScaledIfApplicable, loadPhase5Config } from "../config/phase5-config";
 
 // v0.4.0 PR7b: retry cap 超過時の audit log
 // v0.4.0 PR7b: audit log when retry cap is exceeded
-import { getAuditLogService } from "../services/audit-log.service";
+import {
+  AUDIT_LOG_CONSTANTS,
+  getAuditLogService,
+  truncateAuditTargetId,
+} from "../services/audit-log.service";
+
+// PR-V3-T1a: parent_rss_ceiling_scaled audit action SSOT constant
+import { AUDIT_ACTION_PARENT_RSS_CEILING_SCALED } from "../audit/audit-actions";
+import { trimParentRssAndDecide } from "./phases/phase5-parent-rss-trim";
 
 // ============================================================================
 // Embedding DI factories initialization
@@ -282,6 +338,22 @@ const gpuResourceManager = GpuResourceManager.getInstance();
 const _preReturnPauseEnabled = safeParseInt(process.env.WORKER_MAX_JOBS_BEFORE_RESTART, 1) > 0;
 
 /**
+ * Plan v1.1 candidate B / ADR-0034 Amendment 5: the module-level
+ * `_workerInstanceRef` was used solely by the removed
+ * `applyPostJobLifecycleGate(worker, ...)` callsite (success path
+ * Pre-Return Pause). Stage 2 `worker.pause(true)` is formally removed
+ * (ADR-0034 Amendment 5 §Decision 2-4), so the ref is no longer needed
+ * and has been removed from the module.
+ *
+ * Plan v1.1 candidate B / ADR-0034 Amendment 5: the module-level
+ * `_workerInstanceRef` was used solely by the removed
+ * `applyPostJobLifecycleGate(worker, ...)` callsite (success path
+ * Pre-Return Pause). Stage 2 `worker.pause(true)` is formally removed
+ * (Amendment 5 §Decision 2-4); the ref is no longer needed and has been
+ * removed from this module.
+ */
+
+/**
  * PR-B (v0.4.0 PR7e P4): Phase 0 Early INSERT feature flag.
  *
  * When `PHASE0_EARLY_INSERT=true`, the orchestrator upserts a minimal
@@ -299,10 +371,19 @@ const _preReturnPauseEnabled = safeParseInt(process.env.WORKER_MAX_JOBS_BEFORE_R
  * 早期失敗 (robots.txt block / SSRF / DNS NXDOMAIN 等) でも DB 行が残り、
  * failure-path の `markAnalysisFailed` が P2025 で空振りしなくなる。
  *
- * デフォルト: `false` (opt-in)。
+ * デフォルト: `true` (opt-out)。PR-INGEST-FAIL-ROW / ADR-0016 Amendment 6
+ * §Decision 1 で default `false→true` に flip。Phase 0 fetch fail でも W0 が
+ * 行を残し、failure-path url-key upsert が terminal `failed` を永続化する
+ * (NOROW closure)。opt-out 経路 `PHASE0_EARLY_INSERT=false` は保持 (non-breaking)。
+ *
+ * Default: `true` (opt-out). Flipped `false→true` by PR-INGEST-FAIL-ROW /
+ * ADR-0016 Amendment 6 §Decision 1 so Phase 0 fetch failures still leave a W0
+ * row and the failure-path url-key upsert persists a terminal `failed` row
+ * (NOROW closure). The opt-out path `PHASE0_EARLY_INSERT=false` is preserved
+ * (non-breaking).
  */
 function isPhase0EarlyInsertEnabled(): boolean {
-  return process.env.PHASE0_EARLY_INSERT === "true";
+  return process.env.PHASE0_EARLY_INSERT !== "false";
 }
 
 // Connect gpuModeSignal to the @reftrixmcp/ml EmbeddingService singleton.
@@ -391,16 +472,131 @@ function getBackfillQueue(): Queue<EmbeddingBackfillJobData, EmbeddingBackfillJo
 }
 
 /**
- * Enqueue backfill jobs for the Part categories that exceed the sync threshold.
+ * PR-BACKFILL-TERMINAL (系統A): the 3 dispatch-managed gated categories.
+ *
+ * These categories have bespoke happy-path gates in `dispatchBackfillJobsForPage`:
+ *   - `part_text` / `part_visual`: gated by `partsSavedCount > PART_SYNC_THRESHOLD`
+ *     (the first PART_SYNC_THRESHOLD parts are processed inline by Phase 5;
+ *     only the overflow is backfilled — ADR-0007 / FIND-BT-M-03 PRESERVE).
+ *   - `section_visual`: gated by `sectionsSavedCount > 0 && screenshot present`.
+ *
+ * PR-BACKFILL-TERMINAL (System A): the 3 dispatch-managed gated categories.
+ */
+const BACKFILL_DISPATCH_GATED_CATEGORIES: ReadonlySet<EmbeddingBackfillCategory> = new Set([
+  "part_text",
+  "part_visual",
+  "section_visual",
+]);
+
+/**
+ * PR-BACKFILL-TERMINAL (系統A): derive the screenshot-free, gate-less categories
+ * from the `EMBEDDING_BACKFILL_CATEGORIES` SSOT (drift-proof).
+ *
+ * Gate-less = SSOT minus the dispatch-managed gated set. Currently
+ * `{motion, background, js_animation, responsive}`. These categories are
+ * screenshot-free (`requiresScreenshot()=false`) and page-state-independent, so
+ * they MUST be enqueued unconditionally on the happy path — a NEW SSOT category
+ * is automatically treated as gate-less unless explicitly added to
+ * `BACKFILL_DISPATCH_GATED_CATEGORIES`. INV-BACKFILL-TERMINAL-COMPLETED-007
+ * Block A pins this 3-way Set-equality.
+ *
+ * PR-BACKFILL-TERMINAL (System A): gate-less = SSOT minus the gated set.
+ */
+const BACKFILL_DISPATCH_GATELESS_CATEGORIES: readonly EmbeddingBackfillCategory[] =
+  EMBEDDING_BACKFILL_CATEGORIES.filter((c) => !BACKFILL_DISPATCH_GATED_CATEGORIES.has(c));
+
+/**
+ * PR-BACKFILL-TERMINAL (系統A): resolve which backfill categories the happy-path
+ * dispatch should enqueue for a page, given its part/section/screenshot state.
+ *
+ * **Root cause closed (系統A)**: previously only part_text/part_visual (threshold-
+ * gated) and section_visual (its own condition) were enqueued; motion/bg/js/
+ * responsive rode neither gate and were never enqueued, so their parity pending
+ * stayed > 0 and the page was mis-pinned to `failed`. This resolver derives the
+ * gate-less set from the SSOT (`BACKFILL_DISPATCH_GATELESS_CATEGORIES`) and
+ * enqueues it **unconditionally** while PRESERVING the part threshold gate
+ * (FIND-BT-M-03) and the section_visual condition.
+ *
+ * Pure function (no I/O) so it can be unit-pinned by INV-007 Block A without a
+ * queue or DB.
+ *
+ * @returns the ordered list of categories to enqueue (gated subset first, then
+ *   the gate-less SSOT-derived set), de-duplicated by construction.
+ */
+export function resolveBackfillDispatchCategories(input: {
+  partsSavedCount: number;
+  sectionsSavedCount: number;
+  hasScreenshot: boolean;
+  hasPendingParts?: boolean;
+}): EmbeddingBackfillCategory[] {
+  const { partsSavedCount, sectionsSavedCount, hasScreenshot, hasPendingParts = false } = input;
+  const categories: EmbeddingBackfillCategory[] = [];
+
+  // --- Gated part categories (dual-trigger, FIND-BT-M-03: threshold gate PRESERVED) ---
+  // PR-PART30CAP (ADR-0007 Amendment 2 dual-trigger): enqueue part_text/part_visual
+  // when EITHER the inline-cap threshold is exceeded (existing behaviour) OR the
+  // inline partial-completion left residual un-embedded parts in the DB
+  // (`hasPendingParts=true`). The latter closes the parts≤100 gap where a C1
+  // per-chunk RSS budget break stops inline embedding at chunk 0 (=30 parts),
+  // leaving residual parts that the threshold gate (parts>100) never enqueued →
+  // permanent in_progress stuck (run3: 5 sites). The `hasPendingParts` bool is
+  // derived at the call site (`dispatchBackfillJobsForPage`) from a 1-call pending
+  // snapshot; NO DB/Prisma argument is injected here so this resolver stays a pure
+  // function unit-pinned by INV-007 Block A (TPA-M-02 + TDA-M-03).
+  //
+  // PR-PART30CAP (ADR-0007 Amendment 2): the existing `PART_SYNC_THRESHOLD`
+  // inline-cap semantic (head-100 inline processing) is UNCHANGED — only the
+  // enqueue trigger is extended (§3.2). NaN/Infinity defense: a non-finite count
+  // must never enqueue parts via the threshold arm.
+  const thresholdExceeded =
+    Number.isFinite(partsSavedCount) && partsSavedCount > PART_SYNC_THRESHOLD;
+  const shouldEnqueueParts = thresholdExceeded || hasPendingParts;
+  if (shouldEnqueueParts) {
+    // part_text is screenshot-free — always enqueue when over threshold.
+    categories.push("part_text");
+    // part_visual requires a persisted screenshot.
+    if (hasScreenshot) {
+      categories.push("part_visual");
+    }
+  }
+
+  // --- Gated section_visual category (own condition PRESERVED) ---
+  const shouldEnqueueSectionVisual =
+    Number.isFinite(sectionsSavedCount) && sectionsSavedCount > 0 && hasScreenshot;
+  if (shouldEnqueueSectionVisual) {
+    categories.push("section_visual");
+  }
+
+  // --- Gate-less categories (系統A fix: unconditional, SSOT-derived) ---
+  // motion/bg/js/responsive are screenshot-free and page-state-independent;
+  // page.analyze completion alone warrants their enqueue (rescues inline-
+  // generation misses). Derived from the SSOT so a new category is covered.
+  for (const category of BACKFILL_DISPATCH_GATELESS_CATEGORIES) {
+    categories.push(category);
+  }
+
+  return categories;
+}
+
+/**
+ * Enqueue backfill jobs for a page after Phase 5.
  *
  * v0.4.0 PR4: Phase 5 完了後に呼ばれ、残余 Part を `embedding-backfill` Queue
  * に投入する。`part_text` と `part_visual` の両方を独立ジョブとして投入し、
  * それぞれ BullMQ の jobId 一意化 (`<webPageId>__<category>`) で重複投入を防ぐ。
  *
- * v0.4.0 PR4: Called after Phase 5 to enqueue remaining Part backfill jobs on
- * the `embedding-backfill` Queue. `part_text` and `part_visual` are enqueued
- * as independent jobs; BullMQ jobId uniqueness (`<webPageId>__<category>`)
- * prevents duplicate enqueue.
+ * PR-BACKFILL-TERMINAL (系統A): motion/background/js_animation/responsive の 4
+ * gate-less category を `resolveBackfillDispatchCategories` (SSOT 由来) 経由で
+ * **無条件 enqueue** する。これらは screenshot 不要・text-only ゆえ全ページが対象
+ * (happy-path inline 生成 miss を救済)。part の threshold gate と section_visual
+ * の独立条件は PRESERVE する (FIND-BT-M-03)。
+ *
+ * v0.4.0 PR4: Called after Phase 5 to enqueue remaining backfill jobs on the
+ * `embedding-backfill` Queue. BullMQ jobId uniqueness (`<webPageId>__<category>`)
+ * prevents duplicate enqueue. PR-BACKFILL-TERMINAL (System A): the 4 gate-less
+ * categories (motion/background/js_animation/responsive) are enqueued
+ * unconditionally via the SSOT-derived `resolveBackfillDispatchCategories`,
+ * preserving the part threshold gate and the section_visual condition.
  *
  * Graceful Degradation: Queue 投入失敗はメインのジョブ結果に影響させない
  * （warn ログのみ）。
@@ -417,21 +613,60 @@ async function dispatchBackfillJobsForPage(params: {
   const { webPageId, partsSavedCount, sectionsSavedCount, screenshotStoragePath } = params;
   const enqueued: EmbeddingBackfillCategory[] = [];
 
-  // v0.4.0 PR7e-α (バグ⑥): part_* しか救出できなかった制約を解除し、
-  // section_visual も backfill 対象に加える。partsSavedCount<=threshold でも
-  // section_visual は独立条件 (sectionsSavedCount>0 + screenshotStoragePath) で
-  // 投入する。従来は partsSavedCount <= PART_SYNC_THRESHOLD で早期 return
-  // していたため section_visual backfill が起動できなかった。
+  // PR-PART30CAP (ADR-0007 Amendment 2 dual-trigger): derive `hasPendingParts`
+  // from a SINGLE pending-snapshot call so parts≤100 inline partial-completion
+  // residuals are enqueued even when the threshold gate (parts>100) would not
+  // fire. `collectCategoryPendingSnapshot` aggregates ALL category pending counts
+  // in one Promise.all (no per-category loop / no N+1); page.analyze is bound to
+  // the analysis-tier 10RPM rate-limit, so this extra round-trip adds no new
+  // back-pressure surface (§3.3 SEC-M-01). Fail-open: a snapshot error must NOT
+  // abort dispatch — fall back to threshold-only enqueue (the gate-less
+  // categories must still be enqueued), with the residual rescued by the
+  // reconciliation cron. The DB I/O lives HERE at the call site; the resolver
+  // receives only the derived bool, preserving its pure-function unit-pin
+  // (INV-007 Block A, TPA-M-02 + TDA-M-03).
   //
-  // v0.4.0 PR7e-α (bug ⑥): expand beyond part_* by also enqueuing
-  // `section_visual` under its own condition (sectionsSavedCount > 0 +
-  // persisted screenshot). Previously the early-return on partsSavedCount
-  // blocked section_visual enqueue entirely.
-  const shouldEnqueueParts = partsSavedCount > PART_SYNC_THRESHOLD;
-  const shouldEnqueueSectionVisual = sectionsSavedCount > 0 && screenshotStoragePath !== undefined;
-  if (!shouldEnqueueParts && !shouldEnqueueSectionVisual) {
-    return enqueued;
+  // PR-PART30CAP (ADR-0007 Amendment 2 dual-trigger): single pending-snapshot
+  // call derives `hasPendingParts` so parts≤100 inline partial-completion
+  // residuals are enqueued even when the parts>100 threshold gate does not fire.
+  let hasPendingParts = false;
+  try {
+    const pendingSnapshot = await collectCategoryPendingSnapshot(webPageId, prisma);
+    hasPendingParts = pendingSnapshot.part_text > 0 || pendingSnapshot.part_visual > 0;
+  } catch (error) {
+    // Fail-open: do not block dispatch on a snapshot failure. The threshold gate
+    // and gate-less enqueue still run; any residual parts are rescued later by
+    // the reconciliation cron. Logged in all environments (no isDevelopment guard).
+    logger.warn(
+      "[PageAnalyzeWorker] Failed to collect pending snapshot for dual-trigger (non-fatal)",
+      {
+        error: sanitizeErrorMessage(error),
+        webPageId: truncateAuditTargetId(webPageId),
+      }
+    );
   }
+
+  // PR-BACKFILL-TERMINAL (系統A) + PR-PART30CAP (Amendment 2): SSOT-derived
+  // dispatch set. part_* は threshold gate OR inline partial-completion residual
+  // (hasPendingParts) の dual-trigger、section_visual は独立条件、motion/bg/js/
+  // responsive は無条件 (gate-less)。resolveBackfillDispatchCategories が
+  // drift-proof な category 集合を返す。
+  //
+  // PR-BACKFILL-TERMINAL (System A) + PR-PART30CAP (Amendment 2): SSOT-derived
+  // dispatch set — part_* gated by threshold OR partial-completion residual
+  // (dual-trigger), section_visual by its own condition, the 4 gate-less
+  // categories unconditionally. `resolveBackfillDispatchCategories` returns the
+  // drift-proof set.
+  const dispatchSet = new Set(
+    resolveBackfillDispatchCategories({
+      partsSavedCount,
+      sectionsSavedCount,
+      hasScreenshot: screenshotStoragePath !== undefined,
+      hasPendingParts,
+    })
+  );
+  const shouldEnqueueParts = dispatchSet.has("part_text");
+  const shouldEnqueueSectionVisual = dispatchSet.has("section_visual");
 
   const queue = getBackfillQueue();
 
@@ -449,13 +684,13 @@ async function dispatchBackfillJobsForPage(params: {
         logger.info("[PageAnalyzeWorker] part_text backfill enqueue outcome", {
           outcome: result.outcome,
           collision: result.collision,
-          webPageId: webPageId.slice(0, 8) + "...",
+          webPageId: truncateAuditTargetId(webPageId),
         });
       }
     } catch (error) {
       logger.warn("[PageAnalyzeWorker] Failed to enqueue part_text backfill (non-fatal)", {
         error: sanitizeErrorMessage(error),
-        webPageId: webPageId.slice(0, 8) + "...",
+        webPageId: truncateAuditTargetId(webPageId),
       });
     }
 
@@ -475,18 +710,18 @@ async function dispatchBackfillJobsForPage(params: {
           logger.info("[PageAnalyzeWorker] part_visual backfill enqueue outcome", {
             outcome: result.outcome,
             collision: result.collision,
-            webPageId: webPageId.slice(0, 8) + "...",
+            webPageId: truncateAuditTargetId(webPageId),
           });
         }
       } catch (error) {
         logger.warn("[PageAnalyzeWorker] Failed to enqueue part_visual backfill (non-fatal)", {
           error: sanitizeErrorMessage(error),
-          webPageId: webPageId.slice(0, 8) + "...",
+          webPageId: truncateAuditTargetId(webPageId),
         });
       }
     } else if (isDevelopment()) {
       logger.info("[PageAnalyzeWorker] No persisted screenshot; skipping part_visual backfill", {
-        webPageId: webPageId.slice(0, 8) + "...",
+        webPageId: truncateAuditTargetId(webPageId),
       });
     }
   }
@@ -511,13 +746,52 @@ async function dispatchBackfillJobsForPage(params: {
         logger.info("[PageAnalyzeWorker] section_visual backfill enqueue outcome", {
           outcome: result.outcome,
           collision: result.collision,
-          webPageId: webPageId.slice(0, 8) + "...",
+          webPageId: truncateAuditTargetId(webPageId),
         });
       }
     } catch (error) {
       logger.warn("[PageAnalyzeWorker] Failed to enqueue section_visual backfill (non-fatal)", {
         error: sanitizeErrorMessage(error),
-        webPageId: webPageId.slice(0, 8) + "...",
+        webPageId: truncateAuditTargetId(webPageId),
+      });
+    }
+  }
+
+  // PR-BACKFILL-TERMINAL (系統A): motion/background/js_animation/responsive の
+  // 4 gate-less category を無条件 enqueue する。これらは screenshot 不要・
+  // text-only ゆえ page.analyze 完了した全ページが対象。従来は part / section_visual
+  // のどちらの gate にも乗らず未 enqueue → parity pending>0 → reconciliation cron が
+  // `failed` に誤 pin していた (root cause)。`addEmbeddingBackfillJobWithGuard` の
+  // jobId 一意化 (`<webPageId>__<category>`) で重複投入を防ぐ。category 集合は
+  // SSOT (`EMBEDDING_BACKFILL_CATEGORIES`) 由来 (drift-proof、INV-007 Block A pin)。
+  //
+  // PR-BACKFILL-TERMINAL (System A): unconditionally enqueue the 4 gate-less
+  // categories (motion/background/js_animation/responsive). They are
+  // screenshot-free and text-only, so every page.analyze completion warrants
+  // them. Previously they rode neither dispatch gate → parity pending stayed
+  // > 0 → the reconciliation cron mis-pinned the page to `failed`. jobId
+  // uniqueness prevents duplicate enqueue; the category set is SSOT-derived
+  // (`EMBEDDING_BACKFILL_CATEGORIES`), pinned by INV-007 Block A.
+  for (const category of BACKFILL_DISPATCH_GATELESS_CATEGORIES) {
+    try {
+      const result = await addEmbeddingBackfillJobWithGuard(queue, {
+        webPageId,
+        category,
+      });
+      enqueued.push(category);
+      if (result.outcome !== "enqueued_new") {
+        logger.info("[PageAnalyzeWorker] gate-less backfill enqueue outcome", {
+          category,
+          outcome: result.outcome,
+          collision: result.collision,
+          webPageId: truncateAuditTargetId(webPageId),
+        });
+      }
+    } catch (error) {
+      logger.warn("[PageAnalyzeWorker] Failed to enqueue gate-less backfill (non-fatal)", {
+        category,
+        error: sanitizeErrorMessage(error),
+        webPageId: truncateAuditTargetId(webPageId),
       });
     }
   }
@@ -528,11 +802,13 @@ async function dispatchBackfillJobsForPage(params: {
   // v0.4.0 PR7e-α (TDA minimum observability): log dispatched categories
   // unconditionally — required for production backfill observability.
   logger.info("[PageAnalyzeWorker] Dispatched backfill categories", {
-    webPageId: webPageId.slice(0, 8) + "...",
+    webPageId: truncateAuditTargetId(webPageId),
     categories: enqueued,
     partsSavedCount,
     sectionsSavedCount,
     hasScreenshot: screenshotStoragePath !== undefined,
+    // PR-PART30CAP: observe whether the dual-trigger residual arm fired.
+    hasPendingParts,
   });
 
   return enqueued;
@@ -619,7 +895,7 @@ async function dispatchSkipRecoveryBackfill(params: {
   } catch (fetchError) {
     logger.warn("[PageAnalyzeWorker] Failed to fetch embeddingBackfillRetryCount", {
       error: sanitizeErrorMessage(fetchError),
-      webPageId: webPageId.slice(0, 8) + "...",
+      webPageId: truncateAuditTargetId(webPageId),
     });
     return { enqueuedCategories: [], reason: "retry_count_fetch_failed" };
   }
@@ -635,7 +911,7 @@ async function dispatchSkipRecoveryBackfill(params: {
     } catch (updateError) {
       logger.warn("[PageAnalyzeWorker] Failed to pin embeddingBackfillStatus to failed", {
         error: sanitizeErrorMessage(updateError),
-        webPageId: webPageId.slice(0, 8) + "...",
+        webPageId: truncateAuditTargetId(webPageId),
       });
     }
     try {
@@ -656,7 +932,7 @@ async function dispatchSkipRecoveryBackfill(params: {
       /* audit log 失敗は致命的でない / non-fatal */
     }
     logger.warn("[PageAnalyzeWorker] Skip recovery retry cap exceeded — pinned to failed", {
-      webPageId: webPageId.slice(0, 8) + "...",
+      webPageId: truncateAuditTargetId(webPageId),
       retryCount: currentRetryCount,
       retryCap: SKIP_RECOVERY_RETRY_CAP,
     });
@@ -668,7 +944,7 @@ async function dispatchSkipRecoveryBackfill(params: {
   const backPressure = await checkBackfillQueueBackPressure(queue);
   if (!backPressure.allowEnqueue) {
     logger.warn("[PageAnalyzeWorker] Back-pressure exceeded; leaving skipped_* for cron recovery", {
-      webPageId: webPageId.slice(0, 8) + "...",
+      webPageId: truncateAuditTargetId(webPageId),
       waitingCount: backPressure.waitingCount,
       cap: EMBEDDING_BACKFILL_QUEUE_WAITING_CAP,
     });
@@ -699,7 +975,7 @@ async function dispatchSkipRecoveryBackfill(params: {
   } catch (casError) {
     logger.warn("[PageAnalyzeWorker] CAS guard failed for skip recovery transition", {
       error: sanitizeErrorMessage(casError),
-      webPageId: webPageId.slice(0, 8) + "...",
+      webPageId: truncateAuditTargetId(webPageId),
     });
     return { enqueuedCategories: [], reason: "cas_failed" };
   }
@@ -709,7 +985,7 @@ async function dispatchSkipRecoveryBackfill(params: {
     // Another worker / cron already transitioned (skipped_* → queued/in_progress).
     if (isDevelopment()) {
       logger.info("[PageAnalyzeWorker] CAS guard skipped — concurrent transition detected", {
-        webPageId: webPageId.slice(0, 8) + "...",
+        webPageId: truncateAuditTargetId(webPageId),
       });
     }
     return { enqueuedCategories: [], reason: "concurrent_transition" };
@@ -751,7 +1027,7 @@ async function dispatchSkipRecoveryBackfill(params: {
 
   if (enqueued.length > 0) {
     logger.info("[PageAnalyzeWorker] Skip recovery: enqueued backfill jobs", {
-      webPageId: webPageId.slice(0, 8) + "...",
+      webPageId: truncateAuditTargetId(webPageId),
       categories: enqueued,
       failedCategories: failed,
       skipReason,
@@ -765,7 +1041,7 @@ async function dispatchSkipRecoveryBackfill(params: {
     logger.warn(
       "[PageAnalyzeWorker] Skip recovery: 0 categories enqueued (all failed); cron will retry",
       {
-        webPageId: webPageId.slice(0, 8) + "...",
+        webPageId: truncateAuditTargetId(webPageId),
         failedCategories: failed,
       }
     );
@@ -917,6 +1193,38 @@ async function disposePhase4Memory(state: PipelineState): Promise<{
 }
 
 // ============================================================================
+// Plan v3 Track T4 (PR-V3-T4) — derivePhaseNFromCompletedPhases
+// ============================================================================
+
+/**
+ * Derive the in-flight phase identifier (PhaseN) from the highest completed
+ * AnalysisPhase. Used by the catch-block tail to populate
+ * `failed_with_known_reason='worker_restart_during_inflight_phase_<N>'`
+ * via {@link markFailedAndAuditAtomic}.
+ *
+ *   - completedPhases empty                  → phase 0 (Ingest in-flight)
+ *   - completedPhases includes "ingest"      → phase 1 (Layout in-flight)
+ *   - completedPhases includes "layout"      → phase 2_5 (ScrollVision in-flight)
+ *   - completedPhases includes "motion"      → phase 4 (Narrative in-flight)
+ *   - completedPhases includes "narrative"   → phase 5 (Embedding in-flight)
+ *   - completedPhases includes "embedding"   → phase 7_5 (Post-Analysis Gate)
+ *
+ * Plan v3 T4 — derive PhaseN from highest completed AnalysisPhase.
+ *
+ * @param completedPhases - state.completedPhases array
+ * @returns PhaseN identifier
+ */
+function derivePhaseNFromCompletedPhases(completedPhases: readonly AnalysisPhase[]): PhaseN {
+  // Order matters: check from highest to lowest.
+  if (completedPhases.includes("embedding" as AnalysisPhase)) return "7_5";
+  if (completedPhases.includes("narrative" as AnalysisPhase)) return "5";
+  if (completedPhases.includes("motion" as AnalysisPhase)) return "4";
+  if (completedPhases.includes("layout" as AnalysisPhase)) return "2_5";
+  if (completedPhases.includes("ingest" as AnalysisPhase)) return "1";
+  return "0";
+}
+
+// ============================================================================
 // processPageAnalyzeJob — Thin Orchestrator
 // ============================================================================
 
@@ -963,7 +1271,8 @@ type EmbeddingBackfillStatusValue =
   | "failed"
   | "skipped_memory_pressure"
   | "skipped_fork_error"
-  | "skipped_screenshot_missing";
+  | "skipped_screenshot_missing"
+  | "failed_with_known_reason";
 
 /**
  * EmbeddingSkipReason → EmbeddingBackfillStatus へのマッピング（PR2 v0.4.0）。
@@ -977,10 +1286,24 @@ type EmbeddingBackfillStatusValue =
  * fork/child-originated reasons map to `skipped_fork_error`; and
  * `no_embeddable_items` collapses back to `not_required` (no work to backfill).
  */
+// PR-V3-T1a §3.4.1 (FIND-V3-IO-H-01 closure):
+//   - `text_child_memory_budget_exceeded_at_chunk_<n>` is a memory-pressure
+//     signal (not a fork/IPC failure), so it shares the same
+//     `skipped_memory_pressure` retry bucket as system-level memory shortage.
+//   - `partial_chunked_<n>_of_<total>` is a third `partTextPending` source
+//     per ADR-0007 (alongside threshold-driven and visual-screenshot-missing);
+//     chunks 0..N-1 are durable forward intent, chunks N..total are skipped
+//     and surfaced via post-Phase-5 `dispatchBackfillJobsForPage`. Routes
+//     through `skipped_fork_error` (5 retries, then `failed`).
+//
+// PR-V3-T1a §3.4.1: `text_child_memory_budget_exceeded_at_chunk_<n>` →
+// `skipped_memory_pressure`; `partial_chunked_<n>_of_<total>` →
+// `skipped_fork_error`.
 function skipReasonToBackfillStatus(reason: EmbeddingSkipReason): EmbeddingBackfillStatusValue {
   switch (reason) {
     case "v8_heap_headroom_low":
     case "system_memavailable_low":
+    case "text_child_memory_budget_exceeded_at_chunk_<n>":
       return "skipped_memory_pressure";
     case "text_fork_failed":
     case "text_child_error":
@@ -995,6 +1318,9 @@ function skipReasonToBackfillStatus(reason: EmbeddingSkipReason): EmbeddingBackf
     case "parity_check_failed":
     case "bbox_invalid":
     case "bbox_unresolvable":
+    case "vision_residual_at_phase5_start":
+    case "vision_probe_failed_at_phase5_start":
+    case "partial_chunked_<n>_of_<total>":
       // TDA MEDIUM 1 (v0.4.0 PR2 監査): `dispatch_phase_failed` は
       // `dispatchEmbeddingPhase` 全体の予期せぬ例外に対応する汎用分類で、
       // fork / child 系と同じ backfill queue 経路で再試行させる。
@@ -1048,6 +1374,61 @@ function skipReasonToBackfillStatus(reason: EmbeddingSkipReason): EmbeddingBackf
       // Mutually exclusive with `bbox_invalid` (JSDOM-origin vs Playwright-
       // residual) by Supplement S3 decision-boundary contract.
       return "skipped_fork_error";
+    case "section_visual_uncroppable":
+    case "section_visual_duplicate":
+    case "section_visual_pii_excluded":
+    case "section_visual_blank":
+    case "section_visual_no_position":
+      // secvisual-blank-terminal (Plan V1 §4, IO Plan Decision V1 `019e7f1c-0b66`,
+      // FIND-PLAN-M-03): `section_visual_blank` / `section_visual_no_position` は
+      // backfill-path の degraded-coverage technical terminal marker (NON-PII;
+      // `section_visual_pii_excluded` とは意味が異なる、FIND-PLAN-L-07)。既存 3 値と
+      // 同じく `not_required` にマップする (terminal-skip = page が completed に到達
+      // できる正当な除外。`skipped_fork_error` retry bucket には**マップしない**)。
+      // explicit case arm は必須 (never-narrowing default に暗黙 fallthrough すると
+      // `skipped_fork_error` に誤マップされ false-failed pin を再生成する。default の
+      // never check と二重防御 = compile-time でも arm 欠如を検出)。
+      //
+      // secvisual-blank-terminal (Plan V1 §4, FIND-PLAN-M-03): `section_visual_blank`
+      // / `section_visual_no_position` are backfill-path degraded-coverage technical
+      // terminal markers (NON-PII; distinct from `section_visual_pii_excluded`). They
+      // map to `not_required` like the existing 3 section_visual values. The explicit
+      // arms are mandatory (silent fallthrough through the never-narrowing default
+      // would mis-map them to `skipped_fork_error`, re-creating the false-failed pin;
+      // double-defense with the compile-time never check).
+      //
+      // PR-C4 (ADR-0018 Amendment, section_visual PII asymmetry closure):
+      // `section_visual_pii_excluded` は work 側 PII-exclusion terminal marker
+      // (GDPR Art.5(1)(c) data-minimisation)。既存 2 値と同じく
+      // `not_required` にマップする (terminal-skip = page が completed に到達できる
+      // 正当な除外。`skipped_fork_error` retry bucket には**マップしない**)。
+      // PR-C4: `section_visual_pii_excluded` (work-side PII-exclusion terminal
+      // marker) maps to `not_required` like the other 2 section_visual values.
+      // PR-BT-2 (系統B、ADR-0018 Amendment、IO Plan Decision V2 `019e5842`
+      // BT-V2-CORR-01): section_visual terminal-skip は「page が completed に
+      // 到達できる正当な除外」を意味する。section の terminal-skip は
+      // `vision_skip_reason` 列 + `sectionVisualPendingExclusionPredicate` の
+      // pending 除外で達成され、`skipReasonToBackfillStatus` の戻り値経路とは
+      // 別 layer。本 2 値が page-level skipReason としてここに渡るのは「page
+      // 全体が当該理由で skip された」異常系のみで、その場合 page に embeddable
+      // section が無い等価ゆえ `not_required` を返す。
+      // **`skipped_fork_error` (retry → failed) には絶対にマップしない** — それは
+      // 本 PR が直そうとしている false-failed pin を再生成するため。explicit arm
+      // 自体は必須 (新 EmbeddingSkipReason を never-narrowing default に暗黙
+      // fallthrough させると `skipped_fork_error` に誤マップされる)。
+      //
+      // PR-BT-2 (System B, ADR-0018 Amendment, IO Plan Decision V2 `019e5842`
+      // BT-V2-CORR-01): a section_visual terminal-skip is a legitimate exclusion
+      // that lets the page reach `completed`. Section terminal-skip is achieved
+      // via the `vision_skip_reason` column + the pending-exclusion predicate (a
+      // separate layer from this return-value path). These 2 values reach this
+      // page-level path only in the abnormal case where the WHOLE page was
+      // skipped for this reason, equivalent to "no embeddable section" → return
+      // `not_required`. They MUST NOT map to `skipped_fork_error` (retry → failed),
+      // which would re-create the false-failed pin this PR fixes. The explicit
+      // arms are mandatory (a new EmbeddingSkipReason silently falling through the
+      // never-narrowing default would be mis-mapped to `skipped_fork_error`).
+      return "not_required";
     case "no_embeddable_items":
       return "not_required";
     default: {
@@ -1110,7 +1491,7 @@ async function updateEmbeddingBackfillStatus(
   } catch (updateError) {
     logger.warn("[PageAnalyzeWorker] Failed to update embeddingBackfillStatus", {
       error: sanitizeErrorMessage(updateError),
-      webPageId: webPageId.slice(0, 8) + "...",
+      webPageId: truncateAuditTargetId(webPageId),
       status,
       reason: context.reason,
       url: context.url,
@@ -1217,6 +1598,10 @@ async function processPageAnalyzeJob(
   // Create PipelineState (mutable, shared across phases)
   const state: PipelineState = {
     actualWebPageId: webPageId,
+    // PR-INGEST-FAIL-ROW / ADR-0016 Amendment 6 §Decision 2: resolve the
+    // url-key at Phase 0 entry so the failure-path url-key upsert can key on
+    // the same `url @unique` value as W0 (:1623-1625) / W1 (phase-0-ingest).
+    normalizedUrl: normalizeUrlForStorage(url),
     completedPhases: [],
     failedPhases: [],
     results: {},
@@ -1315,8 +1700,8 @@ async function processPageAnalyzeJob(
       state.actualWebPageId = earlyUpsert.id;
       if (isDevelopment()) {
         logger.debug("[PageAnalyzeWorker] Phase 0 Early INSERT complete", {
-          requestedWebPageId: webPageId.slice(0, 8) + "...",
-          actualWebPageId: state.actualWebPageId.slice(0, 8) + "...",
+          requestedWebPageId: truncateAuditTargetId(webPageId),
+          actualWebPageId: truncateAuditTargetId(state.actualWebPageId),
           url,
         });
       }
@@ -1328,7 +1713,7 @@ async function processPageAnalyzeJob(
       // (W1) can create the row along the legacy path.
       logger.warn("[PageAnalyzeWorker] Phase 0 Early INSERT failed (non-fatal, continuing)", {
         error: sanitizeErrorMessage(earlyUpsertError),
-        webPageId: webPageId.slice(0, 8) + "...",
+        webPageId: truncateAuditTargetId(webPageId),
         url,
       });
     }
@@ -1372,9 +1757,44 @@ async function processPageAnalyzeJob(
     } catch (phasedDbError) {
       logger.warn("[PageAnalyzeWorker] PhasedDbHandler.markAnalysisStarted failed (non-fatal)", {
         error: sanitizeErrorMessage(phasedDbError),
-        webPageId: state.actualWebPageId.slice(0, 8) + "...",
+        webPageId: truncateAuditTargetId(state.actualWebPageId),
       });
       phasedDb = null;
+    }
+
+    // =====================================================
+    // Plan v3 Track T4 (PR-V3-T4) UNBLOCK-T4-02 — INV-WORKER-PID-IDENTITY-005
+    //   Sub-A write hook: record `worker_job_lifecycle` spawn-event row.
+    // =====================================================
+    // The supervisor injects its single-SSOT spawn-time via env var
+    // `REFTRIX_WORKER_SPAWN_TIME_MS` (Module B `WorkerSupervisorLifecycle.
+    // spawnWorker()`). The child reads it here so the row's `worker_spawn_time`
+    // matches the supervisor's `WorkerChildState.startedAt` byte-for-byte —
+    // making the supervisor backfill query (`findOrphanWebPageIds`) able to
+    // join on `[workerPid, workerSpawnTime]` exactly.
+    //
+    // Fall back to `Date.now()` for legacy / test runs without supervisor; the
+    // join will then degrade to `phase_reconstruction='best_effort'` (TPA-M-01
+    // SLO ≤10% rolling 30-day window).
+    //
+    // UNBLOCK-T4-02 Sub-A write hook (fire-and-forget, non-fatal).
+    const spawnTimeMs = readSupervisorInjectedSpawnTimeMs() ?? Date.now();
+    state.workerSpawnTimeMs = spawnTimeMs;
+    try {
+      await recordWorkerSpawn(prisma as unknown as WorkerJobLifecyclePrismaClient, {
+        webPageId: state.actualWebPageId,
+        workerPid: process.pid,
+        workerSpawnTime: new Date(spawnTimeMs),
+        workerType: "page",
+        nonce: process.env.REFTRIX_WORKER_SUPERVISOR_BOOT_TOKEN_PAGE ?? randomUUID(),
+      });
+    } catch (recordSpawnError) {
+      // recordWorkerSpawn is fire-and-forget per design; this catch is a
+      // belt-and-braces guard against unexpected throws.
+      logger.warn("[PageAnalyzeWorker] recordWorkerSpawn outer catch (non-fatal)", {
+        error: sanitizeErrorMessage(recordSpawnError),
+        webPageId: truncateAuditTargetId(state.actualWebPageId),
+      });
     }
 
     // =====================================================
@@ -1490,49 +1910,97 @@ async function processPageAnalyzeJob(
     {
       // v0.4.0 PR7b (ADR-0008 #4): 親 RSS upstream guard
       // 既存 checkMemoryPressure() (heapUsed ベース) よりも厳格な親プロセス
-      // RSS 閾値 (デフォルト 3072MB) を Phase 5 fork 前に評価する。
+      // RSS 閾値 (デフォルト 8192MB、T1 SSOT phase5-config.ts:83) を Phase 5
+      // fork 前に評価する。
+      //
+      // PR-C3 (系統B、plan V1.1 §3.3): ceiling 判定の直前に trim (global.gc +
+      // 再計測) を行い、超過時は skip せず ceiling fallback で fork を継続する。
       //
       // v0.4.0 PR7b (ADR-0008 #4): Parent RSS upstream guard.
-      // Stricter parent-process RSS threshold (default 3072MB) evaluated before
-      // Phase 5 fork, on top of the existing heapUsed-based checkMemoryPressure().
+      // Stricter parent-process RSS threshold (default 8192MB, T1 SSOT
+      // phase5-config.ts:83) evaluated before Phase 5 fork, on top of the
+      // existing heapUsed-based checkMemoryPressure().
+      //
+      // PR-C3 (系統B, plan V1.1 §3.3): immediately before the ceiling check,
+      // trim (global.gc + re-measure); on over-ceiling, DO NOT skip — proceed
+      // via the deterministic ceiling fallback.
       const phase5Config = loadPhase5Config();
-      const parentRssMb = Math.round(process.memoryUsage().rss / 1024 / 1024);
-      if (parentRssMb > phase5Config.parentRssMaxMb) {
+      // PR-V3-T1a §3.4.2: parent_rss_ceiling_scaled audit emission (one-shot per
+      // process). The helper internally guards on idempotency + scaling-event
+      // detection (default 8192 active vs operator override). Failure to emit
+      // is logged but does NOT break Phase 5 init — audit logging is
+      // observability, not a critical path.
+      //
+      // PR-V3-T1a §3.4.2: emit `parent_rss_ceiling_scaled` once-per-process
+      // when the default 8192 ceiling is active. Helper guards idempotency.
+      try {
+        await emitParentRssCeilingScaledIfApplicable(phase5Config, async (details) => {
+          await getAuditLogService().log({
+            action: AUDIT_ACTION_PARENT_RSS_CEILING_SCALED,
+            actor: "system:phase5-init",
+            targetType: "phase5_config",
+            targetId: undefined,
+            details,
+            result: "success",
+          });
+        });
+      } catch (auditError) {
+        // Defensive: emitParentRssCeilingScaledIfApplicable already swallows
+        // emitter exceptions, but we wrap once more so a future refactor can't
+        // accidentally regress Phase 5 init on audit-log failure.
         logger.warn(
-          "[PageAnalyzeWorker] [PR7b Parent RSS Guard] Parent RSS exceeds Phase 5 ceiling, skipping fork",
+          "[PageAnalyzeWorker] parent_rss_ceiling_scaled audit emission unexpected error (non-fatal)",
           {
-            parentRssMb,
-            ceilingMb: phase5Config.parentRssMaxMb,
+            error: auditError instanceof Error ? auditError.message : String(auditError),
+          }
+        );
+      }
+      // PR-C3 (系統B, plan V1.1 §3.3 / §4.3): trim parent RSS (global.gc +
+      // re-measure) immediately BEFORE the ceiling check, then decide. The
+      // helper ALWAYS proceeds (never skips on the parent-RSS gate): within
+      // ceiling → normal proceed; over ceiling after trim → deterministic
+      // ceiling fallback (proceed anyway, ADR-0013 soft envelope, FIND-IO-V0-H-02).
+      // graceful degradation when --expose-gc is absent (logger.warn, no
+      // isDevelopment guard, SEC L-SEC-3 / FIND-IO-V0-L-05).
+      const trimDecision = trimParentRssAndDecide(
+        phase5Config.parentRssMaxMb,
+        tryGarbageCollect,
+        () => Math.round(process.memoryUsage().rss / 1024 / 1024),
+        logger
+      );
+      // Observability (FIND-IO-V0-L-09): surface the trim outcome so the
+      // post-GC reclaim, the ceiling fallback, and a missing --expose-gc are all
+      // traceable in the log stream (the helper additionally logger.warn's the
+      // no-op / fallback cases). The parent-RSS gate no longer skips Phase 5; the
+      // hard OOM defence is the heap-critical checkMemoryPressure() abort below
+      // (plus the per-chunk RSS budget + the fork-kill 4096 backstop in the child).
+      logger.info("[PageAnalyzeWorker] [PR-C3] parent RSS trim before Phase 5 fork", {
+        preTrimRssMb: trimDecision.preTrimRssMb,
+        postTrimRssMb: trimDecision.postTrimRssMb,
+        ceilingMb: trimDecision.ceilingMb,
+        gcTriggered: trimDecision.gcTriggered,
+        ceilingFallback: trimDecision.ceilingFallback,
+        url,
+      });
+      const memCheck3 = checkMemoryPressure();
+      if (memCheck3.shouldAbort) {
+        logger.warn(
+          "[PageAnalyzeWorker] [Memory Critical] RSS high before embedding, skipping Phase 5 to preserve worker stability",
+          {
+            rssMb: memCheck3.rssMb,
+            threshold: MEMORY_CRITICAL_THRESHOLD_MB,
             url,
           }
         );
         state.failedPhases.push("embedding" as AnalysisPhase);
         memoryAbortEmbedding = true;
-        observedSkipReason = "system_memavailable_low";
+        // Worker-level memory guard is conceptually the same failure class as
+        // the fork-orchestrator's MIN_HEAP_HEADROOM_BYTES check → reuse that
+        // EmbeddingSkipReason for consistent telemetry.
+        observedSkipReason = "v8_heap_headroom_low";
         observedSkipDetail = truncateSkipDetail(
-          `parent RSS=${parentRssMb}MB > ceiling=${phase5Config.parentRssMaxMb}MB`
+          `worker RSS=${memCheck3.rssMb}MB > ${MEMORY_CRITICAL_THRESHOLD_MB}MB`
         );
-      } else {
-        const memCheck3 = checkMemoryPressure();
-        if (memCheck3.shouldAbort) {
-          logger.warn(
-            "[PageAnalyzeWorker] [Memory Critical] RSS high before embedding, skipping Phase 5 to preserve worker stability",
-            {
-              rssMb: memCheck3.rssMb,
-              threshold: MEMORY_CRITICAL_THRESHOLD_MB,
-              url,
-            }
-          );
-          state.failedPhases.push("embedding" as AnalysisPhase);
-          memoryAbortEmbedding = true;
-          // Worker-level memory guard is conceptually the same failure class as
-          // the fork-orchestrator's MIN_HEAP_HEADROOM_BYTES check → reuse that
-          // EmbeddingSkipReason for consistent telemetry.
-          observedSkipReason = "v8_heap_headroom_low";
-          observedSkipDetail = truncateSkipDetail(
-            `worker RSS=${memCheck3.rssMb}MB > ${MEMORY_CRITICAL_THRESHOLD_MB}MB`
-          );
-        }
       }
     }
 
@@ -1647,7 +2115,6 @@ async function processPageAnalyzeJob(
           },
           {
             sharedLayoutEmbeddingService,
-            gpuResourceManager,
             prisma: prisma as never,
           }
         );
@@ -1801,7 +2268,7 @@ async function processPageAnalyzeJob(
           {
             skipReason: embeddingPhaseResult.skipReason,
             skipDetail: embeddingPhaseResult.skipDetail,
-            webPageId: state.actualWebPageId.slice(0, 8) + "...",
+            webPageId: truncateAuditTargetId(state.actualWebPageId),
             url,
           }
         );
@@ -1998,7 +2465,7 @@ async function processPageAnalyzeJob(
               "[PageAnalyzeWorker] Silent-skip misdetection corrected via DB reconciliation (PR2)",
               {
                 dbTotal,
-                webPageId: state.actualWebPageId.slice(0, 8) + "...",
+                webPageId: truncateAuditTargetId(state.actualWebPageId),
                 url,
               }
             );
@@ -2020,18 +2487,65 @@ async function processPageAnalyzeJob(
     // PR4 (v0.4.0): Queue-based Backfill enqueue
     //
     // 100 件を超える Part を持つページでは、Phase 5 は先頭 100 件のみを同期処理
-    // している。残余を `embedding-backfill` Queue に投入して非同期にバックフィルする。
-    // 100 件以下のページでは threshold 未達なので何も投入しない。
-    // screenshot 永続化パスが未保存 (PR1 前の旧データ) の場合は `part_visual` のみスキップ。
+    // している。残余 (part_*) を `embedding-backfill` Queue に投入して非同期に
+    // バックフィルする。screenshot 永続化パスが未保存 (PR1 前の旧データ) の場合は
+    // `part_visual` のみスキップ。
     //
-    // For pages with more than 100 Parts, Phase 5 has processed only the first 100
-    // synchronously. Enqueue the remainder on the `embedding-backfill` Queue for
-    // asynchronous backfill. Pages with ≤ 100 Parts are below the threshold and
-    // nothing is enqueued. If the persisted screenshot path is missing (legacy data
-    // before PR1), only `part_visual` is skipped.
+    // PR-BACKFILL-TERMINAL (系統A): dispatch invocation を part-threshold gate の
+    // 外に移し、**page.analyze 完了した全ページ** (actualWebPageId が存在する全て)
+    // で呼ぶ。motion/bg/js/responsive の 4 gate-less category は part 数に依存せず
+    // 投入が必要なため (`dispatchBackfillJobsForPage` 内で part / section_visual の
+    // gate は preserve)。従来は `partsSavedCount > PART_SYNC_THRESHOLD` で dispatch
+    // 全体を gate していたため、small page (parts<=100) で gate-less category が
+    // 永久に未 enqueue → parity pending>0 → reconciliation cron が `failed` に誤 pin
+    // していた。
+    //
+    // For pages over the threshold, Phase 5 processed only the first 100 parts
+    // synchronously; the overflow part_* is backfilled. PR-BACKFILL-TERMINAL
+    // (System A): the dispatch invocation is moved OUTSIDE the part-threshold gate
+    // so it runs for EVERY completed page (any valid actualWebPageId) — the 4
+    // gate-less categories (motion/bg/js/responsive) are part-count-independent
+    // and must always be enqueued (`dispatchBackfillJobsForPage` preserves the
+    // part / section_visual gates internally). Previously the whole dispatch was
+    // gated on `partsSavedCount > PART_SYNC_THRESHOLD`, so small pages never
+    // enqueued the gate-less categories → parity pending stayed > 0 → the
+    // reconciliation cron mis-pinned the page to `failed`.
     // =====================================================
-    let backfillEnqueuedCategories: EmbeddingBackfillCategory[] = [];
-    if (state.actualWebPageId && partsSavedCountForPhase5 > PART_SYNC_THRESHOLD) {
+    // PR-C2 (Layer 2, ADR-0007 Amendment 3): worker-scope captures for the two
+    // relocated enqueue paths. Both closures are DEFINED here (where their inputs
+    // are in scope) but EXECUTED after `markAnalysisCompleted` via
+    // `enqueueBackfillAfterMarkComplete` (plan §3.2). `recoverySkipReason` is the
+    // recovery-eligible skip reason captured during the skipReason block below
+    // (undefined when the page was NOT skipped via a recovery-eligible reason).
+    //
+    // PR-C2 (Layer 2, ADR-0007 Amendment 3): 両 relocation path の worker-scope capture。
+    // closure は input が in-scope のここで定義し markComplete 後に実行する。
+    let recoverySkipReason: EmbeddingSkipReason | undefined;
+    let runSkipRecoveryEnqueue:
+      | (() => Promise<{
+          enqueuedCategories: EmbeddingBackfillCategory[];
+          skipRecoveryPending: unknown | undefined;
+        }>)
+      | undefined;
+
+    // PR-C2 (Layer 2, ADR-0007 Amendment 3): the sync_overflow enqueue is
+    // CAPTURED as a closure here but EXECUTED after `markAnalysisCompleted`
+    // (below, via `enqueueBackfillAfterMarkComplete`). Running it after the
+    // analysis status becomes terminal means the backfill worker's analysis
+    // guard returns `proceed` (re_enqueue churn removed from the happy path).
+    // The closure body is the former inline block verbatim (no new logic).
+    //
+    // PR-C2 (Layer 2, ADR-0007 Amendment 3): sync_overflow enqueue を closure 化し
+    // markComplete 後に実行 (guard が terminal status を見て proceed、re_enqueue churn 排除)。
+    const runSyncOverflowEnqueue = async (): Promise<{
+      enqueuedCategories: EmbeddingBackfillCategory[];
+      backfillPending: unknown | undefined;
+    }> => {
+      let enqueuedCategories: EmbeddingBackfillCategory[] = [];
+      let surfacedPending: unknown | undefined;
+      if (!state.actualWebPageId) {
+        return { enqueuedCategories, backfillPending: surfacedPending };
+      }
       // Persisted screenshot path を DB から取得（PR1 で保存済みなら非 null）
       // Fetch persisted screenshot path from DB (non-null if saved by PR1)
       let persistedScreenshotPath: string | undefined;
@@ -2048,7 +2562,7 @@ async function processPageAnalyzeJob(
           "[PageAnalyzeWorker] Failed to fetch screenshotStoragePath for backfill dispatch",
           {
             error: sanitizeErrorMessage(fetchError),
-            webPageId: state.actualWebPageId.slice(0, 8) + "...",
+            webPageId: truncateAuditTargetId(state.actualWebPageId),
           }
         );
       }
@@ -2062,7 +2576,7 @@ async function processPageAnalyzeJob(
       // sectionSaveResult.idMapping.size) so the Backfill Worker can enqueue
       // `section_visual` jobs for DINOv2 vision_embedding regeneration.
       const sectionsSavedCountForPhase5 = state.sectionSaveResult?.idMapping?.size ?? 0;
-      backfillEnqueuedCategories = await dispatchBackfillJobsForPage({
+      enqueuedCategories = await dispatchBackfillJobsForPage({
         webPageId: state.actualWebPageId,
         url,
         partsSavedCount: partsSavedCountForPhase5,
@@ -2070,7 +2584,7 @@ async function processPageAnalyzeJob(
         screenshotStoragePath: persistedScreenshotPath,
       });
 
-      if (backfillEnqueuedCategories.length > 0) {
+      if (enqueuedCategories.length > 0) {
         // backfill 投入済みなので status を `queued` に遷移させる
         // Transition status to `queued` since backfill jobs are enqueued
         await updateEmbeddingBackfillStatus(state.actualWebPageId, "queued", {
@@ -2078,12 +2592,12 @@ async function processPageAnalyzeJob(
           reason: undefined,
         });
         await job.log(
-          `[Phase 5] Enqueued backfill jobs: categories=${backfillEnqueuedCategories.join(",")}, ` +
+          `[Phase 5] Enqueued backfill jobs: categories=${enqueuedCategories.join(",")}, ` +
             `partsSaved=${partsSavedCountForPhase5}, syncProcessed=${PART_SYNC_THRESHOLD}`
         );
         logger.info("[PageAnalyzeWorker] Enqueued embedding backfill jobs", {
-          webPageId: state.actualWebPageId.slice(0, 8) + "...",
-          categories: backfillEnqueuedCategories,
+          webPageId: truncateAuditTargetId(state.actualWebPageId),
+          categories: enqueuedCategories,
           partsSavedCount: partsSavedCountForPhase5,
           syncProcessed: PART_SYNC_THRESHOLD,
         });
@@ -2099,11 +2613,11 @@ async function processPageAnalyzeJob(
           threshold: PART_SYNC_THRESHOLD,
           avgMsPerItem: BACKFILL_AVG_MS_PER_ITEM,
           webPageId: state.actualWebPageId,
-          enqueuedTextCategory: backfillEnqueuedCategories.includes("part_text"),
-          enqueuedVisualCategory: backfillEnqueuedCategories.includes("part_visual"),
+          enqueuedTextCategory: enqueuedCategories.includes("part_text"),
+          enqueuedVisualCategory: enqueuedCategories.includes("part_visual"),
           // v0.4.0 PR7e-α (バグ⑥): section_visual backfill dispatch の有無を伝搬
           // v0.4.0 PR7e-α (bug ⑥): propagate section_visual dispatch status
-          enqueuedSectionVisualCategory: backfillEnqueuedCategories.includes("section_visual"),
+          enqueuedSectionVisualCategory: enqueuedCategories.includes("section_visual"),
         });
 
         if (backfillPending) {
@@ -2112,9 +2626,11 @@ async function processPageAnalyzeJob(
             backfillResults.embedding = {};
           }
           backfillResults.embedding.backfillPending = backfillPending;
+          surfacedPending = backfillPending;
         }
       }
-    }
+      return { enqueuedCategories, backfillPending: surfacedPending };
+    };
 
     // =====================================================
     // PR2 (v0.4.0): web_pages.embeddingBackfillStatus を更新 + skipReason を
@@ -2169,93 +2685,121 @@ async function processPageAnalyzeJob(
       // recovery-eligible. Only `skipped_fork_error` / `skipped_memory_pressure`
       // trigger recovery.
       if (backfillStatus === "skipped_fork_error" || backfillStatus === "skipped_memory_pressure") {
-        // Persisted screenshot path を DB から取得（part_visual / section_visual で必須）
-        // Fetch persisted screenshot path from DB (required for part_visual / section_visual)
-        let persistedScreenshotPath: string | undefined;
-        try {
-          const webPageRow = await prisma.webPage.findUnique({
-            where: { id: state.actualWebPageId },
-            select: { screenshotStoragePath: true },
-          });
-          if (webPageRow?.screenshotStoragePath) {
-            persistedScreenshotPath = webPageRow.screenshotStoragePath;
-          }
-        } catch (fetchError) {
-          logger.warn(
-            "[PageAnalyzeWorker] Failed to fetch screenshotStoragePath for skip recovery",
-            {
-              error: sanitizeErrorMessage(fetchError),
-              webPageId: state.actualWebPageId.slice(0, 8) + "...",
-            }
-          );
-        }
-
-        const recoveryResult = await dispatchSkipRecoveryBackfill({
-          webPageId: state.actualWebPageId,
-          url,
-          skipReason: observedSkipReason,
-          backfillStatus,
-          screenshotStoragePath: persistedScreenshotPath,
-        });
-
-        await job.log(
-          `[Phase 5 Skip Recovery] enqueued=${recoveryResult.enqueuedCategories.length}, ` +
-            `categories=${recoveryResult.enqueuedCategories.join(",") || "none"}, ` +
-            `reason=${recoveryResult.reason ?? "ok"}`
-        );
-
-        // PR7b (ADR-0008 #7): MCP response に `skip_recovery` variant を埋める。
-        // enqueue が 1 件以上成功した場合のみ payload を付与する（0 件時は
-        // backfillPending を返さず、cron が後続 recovery を担う）。
+        // PR-C2 (Layer 2, ADR-0007 Amendment 3): CAPTURE the recovery-eligible
+        // skip reason + the skip_recovery enqueue closure here (where
+        // `observedSkipReason` / `backfillStatus` are in scope), but EXECUTE the
+        // enqueue AFTER `markAnalysisCompleted` so the analysis guard sees a
+        // terminal status (`failed`) and returns `proceed` — NOT `re_enqueue`
+        // (plan §3.2, ADR-0008 Amendment 1 skip_recovery guard semantics:
+        // terminal=failed → proceed). The skipReason→status update above is the
+        // terminal-status write `markAnalysisCompleted` depends on, so it STAYS
+        // here; only the enqueue is deferred. The closure body is the former
+        // inline block verbatim (no new logic).
         //
-        // PR7b (ADR-0008 #7): Attach the `skip_recovery` variant to the MCP
-        // response only when at least one category was successfully enqueued.
-        // When 0 were enqueued, no backfillPending is surfaced (cron takes over).
-        if (
-          recoveryResult.enqueuedCategories.length > 0 &&
-          recoveryResult.retryCountAfter !== undefined &&
-          recoveryResult.enqueuedAt !== undefined
-        ) {
-          const skipRecoveryPending = buildSkipRecoveryBackfillPending({
-            skipReason: observedSkipReason,
-            enqueuedCategories: recoveryResult.enqueuedCategories,
-            retryCount: recoveryResult.retryCountAfter,
-            enqueuedAt: recoveryResult.enqueuedAt,
-          });
-
-          const recoveryResults = state.results!;
-          if (!recoveryResults.embedding) {
-            recoveryResults.embedding = {};
-          }
-
-          // ADR-0008 Semantics Table: `sync_overflow` と `skip_recovery` は
-          // 両立不能。万一既に sync_overflow payload が付与されていた場合は
-          // invariant violation として debug.log に記録し、skip_recovery で
-          // 上書きする（Phase 5 全体 skip が発生している = overflow は観測不能）。
-          //
-          // ADR-0008 Semantics Table: `sync_overflow` and `skip_recovery` are
-          // mutually exclusive. If a sync_overflow payload was somehow already
-          // attached, log the invariant violation via debug.log and overwrite
-          // with skip_recovery (full Phase 5 skip means overflow is impossible).
-          if (
-            isBackfillPendingSourceConflict(
-              recoveryResults.embedding.backfillPending,
-              skipRecoveryPending
-            )
-          ) {
+        // PR-C2 (Layer 2, ADR-0007 Amendment 3): skip_recovery enqueue を closure 化し
+        // markComplete 後に実行 (guard terminal=failed → proceed)。status 更新は markComplete
+        // が依存するためここに残す。
+        recoverySkipReason = observedSkipReason;
+        const recoveryBackfillStatus = backfillStatus;
+        const recoverySkipReasonForClosure = observedSkipReason;
+        runSkipRecoveryEnqueue = async (): Promise<{
+          enqueuedCategories: EmbeddingBackfillCategory[];
+          skipRecoveryPending: unknown | undefined;
+        }> => {
+          // Persisted screenshot path を DB から取得（part_visual / section_visual で必須）
+          // Fetch persisted screenshot path from DB (required for part_visual / section_visual)
+          let persistedScreenshotPath: string | undefined;
+          try {
+            const webPageRow = await prisma.webPage.findUnique({
+              where: { id: state.actualWebPageId },
+              select: { screenshotStoragePath: true },
+            });
+            if (webPageRow?.screenshotStoragePath) {
+              persistedScreenshotPath = webPageRow.screenshotStoragePath;
+            }
+          } catch (fetchError) {
             logger.warn(
-              "[PageAnalyzeWorker] ADR-0008 invariant violation: " +
-                "sync_overflow + skip_recovery both present; overwriting with skip_recovery",
+              "[PageAnalyzeWorker] Failed to fetch screenshotStoragePath for skip recovery",
               {
-                webPageId: state.actualWebPageId.slice(0, 8) + "...",
-                existingSource: recoveryResults.embedding.backfillPending?.source,
-                skipReason: observedSkipReason,
+                error: sanitizeErrorMessage(fetchError),
+                webPageId: truncateAuditTargetId(state.actualWebPageId),
               }
             );
           }
 
-          recoveryResults.embedding.backfillPending = skipRecoveryPending;
-        }
+          const recoveryResult = await dispatchSkipRecoveryBackfill({
+            webPageId: state.actualWebPageId,
+            url,
+            skipReason: recoverySkipReasonForClosure,
+            backfillStatus: recoveryBackfillStatus,
+            screenshotStoragePath: persistedScreenshotPath,
+          });
+
+          await job.log(
+            `[Phase 5 Skip Recovery] enqueued=${recoveryResult.enqueuedCategories.length}, ` +
+              `categories=${recoveryResult.enqueuedCategories.join(",") || "none"}, ` +
+              `reason=${recoveryResult.reason ?? "ok"}`
+          );
+
+          // PR7b (ADR-0008 #7): MCP response に `skip_recovery` variant を埋める。
+          // enqueue が 1 件以上成功した場合のみ payload を付与する（0 件時は
+          // backfillPending を返さず、cron が後続 recovery を担う）。
+          //
+          // PR7b (ADR-0008 #7): Attach the `skip_recovery` variant to the MCP
+          // response only when at least one category was successfully enqueued.
+          // When 0 were enqueued, no backfillPending is surfaced (cron takes over).
+          let surfacedSkipRecoveryPending: unknown | undefined;
+          if (
+            recoveryResult.enqueuedCategories.length > 0 &&
+            recoveryResult.retryCountAfter !== undefined &&
+            recoveryResult.enqueuedAt !== undefined
+          ) {
+            const skipRecoveryPending = buildSkipRecoveryBackfillPending({
+              skipReason: recoverySkipReasonForClosure,
+              enqueuedCategories: recoveryResult.enqueuedCategories,
+              retryCount: recoveryResult.retryCountAfter,
+              enqueuedAt: recoveryResult.enqueuedAt,
+            });
+
+            const recoveryResults = state.results!;
+            if (!recoveryResults.embedding) {
+              recoveryResults.embedding = {};
+            }
+
+            // ADR-0008 Semantics Table: `sync_overflow` と `skip_recovery` は
+            // 両立不能。万一既に sync_overflow payload が付与されていた場合は
+            // invariant violation として debug.log に記録し、skip_recovery で
+            // 上書きする（Phase 5 全体 skip が発生している = overflow は観測不能）。
+            //
+            // ADR-0008 Semantics Table: `sync_overflow` and `skip_recovery` are
+            // mutually exclusive. If a sync_overflow payload was somehow already
+            // attached, log the invariant violation via debug.log and overwrite
+            // with skip_recovery (full Phase 5 skip means overflow is impossible).
+            if (
+              isBackfillPendingSourceConflict(
+                recoveryResults.embedding.backfillPending,
+                skipRecoveryPending
+              )
+            ) {
+              logger.warn(
+                "[PageAnalyzeWorker] ADR-0008 invariant violation: " +
+                  "sync_overflow + skip_recovery both present; overwriting with skip_recovery",
+                {
+                  webPageId: truncateAuditTargetId(state.actualWebPageId),
+                  existingSource: recoveryResults.embedding.backfillPending?.source,
+                  skipReason: recoverySkipReasonForClosure,
+                }
+              );
+            }
+
+            recoveryResults.embedding.backfillPending = skipRecoveryPending;
+            surfacedSkipRecoveryPending = skipRecoveryPending;
+          }
+          return {
+            enqueuedCategories: recoveryResult.enqueuedCategories,
+            skipRecoveryPending: surfacedSkipRecoveryPending,
+          };
+        };
       }
     }
 
@@ -2329,7 +2873,7 @@ async function processPageAnalyzeJob(
           "[PageAnalyzeWorker] PhasedDbHandler.markAnalysisCompleted failed (non-fatal)",
           {
             error: sanitizeErrorMessage(phasedDbError),
-            webPageId: state.actualWebPageId.slice(0, 8) + "...",
+            webPageId: truncateAuditTargetId(state.actualWebPageId),
           }
         );
       }
@@ -2347,12 +2891,38 @@ async function processPageAnalyzeJob(
       } catch (statusError) {
         logger.warn("[PageAnalyzeWorker] Failed to update analysisStatus to completed", {
           error: sanitizeErrorMessage(statusError),
-          webPageId: state.actualWebPageId.slice(0, 8) + "...",
+          webPageId: truncateAuditTargetId(state.actualWebPageId),
         });
       }
     }
 
     statusTracker.completePhase("finalizing");
+
+    // =====================================================
+    // PR-C2 (Layer 2, ADR-0007 Amendment 3): Relocated backfill enqueue.
+    // Both enqueue paths (sync_overflow + skip_recovery) run HERE — AFTER
+    // `markAnalysisCompleted` (above) and BEFORE Phase 7.5 (below) — so the
+    // backfill worker's analysis guard sees a terminal `analysis_status`
+    // (`completed` / `failed`) and returns `proceed`, removing the `re_enqueue`
+    // churn from the happy path (plan §3.2 / §4.2). The ordering decision is in
+    // the CC≤10 leaf `enqueueBackfillAfterMarkComplete`; the actual DB/queue I/O
+    // lives in the injected closures captured above. Both closures mutate
+    // `state.results` so this MUST run before `result.results = state.results`.
+    //
+    // PR-C2 (Layer 2, ADR-0007 Amendment 3): 両 backfill enqueue を markComplete 後 /
+    // Phase 7.5 前に実行 (guard が terminal status を見て proceed、re_enqueue churn 排除)。
+    // Fallback closure is never invoked when `recoverySkipReason` is undefined
+    // (the leaf guards on it); it only satisfies the non-optional dep type.
+    const noopSkipRecoveryEnqueue = async (): Promise<{
+      enqueuedCategories: EmbeddingBackfillCategory[];
+      skipRecoveryPending: unknown | undefined;
+    }> => ({ enqueuedCategories: [], skipRecoveryPending: undefined });
+    await enqueueBackfillAfterMarkComplete({
+      hasWebPageId: Boolean(state.actualWebPageId),
+      runSyncOverflowEnqueue,
+      recoverySkipReason,
+      runSkipRecoveryEnqueue: runSkipRecoveryEnqueue ?? noopSkipRecoveryEnqueue,
+    });
 
     const result: PageAnalyzeJobResult = {
       webPageId: state.actualWebPageId, // v0.1.0: 実際のDB IDを返す
@@ -2448,8 +3018,10 @@ async function processPageAnalyzeJob(
         const snapshotResult = await createDesignSnapshot(state.actualWebPageId);
         if (snapshotResult.success) {
           logger.info("[PageAnalyzeWorker] Auto-snapshot created", {
-            snapshotId: snapshotResult.snapshot_id?.slice(0, 8) + "...",
-            webPageId: state.actualWebPageId.slice(0, 8) + "...",
+            snapshotId:
+              snapshotResult.snapshot_id?.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) +
+              "...",
+            webPageId: truncateAuditTargetId(state.actualWebPageId),
             sectionCount: snapshotResult.section_count,
           });
         } else {
@@ -2479,30 +3051,84 @@ async function processPageAnalyzeJob(
     }
 
     // =====================================================
-    // Memory-Gated Exit (post-job) (v0.4.0 PR7e-β2 hotfix)
+    // Plan v3 Track T4 (PR-V3-T4) UNBLOCK-T4-02 — INV-WORKER-PID-IDENTITY-005
+    //   Sub-B clear hook (success path): record paired `release` event row.
     // =====================================================
-    // RSS 閾値超過時は process.exit(0) → WorkerSupervisor 再起動。未満時は no-op で
-    // BullMQ mainLoop が自然に次ジョブを fetch する。pause/resume は BullMQ 5.66.5
-    // Worker.resume() の silent no-op race を避けるため削除済み（ADR-0009 参照）。
-    // `moveToCompleted` Lua による fetchNext=false 保証と併用するため、本ヘルパー
-    // は concurrency に対して中立。
+    // Pairs with `recordWorkerSpawn` so the supervisor backfill can detect
+    // "orphan vs gracefully released" via paired-row presence. Fire-and-forget;
+    // failure to write is logged and ignored — supervisor backfill degrades
+    // to `phase_reconstruction='best_effort'` if the release row is missing.
     //
-    // Exits on RSS threshold breach so WorkerSupervisor restarts, otherwise no-op —
-    // the BullMQ mainLoop fetches the next job naturally. pause/resume were removed
-    // to avoid the BullMQ 5.66.5 `Worker.resume()` silent no-op race (see ADR-0009).
-    // Combined with the `moveToCompleted` Lua fetchNext=false guarantee, this helper
-    // is concurrency-neutral.
-    await applyPostJobMemoryGate(_preReturnPauseEnabled, "[PageAnalyzeWorker]");
+    // UNBLOCK-T4-02 Sub-B clear hook (success path, fire-and-forget).
+    if (state.workerSpawnTimeMs !== undefined) {
+      try {
+        await recordWorkerRelease(prisma as unknown as WorkerJobLifecyclePrismaClient, {
+          webPageId: state.actualWebPageId,
+          workerPid: process.pid,
+          workerSpawnTime: new Date(state.workerSpawnTimeMs),
+          workerType: "page",
+          nonce: process.env.REFTRIX_WORKER_SUPERVISOR_BOOT_TOKEN_PAGE ?? randomUUID(),
+        });
+      } catch (recordReleaseError) {
+        logger.warn(
+          "[PageAnalyzeWorker] recordWorkerRelease (success path) outer catch (non-fatal)",
+          {
+            error: sanitizeErrorMessage(recordReleaseError),
+            webPageId: truncateAuditTargetId(state.actualWebPageId),
+          }
+        );
+      }
+    }
 
+    // =====================================================
+    // Post-job Memory Gate (success path, Plan v1.1 candidate B)
+    // ADR-0034 Amendment 5 (Stage 2 `worker.pause(true)` formal removal)
+    // =====================================================
+    // Plan v1.1 candidate B / ADR-0034 Amendment 5: Stage 2 `worker.pause(true)`
+    // formal removal。success path は `applyPostJobMemoryGate` (memory-only
+    // gate) のみを呼ぶ。failure path も同 helper のみを呼ぶため、両 path で
+    // `worker.pause` callsite は production code 全域で 0 件
+    // (INV-WORKER-NO-PAUSE-001、AST gate `verify-no-worker-pause.mjs` で
+    // enforce、exempt scope = BullMQ `pause:` event handler L3338 + test files)。
+    //
+    // 計画的再起動 (`WORKER_MAX_JOBS_BEFORE_RESTART=1`) は constructor 段階で
+    // pre-register された `worker.once('completed', listener)` (callback-based
+    // exit、ADR-0034 §Decision 1) のみで担保される: processor return →
+    // moveToCompleted Lua → emit('completed') → listener fire → process.exit(0)。
+    //
+    // H2 (moveToCompleted paused 評価 race) + H3 (event-loop starvation 下の
+    // emit 遅延、BullMQ #359 indirect evidence) は本 candidate B で構造的消滅。
+    // H1 (dispose ceiling 5s microtask race、ADR-0035 §Decision 1) は本 PR
+    // scope 外、`registerCompletedListenerAndExit` 内で active 維持 (直交)。
+    //
+    // Plan v1.1 candidate B / ADR-0034 Amendment 5: success path calls only
+    // `applyPostJobMemoryGate`; the failure path uses the same helper, so
+    // `worker.pause` callsites in production code are 0
+    // (INV-WORKER-NO-PAUSE-001 enforced by AST gate
+    // `verify-no-worker-pause.mjs`; exempt scope = BullMQ `pause:` event
+    // handler L3338 + test files). Planned restart
+    // (`WORKER_MAX_JOBS_BEFORE_RESTART=1`) is driven exclusively by the
+    // constructor-pre-registered `worker.once('completed', listener)`. H2 +
+    // H3 races are structurally eliminated; H1 (dispose ceiling 5s,
+    // ADR-0035 §Decision 1) remains active inside
+    // `registerCompletedListenerAndExit` (orthogonal).
+    await applyPostJobMemoryGate(_preReturnPauseEnabled, "[PageAnalyzeWorker]");
+    // Plan v4.2 callback-based exit: BullMQ native flow に制御を返し
+    // worker.once('completed') listener が process.exit(0) を発火する
+    // (ADR-0034 §Decision 1 Stage 5-8、Amendment 5 で Stage 2 pause 廃止後の
+    // 7-stage に縮退)。Lua transaction commit を listener fire の precondition
+    // にすることで job orphan race を構造的に排除する。
+    // Plan v4.2 callback-based exit: yield control back to BullMQ native flow;
+    // the worker.once('completed') listener fires process.exit(0).
     return result;
   } catch (error) {
     const processingTimeMs = Date.now() - startTime;
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const rawErrorMessage = error instanceof Error ? error.message : String(error);
 
     logger.error("[PageAnalyzeWorker] Job failed with exception", {
       jobId: job.id,
       webPageId,
-      error: errorMessage,
+      error: rawErrorMessage,
       processingTimeMs,
     });
 
@@ -2511,42 +3137,109 @@ async function processPageAnalyzeJob(
     // Phase 0 で "pending" に設定された analysisStatus を失敗状態に更新する。
     // actualWebPageId が設定されている場合のみ更新（Phase 0 前の失敗では未設定の可能性）。
     //
-    // v0.4.0 PR7e-α (バグ④): PhasedDbHandler.markAnalysisFailed() に委譲し、
-    // analysis_phase_status='failed' + analysis_error + analysis_completed_at
-    // を一括更新する。PhasedDbHandler 未初期化時は従来の inline update に
-    // フォールバックする。
+    // Plan v3 Track T4 (PR-V3-T4) Contract 1 — DB-write-before-exit ordering
+    // invariant: `markFailedAndAuditAtomic` runs `web_pages` UPDATE +
+    // `audit_logs` INSERT in a single Prisma transaction so the failure row
+    // and the audit_log entry commit atomically before any process.exit can
+    // fire. The phaseN is derived from `state.completedPhases` (highest +
+    // 1 → in-flight phase identifier).
     //
-    // v0.4.0 PR7e-α (bug ④): delegate to PhasedDbHandler.markAnalysisFailed()
-    // so `analysis_phase_status='failed'` + `analysis_error` +
-    // `analysis_completed_at` all update. Falls back to inline update when
-    // PhasedDbHandler is unavailable.
+    // Plan v3 T4 Contract 1: atomic markFailedAndAuditAtomic via Prisma
+    // $transaction (DB-write-before-exit ordering invariant).
+    //
+    // UNBLOCK-T4-09 closure (analysis-status-update.test.ts +3): the local
+    // const is named `errorMessage` (not `sanitizedErrorMessage`) so the
+    // PR7e-α PhasedDbHandler test contracts continue to pass. The unsanitized
+    // raw form used for the outer logger call is renamed to `rawErrorMessage`.
     // =====================================================
     if (state.actualWebPageId) {
       const errorMessage = sanitizeErrorMessage(error).slice(0, 500);
-      if (phasedDb) {
-        try {
-          await phasedDb.markAnalysisFailed(errorMessage);
-        } catch (statusError) {
-          logger.warn("[PageAnalyzeWorker] PhasedDbHandler.markAnalysisFailed failed (non-fatal)", {
-            error: sanitizeErrorMessage(statusError),
-            webPageId: state.actualWebPageId.slice(0, 8) + "...",
-          });
+      // Derive phaseN from state.completedPhases (highest completed → in-flight
+      // is next phase). Map AnalysisPhase → PhaseN identifier.
+      const phaseN: PhaseN = derivePhaseNFromCompletedPhases(state.completedPhases);
+
+      const t4Result = await markFailedAndAuditAtomic(
+        prisma as unknown as FailurePathPrismaClient,
+        {
+          webPageId: state.actualWebPageId,
+          // PR-INGEST-FAIL-ROW / ADR-0016 Amendment 6 §Decision 2: pass the
+          // url-key so the upsert can create the terminal `failed` row when
+          // W0 did not (NOROW closure) and converge concurrent retries.
+          normalizedUrl: state.normalizedUrl,
+          errorMessage,
+          phaseN,
+          childPid: process.pid,
         }
-      } else {
+      );
+
+      if (!t4Result.committed) {
+        logger.warn(
+          "[PageAnalyzeWorker] markFailedAndAuditAtomic did not commit; falling back to legacy update",
+          {
+            reason: t4Result.reason,
+            webPageId: truncateAuditTargetId(state.actualWebPageId),
+          }
+        );
+        // Legacy fallback: phasedDb.markAnalysisFailed() (preserves
+        // pre-existing PR7e-α behaviour for the transaction_aborted path).
+        if (phasedDb) {
+          try {
+            await phasedDb.markAnalysisFailed(errorMessage);
+          } catch (statusError) {
+            logger.warn(
+              "[PageAnalyzeWorker] PhasedDbHandler.markAnalysisFailed failed (non-fatal)",
+              {
+                error: sanitizeErrorMessage(statusError),
+                webPageId: truncateAuditTargetId(state.actualWebPageId),
+              }
+            );
+          }
+        } else {
+          try {
+            await prisma.webPage.update({
+              where: { id: state.actualWebPageId },
+              data: {
+                analysisStatus: "failed",
+                analysisError: errorMessage,
+                analysisCompletedAt: new Date(),
+              },
+            });
+          } catch (statusError) {
+            logger.warn("[PageAnalyzeWorker] Failed to update analysisStatus to failed", {
+              error: sanitizeErrorMessage(statusError),
+              webPageId: truncateAuditTargetId(state.actualWebPageId),
+            });
+          }
+        }
+      }
+
+      // =====================================================
+      // Plan v3 Track T4 (PR-V3-T4) UNBLOCK-T4-02 — INV-WORKER-PID-IDENTITY-005
+      //   Sub-B clear hook (failure path): record paired `release` event row.
+      // =====================================================
+      // Even on failure, record the release event so the supervisor backfill
+      // can distinguish "child reached catch tail and committed" from "true
+      // orphan (SIGKILL/OOM/segfault)". Fire-and-forget; failure to write is
+      // logged and ignored.
+      //
+      // UNBLOCK-T4-02 Sub-B clear hook (failure path, fire-and-forget).
+      if (state.workerSpawnTimeMs !== undefined) {
         try {
-          await prisma.webPage.update({
-            where: { id: state.actualWebPageId },
-            data: {
-              analysisStatus: "failed",
-              analysisError: errorMessage,
-              analysisCompletedAt: new Date(),
-            },
+          await recordWorkerRelease(prisma as unknown as WorkerJobLifecyclePrismaClient, {
+            webPageId: state.actualWebPageId,
+            workerPid: process.pid,
+            workerSpawnTime: new Date(state.workerSpawnTimeMs),
+            workerType: "page",
+            nonce: process.env.REFTRIX_WORKER_SUPERVISOR_BOOT_TOKEN_PAGE ?? randomUUID(),
           });
-        } catch (statusError) {
-          logger.warn("[PageAnalyzeWorker] Failed to update analysisStatus to failed", {
-            error: sanitizeErrorMessage(statusError),
-            webPageId: state.actualWebPageId.slice(0, 8) + "...",
-          });
+        } catch (recordReleaseError) {
+          logger.warn(
+            "[PageAnalyzeWorker] recordWorkerRelease (failure path) outer catch (non-fatal)",
+            {
+              error: sanitizeErrorMessage(recordReleaseError),
+              webPageId: truncateAuditTargetId(state.actualWebPageId),
+            }
+          );
         }
       }
     }
@@ -2636,7 +3329,11 @@ export function createPageAnalyzeWorker(
     }
   );
 
-  // RSS gate は concurrency 非依存 (pause/resume 削除済み、ADR-0009 参照)
+  // Plan v1.1 candidate B / ADR-0034 Amendment 5: the success path no longer
+  // needs a module-level worker ref because `applyPostJobLifecycleGate` is a
+  // no-op stub and the canonical post-job gate (`applyPostJobMemoryGate`) is
+  // worker-instance-free. The module-level `_workerInstanceRef` has been
+  // removed.
 
   // Event handlers for monitoring
   worker.on("completed", (job, result) => {
@@ -2671,6 +3368,29 @@ export function createPageAnalyzeWorker(
       // IPC channel may be closed if parent is shutting down; non-fatal
     }
   });
+
+  // Plan v4.2 PR-A: callback-based exit responsibility 集約 (TPA-V42-M-03 Option A
+  // single-shot)。Worker constructor 内、既存 worker.on('completed', ...) IPC send
+  // handler の **後** に register することで、Node.js EventEmitter の register 順
+  // listener invoke 規約により IPC send → process.exit(0) の順序が deterministic
+  // となる (parent への job-completed 通知が exit より先に flush される)。
+  //
+  // Plan v4.2 PR-L closure (TDA-V42-L-02): boilerplate を
+  // `registerCompletedListenerAndExit` helper に集約。Helper 内 listener body は
+  // SEC M-NEW-1 mandate (synchronous-only) を継承し、AST gate
+  // `scripts/verify-completed-listener-sync.mjs` が helper file を含む
+  // TARGETS list で synchronous-only を CI で enforce する。
+  //
+  // Cross-ref: ADR-0034 §Decision 1 Step C, Plan v4.2 §3.2 Step 4 + PR-L
+  // closure (TDA-V42-L-02 helper extraction, SEC-V42-L-NEW-4 mandate).
+  //
+  // Plan v4.2 PR-A + PR-L (TDA-V42-L-02): callback-based exit listener is
+  // registered via the shared helper `registerCompletedListenerAndExit`,
+  // which retains SEC M-NEW-1 synchronous-only listener body contract. The
+  // AST gate `scripts/verify-completed-listener-sync.mjs` extends TARGETS to
+  // include the helper file (post-job-lifecycle.ts) so synchronous-only is
+  // enforced in CI for helper-routed listeners as well.
+  registerCompletedListenerAndExit(worker, "page-analyze");
 
   worker.on("failed", (job, error) => {
     // PR7c F3: CWE-209 統一 — sanitizeErrorMessage で PII/内部構造漏洩を防御
@@ -2879,6 +3599,9 @@ export {
   disposePhase4Memory,
   SKIP_RECOVERY_RETRY_CAP,
 };
+// PR-BACKFILL-TERMINAL (系統A): `resolveBackfillDispatchCategories` is exported
+// inline at its declaration (drift-proof dispatch category resolver, pinned by
+// INV-BACKFILL-TERMINAL-COMPLETED-007 Block A 3-way Set-equality).
 
 // Re-export types from phases/types.ts for backward compatibility
 export type {

@@ -123,6 +123,7 @@ export interface SearchResult {
   };
   visualFeatures?: VisualFeatures;
   htmlSnippet?: string;
+  cssSnippet?: string;
   webPage: {
     id: string;
     url: string;

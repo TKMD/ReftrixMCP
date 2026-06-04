@@ -9,12 +9,20 @@
  * ことでOSがメモリを全回収する。
  *
  * T-7テスト項目:
- * 1. terminateAndRespawn()メソッドがEmbeddingServiceソースに存在すること
- * 2. サブフェーズ末尾でterminateAndRespawnEmbeddingPipelineが呼ばれること
+ * 1. terminateAndRespawn()メソッドがEmbeddingServiceソースに存在すること (base、維持)
+ * 2. PR-BT-5 (ADR-0039 Decision 2): サブフェーズ末尾で terminateAndRespawn は
+ *    呼ばれない (fork-child path から除去済)。チャンク間 dispose は維持。
  * 3. チャンク間ではdisposeEmbeddingPipelineが維持されること
  * 4. workerRestartCountがリセットされないこと
  * 5. lastCrashTime=0リセットがあること
  * 6. process.exit(0)がworker-thread.tsのterminate handlerから削除されていること
+ *
+ * PR-BT-5 (M-1-RSS, ADR-0039 Decision 2 / CO-PRBT5-04): the Phase-5-only
+ * `terminateAndRespawnEmbeddingPipeline()` wrapper was REMOVED (orphaned after
+ * the 7 sub-phase call sites were deleted). The base
+ * `EmbeddingService.terminateAndRespawn()` (worker-thread restart path) is
+ * RETAINED — so the base-method tests (T-1 base, T-3..T-6, T-8 base) stay valid.
+ * The wrapper-specific assertions were updated to the new contract.
  *
  * Worker Thread terminate-and-respawn tests for Phase 5 (Embedding).
  * ONNX Runtime C++ arena glibc malloc fragmentation prevents dispose()
@@ -38,6 +46,13 @@ describe("Phase 5: Worker Thread terminate-and-respawn", () => {
     "../../../../../packages/ml/src/embeddings/worker-thread.ts"
   );
   const phase5Path = path.resolve(__dirname, "../../../src/workers/phases/phase-5-embedding.ts");
+  // PR-BT-5 chunk-fork contingency (ADR-0039 §Consequences #2a): the canonical
+  // chunk loop (incl. the chunk-boundary dispose) was extracted into this shared
+  // driver, so the chunk-boundary dispose now lives here, not in phase-5-embedding.ts.
+  const chunkLoopPath = path.resolve(
+    __dirname,
+    "../../../src/workers/phases/phase-5-chunked-text-loop.ts"
+  );
   const layoutEmbeddingPath = path.resolve(
     __dirname,
     "../../../src/services/layout-embedding.service.ts"
@@ -46,12 +61,14 @@ describe("Phase 5: Worker Thread terminate-and-respawn", () => {
   let mlServiceSource: string;
   let workerThreadSource: string;
   let phase5Source: string;
+  let chunkLoopSource: string;
   let layoutEmbeddingSource: string;
 
   beforeAll(() => {
     mlServiceSource = fs.readFileSync(mlServicePath, "utf8");
     workerThreadSource = fs.readFileSync(workerThreadPath, "utf8");
     phase5Source = fs.readFileSync(phase5Path, "utf8");
+    chunkLoopSource = fs.readFileSync(chunkLoopPath, "utf8");
     layoutEmbeddingSource = fs.readFileSync(layoutEmbeddingPath, "utf8");
   });
 
@@ -64,8 +81,12 @@ describe("Phase 5: Worker Thread terminate-and-respawn", () => {
       expect(mlServiceSource).toContain("async terminateAndRespawn()");
     });
 
-    it("LayoutEmbeddingServiceにterminateAndRespawnEmbeddingPipeline()メソッドが存在すること / terminateAndRespawnEmbeddingPipeline() should exist in LayoutEmbeddingService", () => {
-      expect(layoutEmbeddingSource).toContain("async terminateAndRespawnEmbeddingPipeline()");
+    // PR-BT-5 (M-1-RSS, ADR-0039 Decision 2 / CO-PRBT5-04): the Phase-5-only
+    // wrapper `terminateAndRespawnEmbeddingPipeline()` was REMOVED after the 7
+    // sub-phase call sites were deleted (it became orphaned). Assert ABSENCE of
+    // the method declaration (the OLD "should exist" assertion is now invalid).
+    it("LayoutEmbeddingServiceからterminateAndRespawnEmbeddingPipeline()メソッドが除去されていること / terminateAndRespawnEmbeddingPipeline() should be REMOVED from LayoutEmbeddingService (ADR-0039 Decision 2 / CO-PRBT5-04)", () => {
+      expect(layoutEmbeddingSource).not.toContain("async terminateAndRespawnEmbeddingPipeline()");
     });
 
     it("既存のdispose()メソッドが維持されていること / existing dispose() method should be preserved", () => {
@@ -76,8 +97,11 @@ describe("Phase 5: Worker Thread terminate-and-respawn", () => {
       expect(layoutEmbeddingSource).toContain("async disposeEmbeddingPipeline()");
     });
 
-    it("terminateAndRespawnEmbeddingPipeline()が内部でterminateAndRespawn()を呼ぶこと / terminateAndRespawnEmbeddingPipeline() should call terminateAndRespawn() internally", () => {
-      expect(layoutEmbeddingSource).toContain("terminateAndRespawn()");
+    // The base `EmbeddingService.terminateAndRespawn()` (worker-thread restart
+    // path) is RETAINED — still referenced by the ml service. (The Phase-5
+    // wrapper that delegated to it is gone, but the base method stays.)
+    it("base EmbeddingService.terminateAndRespawn() が維持されていること / base terminateAndRespawn() should still exist in ml EmbeddingService", () => {
+      expect(mlServiceSource).toContain("async terminateAndRespawn()");
     });
   });
 
@@ -86,31 +110,37 @@ describe("Phase 5: Worker Thread terminate-and-respawn", () => {
   // ==========================================================================
 
   describe("T-2: sub-phase end vs chunk boundary calls", () => {
-    it("サブフェーズ末尾でterminateAndRespawnEmbeddingPipelineが呼ばれること / sub-phase endings should call terminateAndRespawnEmbeddingPipeline", () => {
-      // 各サブフェーズ関数の末尾で terminateAndRespawnEmbeddingPipeline が呼ばれる
-      // processSectionTextEmbeddingChunks, processMotionTextEmbeddingChunks,
-      // processVisionMotionEmbeddingChunks, processBackgroundTextEmbeddingChunks,
-      // processJsAnimationEmbeddingChunks, processResponsiveEmbeddingChunks,
-      // processPartTextEmbeddingChunks
-
-      // 各サブフェーズ関数の末尾パターン:
-      // "await ctx.sharedLayoutEmbeddingService.terminateAndRespawnEmbeddingPipeline();\n  tryGarbageCollect();\n}"
-      const subPhaseEndPattern =
-        /terminateAndRespawnEmbeddingPipeline\(\);\s*\n\s*tryGarbageCollect\(\);\s*\n\}/g;
-      const matches = phase5Source.match(subPhaseEndPattern);
-      // 7つのサブフェーズ末尾で呼ばれる
-      expect(matches).not.toBeNull();
-      expect(matches!.length).toBe(7);
+    // PR-BT-5 (M-1-RSS, ADR-0039 Decision 2): the sub-phase-tail
+    // `terminateAndRespawnEmbeddingPipeline()` invocation was REMOVED from the
+    // fork-child path (per-sub-phase fork → fork-boundary OS reclamation). The
+    // OLD assertion (7 sub-phase-end calls) is now INVALID; assert the
+    // invocation is ABSENT. (Source-pinned more rigorously by the standing
+    // INV-PHASE5-SUBPHASE-NO-RELOAD-001 AST sweep.)
+    it("サブフェーズ末尾でterminateAndRespawnEmbeddingPipelineが呼ばれないこと / sub-phase endings should NOT call terminateAndRespawnEmbeddingPipeline (ADR-0039 Decision 2)", () => {
+      // The actual invocation form `await ...terminateAndRespawnEmbeddingPipeline();`
+      // must NOT appear in either the orchestrator or the chunk-loop driver
+      // (comment references to "...is REMOVED..." are not invocations).
+      const invocationPattern =
+        /await\s+ctx\.sharedLayoutEmbeddingService\.terminateAndRespawnEmbeddingPipeline\(\)/g;
+      expect(phase5Source.match(invocationPattern)).toBeNull();
+      expect(chunkLoopSource.match(invocationPattern)).toBeNull();
     });
 
-    it("チャンク間ではdisposeEmbeddingPipelineが維持されること / chunk boundaries should still use disposeEmbeddingPipeline", () => {
-      // チャンク間パターン: if (...) { disposeEmbeddingPipeline(); tryGarbageCollect(); }
+    it("チャンク間ではdisposeEmbeddingPipelineが維持されること / chunk boundaries should still use disposeEmbeddingPipeline (centralized in shared driver)", () => {
+      // PR-BT-5 chunk-fork contingency (ADR-0039 §Consequences #2a): the
+      // chunk-boundary dispose was centralized into the shared driver's
+      // `disposeBetweenChunks` helper (one call site, consumed by all delegating
+      // text sub-phases). Assert the chunk-boundary dispose is RETAINED in the
+      // driver (the M-1-RSS root cause is rooted out by the fork boundary, NOT by
+      // removing this transient intra-fork recovery — INV-PHASE5-SUBPHASE-NO-RELOAD-001 (b)).
       const chunkBoundaryPattern =
-        /if\s*\([^)]+\)\s*\{\s*\n\s*await\s+ctx\.sharedLayoutEmbeddingService\.disposeEmbeddingPipeline\(\)/g;
-      const matches = phase5Source.match(chunkBoundaryPattern);
-      // 5つのチャンク間呼び出し: Section, Motion, VisionMotion, Background, Part
-      expect(matches).not.toBeNull();
-      expect(matches!.length).toBe(5);
+        /await\s+ctx\.sharedLayoutEmbeddingService\.disposeEmbeddingPipeline\(\)/g;
+      const driverMatches = chunkLoopSource.match(chunkBoundaryPattern);
+      expect(driverMatches).not.toBeNull();
+      expect(driverMatches!.length).toBeGreaterThanOrEqual(1);
+      // The orchestrator no longer holds inline chunk-boundary disposes (they
+      // moved to the driver). Each chunked sub-phase delegates instead.
+      expect(phase5Source).toContain("runChunkedTextEmbeddingLoop(ctx, {");
     });
   });
 
@@ -222,14 +252,9 @@ describe("Phase 5: Worker Thread terminate-and-respawn", () => {
       expect(methodBody).not.toContain("webPageId");
     });
 
-    it("terminateAndRespawnEmbeddingPipeline()のログにURL/webPageIdが含まれないこと / terminateAndRespawnEmbeddingPipeline() logs should not contain PII", () => {
-      const methodMatch = layoutEmbeddingSource.match(
-        /async terminateAndRespawnEmbeddingPipeline\(\)[^{]*\{([\s\S]*?)(?:\n  \}|\n  async )/
-      );
-      expect(methodMatch).not.toBeNull();
-      const methodBody = methodMatch![1];
-      expect(methodBody).not.toContain("url");
-      expect(methodBody).not.toContain("webPageId");
-    });
+    // PR-BT-5 (M-1-RSS, ADR-0039 Decision 2 / CO-PRBT5-04): the wrapper
+    // `terminateAndRespawnEmbeddingPipeline()` was REMOVED, so its PII-free-log
+    // assertion is no longer applicable (no method body to inspect). The base
+    // `terminateAndRespawn()` PII test above remains.
   });
 });

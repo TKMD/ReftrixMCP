@@ -21,6 +21,7 @@
 
 import { prisma, Prisma } from "@reftrixmcp/database";
 import { logger } from "../utils/logger";
+import { AUDIT_LOG_CONSTANTS } from "./audit-log.service";
 
 // =====================================================
 // Constants / 定数
@@ -29,8 +30,19 @@ import { logger } from "../utils/logger";
 /** クエリの最大長 / Maximum query length */
 const MAX_QUERY_LENGTH = 200;
 
-/** PII truncation の長さ / PII truncation length */
-const TRUNCATE_ID_LENGTH = 8;
+/**
+ * PII truncation の長さ
+ * AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH SSOT から導出 (CO-5 UC-3 Option α
+ * cross-SSOT consistency, LCC-CO5-01 closure)。GDPR Art.17 SQL LIKE prefix-match
+ * length と完全に整合する (gdpr-deletion.service.ts の `truncateProfileIdForSqlLike`
+ * と同一 SSOT を共有)。
+ *
+ * PII truncation length, derived from `AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH`
+ * SSOT (CO-5 UC-3 Option α cross-SSOT consistency, LCC-CO5-01 closure). Aligned
+ * with the GDPR Art.17 SQL LIKE prefix-match length (shares the same SSOT as
+ * `truncateProfileIdForSqlLike` in gdpr-deletion.service.ts).
+ */
+const TRUNCATE_ID_LENGTH = AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH;
 
 // =====================================================
 // Types / 型定義

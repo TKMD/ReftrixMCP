@@ -12,12 +12,57 @@
  * - P1-E: initiateRestart 3-Phase Shutdown（IPC→SIGTERM→SIGKILL順序）
  * - P1-F: setImmediate yield points（5箇所のイベントループ解放）
  *
+ * ===========================================================================
+ * TRACKED-ISSUE / TDA-FIND-05 (L) — AST-grep heuristic baseline staleness
+ * ===========================================================================
+ *
+ * **Status**: CLOSED — T4-CO-② direct import + runtime assertion refactor
+ *             (Plan v3 T4 carryover closure, 2026-05-05)
+ * **Severity**: L (pre-existing baseline, NOT Z-a Wave 1/2/3 induced)
+ * **Owner**: test-qa-engineer + pipeline-engineer (paired refactor)
+ * **Closed**: 2026-05-05 (T4-CO-② implementation; within T+1d deadline)
+ * **IO Plan Decision anchor**: `019df88d-445d` (IO APPROVE, Plan V1 §4)
+ * **IO V2.1 Decision anchor**: `019df7ec-ce8d-7189-9a05-1f5c1f00efdf`
+ * **Pipeline-engineer Wave 1 anchor**: `019df795-5ae3`
+ *
+ * **Resolution / 解決**:
+ *   All 12 stale tests refactored from Module A source-text scanning to
+ *   Module C (`worker-supervisor-lifecycle.service.ts`) direct import +
+ *   runtime assertions. AST-grep heuristic helpers (`extractNumericConstant`,
+ *   `extractSafeParseIntDefault`) are retained for P0-B/Sprint-1 integration
+ *   tests that legitimately scan non-Module-A paths.
+ *
+ *   - P1-D "Supervisor側 IPC受信" (2 tests): re-targeted to Module C
+ *     `WorkerSupervisorLifecycle` prototype method checks and
+ *     `verifyWorkerIpcMessage` import from helpers.
+ *   - P1-E "ソース構造検証" (6 tests): replaced with Module C direct
+ *     imports of `IPC_SHUTDOWN_GRACE_MS`, `__IPC_SHUTDOWN_GRACE_MS_FOR_TEST`,
+ *     and `WorkerSupervisorLifecycle.prototype` method existence checks.
+ *   - P1-E "shutdown() も同じ3-Phase Protocol" (2 tests): replaced with
+ *     Module C source scan of `LIFECYCLE_PATH` (correct module).
+ *   - "v0.1.0 Worker Reliability Integration" (2 tests): re-targeted supervisorSource scan
+ *     to `LIFECYCLE_PATH` (Module C).
+ *
+ * **Cross-references / 相互参照**:
+ *   - Finding Registry: `pr-v3-t4-finding-registry-v1.md` §6.2 (Wave 3
+ *     UNBLOCK-V2-05b + TDA-FIND-05 closure entries).
+ *   - CO-26 split origin: `worker-supervisor.service.ts` Module A/B/C
+ *     refactor (search internal for `decision.search "CO-26 worker
+ *     supervisor split"` for full context).
+ *     mandate (no carryover without deadline).
+ *
  * @module tests/workers/sprint1-p0p1-changes
  */
 
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
+// TDA-FIND-05 T4-CO-②: Module C direct imports — replace stale Module A source scan
+import {
+  IPC_SHUTDOWN_GRACE_MS,
+  __IPC_SHUTDOWN_GRACE_MS_FOR_TEST,
+  WorkerSupervisorLifecycle,
+} from "../../src/services/worker-supervisor-lifecycle.service.js";
 import { EventEmitter } from "node:events";
 import type { ChildProcess } from "node:child_process";
 
@@ -50,6 +95,11 @@ const ML_SERVICE_PATH = path.resolve(
   "../../../../packages/ml/src/embeddings/service.ts"
 );
 const SUPERVISOR_PATH = path.resolve(__dirname, "../../src/services/worker-supervisor.service.ts");
+// TDA-FIND-05 T4-CO-②: Module C path — lifecycle constants/methods live here after CO-26 split
+const LIFECYCLE_PATH = path.resolve(
+  __dirname,
+  "../../src/services/worker-supervisor-lifecycle.service.ts"
+);
 const EMBEDDING_HANDLER_PATH = path.resolve(
   __dirname,
   "../../src/tools/page/handlers/embedding-handler.ts"
@@ -60,6 +110,19 @@ const LAYOUT_EMBEDDING_PATH = path.resolve(
 );
 const WORKER_CONSTANTS_PATH = path.resolve(__dirname, "../../src/services/worker-constants.ts");
 const QUEUE_CLEANUP_PATH = path.resolve(__dirname, "../../src/services/queue-cleanup.service.ts");
+
+// ============================================================================
+// PR-M-A respawn delay constant (Plan v4.3 PR-M / ADR-0035 §Decision 3 +
+// Plan v4.4 PR-N-A / ADR-0035 Amendment 1 §Decision 5)
+// ----------------------------------------------------------------------------
+// The 3-Phase Shutdown mock tests below exercise the `page` workerType
+// (default). After PR-M-A landed, `getRestartDelayMsForType("page")`
+// resolves to `DEFAULT_PAGE_RESTART_DELAY_MS = 3000ms`. PR-N-A subsequently
+// removed the per-instance config field (env var `WORKER_RESTART_DELAY_MS`
+// is the only remaining override surface for the `page` workerType).
+// Match the production default in worker-supervisor.service.ts.
+// ============================================================================
+const PAGE_RESPAWN_DELAY_MS = 3000;
 
 // ============================================================================
 // ヘルパー: ソースから定数値を抽出
@@ -361,34 +424,40 @@ describe("P1-D: notifyJobCompleted IPC通知", () => {
     });
   });
 
-  describe("Supervisor側 IPC受信とnotifyJobCompleted（ソース構造検証）", () => {
-    let supervisorSource: string;
+  describe("Supervisor側 IPC受信とnotifyJobCompleted（Module C 直接検証）", () => {
+    // TDA-FIND-05 T4-CO-②: refactored from Module A source scan to Module C
+    // direct import + runtime assertions. WorkerSupervisorLifecycle owns the
+    // IPC dispatch pipeline after CO-26 split.
+    let lifecycleSource: string;
 
     beforeAll(() => {
-      supervisorSource = fs.readFileSync(SUPERVISOR_PATH, "utf8");
+      lifecycleSource = fs.readFileSync(LIFECYCLE_PATH, "utf8");
     });
 
-    it('WorkerSupervisor が child.on("message") で job-completed を受信し notifyJobCompletedForType を呼ぶこと', () => {
+    it('WorkerSupervisorLifecycle が child.on("message") で job-completed を受信し notifyJobCompletedForType を呼ぶこと (Module C)', () => {
       // P1-D + PR-D-8 Phase 2 (MF-02): IPC message handler は
       // `verifyWorkerIpcMessage` 経由で SSOT schema 検証 + bindingTable cross-check
       // 後に `notifyJobCompletedForType(workerType)` へ dispatch する。
-      // legacy single-worker `notifyJobCompleted()` は per-type API の
-      // backward-compat alias として残るが、IPC dispatch path は per-type を使う。
-      // P1-D + PR-D-8 Phase 2 (MF-02): IPC dispatch は per-type API を使用。
-      expect(supervisorSource).toContain('child.on("message"');
-      // dispatchVerifiedIpc → verifyWorkerIpcMessage → notifyJobCompletedForType
-      expect(supervisorSource).toContain("dispatchVerifiedIpc");
-      expect(supervisorSource).toContain("verifyWorkerIpcMessage");
-      expect(supervisorSource).toMatch(/this\.notifyJobCompletedForType\(verified\.workerType\)/);
+      // T4-CO-②: Module C (worker-supervisor-lifecycle.service.ts) に移動済。
+      // Runtime check: WorkerSupervisorLifecycle has the IPC-related methods.
+      expect(typeof WorkerSupervisorLifecycle).toBe("function");
+      // shutdownChild is public — accessible via prototype without TS error
+      expect(typeof WorkerSupervisorLifecycle.prototype.shutdownChild).toBe("function");
+      // Source scan of correct module (Module C) for IPC dispatch surface.
+      expect(lifecycleSource).toContain('child.on("message"');
+      expect(lifecycleSource).toContain("dispatchVerifiedIpc");
+      expect(lifecycleSource).toContain("verifyWorkerIpcMessage");
+      expect(lifecycleSource).toMatch(
+        /this\.supervisor\.notifyJobCompletedForType\(verified\.workerType\)/
+      );
     });
 
-    it("WorkerIpcMessage 型が SSOT schema からインポートされていること (MF-02)", () => {
+    it("WorkerIpcMessage 型が SSOT schema からインポートされていること (MF-02, Module C)", () => {
       // PR-D-8 Phase 2: WorkerMessage 型は `worker-ipc.schema.ts` SSOT に
-      // 移管され、supervisor は import で取得する。inline 型定義は禁止。
-      // PR-D-8 Phase 2: WorkerIpcMessage 型は SSOT schema 経由で参照する。
-      expect(supervisorSource).toContain("worker-ipc.schema");
-      // `type: "job-completed"` は IPC schema enum value として残存している
-      expect(supervisorSource).toMatch(/"job-completed"/);
+      // 移管され、Module C (lifecycle) が verifyWorkerIpcMessage 経由で参照する。
+      // T4-CO-②: correct source is Module C (LIFECYCLE_PATH).
+      expect(lifecycleSource).toContain("worker-ipc");
+      expect(lifecycleSource).toMatch(/"job-completed"/);
     });
   });
 
@@ -498,122 +567,134 @@ describe("P1-D: notifyJobCompleted IPC通知", () => {
 // ============================================================================
 
 describe("P1-E: initiateRestart 3-Phase Shutdown", () => {
-  describe("ソース構造検証", () => {
-    let supervisorSource: string;
+  describe("Module C 構造検証 (TDA-FIND-05 T4-CO-②: direct import + runtime)", () => {
+    // TDA-FIND-05 T4-CO-②: refactored from Module A (SUPERVISOR_PATH) source
+    // scan to Module C (LIFECYCLE_PATH) direct import + runtime assertions.
+    // initiateRestart, IPC_SHUTDOWN_GRACE_MS, and the 3-Phase Protocol all
+    // live in worker-supervisor-lifecycle.service.ts after CO-26 split.
+    let lifecycleSource: string;
 
     beforeAll(() => {
-      supervisorSource = fs.readFileSync(SUPERVISOR_PATH, "utf8");
+      lifecycleSource = fs.readFileSync(LIFECYCLE_PATH, "utf8");
     });
 
-    it("initiateRestart が private メソッドとして存在すること (per-type signature)", () => {
+    it("WorkerSupervisorLifecycle.initiateRestart が public メソッドとして存在すること (Module C, per-type signature)", () => {
       // PR-D-8 Phase 2 (MF-04): initiateRestart は per-type 化され workerType を
-      // 第一引数に取る。`(workerType: WorkerType, reason: string): void`。
-      // PR-D-8 Phase 2 (MF-04): per-type signature。
-      expect(supervisorSource).toMatch(
-        /private\s+initiateRestart\(workerType:\s*WorkerType,\s*reason:\s*string\):\s*void/
+      // 第一引数に取る。Module C (WorkerSupervisorLifecycle class) に移動済。
+      // T4-CO-②: direct import + runtime assertion — structurally impossible
+      // to false-pass if initiateRestart is renamed or removed.
+      expect(typeof WorkerSupervisorLifecycle.prototype.initiateRestart).toBe("function");
+      // Source verify on correct module (Module C).
+      expect(lifecycleSource).toMatch(
+        /initiateRestart\(workerType:\s*WorkerType,\s*reason:\s*string\):\s*void/
       );
     });
 
-    it("IPC_SHUTDOWN_GRACE_MS が 2000ms であること", () => {
-      expect(supervisorSource).toContain("const IPC_SHUTDOWN_GRACE_MS = 2000");
+    it("IPC_SHUTDOWN_GRACE_MS が env override + range-validated constant として宣言される (Module C, Plan v2 §1 S1.2)", () => {
+      // Plan v2 §1 S1.2 (anchor 019de97f-1dcf): legacy hardcoded `const
+      // IPC_SHUTDOWN_GRACE_MS = 2000` は env-overridable IIFE
+      // (`const IPC_SHUTDOWN_GRACE_MS: number = ((): number => { ... })();`) に
+      // 置換され、default 値は 30,000ms に変更。Module C (LIFECYCLE_PATH) に移動済。
+      // T4-CO-②: direct import assertions replace source-scan heuristic.
+      expect(typeof IPC_SHUTDOWN_GRACE_MS).toBe("number");
+      // Default must be 30,000ms (Plan v2 §1 S1.2 — legacy 2000 replaced).
+      expect(__IPC_SHUTDOWN_GRACE_MS_FOR_TEST.default).toBe(30_000);
+      // Current value must be ≥ 1000ms (range-validated lower bound).
+      expect(IPC_SHUTDOWN_GRACE_MS).toBeGreaterThanOrEqual(1_000);
+      // Source verify on correct module (Module C) for IIFE form.
+      expect(lifecycleSource).toMatch(/const\s+IPC_SHUTDOWN_GRACE_MS:\s*number\s*=\s*\(\(\)/);
     });
 
-    it("Phase 1: IPC shutdown メッセージを送信すること", () => {
-      // initiateRestart 内で workerToRestart.send({ type: 'shutdown' }) を呼ぶ
-      // PR-D-8 Phase 2: initiateRestart は scheduleRespawn より後に定義され、
-      // 直後 section header (`// ====` Redis active-worker lock) が anchor。
-      // PR-D-8 Phase 2: initiateRestart の終端を section header で位置決め。
-      const initiateStart = supervisorSource.indexOf("private initiateRestart");
-      const sectionEnd = supervisorSource.indexOf(
-        "// Private — Redis active-worker lock",
-        initiateStart
+    it("Phase 1: initiateRestart が IPC shutdown メッセージを送信すること (Module C)", () => {
+      // initiateRestart 内で workerToRestart.send({ type: 'shutdown' }) を呼ぶ。
+      // T4-CO-②: scan correct module (Module C / LIFECYCLE_PATH).
+      const initiateStart = lifecycleSource.indexOf("initiateRestart(workerType: WorkerType");
+      const sectionEnd = lifecycleSource.indexOf("// Plan v3 Track T4", initiateStart);
+      const restartMethod = lifecycleSource.slice(
+        initiateStart,
+        sectionEnd > initiateStart ? sectionEnd : initiateStart + 3000
       );
-      const restartMethod = supervisorSource.slice(initiateStart, sectionEnd);
       expect(restartMethod).toContain('workerToRestart.send({ type: "shutdown" })');
     });
 
-    it("Phase 2: IPC_SHUTDOWN_GRACE_MS 後に SIGTERM を送信すること", () => {
-      // PR-D-8 Phase 2: initiateRestart は scheduleRespawn より後に定義され、
-      // 直後 section header (`// ====` Redis active-worker lock) が anchor。
-      // PR-D-8 Phase 2: initiateRestart の終端を section header で位置決め。
-      const initiateStart = supervisorSource.indexOf("private initiateRestart");
-      const sectionEnd = supervisorSource.indexOf(
-        "// Private — Redis active-worker lock",
-        initiateStart
+    it("Phase 2: initiateRestart が IPC_SHUTDOWN_GRACE_MS 後に SIGTERM を送信すること (Module C)", () => {
+      // T4-CO-②: scan correct module (Module C / LIFECYCLE_PATH).
+      const initiateStart = lifecycleSource.indexOf("initiateRestart(workerType: WorkerType");
+      const sectionEnd = lifecycleSource.indexOf("// Plan v3 Track T4", initiateStart);
+      const restartMethod = lifecycleSource.slice(
+        initiateStart,
+        sectionEnd > initiateStart ? sectionEnd : initiateStart + 3000
       );
-      const restartMethod = supervisorSource.slice(initiateStart, sectionEnd);
       expect(restartMethod).toContain('workerToRestart.kill("SIGTERM")');
       expect(restartMethod).toContain("IPC_SHUTDOWN_GRACE_MS");
     });
 
-    it("Phase 3: タイムアウト後に SIGKILL エスカレーションすること", () => {
-      // PR-D-8 Phase 2: initiateRestart は scheduleRespawn より後に定義され、
-      // 直後 section header (`// ====` Redis active-worker lock) が anchor。
-      // PR-D-8 Phase 2: initiateRestart の終端を section header で位置決め。
-      const initiateStart = supervisorSource.indexOf("private initiateRestart");
-      const sectionEnd = supervisorSource.indexOf(
-        "// Private — Redis active-worker lock",
-        initiateStart
+    it("Phase 3: initiateRestart がタイムアウト後に SIGKILL エスカレーションすること (Module C)", () => {
+      // T4-CO-②: scan correct module (Module C / LIFECYCLE_PATH).
+      const initiateStart = lifecycleSource.indexOf("initiateRestart(workerType: WorkerType");
+      const sectionEnd = lifecycleSource.indexOf("// Plan v3 Track T4", initiateStart);
+      const restartMethod = lifecycleSource.slice(
+        initiateStart,
+        sectionEnd > initiateStart ? sectionEnd : initiateStart + 3000
       );
-      const restartMethod = supervisorSource.slice(initiateStart, sectionEnd);
       expect(restartMethod).toContain('workerToRestart.kill("SIGKILL")');
-      expect(restartMethod).toContain("this.config.shutdownTimeoutMs");
+      expect(restartMethod).toContain("shutdownTimeoutMs");
     });
 
-    it("exit イベントでタイマーがクリアされること", () => {
-      // PR-D-8 Phase 2: initiateRestart は scheduleRespawn より後に定義され、
-      // 直後 section header (`// ====` Redis active-worker lock) が anchor。
-      // PR-D-8 Phase 2: initiateRestart の終端を section header で位置決め。
-      const initiateStart = supervisorSource.indexOf("private initiateRestart");
-      const sectionEnd = supervisorSource.indexOf(
-        "// Private — Redis active-worker lock",
-        initiateStart
+    it("exit イベントでタイマーがクリアされること (Module C)", () => {
+      // T4-CO-②: scan correct module (Module C / LIFECYCLE_PATH).
+      const initiateStart = lifecycleSource.indexOf("initiateRestart(workerType: WorkerType");
+      const sectionEnd = lifecycleSource.indexOf("// Plan v3 Track T4", initiateStart);
+      const restartMethod = lifecycleSource.slice(
+        initiateStart,
+        sectionEnd > initiateStart ? sectionEnd : initiateStart + 3000
       );
-      const restartMethod = supervisorSource.slice(initiateStart, sectionEnd);
       expect(restartMethod).toContain("clearTimeout(sigTermTimerId)");
       expect(restartMethod).toContain("clearTimeout(killTimerId)");
     });
   });
 
-  describe("shutdown() も同じ3-Phase Protocolを使用すること", () => {
-    let supervisorSource: string;
+  describe("shutdown() も同じ3-Phase Protocolを使用すること (Module C 直接検証)", () => {
+    // TDA-FIND-05 T4-CO-②: refactored from Module A (SUPERVISOR_PATH) scan to
+    // Module C (LIFECYCLE_PATH) scan + runtime assertions.
+    // `shutdownChild()` in Module C carries the actual 3-phase IPC/SIGTERM/SIGKILL logic.
+    let lifecycleSource: string;
 
     beforeAll(() => {
-      supervisorSource = fs.readFileSync(SUPERVISOR_PATH, "utf8");
+      lifecycleSource = fs.readFileSync(LIFECYCLE_PATH, "utf8");
     });
 
-    it("shutdown() で IPC shutdown メッセージを送信すること", () => {
+    it("shutdownChild() で IPC shutdown メッセージを送信すること (Module C)", () => {
       // PR-D-8 Phase 2: shutdown() は per-type 化され、shutdownChild() に委譲。
       // shutdownChild 内で `workerToKill.send({ type: "shutdown" })` を実行。
-      // PR-D-8 Phase 2: shutdown は per-type shutdownChild へ委譲。
-      // PR-D-8 Phase 2: `getWorkerProcess` は class JSDoc にも出現するため
-      // shutdown 開始点以降の最初の method 宣言を anchor にする。
-      // PR-D-8 Phase 2: doc comment 衝突回避のため method 宣言形を anchor 化。
-      const shutdownStart = supervisorSource.indexOf("async shutdown(): Promise<void>");
-      const shutdownMethod = supervisorSource.slice(
-        shutdownStart,
-        supervisorSource.indexOf("getWorkerProcess(): ChildProcess", shutdownStart)
+      // T4-CO-②: shutdownChild is in Module C; runtime check + source scan.
+      expect(typeof WorkerSupervisorLifecycle.prototype.shutdownChild).toBe("function");
+      // shutdownChild anchor in Module C
+      const shutdownStart = lifecycleSource.indexOf(
+        "async shutdownChild(workerType: WorkerType): Promise<void>"
       );
+      const shutdownMethod = lifecycleSource.slice(shutdownStart, shutdownStart + 2000);
       expect(shutdownMethod).toContain('workerToKill.send({ type: "shutdown" })');
     });
 
-    it("shutdown() で Phase 2 SIGTERM を IPC_SHUTDOWN_GRACE_MS (2000ms) 後に送信すること", () => {
-      // PR-D-8 Phase 2: 2000 リテラルは IPC_SHUTDOWN_GRACE_MS 定数に
-      // 統合 (DRY)。const IPC_SHUTDOWN_GRACE_MS = 2000 がモジュール冒頭で
-      // 宣言され shutdownChild + initiateRestart 両方から参照される。
-      // PR-D-8 Phase 2: 2000 リテラル → IPC_SHUTDOWN_GRACE_MS 定数化。
-      // PR-D-8 Phase 2: `getWorkerProcess` は class JSDoc にも出現するため
-      // shutdown 開始点以降の最初の method 宣言を anchor にする。
-      // PR-D-8 Phase 2: doc comment 衝突回避のため method 宣言形を anchor 化。
-      const shutdownStart = supervisorSource.indexOf("async shutdown(): Promise<void>");
-      const shutdownMethod = supervisorSource.slice(
-        shutdownStart,
-        supervisorSource.indexOf("getWorkerProcess(): ChildProcess", shutdownStart)
+    it("shutdownChild() で Phase 2 SIGTERM を IPC_SHUTDOWN_GRACE_MS 後に送信すること (Plan v2 §1 S1.2, Module C)", () => {
+      // Plan v2 §1 S1.2 (anchor 019de97f-1dcf): legacy hardcoded `2000` →
+      // env-overridable constant (default 30,000ms)。shutdownChild +
+      // initiateRestart 両 callsite で同じ constant を参照する DRY 構造を
+      // 維持しつつ、env override (`WORKER_IPC_SHUTDOWN_GRACE_MS`) で test/dev
+      // 環境では値を短縮可能。
+      // T4-CO-②: runtime assertion replaces Module A IIFE regex scan.
+      expect(typeof IPC_SHUTDOWN_GRACE_MS).toBe("number");
+      expect(__IPC_SHUTDOWN_GRACE_MS_FOR_TEST.default).toBe(30_000);
+      // shutdownChild anchor in Module C
+      const shutdownStart = lifecycleSource.indexOf(
+        "async shutdownChild(workerType: WorkerType): Promise<void>"
       );
+      const shutdownMethod = lifecycleSource.slice(shutdownStart, shutdownStart + 2000);
       expect(shutdownMethod).toContain('workerToKill.kill("SIGTERM")');
       expect(shutdownMethod).toContain("IPC_SHUTDOWN_GRACE_MS");
-      // 値そのものはモジュール冒頭で定数宣言されている
-      expect(supervisorSource).toContain("const IPC_SHUTDOWN_GRACE_MS = 2000");
+      // env override IIFE form in Module C (Plan v2 §1 S1.2)
+      expect(lifecycleSource).toMatch(/const\s+IPC_SHUTDOWN_GRACE_MS:\s*number\s*=\s*\(\(\)/);
     });
   });
 
@@ -655,15 +736,17 @@ describe("P1-E: initiateRestart 3-Phase Shutdown", () => {
       // Phase 1: IPC shutdown メッセージが即座に送信
       expect(mockChild.send).toHaveBeenCalledWith({ type: "shutdown" });
 
-      // Phase 2: 2秒後にSIGTERM
-      await vi.advanceTimersByTimeAsync(2000);
+      // Phase 2: IPC_SHUTDOWN_GRACE_MS (Plan v2 §1 S1.2 default 30,000ms) 後にSIGTERM
+      // Plan v2 §1 S1.2 raised default from 2,000ms to 30,000ms (env override
+      // via WORKER_IPC_SHUTDOWN_GRACE_MS supports test/dev shorten).
+      await vi.advanceTimersByTimeAsync(30_000);
       expect(mockChild.kill).toHaveBeenCalledWith("SIGTERM");
 
       // 子プロセス終了をシミュレート
       mockChild.emit("exit", 0, null);
 
-      // 再起動遅延を消化
-      await vi.advanceTimersByTimeAsync(1000);
+      // 再起動遅延を消化 (PR-M-A: page workerType respawn cooldown 3000ms)
+      await vi.advanceTimersByTimeAsync(PAGE_RESPAWN_DELAY_MS);
 
       // 新しいワーカーがforkされる
       expect(mockFork.mock.calls.length).toBeGreaterThanOrEqual(2);
@@ -678,63 +761,67 @@ describe("P1-E: initiateRestart 3-Phase Shutdown", () => {
 describe("P1-F: setImmediate yield points", () => {
   describe("page-analyze-worker.ts のyield points", () => {
     let workerSource: string;
+    let chunkLoopSource: string;
 
     beforeAll(() => {
       // After TDA-C1 refactoring, processEmbeddingPhase and all setImmediate
-      // yield points moved to phase-5-embedding.ts.
+      // yield points moved to phase-5-embedding.ts. PR-BT-5 chunk-fork
+      // contingency (ADR-0039 §Consequences #2a) then centralized the
+      // chunk-boundary yield into the shared `runChunkedTextEmbeddingLoop` driver
+      // (phase-5-chunked-text-loop.ts), so the per-chunk yield now lives there and
+      // the text sub-phases inherit it by delegation.
       const phase5Path = path.resolve(__dirname, "../../src/workers/phases/phase-5-embedding.ts");
+      const chunkLoopPath = path.resolve(
+        __dirname,
+        "../../src/workers/phases/phase-5-chunked-text-loop.ts"
+      );
       workerSource = fs.readFileSync(phase5Path, "utf8");
+      chunkLoopSource = fs.readFileSync(chunkLoopPath, "utf8");
     });
 
-    it("Embedding sub-phase functions に setImmediate yield point が5箇所以上存在すること", () => {
-      // Legacy processEmbeddingPhase は削除済み。yield points は sub-phase functions 内に存在。
-      // setImmediate yield の標準パターン
+    it("チャンク間 setImmediate yield point が共有ドライバに存在すること", () => {
+      // The chunk-boundary yield is centralized in the shared driver's
+      // disposeBetweenChunks (one setImmediate, consumed by all delegating text
+      // sub-phases) — so it appears exactly once but covers all 6 text sub-phases.
       const yieldPattern = /await new Promise<void>\(\(resolve\) => setImmediate\(resolve\)\)/g;
-      const matches = workerSource.match(yieldPattern);
-
-      // Section, Motion, Vision-Motion, Background, JSAnimation の各チャンク間 = 5箇所
+      const matches = chunkLoopSource.match(yieldPattern);
       expect(matches).not.toBeNull();
-      expect(matches!.length).toBeGreaterThanOrEqual(5);
+      expect(matches!.length).toBeGreaterThanOrEqual(1);
     });
 
-    it("Section チャンク間に setImmediate yield point があること", () => {
-      // Refactored: section logic is in processSectionTextEmbeddingChunks
+    it("Section が共有ドライバに委譲して yield point を継承すること", () => {
       const fnStart = workerSource.indexOf("async function processSectionTextEmbeddingChunks");
       const body = workerSource.slice(fnStart, fnStart + 10000);
-      expect(body).toContain("setImmediate(resolve)");
+      expect(body).toContain("runChunkedTextEmbeddingLoop(ctx, {");
     });
 
-    it("Motion チャンク間に setImmediate yield point があること", () => {
-      // Refactored: motion logic is in processMotionTextEmbeddingChunks
+    it("Motion が共有ドライバに委譲して yield point を継承すること", () => {
       const fnStart = workerSource.indexOf("async function processMotionTextEmbeddingChunks");
       const body = workerSource.slice(fnStart, fnStart + 10000);
-      expect(body).toContain("setImmediate(resolve)");
+      expect(body).toContain("runChunkedTextEmbeddingLoop(ctx, {");
     });
 
-    it("Vision-Motion チャンク間に setImmediate yield point があること", () => {
-      // Refactored: vision-motion logic is in processVisionMotionEmbeddingChunks
+    it("Vision-Motion が共有ドライバに委譲して yield point を継承すること", () => {
       const fnStart = workerSource.indexOf("async function processVisionMotionEmbeddingChunks");
       const body = workerSource.slice(fnStart, fnStart + 10000);
-      expect(body).toContain("setImmediate(resolve)");
+      expect(body).toContain("runChunkedTextEmbeddingLoop(ctx, {");
     });
 
-    it("Background チャンク間に setImmediate yield point があること", () => {
-      // Refactored: background logic is in processBackgroundTextEmbeddingChunks
+    it("Background が共有ドライバに委譲して yield point を継承すること", () => {
       const fnStart = workerSource.indexOf("async function processBackgroundTextEmbeddingChunks");
       const body = workerSource.slice(fnStart, fnStart + 10000);
-      expect(body).toContain("setImmediate(resolve)");
+      expect(body).toContain("runChunkedTextEmbeddingLoop(ctx, {");
     });
 
-    it("JSAnimation チャンク間に setImmediate yield point があること", () => {
-      // Refactored: JS animation logic is in processJsAnimationEmbeddingChunks
+    it("JSAnimation が共有ドライバに委譲して yield point を継承すること", () => {
       const fnStart = workerSource.indexOf("async function processJsAnimationEmbeddingChunks");
       const body = workerSource.slice(fnStart, fnStart + 10000);
-      expect(body).toContain("setImmediate(resolve)");
+      expect(body).toContain("runChunkedTextEmbeddingLoop(ctx, {");
     });
 
     it("yield point にコメント説明があること", () => {
-      // BullMQ heartbeats と IPC のためのyieldであることが記述されていること
-      expect(workerSource).toContain("Yield to event loop");
+      // BullMQ heartbeats と IPC のためのyieldであることが共有ドライバに記述されていること
+      expect(chunkLoopSource).toContain("Yield to event loop");
     });
   });
 
@@ -765,6 +852,7 @@ describe("P1-F: setImmediate yield points", () => {
 describe("v0.1.0 Worker Reliability Integration", () => {
   let workerSource: string;
   let supervisorSource: string;
+  let lifecycleSource: string;
 
   beforeAll(() => {
     // After TDA-C1 refactoring, DEFAULT_LOCK_DURATION is in phases/types.ts.
@@ -774,6 +862,8 @@ describe("v0.1.0 Worker Reliability Integration", () => {
     workerSource =
       fs.readFileSync(typesPath, "utf8") + "\n" + fs.readFileSync(WORKER_SOURCE_PATH, "utf8");
     supervisorSource = fs.readFileSync(SUPERVISOR_PATH, "utf8");
+    // TDA-FIND-05 T4-CO-②: Module C source for IPC dispatch and lifecycle patterns.
+    lifecycleSource = fs.readFileSync(LIFECYCLE_PATH, "utf8");
   });
 
   it("lockDuration(40分) は Embedding Phase のタイムアウトに十分であること", () => {
@@ -783,43 +873,40 @@ describe("v0.1.0 Worker Reliability Integration", () => {
     expect(lockDuration!).toBeGreaterThanOrEqual(2_400_000);
   });
 
-  it("Worker側 process.send の type と Supervisor側の dispatch が一致すること", () => {
+  it("Worker側 process.send の type と Supervisor側の dispatch が一致すること (Module C)", () => {
     // PR-D-8 Phase 2 (MF-02): Worker は SSOT schema 準拠の payload を emit
     // (`type: "job-completed", workerType: "page", jobId, timestamp`).
-    // Supervisor は `verified.type === "job-completed"` で dispatch する。
-    // SSOT schema 経由で type 値の整合性が保証されるため、両側で同じ
-    // string literal `"job-completed"` を参照していることを確認する。
-    // PR-D-8 Phase 2 (MF-02): 両側で同 string literal を参照する。
+    // Module C (lifecycle) は dispatchVerifiedIpc 内で "job-completed" を dispatch。
+    // TDA-FIND-05 T4-CO-②: scan Module C (lifecycleSource) instead of Module A.
     expect(workerSource).toContain('type: "job-completed"');
-    // Supervisor側: dispatchVerifiedIpc 内で "job-completed" string literal を比較
-    expect(supervisorSource).toContain('"job-completed"');
+    // Module C側: dispatchVerifiedIpc 内で "job-completed" string literal を比較
+    expect(lifecycleSource).toContain('"job-completed"');
   });
 
-  it("initiateRestart と shutdown が同じ IPC→SIGTERM→SIGKILL パターンを使用すること", () => {
-    // initiateRestart — PR-D-8 Phase 2: section header anchor で範囲決定。
-    // PR-D-8 Phase 2: per-type 化により section header (Redis lock) で終端。
-    const initiateStart = supervisorSource.indexOf("private initiateRestart");
-    const sectionEnd = supervisorSource.indexOf(
-      "// Private — Redis active-worker lock",
-      initiateStart
+  it("initiateRestart と shutdownChild が同じ IPC→SIGTERM→SIGKILL パターンを使用すること (Module C)", () => {
+    // TDA-FIND-05 T4-CO-②: refactored from Module A scan (stale: private initiateRestart)
+    // to Module C scan. initiateRestart is PUBLIC in Module C post CO-26 split.
+    // PR-D-8 Phase 2: per-type 化により both methods are in WorkerSupervisorLifecycle.
+    const initiateStart = lifecycleSource.indexOf(
+      "initiateRestart(workerType: WorkerType, reason: string): void"
     );
-    const restartMethod = supervisorSource.slice(initiateStart, sectionEnd);
+    const initiateMethod = lifecycleSource.slice(initiateStart, initiateStart + 3000);
 
-    // shutdown (includes shutdownChild helper). PR-D-8 Phase 2:
-    // `getWorkerProcess` は class JSDoc にも登場するため、`async shutdown`
-    // 以降の最初の出現を取る必要がある (`indexOf(needle, fromIndex)`)。
-    // PR-D-8 Phase 2: `getWorkerProcess` は doc comment にも出現するため
-    // shutdown 開始点以降の最初の出現を anchor にする。
-    const shutdownStart = supervisorSource.indexOf("async shutdown(): Promise<void>");
-    const shutdownEnd = supervisorSource.indexOf("getWorkerProcess(): ChildProcess", shutdownStart);
-    const shutdownMethod = supervisorSource.slice(shutdownStart, shutdownEnd);
+    // shutdownChild anchor in Module C
+    const shutdownStart = lifecycleSource.indexOf(
+      "async shutdownChild(workerType: WorkerType): Promise<void>"
+    );
+    const shutdownMethod = lifecycleSource.slice(shutdownStart, shutdownStart + 2000);
 
     // 両方とも3つのフェーズを含む
-    for (const method of [restartMethod, shutdownMethod]) {
+    for (const method of [initiateMethod, shutdownMethod]) {
       expect(method).toContain('send({ type: "shutdown" })');
       expect(method).toContain('kill("SIGTERM")');
       expect(method).toContain('kill("SIGKILL")');
     }
+    // Runtime assertion: both methods exist on WorkerSupervisorLifecycle
+    expect(typeof WorkerSupervisorLifecycle.prototype.initiateRestart).toBe("function");
+    expect(typeof WorkerSupervisorLifecycle.prototype.shutdownChild).toBe("function");
   });
 
   it("sharedLayoutEmbeddingService がワーカー起動時にシングルトンとして初期化されること", () => {

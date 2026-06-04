@@ -43,7 +43,7 @@ vi.mock("../../../src/config/redis", () => ({
 vi.mock("../../../src/queues/page-analyze-queue", () => ({
   PAGE_ANALYZE_QUEUE_NAME: "page-analyze",
   createPageAnalyzeQueue: vi.fn(),
-  addPageAnalyzeJob: vi.fn(),
+  addPageAnalyzeJobWithGuard: vi.fn(),
   getJobStatus: vi.fn(),
   closeQueue: vi.fn(),
   checkQueueHealth: vi.fn(),
@@ -60,11 +60,10 @@ import { isRedisAvailable, checkRedisConnection, getRedisConfig } from "../../..
 import {
   PAGE_ANALYZE_QUEUE_NAME,
   createPageAnalyzeQueue,
-  addPageAnalyzeJob,
+  addPageAnalyzeJobWithGuard,
   getJobStatus,
   closeQueue,
   checkQueueHealth,
-  type PageAnalyzeJobData,
   type PageAnalyzeJobResult,
   type PageAnalyzeJobStatus,
 } from "../../../src/queues/page-analyze-queue";
@@ -86,22 +85,6 @@ const TEST_URL = "https://example.com/test-page";
 // ============================================================================
 // モックデータ Factory
 // ============================================================================
-
-/**
- * モックジョブデータを生成
- */
-function createMockJobData(overrides?: Partial<PageAnalyzeJobData>): PageAnalyzeJobData {
-  return {
-    webPageId: TEST_WEB_PAGE_ID,
-    url: TEST_URL,
-    options: {
-      timeout: 60000,
-      features: { layout: true, motion: true, quality: true },
-    },
-    createdAt: new Date().toISOString(),
-    ...overrides,
-  };
-}
 
 /**
  * モックジョブ結果を生成
@@ -267,42 +250,44 @@ describe("Phase3-1: BullMQ + Redis基盤", () => {
     it("should add job to queue", async () => {
       // Arrange
       const mockQueue = createMockQueue();
-      const mockJob = {
-        id: TEST_WEB_PAGE_ID,
-        data: createMockJobData(),
+      const mockEnqueueResult = {
+        outcome: "enqueued_new",
+        jobId: TEST_WEB_PAGE_ID,
+        collision: null,
       };
-      (addPageAnalyzeJob as Mock).mockResolvedValue(mockJob);
+      (addPageAnalyzeJobWithGuard as Mock).mockResolvedValue(mockEnqueueResult);
 
       // Act
-      const job = await addPageAnalyzeJob(mockQueue as any, {
+      const result = await addPageAnalyzeJobWithGuard(mockQueue as any, {
         webPageId: TEST_WEB_PAGE_ID,
         url: TEST_URL,
         options: { timeout: 60000 },
       });
 
       // Assert
-      expect(addPageAnalyzeJob).toHaveBeenCalled();
-      expect(job.id).toBe(TEST_WEB_PAGE_ID);
-      expect(job.data.url).toBe(TEST_URL);
+      expect(addPageAnalyzeJobWithGuard).toHaveBeenCalled();
+      expect(result.jobId).toBe(TEST_WEB_PAGE_ID);
+      expect(result.outcome).toBe("enqueued_new");
     });
 
-    it("should use webPageId as job ID", async () => {
+    it("should derive jobId via addPageAnalyzeJobWithGuard (URL-stable convention)", async () => {
       // Arrange
-      const mockJob = {
-        id: TEST_WEB_PAGE_ID,
-        data: createMockJobData(),
+      const mockEnqueueResult = {
+        outcome: "enqueued_new",
+        jobId: TEST_WEB_PAGE_ID,
+        collision: null,
       };
-      (addPageAnalyzeJob as Mock).mockResolvedValue(mockJob);
+      (addPageAnalyzeJobWithGuard as Mock).mockResolvedValue(mockEnqueueResult);
 
       // Act
-      const job = await addPageAnalyzeJob({} as any, {
+      const result = await addPageAnalyzeJobWithGuard({} as any, {
         webPageId: TEST_WEB_PAGE_ID,
         url: TEST_URL,
         options: {},
       });
 
       // Assert
-      expect(job.id).toBe(TEST_WEB_PAGE_ID);
+      expect(result.jobId).toBe(TEST_WEB_PAGE_ID);
     });
   });
 
@@ -370,39 +355,41 @@ describe("Phase3-2: page.analyze 非同期モード", () => {
     it("should queue job when async=true and Redis is available", async () => {
       // Arrange
       (isRedisAvailable as Mock).mockResolvedValue(true);
-      const mockJob = {
-        id: TEST_WEB_PAGE_ID,
-        data: createMockJobData(),
+      const mockEnqueueResult = {
+        outcome: "enqueued_new",
+        jobId: TEST_WEB_PAGE_ID,
+        collision: null,
       };
-      (addPageAnalyzeJob as Mock).mockResolvedValue(mockJob);
+      (addPageAnalyzeJobWithGuard as Mock).mockResolvedValue(mockEnqueueResult);
 
       // Act & Assert - ジョブ追加が呼ばれることを確認
-      const job = await addPageAnalyzeJob({} as any, {
+      const result = await addPageAnalyzeJobWithGuard({} as any, {
         webPageId: TEST_WEB_PAGE_ID,
         url: TEST_URL,
         options: {},
       });
 
-      expect(job.id).toBe(TEST_WEB_PAGE_ID);
+      expect(result.jobId).toBe(TEST_WEB_PAGE_ID);
     });
 
     it("should return jobId in async response", async () => {
       // Arrange
-      const mockJob = {
-        id: TEST_WEB_PAGE_ID,
-        data: createMockJobData(),
+      const mockEnqueueResult = {
+        outcome: "enqueued_new",
+        jobId: TEST_WEB_PAGE_ID,
+        collision: null,
       };
-      (addPageAnalyzeJob as Mock).mockResolvedValue(mockJob);
+      (addPageAnalyzeJobWithGuard as Mock).mockResolvedValue(mockEnqueueResult);
 
       // Act
-      const job = await addPageAnalyzeJob({} as any, {
+      const result = await addPageAnalyzeJobWithGuard({} as any, {
         webPageId: TEST_WEB_PAGE_ID,
         url: TEST_URL,
         options: {},
       });
 
       // Assert
-      expect(job.id).toMatch(
+      expect(result.jobId).toMatch(
         /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
       );
     });
@@ -619,19 +606,20 @@ describe("Phase3 エンドツーエンドフロー", () => {
     it("should complete full async analysis flow", async () => {
       // Arrange - ジョブ投入
       (isRedisAvailable as Mock).mockResolvedValue(true);
-      const mockJob = {
-        id: TEST_WEB_PAGE_ID,
-        data: createMockJobData(),
+      const mockEnqueueResult = {
+        outcome: "enqueued_new",
+        jobId: TEST_WEB_PAGE_ID,
+        collision: null,
       };
-      (addPageAnalyzeJob as Mock).mockResolvedValue(mockJob);
+      (addPageAnalyzeJobWithGuard as Mock).mockResolvedValue(mockEnqueueResult);
 
       // Step 1: ジョブ投入
-      const job = await addPageAnalyzeJob({} as any, {
+      const result = await addPageAnalyzeJobWithGuard({} as any, {
         webPageId: TEST_WEB_PAGE_ID,
         url: TEST_URL,
         options: { timeout: 60000 },
       });
-      expect(job.id).toBe(TEST_WEB_PAGE_ID);
+      expect(result.jobId).toBe(TEST_WEB_PAGE_ID);
 
       // Step 2: ステータス確認（waiting）
       (getJobStatus as Mock).mockResolvedValue(createMockJobStatus("waiting"));
@@ -817,16 +805,17 @@ describe("Phase3 パフォーマンス", () => {
 
   it("should handle concurrent job additions (mocked)", async () => {
     // Arrange
-    const mockJob = {
-      id: TEST_WEB_PAGE_ID,
-      data: createMockJobData(),
+    const mockEnqueueResult = {
+      outcome: "enqueued_new",
+      jobId: TEST_WEB_PAGE_ID,
+      collision: null,
     };
-    (addPageAnalyzeJob as Mock).mockResolvedValue(mockJob);
+    (addPageAnalyzeJobWithGuard as Mock).mockResolvedValue(mockEnqueueResult);
 
     // Act - 並列でジョブ追加
     const startTime = performance.now();
     const promises = Array.from({ length: 50 }, (_, i) =>
-      addPageAnalyzeJob({} as any, {
+      addPageAnalyzeJobWithGuard({} as any, {
         webPageId: `01903a5b-7c8d-7000-8000-0000000000${String(i).padStart(2, "0")}`,
         url: `https://example.com/page-${i}`,
         options: {},
@@ -873,11 +862,13 @@ describe("Phase3 エラーハンドリング", () => {
 
   it("should handle job addition failure gracefully", async () => {
     // Arrange
-    (addPageAnalyzeJob as Mock).mockRejectedValue(new Error("Failed to add job: Queue is paused"));
+    (addPageAnalyzeJobWithGuard as Mock).mockRejectedValue(
+      new Error("Failed to add job: Queue is paused")
+    );
 
     // Act & Assert
     await expect(
-      addPageAnalyzeJob({} as any, {
+      addPageAnalyzeJobWithGuard({} as any, {
         webPageId: TEST_WEB_PAGE_ID,
         url: TEST_URL,
         options: {},

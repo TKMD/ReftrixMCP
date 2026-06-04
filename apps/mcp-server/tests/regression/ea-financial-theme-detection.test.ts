@@ -23,11 +23,57 @@
  * - Luminance < 0.3
  * - Glow/Gradient 効果の検出
  *
+ * Vision AI Mock (C-3 / Plan V1 §3.3 / IO V1 anchor 019dfab3):
+ * - §5 ThemeAnalyzer Integration tests previously timed out (60s) when Ollama
+ *   was unreachable. Per Plan V1 Path A, OllamaVisionClient is mocked at the
+ *   test boundary (vi.mock + vi.hoisted, ADR-0020 Amendment 4 pattern) so the
+ *   Vision AI HTTP call returns synthetic data immediately.
+ * - 3-statement contract:
+ *   1. Mock confined to this test file via vi.mock; production code untouched;
+ *      SSRF defense (validateOllamaLocalhostUrl) preserved end-to-end.
+ *   2. Mock fixture is synthetic (no third-party Vision AI captures, no
+ *      Reftrix-LP imports) — LCC L-4 derivative-content concern N/A.
+ *   3. Mock helper has no branches (cyclomatic complexity = 1).
+ *
  * @module tests/regression/ea-financial-theme-detection.test
  */
 
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
 import sharp from "sharp";
+
+// =====================================================
+// Vision AI Mock (C-3 fix)
+// =====================================================
+// vi.hoisted ensures mock objects exist before vi.mock factory runs (static
+// hoisting per ADR-0020 Amendment 4). This avoids vi.doMock async race.
+const { syntheticVisionResponse } = vi.hoisted(() => ({
+  // Synthetic Vision AI response shaped to match VisionThemeResponse contract
+  // (theme.analyzer.ts:107-113). Returns a "dark" classification consistent
+  // with the test fixtures (#0A1628 ダークブルー背景).
+  // Cyclomatic complexity = 1 (no branches, single literal object).
+  syntheticVisionResponse: {
+    theme: "dark",
+    themeConfidence: 0.95,
+    primaryBackgroundColor: "#0A1628",
+    visualFeatures: ["dark-navy-blue-background", "synthetic-fixture"],
+    reasoning: "Synthetic mock response for ea-financial-theme regression test",
+  },
+}));
+
+vi.mock("../../src/services/vision/ollama-vision-client", () => {
+  // Mock OllamaVisionClient so analyze() resolves immediately instead of
+  // hitting the 60s default timeout when Ollama is unreachable. Only the two
+  // methods consumed by ThemeAnalyzer (generateJSON / isAvailable) are stubbed.
+  class MockOllamaVisionClient {
+    async generateJSON<T = unknown>(): Promise<T> {
+      return syntheticVisionResponse as unknown as T;
+    }
+    async isAvailable(): Promise<boolean> {
+      return true;
+    }
+  }
+  return { OllamaVisionClient: MockOllamaVisionClient };
+});
 
 // テスト対象のサービス
 import {

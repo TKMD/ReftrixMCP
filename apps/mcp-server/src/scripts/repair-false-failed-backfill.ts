@@ -56,7 +56,7 @@
 
 import { prisma } from "@reftrixmcp/database";
 import { computeRemainingStatusWithPrisma } from "../services/backfill-status.helper";
-import { getAuditLogService } from "../services/audit-log.service";
+import { AUDIT_LOG_CONSTANTS, getAuditLogService } from "../services/audit-log.service";
 import { SKIP_RECOVERY_RETRY_CAP } from "../queues/embedding-backfill-queue";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
 
@@ -162,7 +162,7 @@ async function repairOneRow(
 
   if (args.dryRun) {
     console.log("[RepairFalseFailedBackfill] [dry-run] Would correct failed → completed", {
-      webPageId: row.id.slice(0, 8) + "...",
+      webPageId: row.id.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
       retryCount: row.retryCount,
     });
     return;
@@ -180,7 +180,7 @@ async function repairOneRow(
   if (updated.count === 0) {
     result.concurrentUpdatesSkipped += 1;
     console.log("[RepairFalseFailedBackfill] Status changed concurrently — skipping", {
-      webPageId: row.id.slice(0, 8) + "...",
+      webPageId: row.id.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
     });
     return;
   }
@@ -208,7 +208,7 @@ async function repairOneRow(
   }
 
   console.log("[RepairFalseFailedBackfill] Corrected failed → completed", {
-    webPageId: row.id.slice(0, 8) + "...",
+    webPageId: row.id.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
     retryCount: row.retryCount,
   });
 }
@@ -256,7 +256,7 @@ async function main(): Promise<void> {
       } catch (error) {
         result.errors += 1;
         console.warn("[RepairFalseFailedBackfill] Failed to repair row (non-fatal)", {
-          webPageId: row.id.slice(0, 8) + "...",
+          webPageId: row.id.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
           error: sanitizeErrorMessage(error),
         });
       }

@@ -25,9 +25,11 @@
  * @module services/gdpr-deletion.service
  */
 
+import { createHash } from "node:crypto";
 import { logger } from "../utils/logger";
-import { sanitizeErrorMessage } from "../utils/sanitize-error";
+import { sanitizeAnalysisErrorForClient, sanitizeErrorMessage } from "../utils/sanitize-error";
 import { truncateId } from "../utils/truncate-id";
+import { AUDIT_LOG_CONSTANTS } from "./audit-log.service";
 import type { IPhase5ScreenshotPersistence } from "./screenshot-persistence.types";
 
 // =====================================================
@@ -111,10 +113,29 @@ export interface ProfileDeletionResult {
     search_logs_anonymized: number;
   };
   deleted_at: string;
+  /**
+   * profileId の SHA-256 hash (hex, full digest). 8-char prefix collision 監査用
+   * (GDPR Art.30 post-deletion verification trail; CO-5 UC-4 / LCC-CO5-02 closure).
+   * SHA-256 hex digest of profileId; used as 8-char prefix collision audit
+   * anchor (GDPR Art.30 verification trail).
+   */
+  profile_id_hash?: string;
 }
 
 /**
  * 全ユーザーデータ削除結果 / All user data deletion result
+ *
+ * CO-5 UC-4 (LCC-CO5-02 closure): GDPR Art.30 post-deletion verification trail
+ * フィールドを追加。`search_logs_anonymized` は SQL LIKE prefix-match で NULL 化
+ * された search_logs 件数、`profile_id_hash` は profileId の SHA-256 hash
+ * (8-char prefix collision 監査用、PII 露出なし)。`profile_id_hash` は profile
+ * 削除時のみ設定。
+ *
+ * CO-5 UC-4 (LCC-CO5-02 closure): GDPR Art.30 post-deletion verification trail
+ * fields. `search_logs_anonymized` is the count of search_logs rows NULL-ified
+ * via SQL LIKE prefix match; `profile_id_hash` is the SHA-256 of profileId
+ * (for 8-char prefix collision audit, no PII exposure). `profile_id_hash` is
+ * only set when a profile was deleted.
  */
 export interface AllUserDataDeletionResult {
   deleted: boolean;
@@ -122,6 +143,18 @@ export interface AllUserDataDeletionResult {
   profile_deleted: boolean;
   reason: string;
   deleted_at: string;
+  /**
+   * search_logs anonymization 件数 (SQL LIKE prefix-match). profileId 不在時 0.
+   * Number of search_logs rows anonymized via SQL LIKE prefix match.
+   */
+  search_logs_anonymized: number;
+  /**
+   * profileId の SHA-256 hash (hex, full digest). profile 削除時のみ設定。
+   * 8-char prefix collision 監査用 (GDPR Art.30 post-deletion verification trail).
+   * SHA-256 hex digest of profileId (set only when profile was deleted);
+   * used as 8-char prefix collision audit anchor (GDPR Art.30 verification).
+   */
+  profile_id_hash?: string;
 }
 
 /**
@@ -180,6 +213,59 @@ function validateReason(reason: string): void {
   if (!reason || reason.trim().length === 0) {
     throw new Error("Deletion reason is required");
   }
+}
+
+/**
+ * profileId を SQL LIKE prefix-match 用に truncate する。
+ * AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH SSOT から長さを導出 (CO-5 UC-3 Option α
+ * cross-SSOT consistency)。Suffix `+ "%"` は SQL LIKE wildcard semantic 要件のため
+ * inline literal で保持 (helper 化すると semantic が壊れる、Plan §3.2 A-iii rationale)。
+ *
+ * Length-invariant guard (CO-5 UC-2 / SEC-CO5-02): Zod UUID 契約 (`data.tool.ts`
+ * `z.string().uuid()`) で runtime exploit は構造的に防止されているが、Zod 緩和時の
+ * silent over-deletion regression を防ぐ defence-in-depth。profileId が
+ * TARGET_ID_TRUNCATE_LENGTH 未満の場合 throw (現在 length=8、UUID は length=36 のため
+ * cold path)。
+ *
+ * Truncates profileId for SQL LIKE prefix-match anonymization (GDPR Art.17).
+ * Length is derived from `AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH` SSOT
+ * (CO-5 UC-3 Option α cross-SSOT consistency). The `+ "%"` suffix is a SQL LIKE
+ * wildcard semantic requirement and intentionally retained as an inline literal
+ * (helper-wrapping would break semantic; see Plan §3.2 A-iii rationale).
+ *
+ * Length-invariant guard (CO-5 UC-2 / SEC-CO5-02): Defense-in-depth in case
+ * Zod UUID validation in `data.tool.ts` is relaxed. Throws when profileId is
+ * shorter than `TARGET_ID_TRUNCATE_LENGTH` (cold path under current contract).
+ *
+ * @param profileId - SQL LIKE 用に truncate する profileId / profileId to truncate
+ * @returns SQL LIKE pattern (`<truncated>%`) / SQL LIKE pattern
+ */
+function truncateProfileIdForSqlLike(profileId: string): string {
+  // CO-5 UC-2 length-invariant guard (SEC-CO5-02 defense-in-depth)
+  if (profileId.length < AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) {
+    throw new Error(
+      `profileId too short for SQL LIKE prefix pattern (length=${profileId.length}, ` +
+        `required>=${AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH})`
+    );
+  }
+  // NOTE: SQL LIKE wildcard for prefix-match anonymization (GDPR Art.17).
+  // Length follows AUDIT_LOG_CONSTANTS SSOT; suffix `+ "%"` is a SQL LIKE
+  // semantic requirement and intentionally inlined.
+  return profileId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "%";
+}
+
+/**
+ * profileId の SHA-256 hex digest を計算する。
+ * CO-5 UC-4 / LCC-CO5-02: 8-char prefix collision 監査用 (GDPR Art.30
+ * post-deletion verification trail)。Hash は決定的・不可逆で PII を露出しない。
+ *
+ * Compute SHA-256 hex digest of profileId.
+ * CO-5 UC-4 / LCC-CO5-02: For 8-char prefix collision audit (GDPR Art.30
+ * post-deletion verification trail). Hash is deterministic, non-reversible,
+ * and does not expose PII.
+ */
+function hashProfileIdForAudit(profileId: string): string {
+  return createHash("sha256").update(profileId, "utf8").digest("hex");
 }
 
 // =====================================================
@@ -508,9 +594,13 @@ export class GdprDeletionService {
 
       // search_logs の profileId を NULL化（GDPR Art.17 包括的削除）
       // Anonymize search_logs profileId (GDPR Art.17 comprehensive erasure)
-      // profileId はtruncateId()済み（8文字+...）のため前方一致で検索
-      // profileId is truncated (8 chars + ...) so use prefix match
-      const truncatedProfileId = profileId.slice(0, 8) + "%";
+      // profileId は search-log.service.ts で truncateId() 済み（8文字+...）のため
+      // SQL LIKE prefix-match で検索する。Length は AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH
+      // SSOT 由来 (CO-5 UC-3 Option α cross-SSOT consistency)。
+      // profileId is truncated (8 chars + ...) in search-log.service.ts, so use
+      // SQL LIKE prefix-match. Length is derived from
+      // AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH SSOT (CO-5 UC-3 Option α).
+      const truncatedProfileId = truncateProfileIdForSqlLike(profileId);
       searchLogsAnonymized = await tx.$executeRawUnsafe(
         `UPDATE search_logs SET "profile_id" = NULL WHERE "profile_id" LIKE $1`,
         truncatedProfileId
@@ -524,9 +614,13 @@ export class GdprDeletionService {
     });
 
     const deletedAt = new Date().toISOString();
+    // CO-5 UC-4 / LCC-CO5-02: GDPR Art.30 post-deletion verification trail
+    // 8-char prefix collision 監査用 (collision: birthday paradox at 10K user scale ~1.2%)
+    const profileIdHash = hashProfileIdForAudit(profileId);
 
     logger.warn("[GdprDeletionService] Profile deletion completed (GDPR Art.17)", {
       profileId: truncateId(profileId),
+      profileIdHash,
       action: "profile_delete_completed",
       deletedRecords: {
         preference_profiles: profileCount,
@@ -546,6 +640,7 @@ export class GdprDeletionService {
         search_logs_anonymized: searchLogsAnonymized,
       },
       deleted_at: deletedAt,
+      profile_id_hash: profileIdHash,
     };
   }
 
@@ -583,6 +678,14 @@ export class GdprDeletionService {
     const prisma = this.getPrismaClient();
     let pagesDeleted = 0;
     let profileDeleted = false;
+    /**
+     * CO-5 UC-4 / LCC-CO5-02 closure: search_logs anonymization 件数を tracking。
+     * GDPR Art.30 post-deletion verification trail に audit log details として記録。
+     *
+     * Tracks search_logs anonymization count for GDPR Art.30 post-deletion
+     * verification trail (recorded in audit_logs.details by the calling tool).
+     */
+    let searchLogsAnonymized = 0;
     /**
      * トランザクション内で削除成功した page ID を収集し、
      * コミット後に screenshot ファイルを best-effort 削除する。
@@ -632,8 +735,12 @@ export class GdprDeletionService {
 
           // search_logs の profileId を NULL化（GDPR Art.17 包括的削除）
           // Anonymize search_logs profileId (GDPR Art.17 comprehensive erasure)
-          const truncatedProfileId = profileId.slice(0, 8) + "%";
-          await tx.$executeRawUnsafe(
+          // Length は AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH SSOT 由来
+          // (CO-5 UC-3 Option α cross-SSOT consistency)。
+          // Length is derived from AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH
+          // SSOT (CO-5 UC-3 Option α cross-SSOT consistency).
+          const truncatedProfileId = truncateProfileIdForSqlLike(profileId);
+          searchLogsAnonymized = await tx.$executeRawUnsafe(
             `UPDATE search_logs SET "profile_id" = NULL WHERE "profile_id" LIKE $1`,
             truncatedProfileId
           );
@@ -654,21 +761,33 @@ export class GdprDeletionService {
     }
 
     const deletedAt = new Date().toISOString();
+    // CO-5 UC-4 / LCC-CO5-02: GDPR Art.30 post-deletion verification trail
+    // profile 削除時のみ hash を計算 (8-char prefix collision audit anchor)
+    // Compute hash only when profile was deleted (8-char prefix collision audit)
+    const profileIdHash =
+      profileDeleted && profileId ? hashProfileIdForAudit(profileId) : undefined;
 
     logger.warn("[GdprDeletionService] All user data deletion completed (GDPR Art.17)", {
       action: "all_user_data_delete_completed",
       pagesDeleted,
       profileDeleted,
+      searchLogsAnonymized,
+      profileIdHash,
       deletedAt,
     });
 
-    return {
+    const result: AllUserDataDeletionResult = {
       deleted: true,
       pages_deleted: pagesDeleted,
       profile_deleted: profileDeleted,
       reason,
       deleted_at: deletedAt,
+      search_logs_anonymized: searchLogsAnonymized,
     };
+    if (profileIdHash !== undefined) {
+      result.profile_id_hash = profileIdHash;
+    }
+    return result;
   }
 
   /**
@@ -684,9 +803,16 @@ export class GdprDeletionService {
     const prisma = this.getPrismaClient();
 
     // web_page 取得 / Get web_page
+    // T4 SEC H-01 / TPA M-02 §6.3 align: SELECT failed_with_known_reason and
+    // sanitize via sanitizeAnalysisErrorForClient() before serialising to GDPR
+    // Art.20 export. Maps internal canonical
+    // `worker_restart_during_inflight_phase_<N>` → generic
+    // `analysis_pipeline_interrupted` literal (CWE-209 information exposure
+    // defense). Pass-through for non-T4 reasons.
     const pages = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(
       `SELECT id, url, title, source_type, source_platform, usage_scope,
-              analysis_status, analysis_phase_status, crawled_at, created_at, updated_at
+              analysis_status, analysis_phase_status, failed_with_known_reason,
+              crawled_at, created_at, updated_at
        FROM web_pages WHERE id = $1::uuid`,
       pageId
     );
@@ -694,6 +820,19 @@ export class GdprDeletionService {
     if (pages.length === 0) {
       throw new Error("Page not found");
     }
+
+    // SEC H-01 sanitisation per design §6.3: rename column to client-safe
+    // `failed_known_reason` and apply 1:1 generic mapping before export.
+    const rawPage = pages[0]!;
+    const rawFailedReason = rawPage.failed_with_known_reason;
+    const sanitizedFailedReason = sanitizeAnalysisErrorForClient(
+      typeof rawFailedReason === "string" ? rawFailedReason : null
+    );
+    const { failed_with_known_reason: _omitInternalCanonical, ...pageRest } = rawPage;
+    const sanitizedPage: Record<string, unknown> = {
+      ...pageRest,
+      failed_known_reason: sanitizedFailedReason,
+    };
 
     // 関連テーブル取得 / Get related tables
     const sectionPatterns = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(
@@ -743,7 +882,7 @@ export class GdprDeletionService {
       page_id: pageId,
       export_format: "json",
       data: {
-        web_page: pages[0]!,
+        web_page: sanitizedPage,
         section_patterns: sectionPatterns,
         component_parts: componentParts,
         motion_patterns: motionPatterns,

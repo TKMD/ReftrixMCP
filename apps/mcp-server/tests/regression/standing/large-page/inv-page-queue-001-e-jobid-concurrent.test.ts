@@ -14,7 +14,9 @@
  *
  * Scope (5 tests, 3 blocks) per Plan v1.2 §4.2:
  *   - Block A (1): AST source-pin — `addPageAnalyzeJobWithGuard` signature
- *                   + jobId convention (webPageId only, no category suffix).
+ *                   + jobId convention (URL-stable UUIDv5
+ *                   `buildUrlStableJobId(data.url)`, NOT `data.webPageId`;
+ *                   ADR-0018 Amendment 11 / NEW-TDA-V1-01).
  *   - Block B (2): Fixture-based contract — 100 parallel unique-key submit
  *                   (all enqueued_new) + 100 parallel 50-unique-key
  *                   (50 winners + 50 losers via simulation).
@@ -31,7 +33,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import * as crypto from "node:crypto";
 import { PrismaClient } from "@prisma/client";
-import { Queue } from "bullmq";
+import type { Queue } from "bullmq";
 import { assertInvName } from "../_setup/inv-assert";
 import { addMcpServerSourceFile, createAstProject } from "../schema-enum-sync/_extractors";
 import {
@@ -102,20 +104,27 @@ describe("INV-PAGE-QUEUE-001-E: page-analyze 100+ concurrent jobId collision gua
       assertInvName(expect.getState().currentTestName ?? "", "INV-PAGE-QUEUE-001-E");
     });
 
-    it("INV-PAGE-QUEUE-001-E: A13 — addPageAnalyzeJobWithGuard signature pins `EnqueueResult` return + webPageId-only jobId convention", () => {
+    it("INV-PAGE-QUEUE-001-E: A13 — addPageAnalyzeJobWithGuard signature pins `EnqueueResult` return + URL-stable UUIDv5 jobId convention", () => {
       // Signature pin: helper returns discriminated `EnqueueResult`, not a
-      // `Job<T>` (distinct from legacy `addPageAnalyzeJob`).
+      // `Job<T>` (distinct from the now-removed legacy `addPageAnalyzeJob`).
       expect(pageAnalyzeSource).toMatch(
         /export\s+async\s+function\s+addPageAnalyzeJobWithGuard[\s\S]+?:\s*Promise<EnqueueResult>/
       );
-      // jobId convention: page-analyze uses webPageId as the canonical jobId
-      // (no category suffix, unlike embedding-backfill's `<webPageId>__<category>`).
-      // The helper feeds `data.webPageId` directly into `enqueueWithCollisionGuard`
-      // via the `jobId` property.
-      expect(pageAnalyzeSource).toMatch(/jobId:\s*data\.webPageId/);
-      // Legacy helper marker: @deprecated JSDoc present on the bare helper.
-      expect(pageAnalyzeSource).toMatch(
-        /@deprecated\s+Use\s+\{@link\s+addPageAnalyzeJobWithGuard\}/
+      // jobId convention (ADR-0018 Amendment 11 / PR-SAMEURL-DEDUP, Strategy A):
+      // page-analyze derives the canonical jobId from the URL via
+      // `buildUrlStableJobId(data.url)` (a UUIDv5), NOT `data.webPageId`. This
+      // makes near-concurrent same-URL submits share one jobId so the collision
+      // guard routes losers to the incumbent. The payload still carries
+      // `data.webPageId` as a per-call UUIDv7 for the web_pages FK.
+      expect(pageAnalyzeSource).toMatch(/jobId:\s*buildUrlStableJobId\(data\.url\)/);
+      // Behavioural sibling: the same UUIDv5 jobId is asserted at runtime by
+      // INV-PAGE-SAMEURL-DEDUP-001 Block A (uuid.validate + jobId !== webPageId).
+      // PR-L1b: legacy `addPageAnalyzeJob` helper removed (SEC-IMPL-L-01 / TDA-IMPL-L-02).
+      // Inverse-assert pin: the bare `addPageAnalyzeJob` export MUST NOT reappear.
+      // Negative lookahead `(?!WithGuard)` excludes the surviving
+      // `addPageAnalyzeJobWithGuard` so the guard does not trip this pin.
+      expect(pageAnalyzeSource).not.toMatch(
+        /export\s+async\s+function\s+addPageAnalyzeJob(?!WithGuard)\b/
       );
       // page-analyze-worker must import with-guard helper (all 3 call sites
       // at L442 / L458 / L487 per Plan §4.2 #17 scope hint).
@@ -133,9 +142,11 @@ describe("INV-PAGE-QUEUE-001-E: page-analyze 100+ concurrent jobId collision gua
 
     it("INV-PAGE-QUEUE-001-E: B14 — 100 parallel submit with 100 unique webPageIds: all enqueued_new (simulated, deterministic)", () => {
       // Plan §4.2 Block B #14 (seeded, no real Redis): model the
-      // `addPageAnalyzeJobWithGuard` outcome for 100 distinct keys. Each
-      // call has an independent claim key (`reftrix:page-analyze:jobclaim:<webPageId>`)
-      // → the atomic SETNX always succeeds → outcome `enqueued_new`.
+      // `addPageAnalyzeJobWithGuard` outcome for 100 distinct keys. The jobId
+      // is the URL-stable UUIDv5 `buildUrlStableJobId(data.url)` (ADR-0018
+      // Amendment 11), so each distinct URL yields a distinct claim key
+      // (`reftrix:page-analyze:jobclaim:<uuidv5>`) → the atomic SETNX always
+      // succeeds → outcome `enqueued_new`.
       const webPageIds = Array.from({ length: 100 }, () => crypto.randomUUID());
       const simulated: EnqueueResult[] = webPageIds.map((id) => ({
         outcome: "enqueued_new",
@@ -146,7 +157,11 @@ describe("INV-PAGE-QUEUE-001-E: page-analyze 100+ concurrent jobId collision gua
       const enqueuedNewCount = simulated.filter((r) => r.outcome === "enqueued_new").length;
       expect(enqueuedNewCount).toBe(100);
 
-      // JobId == webPageId convention (page-analyze does not suffix category).
+      // The page-analyze jobId is a single bare UUID with no category suffix.
+      // In production it is the URL-stable UUIDv5 `buildUrlStableJobId(data.url)`
+      // (ADR-0018 Amendment 11), NOT the webPageId; this simulation uses the
+      // webPageId UUID only as a same-shape stand-in, so the assertion checks
+      // the UUID shape (suffix-free), not equality with webPageId.
       for (const result of simulated) {
         expect(result.jobId).toMatch(
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
@@ -296,10 +311,17 @@ describe("INV-PAGE-QUEUE-001-E: page-analyze 100+ concurrent jobId collision gua
 
     it("INV-PAGE-QUEUE-001-E: C16 — 100 parallel addPageAnalyzeJobWithGuard: no drop under real BullMQ, all jobIds unique, queue counts accurate", async () => {
       // Plan §4.2 Block C #16 (real Redis race reproduction).
-      // Submit 100 distinct webPageIds in parallel. Each claim is a
-      // distinct Redis key (`reftrix:page-analyze:jobclaim:<webPageId>`),
-      // so atomic SETNX always wins for each → every caller receives
-      // `enqueued_new`. No silent drops, no duplicate jobId in BullMQ.
+      // Submit 100 webPageIds in parallel. ADR-0018 Amendment 11 / NEW-TDA-V1-01:
+      // the jobId is now the URL-stable UUIDv5 `buildUrlStableJobId(data.url)`,
+      // NOT `<webPageId>`. C16 stays `all enqueued_new` because `buildJobData`
+      // embeds the per-call webPageId in the URL
+      // (`…/inv-page-queue-001-e/${webPageId}`), so each URL is distinct → each
+      // claim is a distinct Redis key (`reftrix:page-analyze:jobclaim:<uuidv5>`)
+      // and atomic SETNX always wins. SILENT-REGRESS WARNING: if `buildJobData`
+      // is changed to a shared/static URL, the per-call URLs collapse to one
+      // UUIDv5 and C16 silently regresses (winners + losers, not all 100
+      // enqueued_new). C16's invariant depends on URL per-call distinctness, not
+      // on webPageId distinctness.
       const webPageIds = Array.from({ length: 100 }, () => crypto.randomUUID());
 
       const promises = webPageIds.map((id) => addPageAnalyzeJobWithGuard(queue, buildJobData(id)));

@@ -53,7 +53,7 @@ import { logger } from "../../../utils/logger";
 import { partBboxLaunchSemaphore } from "../../../utils/launch-semaphore";
 import { sanitizeErrorMessage } from "../../../utils/sanitize-error";
 import { resolvePartBoundingBoxes } from "../../../services/part/part-bbox-playwright.service";
-import { getAuditLogService } from "../../../services/audit-log.service";
+import { AUDIT_LOG_CONSTANTS, getAuditLogService } from "../../../services/audit-log.service";
 
 /**
  * Part bbox 解決ヘルパーのパラメータ
@@ -89,6 +89,16 @@ export interface BboxResolutionParams {
   viewportWidth?: number;
   /** ビューポート高さ / Viewport height */
   viewportHeight?: number;
+  /**
+   * PR-G1 RC1 (SEC-05): scroll sweep 中の lock 延長コールバック。
+   * Queue-based Backfill 経路で `ctx.job.extendLock` を bind して渡す。
+   * 省略時は no-op (Phase 5 dispatch は直接サービスを呼ぶため本ヘルパーを経由しない)。
+   *
+   * Optional lock-extension callback forwarded to the underlying scroll sweep.
+   * The Queue-based Backfill path binds `ctx.job.extendLock` here. No-op when
+   * omitted.
+   */
+  onLockExtend?: () => Promise<void> | void;
 }
 
 /**
@@ -164,7 +174,7 @@ export async function resolvePartBoundingBoxesWithFallback(
     if (!validation.valid) {
       logger.warn("[BboxResolutionHelper] URL blocked by SSRF validation (backfill path)", {
         error: validation.error,
-        webPageId: webPageId.slice(0, 8) + "...",
+        webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
         operator: operator ?? "(none)",
       });
       return { ssrfBlocked: true, resolvedCount: 0, skippedCount: 0 };
@@ -191,6 +201,10 @@ export async function resolvePartBoundingBoxesWithFallback(
     }
     if (params.viewportHeight !== undefined) {
       delegateArgs.viewportHeight = params.viewportHeight;
+    }
+    // PR-G1 RC1 (SEC-05): propagate the lock-extension callback to the scroll sweep.
+    if (params.onLockExtend !== undefined) {
+      delegateArgs.onLockExtend = params.onLockExtend;
     }
     const serviceResult = await resolvePartBoundingBoxes(delegateArgs);
     // PR-D-9 Wave 4 (C-06): only include reload* fields when set (avoid
@@ -233,7 +247,7 @@ export async function resolvePartBoundingBoxesWithFallback(
       // 監査ログ失敗は主処理をブロックしない。
       logger.warn("[BboxResolutionHelper] audit_logs write failed (non-fatal)", {
         error: sanitizeErrorMessage(auditError),
-        webPageId: webPageId.slice(0, 8) + "...",
+        webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
       });
     }
   }

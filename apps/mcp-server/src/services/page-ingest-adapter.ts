@@ -434,6 +434,28 @@ const DEFAULT_VIEWPORT: IngestViewport = {
 const LAZY_SCROLL_MIN_STEP_PX = 500;
 /** Lazy Loadingスクロール最大反復回数 / Max lazy loading scroll iterations */
 const LAZY_SCROLL_MAX_ITERATIONS = 50;
+
+/**
+ * Lazy Loading スクロールの最大反復回数 (SSOT) を返す。
+ * Returns the max lazy-loading scroll iteration cap (SSOT).
+ *
+ * PR-G1 RC1 (SEC-02 = TDA-04): `LAZY_SCROLL_MAX_ITERATIONS` は本モジュールの
+ * module-private 定数だが、`PartBboxPlaywrightService` の full-page scroll sweep
+ * が同じ上限を共有する必要があるため module-level export として公開する。
+ * **再宣言禁止** — part-bbox サービスは本関数を import して上限を取得し、
+ * `50` をハードコードで二重定義してはならない (CWE-770 cap drift 防止)。
+ *
+ * Exposes `LAZY_SCROLL_MAX_ITERATIONS` (module-private constant) as a
+ * module-level export so the `PartBboxPlaywrightService` full-page scroll sweep
+ * can share the same cap. **Re-declaration is forbidden** — the part-bbox
+ * service MUST import this function rather than hardcoding `50` a second time
+ * (prevents CWE-770 cap drift).
+ *
+ * @returns Lazy-loading scroll max iteration cap (50)
+ */
+export function getLazyScrollMaxIterations(): number {
+  return LAZY_SCROLL_MAX_ITERATIONS;
+}
 /** スクロール後描画安定待ち(ms) / Paint stabilization wait after scroll (ms) */
 const LAZY_SCROLL_STABILIZE_MS = 500;
 /** rAFタイムアウト(ms) / requestAnimationFrame timeout (ms) */

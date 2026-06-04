@@ -477,6 +477,31 @@ export async function dataDeleteHandler(input: unknown): Promise<DataDeleteOutpu
     }
 
     // 監査ログ記録（GDPR Art.30） / Audit log (GDPR Art.30)
+    // CO-5 UC-4 / LCC-CO5-02 closure: profile/all_user_data 削除時は
+    // searchLogsAnonymized count + profileIdHash を audit_logs.details に追加
+    // (GDPR Art.30 post-deletion verification trail; 8-char prefix collision
+    // birthday paradox at 10K user scale ~1.2% の事後監査用)。
+    // CO-5 UC-4 / LCC-CO5-02 closure: For profile / all_user_data deletions,
+    // include searchLogsAnonymized count + profileIdHash in audit_logs.details
+    // (GDPR Art.30 post-deletion verification trail for 8-char prefix collision
+    // audit; collision prob. ~1.2% at 10K user scale per birthday paradox).
+    const auditDetails: Record<string, unknown> = { reason: validated.reason };
+    if (validated.target === "profile" || validated.target === "all_user_data") {
+      const r = result as ProfileDeletionResult | AllUserDataDeletionResult;
+      const profileHash =
+        "profile_id_hash" in r && typeof r.profile_id_hash === "string"
+          ? r.profile_id_hash
+          : undefined;
+      const searchLogsCount: number =
+        validated.target === "profile"
+          ? (r as ProfileDeletionResult).deleted_records.search_logs_anonymized
+          : (r as AllUserDataDeletionResult).search_logs_anonymized;
+      auditDetails.searchLogsAnonymized = searchLogsCount;
+      if (profileHash) {
+        auditDetails.profileIdHash = profileHash;
+      }
+    }
+
     const auditLogService = getAuditLogService();
     await auditLogService.log({
       action: "data.delete",
@@ -489,7 +514,7 @@ export async function dataDeleteHandler(input: unknown): Promise<DataDeleteOutpu
             : "all_user_data",
       targetId: validated.id,
       result: "success",
-      details: { reason: validated.reason },
+      details: auditDetails,
     });
 
     // PR7a-4: Queue ジョブ削除の監査ログ（DB 削除と独立に記録）

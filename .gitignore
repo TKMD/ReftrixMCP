@@ -30,7 +30,15 @@ coverage
 .env.production.local
 *.env.local
 
-# SBOM (generated, not committed)
+# SBOM (generated, not committed) / SBOM (生成物、コミット対象外)
+# FIND-WAVE4-V4-FINAL-SEC-L-03 (Wave 4 V4): SBOM artifacts are intentionally gitignored
+# and must be regenerated on demand via `pnpm sbom` (CycloneDX 1.6). The lockfile
+# (`pnpm-lock.yaml`) is the single source of truth for the production dependency tree;
+# any stale entry observed in a locally-cached `sbom.cdx.json` (e.g. an outdated
+# `hono@4.12.16` row after a `4.12.18` bump in `package.json` `pnpm.overrides`) is
+# acceptable because (i) the artifact is not committed, (ii) CI / release flows
+# regenerate the SBOM from the current lockfile state, and (iii) EU CRA Art.13(8)/14(2)
+# transparency is fulfilled by SBOM-on-demand semantics, not by tracked artifacts.
 sbom.cdx.json
 sbom.cdx.xml
 
@@ -107,8 +115,27 @@ captured-frames/
 # Ad-hoc tooling scripts (TDA-BATCH-C-03 / Registry §13.14)
 tmp-scripts/
 
+# Ad-hoc kickoff / dev-scaffolding scripts (TEMPORARY, not product code)
+# PR-BT-4/5 Phase 3 docs-sync F-IMPL-L-05 (TDA L-03 ≡ LCC L-5, IO ruling: exclude
+# from commit scope; `_`-prefixed `_kickoff-*.cjs` are transient dev scaffolding,
+# kept untracked rather than deleted so they remain reusable). IO Impl Decision V0
+# anchor `019e65a3-aaf7`.
+apps/mcp-server/scripts/_kickoff-*.cjs
+
 # TypeScript incremental build cache
 *.tsbuildinfo
 
 # MCP Registry tokens
 .mcpregistry_*
+
+# Operational page-analyze run artifacts (transient)
+# NOTE: docs/page-analyze-progress.json is intentionally tracked (metadata)
+docs/page-analyze-a11y-perf-results.jsonl
+docs/page-analyze-jobs.jsonl
+docs/page-analyze-snapshot-*.jsonl
+
+# Parallel-agent worktrees (Claude Code Agent tool isolation:"worktree" artifacts)
+# C-6 operational artifacts scope extension (IO judgment):
+# .claude/worktrees/agent-*/ are stale subagent worktrees that pollute
+# format:check / docs:verify scans. Excluded defensively for future runs.
+.claude/worktrees/

@@ -34,9 +34,21 @@ import type {
 
 // audit-log.service の getAuditLogService をモック（singleton 化して assertion 可能に）
 // Mock getAuditLogService as a singleton so call assertions persist across invocations
+// CO-5: include truncateAuditTargetId helper + AUDIT_LOG_CONSTANTS in the mock so
+// that backfill-reconciliation.service.ts can import them (added in CO-5 Phase 2).
 const mockAuditLog = vi.fn(async () => undefined);
 vi.mock("../../src/services/audit-log.service", () => ({
   getAuditLogService: vi.fn(() => ({ log: mockAuditLog })),
+  truncateAuditTargetId: vi.fn((id: string) => (id.length <= 8 ? id : id.slice(0, 8) + "...")),
+  AUDIT_LOG_CONSTANTS: {
+    DEFAULT_QUERY_LIMIT: 20,
+    MAX_QUERY_LIMIT: 100,
+    DEFAULT_RETENTION_DAYS: 365,
+    TARGET_ID_TRUNCATE_LENGTH: 8,
+    WORKER_ZOMBIE_RECOVERED_ACTION: "worker_zombie_recovered",
+    WORKER_ZOMBIE_RECOVERED_ACTOR_PREFIX: "operator:",
+    WORKER_ZOMBIE_RECOVERY_METHODS: ["force_release_redis_lock"] as const,
+  },
 }));
 
 type MockedQueue = Queue<EmbeddingBackfillJobData, EmbeddingBackfillJobResult>;

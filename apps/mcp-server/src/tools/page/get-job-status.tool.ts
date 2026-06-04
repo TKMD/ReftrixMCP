@@ -29,7 +29,7 @@ import {
   type PageGetJobStatusData,
 } from "./schemas";
 import { logger, isDevelopment } from "../../utils/logger";
-import { sanitizeErrorMessage } from "../../utils/sanitize-error";
+import { sanitizeErrorMessage, sanitizeAnalysisErrorForClient } from "../../utils/sanitize-error";
 import {
   generateRequestId,
   createSuccessResponseWithRequestId,
@@ -191,7 +191,15 @@ export async function pageGetJobStatusHandler(input: unknown): Promise<PageGetJo
     }
 
     if (status.state === "failed" && status.error) {
-      data.failedReason = status.error;
+      // Plan v3 Track T4 (PR-V3-T4) SEC H-01: sanitise FailedKnownReason
+      // canonical enum values to client-safe `analysis_pipeline_interrupted`
+      // generic literal (CWE-209 information exposure defense). Pass-through
+      // for non-T4 reasons (legacy errors, BullMQ messages, etc.).
+      // Plan v3 T4 SEC H-01 client-facing sanitiser application.
+      const sanitised = sanitizeAnalysisErrorForClient(status.error);
+      if (sanitised !== null) {
+        data.failedReason = sanitised;
+      }
     }
 
     return createSuccessResponseWithRequestId(data, requestId);

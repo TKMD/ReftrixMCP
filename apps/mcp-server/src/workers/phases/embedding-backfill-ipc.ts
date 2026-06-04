@@ -253,7 +253,16 @@ export const BackfillErrorMessage = z
   .object({
     kind: z.literal("backfill.error"),
     message: z.string(),
-    code: z.string().optional(),
+    // ADR-0018 Amendment 7 §7.7 (Plan v2 PR-E, SEC-V1-01): narrow `code` from the
+    // unconstrained `z.string().optional()` to accept only Prisma error codes
+    // (`P` + 4 digits, e.g. `P2002`) or `undefined`. Structurally rejects
+    // arbitrary strings at the IPC boundary, shrinking the CWE-209 latent surface
+    // (error message via arbitrary `code`). Producers MUST populate `code` only
+    // from `extractPrismaCode()` return values (P-code or undefined).
+    code: z
+      .string()
+      .regex(/^P\d{4}$/)
+      .optional(),
   })
   .strict();
 

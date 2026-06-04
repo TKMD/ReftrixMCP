@@ -31,6 +31,25 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { PrismaClient } from "@prisma/client";
 import type { Queue } from "bullmq";
+
+// CO-5 Wave 5 canonical CWE-209 contract: logger spy for SSOT-derive assertions.
+// Mock the logger BEFORE importing the service so info/warn calls can be observed.
+// Use importOriginal pattern to preserve Logger class + helpers required by other modules.
+vi.mock(import("../../src/utils/logger"), async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    logger: {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    },
+    isDevelopment: vi.fn().mockReturnValue(false),
+  };
+});
+
+import { logger } from "../../src/utils/logger";
 import {
   reconcileStaleBackfillJobs,
   type BackfillReconciliationResult,
@@ -40,6 +59,9 @@ import {
   type EmbeddingBackfillJobData,
   type EmbeddingBackfillJobResult,
 } from "../../src/queues/embedding-backfill-queue";
+// CO-5 Wave 5 canonical: SSOT-derive expected literal from
+// AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH (no hardcoded "abcd1234..." literals)
+import { AUDIT_LOG_CONSTANTS } from "../../src/services/audit-log.service";
 
 type MockedQueue = Queue<EmbeddingBackfillJobData, EmbeddingBackfillJobResult>;
 
@@ -91,6 +113,18 @@ function buildPrismaMock(options: {
       screenshotStoragePath?: string | null;
     }
   >;
+  /**
+   * Plan v3 Section C: `queued`-stuck rescue 候補行（Section C 用）。デフォルト空配列。
+   * Plan v3 Section C: `queued`-stuck rescue candidate rows. Defaults to empty array.
+   */
+  queuedPages?: Array<
+    FakePageRow & {
+      embeddingBackfillStatus: "queued";
+      embeddingBackfillStartedAt: Date;
+      embeddingBackfillRetryCount?: number;
+      screenshotStoragePath?: string | null;
+    }
+  >;
 }): PrismaClient {
   // Default: every updateMany succeeds with count=1 (CAS hit).
   // PR6 TPA #1: updateMany may return count=0 when worker already transitioned.
@@ -101,10 +135,15 @@ function buildPrismaMock(options: {
   //     → returns options.skippedPages (default [])
   // v0.4.0 PR7b: findMany ディスパッチを where 句で行う。Section A/B を分離。
   const skippedPages = options.skippedPages ?? [];
+  const queuedPages = options.queuedPages ?? [];
   const findManySpy = vi.fn(async (args: { where?: { embeddingBackfillStatus?: unknown } }) => {
     const status = args?.where?.embeddingBackfillStatus;
     if (typeof status === "object" && status !== null && "in" in status) {
       return skippedPages;
+    }
+    // Plan v3 Section C (`queued`-stuck rescue) scans plain-string `queued`.
+    if (status === "queued") {
+      return queuedPages;
     }
     return options.pages;
   });
@@ -213,10 +252,11 @@ describe("reconcileStaleBackfillJobs (v0.4.0 PR5 / PR6)", () => {
         queue,
         staleThresholdMs: 15 * 60 * 1000,
       });
-      // v0.4.0 PR7b: findMany is called twice — once for Section A (in_progress)
-      // and once for Section B (skipped_*). Both must use the threshold.
-      // v0.4.0 PR7b: findMany は Section A (in_progress) と Section B (skipped_*) で 2 回呼ばれる。
-      expect(prisma.webPage.findMany).toHaveBeenCalledTimes(2);
+      // v0.4.0 PR7b + Plan v3 Section C: findMany is called three times — Section
+      // A (in_progress), Section B (skipped_*), and Section C (queued rescue).
+      // v0.4.0 PR7b + Plan v3 Section C: findMany は Section A (in_progress) /
+      // Section B (skipped_*) / Section C (queued) で 3 回呼ばれる。
+      expect(prisma.webPage.findMany).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -271,7 +311,13 @@ describe("reconcileStaleBackfillJobs (v0.4.0 PR5 / PR6)", () => {
       expect(result.remediated).toBe(1);
       expect(updateManySpy).toHaveBeenCalledWith({
         where: { id: page.id, embeddingBackfillStatus: "in_progress" },
-        data: { embeddingBackfillStatus: "completed" },
+        // defect B fix (INV-BACKFILL-RECONCILE-METADATA-010): completed path also
+        // clears any stale failure metadata (failure_reason / failed_at → null).
+        data: {
+          embeddingBackfillStatus: "completed",
+          embeddingBackfillFailureReason: null,
+          embeddingBackfillFailedAt: null,
+        },
       });
     });
 
@@ -287,7 +333,14 @@ describe("reconcileStaleBackfillJobs (v0.4.0 PR5 / PR6)", () => {
       expect(result.remediated).toBe(1);
       expect(updateManySpy).toHaveBeenCalledWith({
         where: { id: page.id, embeddingBackfillStatus: "in_progress" },
-        data: { embeddingBackfillStatus: "failed" },
+        // defect B fix (INV-BACKFILL-RECONCILE-METADATA-010): remaining stale
+        // in_progress → failed_with_known_reason + failure metadata (recovery-eligible),
+        // NOT plain `failed` (which left metadata NULL and bypassed the recovery scan).
+        data: {
+          embeddingBackfillStatus: "failed_with_known_reason",
+          embeddingBackfillFailureReason: "supervisor_restart_orphan",
+          embeddingBackfillFailedAt: expect.any(Date),
+        },
       });
     });
 
@@ -303,7 +356,14 @@ describe("reconcileStaleBackfillJobs (v0.4.0 PR5 / PR6)", () => {
       expect(result.remediated).toBe(1);
       expect(updateManySpy).toHaveBeenCalledWith({
         where: { id: page.id, embeddingBackfillStatus: "in_progress" },
-        data: { embeddingBackfillStatus: "failed" },
+        // defect B fix (INV-BACKFILL-RECONCILE-METADATA-010): remaining stale
+        // in_progress → failed_with_known_reason + failure metadata (recovery-eligible),
+        // NOT plain `failed` (which left metadata NULL and bypassed the recovery scan).
+        data: {
+          embeddingBackfillStatus: "failed_with_known_reason",
+          embeddingBackfillFailureReason: "supervisor_restart_orphan",
+          embeddingBackfillFailedAt: expect.any(Date),
+        },
       });
     });
 
@@ -319,7 +379,14 @@ describe("reconcileStaleBackfillJobs (v0.4.0 PR5 / PR6)", () => {
       expect(result.remediated).toBe(1);
       expect(updateManySpy).toHaveBeenCalledWith({
         where: { id: page.id, embeddingBackfillStatus: "in_progress" },
-        data: { embeddingBackfillStatus: "failed" },
+        // defect B fix (INV-BACKFILL-RECONCILE-METADATA-010): remaining stale
+        // in_progress → failed_with_known_reason + failure metadata (recovery-eligible),
+        // NOT plain `failed` (which left metadata NULL and bypassed the recovery scan).
+        data: {
+          embeddingBackfillStatus: "failed_with_known_reason",
+          embeddingBackfillFailureReason: "supervisor_restart_orphan",
+          embeddingBackfillFailedAt: expect.any(Date),
+        },
       });
     });
 
@@ -339,7 +406,14 @@ describe("reconcileStaleBackfillJobs (v0.4.0 PR5 / PR6)", () => {
       expect(result.remediated).toBe(1);
       expect(updateManySpy).toHaveBeenCalledWith({
         where: { id: page.id, embeddingBackfillStatus: "in_progress" },
-        data: { embeddingBackfillStatus: "failed" },
+        // defect B fix (INV-BACKFILL-RECONCILE-METADATA-010): remaining stale
+        // in_progress → failed_with_known_reason + failure metadata (recovery-eligible),
+        // NOT plain `failed` (which left metadata NULL and bypassed the recovery scan).
+        data: {
+          embeddingBackfillStatus: "failed_with_known_reason",
+          embeddingBackfillFailureReason: "supervisor_restart_orphan",
+          embeddingBackfillFailedAt: expect.any(Date),
+        },
       });
     });
 
@@ -393,7 +467,13 @@ describe("reconcileStaleBackfillJobs (v0.4.0 PR5 / PR6)", () => {
       expect(result.remediated).toBe(1);
       expect(updateManySpy).toHaveBeenCalledWith({
         where: { id: page.id, embeddingBackfillStatus: "in_progress" },
-        data: { embeddingBackfillStatus: "completed" },
+        // defect B fix (INV-BACKFILL-RECONCILE-METADATA-010): completed path also
+        // clears any stale failure metadata (failure_reason / failed_at → null).
+        data: {
+          embeddingBackfillStatus: "completed",
+          embeddingBackfillFailureReason: null,
+          embeddingBackfillFailedAt: null,
+        },
       });
     });
   });
@@ -510,6 +590,82 @@ describe("reconcileStaleBackfillJobs (v0.4.0 PR5 / PR6)", () => {
       await expect(
         reconcileStaleBackfillJobs({ prisma, queue, batchLimit: 999_999 })
       ).rejects.toThrow();
+    });
+  });
+
+  // =====================================================
+  // CO-5 Wave 5 canonical CWE-209 PII protection contract
+  // (internal anchor `019df7ab-2f5a` LCC-endorsed)
+  // =====================================================
+
+  describe("[CO-5 Wave 5 canonical] webPageId truncation via SSOT-derive helper", () => {
+    /**
+     * Wave 5 canonical contract: production code / test assertion / log output で
+     * hardcoded literal (`"abcd1234..."` 等) を使わず SSOT 定数
+     * (AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) から expected literal を導出する。
+     *
+     * Wave 5 canonical contract: production code / test assertion / log output MUST
+     * derive expected literals from the SSOT constant
+     * (AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH); hardcoded literals are forbidden.
+     */
+    beforeEach(() => {
+      vi.mocked(logger.info).mockClear();
+      vi.mocked(logger.warn).mockClear();
+    });
+
+    it("emits webPageId via SSOT-derived helper for in_progress reconciliation log", async () => {
+      const fullId = "019bc123-4567-7890-abcd-ef1234567899";
+      const expectedTruncated =
+        fullId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...";
+      const page = makePage(fullId);
+      const updateManySpy = vi.fn(async () => ({ count: 1 }));
+      const prisma = buildPrismaMock({ pages: [page], updateManySpy });
+      const queue = buildQueueMock({});
+
+      await reconcileStaleBackfillJobs({ prisma, queue });
+
+      // Find the "Reconciled stale in_progress page" info call
+      const infoCalls = vi.mocked(logger.info).mock.calls;
+      const reconciledCall = infoCalls.find(
+        (call) => typeof call[0] === "string" && (call[0] as string).includes("Reconciled stale")
+      );
+      expect(reconciledCall).toBeDefined();
+      const meta = reconciledCall![1] as Record<string, unknown>;
+      // SSOT-derive contract: webPageId must equal SSOT-derived expected literal
+      expect(meta.webPageId).toBe(expectedTruncated);
+      // CWE-209: webPageId must NOT equal full UUID (no PII leakage)
+      expect(meta.webPageId).not.toBe(fullId);
+      // SSOT length contract verification: truncated portion is exactly the SSOT length
+      expect(typeof meta.webPageId).toBe("string");
+      expect(
+        (meta.webPageId as string).startsWith(
+          fullId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH)
+        )
+      ).toBe(true);
+      expect((meta.webPageId as string).endsWith("...")).toBe(true);
+    });
+
+    it("emits webPageId via SSOT-derived helper for concurrent-update info log", async () => {
+      const fullId = "019bc123-4567-7890-abcd-ef123456789a";
+      const expectedTruncated =
+        fullId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...";
+      const page = makePage(fullId);
+      // updateManySpy returns count=0 → triggers "Status changed by worker" log path
+      const updateManySpy = vi.fn(async () => ({ count: 0 }));
+      const prisma = buildPrismaMock({ pages: [page], updateManySpy });
+      const queue = buildQueueMock({});
+
+      await reconcileStaleBackfillJobs({ prisma, queue });
+
+      const infoCalls = vi.mocked(logger.info).mock.calls;
+      const concurrentCall = infoCalls.find(
+        (call) =>
+          typeof call[0] === "string" && (call[0] as string).includes("Status changed by worker")
+      );
+      expect(concurrentCall).toBeDefined();
+      const meta = concurrentCall![1] as Record<string, unknown>;
+      expect(meta.webPageId).toBe(expectedTruncated);
+      expect(meta.webPageId).not.toBe(fullId);
     });
   });
 });

@@ -432,8 +432,9 @@ describe("PR2: page-analyze-worker silent-skip fix", () => {
     it("updateEmbeddingBackfillStatus が webPageId を truncate すること / updateEmbeddingBackfillStatus truncates webPageId", () => {
       const match = workerSource.match(/async function updateEmbeddingBackfillStatus[\s\S]*?\n\}/);
       expect(match).not.toBeNull();
-      // Must not log full UUID — uses .slice(0, 8) + "..." pattern
-      expect(match![0]).toMatch(/webPageId\.slice\(0,\s*8\)\s*\+\s*["']\.\.\.["']/);
+      // Must not log full UUID — uses truncateAuditTargetId(webPageId) SSOT-derived helper
+      // (Wave 5 LCC canonical: AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH → no hardcoded literal)
+      expect(match![0]).toMatch(/truncateAuditTargetId\s*\(\s*webPageId\s*\)/);
     });
   });
 

@@ -5,9 +5,16 @@
  * Phase 5: Fork Orchestrator
  *
  * Manages child_process.fork() lifecycle for Phase 5 embedding generation.
- * Spawns two sequential child processes:
- *   1. Text Embedding child (e5-base, sections/motions/backgrounds/JS/responsive/parts)
- *   2. Visual Embedding child (DINOv2, section visual + part visual + fallback)
+ *
+ * PR-BT-5 (M-1-RSS, ADR-0039): dispatches up to **9 per-sub-phase forks**
+ * sequentially (7 text sub-phases via e5-base + 2 visual sub-phases via DINOv2).
+ * Each fork loads its single model, processes ONE sub-phase, and `exit(0)`s so
+ * the OS reclaims the whole arena at the fork boundary (rooting out the
+ * inter-sub-phase reload that was the M-1-RSS root cause). Empty sub-phases are
+ * skipped (no fork). `PHASE5_SUBPHASE_FORK_ENABLED=false` reverts to the legacy
+ * 2-fork (text/visual) path (rollback escape hatch). The dispatch *decision*
+ * (descriptors + skip predicates) lives in the `phase-5-subphase-dispatch.ts`
+ * leaf (CC ≤ 10); this file retains only the loop + IPC + result merge.
  *
  * Parent responsibilities:
  *   - Fork child processes with appropriate env vars
@@ -48,6 +55,40 @@ import type { EmbeddingPhaseParams, EmbeddingPhaseResult, EmbeddingSkipReason } 
 import { extendJobLock, truncateSkipDetail } from "./types";
 import { cleanupPhase5TempDir } from "./phase-5-raw-decode";
 
+// PR-V3-T1a §3.2 (FIND-V3-IO-H-01 closure): emit audit_logs entries for the
+// chunked encoder hardening telemetry returned from the text fork-child.
+// `getAuditLogService()` graceful-degrades to no-op when the DI is not wired.
+import { getAuditLogService, truncateAuditTargetId } from "../../services/audit-log.service";
+
+// PR-1 GPU-COORD (ADR-0038 Decision 1/2, FIND-PLAN-H-01/M-03): parent-side
+// per-workload VRAM probe drives the fork-child execution provider and emits
+// the `embedding_cpu_fallback_degraded` audit on degraded (CPU-fallback) runs.
+import {
+  probeChildExecutionProvider,
+  isDegradedDecision,
+  type ChildExecutionProvider,
+  type ChildWorkload,
+  type ChildProviderDecision,
+} from "./phase-5-gpu-probe";
+import {
+  AUDIT_ACTION_EMBEDDING_CPU_FALLBACK_DEGRADED,
+  AUDIT_ACTOR_PHASE5_INIT,
+} from "../../audit/audit-actions";
+
+// PR-BT-5 (M-1-RSS, ADR-0039 Decision 1): per-sub-phase fork dispatch decision
+// leaf (descriptor builders + skip predicates, CC ≤ 10 machine-enforced) +
+// SSOT sub-phase identifiers.
+import {
+  buildTextSubPhaseDescriptors,
+  buildVisualSubPhaseDescriptors,
+} from "./phase-5-subphase-dispatch";
+import {
+  PHASE5_TOTAL_SUBPHASE_FORK_COUNT,
+  type Phase5TextSubPhase as TextSubPhaseDispatch,
+  type Phase5VisualSubPhase as VisualSubPhaseDispatch,
+} from "./phase-5-subphases.const";
+import { parseBoolEnv } from "../../utils/env-validators";
+
 // ============================================================================
 // Constants (P1-13: safeParseInt for all timeout env vars)
 // ============================================================================
@@ -75,6 +116,26 @@ const CHILD_CONNECTION_LIMIT = safeParseInt(process.env.PHASE5_CHILD_CONNECTION_
   min: 1,
   max: 10,
 });
+
+/**
+ * PR-BT-5 (M-1-RSS, ADR-0039 Decision 4): per-sub-phase fork feature flag.
+ *
+ * Default `true` — Phase 5 embedding dispatches one fork per sub-phase (≤ 9)
+ * so the OS reclaims each arena at the fork boundary (M-1-RSS structural fix).
+ * Setting `PHASE5_SUBPHASE_FORK_ENABLED=false` is a **rollback escape hatch**
+ * that reverts to the legacy 2-fork (text/visual) path — but that path crashes
+ * on heavy CPU sites (the very bug PR-BT-5 fixes), so it is NOT a
+ * production-equivalent alternative.
+ *
+ * Uses the canonical strict boolean parser (CWE-1188): only `"true"` / `"false"`
+ * (case-sensitive); `undefined` / `""` → default `true`.
+ *
+ * PR-BT-5 (M-1-RSS): per-sub-phase fork フィーチャーフラグ。default true。
+ * false で legacy 2-fork path に戻す rollback escape hatch (heavy site で crash)。
+ */
+function isSubPhaseForkEnabled(): boolean {
+  return parseBoolEnv(process.env.PHASE5_SUBPHASE_FORK_ENABLED, true);
+}
 
 /**
  * Observability flag for RSS heartbeat logging (v0.4.0 PR3 / TPA #2).
@@ -135,7 +196,7 @@ function getSystemMemAvailable(): number | null {
  * P0-1: Disables worker_threads in both EmbeddingService and DINOv2Service.
  * P0-3: Appends connection_limit to DATABASE_URL.
  */
-function buildChildEnv(): Record<string, string> {
+function buildChildEnv(resolvedProvider: ChildExecutionProvider): Record<string, string> {
   const profile = computeMemoryProfile();
   const baseEnv = { ...process.env } as Record<string, string>;
 
@@ -143,25 +204,25 @@ function buildChildEnv(): Record<string, string> {
   baseEnv.EMBEDDING_WORKER_THREAD = "false";
   baseEnv.DINOV2_WORKER_THREAD = "false";
 
-  // β2-P1: Force CPU execution provider in fork child processes.
-  // Fork children run ONNX in-process (EMBEDDING_WORKER_THREAD=false) where
-  // @huggingface/transformers passes `device` directly to onnxruntime-node.
-  // If ONNX_EXECUTION_PROVIDER=cuda is inherited from the parent, the child
-  // attempts CUDA initialization without the worker-thread-level safety checks
-  // (verifyCudaAvailability / isLdLibraryPathSetAtOsLevel), causing SIGABRT or
-  // exitCode=1 when libonnxruntime_providers_cuda.so is not installed.
-  // CUDA embedding is handled by the MCP server's worker-thread EmbeddingService;
-  // fork children are short-lived and CPU-only is sufficient.
+  // PR-1 GPU-COORD (ADR-0038 Decision 1, FIND-PLAN-H-01): the fork-child
+  // execution provider is now DRIVEN by the parent's per-workload VRAM probe.
+  //   - probe selected "cuda" (free VRAM ≥ threshold) → set ONNX_EXECUTION_PROVIDER=cuda
+  //     so the in-process DINOv2/e5 init (detectExecutionProvider) intentionally
+  //     selects CUDA. The child re-confirms child-locally via
+  //     wireChildExecutionProvider (zero new IPC types, FIND-PLAN-M-01).
+  //   - probe selected "cpu" (below threshold / vram_contention / probe disabled)
+  //     → set ONNX_EXECUTION_PROVIDER=cpu (legacy behaviour preserved; the
+  //     PHASE5_FORK_GPU_PROBE_ENABLED=false rollback always yields "cpu").
   //
-  // β2-P1: fork 子プロセスで CPU execution provider を強制する。
-  // fork 子プロセスは ONNX を in-process 実行する (EMBEDDING_WORKER_THREAD=false)。
-  // 親から ONNX_EXECUTION_PROVIDER=cuda を継承すると、worker thread レベルの
-  // 安全チェック (verifyCudaAvailability / isLdLibraryPathSetAtOsLevel) なしに
-  // CUDA 初期化を試み、libonnxruntime_providers_cuda.so 未インストール時に
-  // SIGABRT / exitCode=1 でクラッシュする。CUDA embedding は MCP サーバーの
-  // worker-thread EmbeddingService が担当する。fork 子プロセスは短命のため
-  // CPU only で十分。
-  baseEnv.ONNX_EXECUTION_PROVIDER = "cpu";
+  // The pre-PR-1 hardcoded `cpu` (β2-P1) is now the probe's "cpu" branch — the
+  // CUDA-unavailable / below-threshold safety still resolves to CPU, so the
+  // SIGABRT / exitCode=1 risk on hosts without libonnxruntime_providers_cuda.so
+  // is preserved (the probe returns null on such hosts → "cpu").
+  //
+  // PR-1 GPU-COORD: fork 子プロセスの execution provider は親の per-workload VRAM
+  // probe で駆動される。"cuda" 選択時のみ ONNX_EXECUTION_PROVIDER=cuda を設定し、
+  // それ以外 (閾値未満 / contention / probe 無効) は "cpu" を設定する (legacy 挙動)。
+  baseEnv.ONNX_EXECUTION_PROVIDER = resolvedProvider;
 
   // P0-3: Limit connection pool size for child process
   if (baseEnv.DATABASE_URL) {
@@ -176,6 +237,50 @@ function buildChildEnv(): Record<string, string> {
   if (!baseEnv.MALLOC_ARENA_MAX) {
     baseEnv.MALLOC_ARENA_MAX = "2";
   }
+
+  // PR-BT-5 (M-1-RSS): one-shot fork 内では e5-base の in-process pipeline recycle
+  // (EmbeddingService.recyclePipelineIfNeeded, threshold=30) を無効化する。
+  //
+  // 根拠: per-sub-phase fork は単一 sub-phase を処理して exit(0) するため、OS が
+  // fork 境界で arena 全体を回収する。長命プロセスの累積メモリ抑制が目的の
+  // recycle (mid-encode の dispose+reload) は one-shot fork では (a) 純粋に冗長
+  // (chunk-boundary disposeBetweenChunks が既に arena reset を担う)、(b) chunk size
+  // (=30) と threshold (=30) が一致するため各 chunk 末で recycle+chunk-boundary の
+  // DOUBLE dispose+reload を引き起こし transient 重複で RSS を kill 閾値まで押し上げ、
+  // (c) 決定的な harm として recycle が chunk 末で arena を reset することで直後の
+  // C1 per-chunk RSS budget check (PER_CHUNK_RSS_BUDGET_MB) の post-encode 計測値を
+  // 低く見せ、runaway loop の検出を mask する。
+  //
+  // 実機 CPU 検証 (webPageId 019e64b1): background_text が recycle で C1 を mask され
+  // chunk#2,#3 へ進み、chunk#3 の fresh model load + 前 chunk の glibc 未返却 arena の
+  // 重複で delta 4711MB > 4096 → SIGKILL → skipped_fork_error の degraded backfill。
+  // motion_text も同 mask で peak 4174MB (kill 寸前)。section_text は recycle 不発で
+  // C1 が delta 2406MB を正しく検出し peak 2598MB < 4096 で clean 停止 (対照)。
+  //
+  // 既存 guard を再利用: EmbeddingService の recyclePipelineIfNeeded は
+  // `if (threshold <= 0) return;` を持つため、threshold=0 で recycle は no-op になる。
+  // chunk-boundary disposeEmbeddingPipeline() (INV-PHASE5-SUBPHASE-NO-RELOAD-001 (b)
+  // の RETAINED arena reset) は不変。MCP server 検索パス (worker-thread mode、別
+  // プロセス・本 env 非継承) も非影響。
+  //
+  // PR-BT-5 (M-1-RSS): disable the e5-base in-process pipeline recycle
+  // (EmbeddingService.recyclePipelineIfNeeded, threshold=30) inside the one-shot
+  // fork. Each per-sub-phase fork processes a single sub-phase then exit(0)s, so
+  // the OS reclaims the whole arena at the fork boundary; the recycle (intended
+  // for long-lived accumulation) is (a) redundant with the chunk-boundary
+  // disposeBetweenChunks reset, (b) a source of DOUBLE dispose+reload per chunk
+  // when chunk size (=30) equals threshold (=30), spiking RSS via transient
+  // overlap, and (c) — the decisive harm — it resets the arena at chunk end, which
+  // makes the immediately-following C1 per-chunk RSS budget check read a low
+  // post-encode delta and FAIL to detect the runaway loop. Real-machine CPU
+  // verification (webPageId 019e64b1): background_text was masked past C1 and
+  // SIGKILLed at delta 4711MB (degraded skipped_fork_error backfill); section_text
+  // (recycle did not fire) had C1 detect 2406MB and stop cleanly at 2598MB < 4096.
+  // Reuses the existing `if (threshold <= 0) return;` guard so threshold=0 makes
+  // recycle a no-op; the chunk-boundary dispose (NO-RELOAD INV (b)) is unchanged,
+  // and the MCP server search path (worker-thread mode, separate process) is
+  // unaffected.
+  baseEnv.PIPELINE_RECYCLE_THRESHOLD = "0";
 
   return baseEnv;
 }
@@ -213,6 +318,12 @@ interface ChildRunOptions {
   effectiveLockDuration: number;
   /** Label for logging */
   label: string;
+  /**
+   * PR-1 GPU-COORD: the probe-resolved execution provider for this child.
+   * Sets `ONNX_EXECUTION_PROVIDER` in the child env so the in-process DINOv2/e5
+   * init (`detectExecutionProvider`) selects the intended provider.
+   */
+  resolvedProvider: ChildExecutionProvider;
 }
 
 interface ChildRunResult {
@@ -340,6 +451,147 @@ function mergeChildResult(
 }
 
 /**
+ * PR-V3-T1a §3.2 (FIND-V3-IO-H-01 closure): emit `audit_logs` entries for the
+ * chunked encoder hardening telemetry returned by the text fork-child.
+ *
+ * The SSOT skip reason values
+ * `text_child_memory_budget_exceeded_at_chunk_<n>` (C1) and
+ * `partial_chunked_<n>_of_<total>` (C3) are kept as bare canonical strings in
+ * `EMBEDDING_SKIP_REASONS` per design §3.4.1; the `<n>` / `<total>` slots are
+ * interpolated into `details` (PII-free numeric only). Idempotency-on-retry
+ * skip count (C4) is recorded as a separate audit entry.
+ *
+ * `audit_logs` write failures are non-fatal (graceful degradation pattern,
+ * inherited from `AuditLogService.log()`). The `embedding_skip_reason`
+ * action mirrors the existing PR-D-1 / PR-D-2 / PR-D-9 convention used by
+ * `dispatchEmbeddingPhase` for skip events.
+ *
+ * PR-V3-T1a §3.2 audit emission for chunked encoder telemetry (C1 + C3 + C4).
+ * Non-fatal on failure. Action `embedding_skip_reason` mirrors existing
+ * convention.
+ *
+ * @internal exported for unit testing only
+ */
+export async function emitChunkedEncoderTelemetryAudit(
+  webPageId: string,
+  telemetry: {
+    partialCompletion?: { chunksDone: number; totalChunks: number } | undefined;
+    budgetExceededChunkIndex?: number | undefined;
+    idempotencyChunkSkippedCount?: number | undefined;
+  }
+): Promise<void> {
+  const auditService = getAuditLogService();
+  // C1: per-chunk RSS budget exceeded — `text_child_memory_budget_exceeded_at_chunk_<n>`.
+  if (telemetry.budgetExceededChunkIndex !== undefined) {
+    await auditService.log({
+      action: "embedding_skip_reason",
+      actor: "system:phase5-text-child",
+      targetType: "web_page",
+      targetId: webPageId,
+      details: {
+        skipReason: "text_child_memory_budget_exceeded_at_chunk_<n>",
+        chunkIndex: telemetry.budgetExceededChunkIndex,
+        contract: "C1",
+      },
+      result: "success",
+    });
+  }
+  // C3: partial completion — `partial_chunked_<n>_of_<total>`. When C1 also
+  // triggered (budget overshoot drove the partial), the C3 entry follows the
+  // C1 entry (both observable, paired by timestamp).
+  if (telemetry.partialCompletion !== undefined) {
+    await auditService.log({
+      action: "embedding_skip_reason",
+      actor: "system:phase5-text-child",
+      targetType: "web_page",
+      targetId: webPageId,
+      details: {
+        skipReason: "partial_chunked_<n>_of_<total>",
+        chunksDone: telemetry.partialCompletion.chunksDone,
+        totalChunks: telemetry.partialCompletion.totalChunks,
+        contract: "C3",
+      },
+      result: "success",
+    });
+  }
+  // C4: idempotency-on-retry skip count.
+  if (
+    telemetry.idempotencyChunkSkippedCount !== undefined &&
+    telemetry.idempotencyChunkSkippedCount > 0
+  ) {
+    await auditService.log({
+      action: "embedding_skip_reason",
+      actor: "system:phase5-text-child",
+      targetType: "web_page",
+      targetId: webPageId,
+      details: {
+        skipReason: "partial_chunked_<n>_of_<total>",
+        idempotencyChunkSkippedCount: telemetry.idempotencyChunkSkippedCount,
+        contract: "C4",
+      },
+      result: "success",
+    });
+  }
+}
+
+/**
+ * PR-1 GPU-COORD (ADR-0038 Decision 1/2, FIND-PLAN-H-01/M-03): run the
+ * parent-side per-workload VRAM probe and, on a degraded (CPU-fallback)
+ * outcome, emit the `embedding_cpu_fallback_degraded` audit (parent-side DB
+ * write — zero new IPC types per FIND-PLAN-M-01).
+ *
+ * The decision drives the fork-child execution provider via `buildChildEnv`
+ * (the child re-confirms child-locally via `wireChildExecutionProvider`). The
+ * audit `details` are PII-free (numeric VRAM values + reason enum only); the
+ * `targetId` is `truncateAuditTargetId`-truncated per the canonical CWE-209
+ * PII protection pattern. Audit emit failures are non-fatal (graceful
+ * degradation, inherited from `AuditLogService.log()`).
+ *
+ * @param webPageId  page id (truncated for the audit targetId)
+ * @param workload   "text" (e5 threshold) or "visual" (DINOv2 threshold)
+ * @returns the resolved provider decision (used to build the child env)
+ */
+async function resolveProviderAndAuditDegraded(
+  webPageId: string,
+  workload: ChildWorkload
+): Promise<ChildProviderDecision> {
+  const decision = await probeChildExecutionProvider(workload);
+
+  if (isDegradedDecision(decision)) {
+    try {
+      await getAuditLogService().log({
+        action: AUDIT_ACTION_EMBEDDING_CPU_FALLBACK_DEGRADED,
+        actor: AUDIT_ACTOR_PHASE5_INIT,
+        targetType: "web_page",
+        targetId: truncateAuditTargetId(webPageId),
+        details: {
+          reason: decision.reason,
+          workload,
+          freeVramMb: decision.freeVramMb,
+          thresholdMb: decision.thresholdMb,
+        },
+        result: "success",
+      });
+    } catch (err) {
+      logger.warn(
+        "[Phase5-ForkOrchestrator] embedding_cpu_fallback_degraded audit emit failed (non-fatal)",
+        { error: err instanceof Error ? err.message : String(err) }
+      );
+    }
+  }
+
+  logger.info("[Phase5-ForkOrchestrator] GPU-COORD probe decision", {
+    workload,
+    provider: decision.provider,
+    reason: decision.reason,
+    freeVramMb: decision.freeVramMb,
+    thresholdMb: decision.thresholdMb,
+  });
+
+  return decision;
+}
+
+/**
  * Fork a child process, send init message, and wait for result.
  *
  * Handles:
@@ -349,10 +601,18 @@ function mergeChildResult(
  * - Overall timeout enforcement
  */
 async function runChildProcess(opts: ChildRunOptions): Promise<ChildRunResult> {
-  const { scriptPath, initMessage, timeoutMs, job, effectiveToken, effectiveLockDuration, label } =
-    opts;
+  const {
+    scriptPath,
+    initMessage,
+    timeoutMs,
+    job,
+    effectiveToken,
+    effectiveLockDuration,
+    label,
+    resolvedProvider,
+  } = opts;
 
-  const childEnv = buildChildEnv();
+  const childEnv = buildChildEnv(resolvedProvider);
   const execArgv = buildChildExecArgv();
 
   const child: ChildProcess = fork(scriptPath, [], {
@@ -548,21 +808,245 @@ function sendToChild(child: ChildProcess, msg: ParentToChildMessage): void {
 }
 
 // ============================================================================
+// PR-BT-5 (M-1-RSS): Per-Sub-Phase Fork helpers (ADR-0039 Decision 1/4)
+// ============================================================================
+
+/**
+ * Serialized text-embedding IPC payloads, built once and reused across all 7
+ * text sub-phase forks (each fork receives the same serialized data but a
+ * different `subPhase` so it runs only that one sub-phase). Held by `let` so it
+ * can be released after the last text fork (OOM-FIX-2 semantics).
+ */
+interface TextForkPayloads {
+  sectionIdMapping: [string, string][] | null;
+  motionIdMapping: [string, string][] | null;
+  jsIdMapping: [string, string][] | null;
+  bgIds: string[] | null;
+  scrollVisionIdMapping: [string, string][] | null;
+  layoutResultJson: string | null;
+  motionResultJson: string | null;
+  jsAnimationsJson: string | null;
+  scrollVisionResultJson: string | null;
+}
+
+/**
+ * Merge a `text-result` IPC message into the aggregated result.
+ *
+ * PR-BT-5: in the per-sub-phase fork model each text fork returns a
+ * `text-result` with ONLY its own sub-phase's field populated (others 0), so
+ * the merge is **additive** (`+=`) across the up-to-7 text forks. This is
+ * order-independent and tolerant of skipped/empty sub-phases.
+ *
+ * PR-V3-T1a §3.2 audit-continuity (LCC-M-01): chunked encoder telemetry from
+ * the section_text fork is surfaced for `audit_logs` emission here (preserved
+ * across the N-fork loop — the per-chunk RSS overshoot audit must NOT be
+ * silently dropped by the restructure).
+ */
+function mergeTextSubPhaseResult(
+  webPageId: string,
+  result: EmbeddingPhaseResult,
+  msg: ChildToParentMessage
+): void {
+  if (msg.type !== "text-result") return;
+  result.sectionEmbeddingsGenerated += msg.sectionEmbeddingsGenerated;
+  result.motionEmbeddingsGenerated += msg.motionEmbeddingsGenerated;
+  result.bgEmbeddingsGenerated += msg.bgEmbeddingsGenerated;
+  result.jsAnimationEmbeddingsGenerated += msg.jsAnimationEmbeddingsGenerated;
+  result.responsiveEmbeddingsGenerated += msg.responsiveEmbeddingsGenerated;
+  result.partEmbeddingsGenerated += msg.partEmbeddingsGenerated;
+  result.embeddingFailedChunks += msg.embeddingFailedChunks;
+
+  // LCC-M-01 audit-continuity: per-chunk RSS overshoot / partial-completion
+  // telemetry (PR-V3-T1a §3.2) emission preserved per-page across the N-fork
+  // loop. Only the section_text fork populates this today (C1 is section-only).
+  const telemetry = msg.chunkedEncoderTelemetry;
+  if (telemetry !== undefined) {
+    emitChunkedEncoderTelemetryAudit(webPageId, telemetry).catch((err) => {
+      logger.warn(
+        "[Phase5-ForkOrchestrator] PR-V3-T1a chunked encoder telemetry audit emission failed (non-fatal)",
+        { error: err instanceof Error ? err.message : String(err) }
+      );
+    });
+  }
+}
+
+/**
+ * Merge a `visual-result` IPC message into the aggregated result.
+ *
+ * PR-BT-5: each visual fork returns a `visual-result` with ONLY its own
+ * sub-phase's field(s) populated; merge is additive across the up-to-2 visual
+ * forks.
+ */
+function mergeVisualSubPhaseResult(result: EmbeddingPhaseResult, msg: ChildToParentMessage): void {
+  if (msg.type !== "visual-result") return;
+  result.sectionVisualEmbeddingsGenerated += msg.sectionVisualEmbeddingsGenerated;
+  result.partVisualEmbeddingsGenerated += msg.partVisualEmbeddingsGenerated;
+  result.partVisualSkippedBboxInvalid += msg.partVisualSkippedBboxInvalid;
+  result.partVisualSkippedBboxUnresolvable += msg.partVisualSkippedBboxUnresolvable;
+  result.embeddingFailedChunks += msg.embeddingFailedChunks;
+}
+
+/**
+ * Dispatch ONE text sub-phase fork: run the per-workload GPU-COORD probe (e5
+ * threshold + degraded audit), fork the text child with the `subPhase` set, and
+ * merge the result additively. fork() exceptions are non-fatal (set skipReason,
+ * continue to the next sub-phase — graceful degradation per sub-phase).
+ *
+ * PR-BT-5 (ADR-0039 Decision 1): GPU-COORD probe is called per fork (preserves
+ * the PR-1 verifyCudaAvailability AND VRAM gate; probe count grows 2→≤9).
+ */
+async function runTextSubPhaseFork(args: {
+  subPhase: TextSubPhaseDispatch;
+  scriptPath: string;
+  payloads: TextForkPayloads;
+  webPageId: string;
+  url: string;
+  responsiveAnalysisId: string | undefined;
+  partsSavedCount: number;
+  partsLimit: number | undefined;
+  job: EmbeddingPhaseParams["job"];
+  effectiveToken: string;
+  effectiveLockDuration: number;
+  result: EmbeddingPhaseResult;
+}): Promise<void> {
+  const { subPhase, payloads, webPageId, url, result } = args;
+
+  const initMessage: ParentToChildMessage = {
+    type: "init-text",
+    webPageId,
+    url,
+    sectionIdMapping: payloads.sectionIdMapping,
+    motionIdMapping: payloads.motionIdMapping,
+    jsIdMapping: payloads.jsIdMapping,
+    bgIds: payloads.bgIds,
+    scrollVisionIdMapping: payloads.scrollVisionIdMapping,
+    layoutResultJson: payloads.layoutResultJson,
+    motionResultJson: payloads.motionResultJson,
+    jsAnimationsJson: payloads.jsAnimationsJson,
+    scrollVisionResultJson: payloads.scrollVisionResultJson,
+    responsiveAnalysisId: args.responsiveAnalysisId,
+    partsSavedCount: args.partsSavedCount,
+    ...(args.partsLimit !== undefined ? { partsLimit: args.partsLimit } : {}),
+    subPhase,
+  };
+
+  // PR-1 GPU-COORD: parent-side per-workload probe drives the provider + audit.
+  const decision = await resolveProviderAndAuditDegraded(webPageId, "text");
+
+  try {
+    const childResult = await runChildProcess({
+      scriptPath: args.scriptPath,
+      initMessage,
+      timeoutMs: TEXT_CHILD_TIMEOUT_MS,
+      job: args.job,
+      effectiveToken: args.effectiveToken,
+      effectiveLockDuration: args.effectiveLockDuration,
+      label: `text:${subPhase}`,
+      resolvedProvider: decision.provider,
+    });
+    mergeChildResult(
+      childResult,
+      "text-result",
+      `Text:${subPhase}`,
+      TEXT_CHANNEL_REASONS,
+      result,
+      (m) => mergeTextSubPhaseResult(webPageId, result, m)
+    );
+  } catch (forkError) {
+    result.embeddingFailedChunks++;
+    setSkipReasonIfUnset(result, "text_fork_failed", sanitizeErrorMessage(forkError));
+    logger.warn(`[Phase5-ForkOrchestrator] Text sub-phase fork failed (${subPhase})`, {
+      error: sanitizeErrorMessage(forkError),
+    });
+  }
+}
+
+/**
+ * Dispatch ONE visual sub-phase fork: run the per-workload GPU-COORD probe
+ * (DINOv2 threshold + degraded audit), fork the visual child with `subPhase`
+ * set, and merge additively. fork() exceptions are non-fatal.
+ */
+async function runVisualSubPhaseFork(args: {
+  subPhase: VisualSubPhaseDispatch;
+  scriptPath: string;
+  webPageId: string;
+  url: string;
+  screenshotPngPath: string;
+  sectionIdMapping: [string, string][] | null;
+  partsSavedCount: number;
+  partsLimit: number | undefined;
+  layoutResultJson: string | null;
+  viewportWidth: number | undefined;
+  viewportHeight: number | undefined;
+  fallbackEnabled: boolean;
+  dinov2ModelPath: string;
+  job: EmbeddingPhaseParams["job"];
+  effectiveToken: string;
+  effectiveLockDuration: number;
+  result: EmbeddingPhaseResult;
+}): Promise<void> {
+  const { subPhase, webPageId, result } = args;
+
+  const initMessage: ParentToChildMessage = {
+    type: "init-visual",
+    webPageId,
+    url: args.url,
+    screenshotPngPath: args.screenshotPngPath,
+    sectionIdMapping: args.sectionIdMapping,
+    partsSavedCount: args.partsSavedCount,
+    ...(args.partsLimit !== undefined ? { partsLimit: args.partsLimit } : {}),
+    layoutResultJson: args.layoutResultJson,
+    viewportWidth: args.viewportWidth,
+    viewportHeight: args.viewportHeight,
+    fallbackEnabled: args.fallbackEnabled,
+    dinov2ModelPath: args.dinov2ModelPath,
+    subPhase,
+  };
+
+  const decision = await resolveProviderAndAuditDegraded(webPageId, "visual");
+
+  try {
+    const childResult = await runChildProcess({
+      scriptPath: args.scriptPath,
+      initMessage,
+      timeoutMs: VISUAL_CHILD_TIMEOUT_MS,
+      job: args.job,
+      effectiveToken: args.effectiveToken,
+      effectiveLockDuration: args.effectiveLockDuration,
+      label: `visual:${subPhase}`,
+      resolvedProvider: decision.provider,
+    });
+    mergeChildResult(
+      childResult,
+      "visual-result",
+      `Visual:${subPhase}`,
+      VISUAL_CHANNEL_REASONS,
+      result,
+      (m) => mergeVisualSubPhaseResult(result, m)
+    );
+  } catch (forkError) {
+    result.embeddingFailedChunks++;
+    setSkipReasonIfUnset(result, "visual_fork_failed", sanitizeErrorMessage(forkError));
+    logger.warn(`[Phase5-ForkOrchestrator] Visual sub-phase fork failed (${subPhase})`, {
+      error: sanitizeErrorMessage(forkError),
+    });
+  }
+}
+
+// ============================================================================
 // Public API: Fork Orchestrator
 // ============================================================================
 
 /**
  * Run Phase 5 embedding via fork() child processes.
  *
- * Executes two sequential child processes:
- * 1. Text Embedding child — generates all text embeddings
- * 2. Visual Embedding child — generates DINOv2 visual embeddings
+ * PR-BT-5 (M-1-RSS, ADR-0039): dispatches up to 9 per-sub-phase forks
+ * sequentially (7 text + 2 visual), each loading its single model, processing
+ * one sub-phase, and `exit(0)`ing for OS arena reclamation. `resolvePartBboxFn`
+ * is called in the parent BEFORE the part_visual fork because it requires the
+ * sharedBrowser (Playwright) which cannot cross the process boundary (B-3).
  *
- * resolvePartBoundingBoxes() is called in the parent before visual child
- * because it requires the sharedBrowser (Playwright instance) which cannot
- * be serialized across process boundaries.
- *
- * @returns Aggregated EmbeddingPhaseResult from both child processes
+ * @returns Aggregated EmbeddingPhaseResult merged across all sub-phase forks
  */
 // v0.4.0 PR7c: IPhase5ScreenshotPersistence 依存を削除
 //   - 削除責務は PR6 の TTL cron (`scheduleScreenshotCleanupCron`, 7d) に一本化。
@@ -591,6 +1075,7 @@ export async function runPhase5ViaFork(
     partEmbeddingsGenerated: 0,
     partVisualEmbeddingsGenerated: 0,
     partVisualSkippedBboxInvalid: 0,
+    partVisualSkippedBboxUnresolvable: 0,
     sectionVisualEmbeddingsGenerated: 0,
     embeddingFailedChunks: 0,
     completed: false,
@@ -689,31 +1174,42 @@ export async function runPhase5ViaFork(
   }
 
   // ====================================================================
-  // Step 1: Text Embedding Child
+  // PR-BT-5 (M-1-RSS, ADR-0039): Per-Sub-Phase Fork dispatch loop
+  //
+  // Replaces the legacy 2-fork (text/visual) path with a sequential dispatch
+  // loop of up to 9 per-sub-phase forks (7 text + 2 visual). Each fork loads
+  // its single model, processes ONE sub-phase, and `exit(0)`s — letting the OS
+  // reclaim the whole arena at the fork boundary (rooting out the
+  // inter-sub-phase reload that was the M-1-RSS root cause). Empty sub-phases
+  // (skipPredicate false) are skipped (no fork). Runner = (B) local
+  // `runChildProcess` (NOT fork-common migration, ADR-0039 Decision 1).
+  //
+  // `PHASE5_SUBPHASE_FORK_ENABLED=false` reverts to the legacy 2-fork path
+  // (rollback escape hatch; crashes on heavy CPU sites, not prod-equivalent).
   // ====================================================================
-  const textScriptPath = resolveChildScriptPath("phase-5-text-embedding-child.js");
+  const subPhaseForkEnabled = isSubPhaseForkEnabled();
 
-  // OOM-FIX-2: Use `let` for JSON strings so they can be null-ed after IPC send.
-  // Sequential JSON.stringify with optional GC between serializations
-  // to reduce peak heap pressure during IPC message construction.
-  let layoutResultJson = layoutResultForNarrative ? JSON.stringify(layoutResultForNarrative) : null;
+  // Serialize the text IPC payloads ONCE and reuse across the (up to 7) text
+  // sub-phase forks. Sequential stringify with optional GC between
+  // serializations to keep peak heap pressure low (OOM-FIX-2 semantics).
+  const layoutResultJson = layoutResultForNarrative
+    ? JSON.stringify(layoutResultForNarrative)
+    : null;
   if (typeof globalThis.gc === "function") globalThis.gc();
-
-  let motionResultJson = motionResultForEmbedding ? JSON.stringify(motionResultForEmbedding) : null;
+  const motionResultJson = motionResultForEmbedding
+    ? JSON.stringify(motionResultForEmbedding)
+    : null;
   if (typeof globalThis.gc === "function") globalThis.gc();
-
-  let jsAnimationsJson = jsAnimationsForEmbedding ? JSON.stringify(jsAnimationsForEmbedding) : null;
+  const jsAnimationsJson = jsAnimationsForEmbedding
+    ? JSON.stringify(jsAnimationsForEmbedding)
+    : null;
   if (typeof globalThis.gc === "function") globalThis.gc();
-
-  let scrollVisionResultJson = scrollVisionResultForEmbedding
+  const scrollVisionResultJson = scrollVisionResultForEmbedding
     ? JSON.stringify(scrollVisionResultForEmbedding)
     : null;
   if (typeof globalThis.gc === "function") globalThis.gc();
 
-  let textInitMsg: ParentToChildMessage | null = {
-    type: "init-text",
-    webPageId,
-    url,
+  let textPayloads: TextForkPayloads | null = {
     sectionIdMapping: serializeIdMapping(sectionSaveResult?.idMapping),
     motionIdMapping: serializeIdMapping(motionSaveResult?.idMapping),
     jsIdMapping: serializeIdMapping(jsSaveResult?.idMapping),
@@ -723,58 +1219,48 @@ export async function runPhase5ViaFork(
     motionResultJson,
     jsAnimationsJson,
     scrollVisionResultJson,
-    responsiveAnalysisId,
-    partsSavedCount: partsSavedCount ?? 0,
-    // v0.4.0 PR4: Part text embedding 同期フェーズ上限を text child へ伝搬
-    // v0.4.0 PR4: propagate sync-phase Part text embedding cap to text child
-    ...(partsLimit !== undefined ? { partsLimit } : {}),
   };
 
-  // OOM-FIX-2: Release JSON strings immediately — they are now owned by textInitMsg
-  layoutResultJson = null;
-  motionResultJson = null;
-  jsAnimationsJson = null;
-  scrollVisionResultJson = null;
+  const textScriptPath = resolveChildScriptPath("phase-5-text-embedding-child.js");
 
-  try {
-    const textResult = await runChildProcess({
+  // --- Step 1: Text sub-phase forks (section/motion/vision_motion/background/
+  //              js_animation/responsive/part — each its own fork) ---
+  const textDescriptors = subPhaseForkEnabled
+    ? buildTextSubPhaseDescriptors(params)
+    : // Legacy fallback: a single descriptor with subPhase unset (the child
+      // grandfathers to running all 7 text sub-phases in one fork).
+      [
+        {
+          subPhase: undefined as unknown as TextSubPhaseDispatch,
+          workload: "text" as const,
+          shouldRun: true,
+        },
+      ];
+
+  for (const descriptor of textDescriptors) {
+    if (!descriptor.shouldRun) continue;
+    await runTextSubPhaseFork({
+      subPhase: descriptor.subPhase,
       scriptPath: textScriptPath,
-      initMessage: textInitMsg,
-      timeoutMs: TEXT_CHILD_TIMEOUT_MS,
+      payloads: textPayloads,
+      webPageId,
+      url,
+      responsiveAnalysisId,
+      partsSavedCount: partsSavedCount ?? 0,
+      partsLimit,
       job,
       effectiveToken,
       effectiveLockDuration,
-      label: "text",
-    });
-
-    mergeChildResult(textResult, "text-result", "Text", TEXT_CHANNEL_REASONS, result, (msg) => {
-      if (msg.type !== "text-result") return;
-      result.sectionEmbeddingsGenerated = msg.sectionEmbeddingsGenerated;
-      result.motionEmbeddingsGenerated = msg.motionEmbeddingsGenerated;
-      result.bgEmbeddingsGenerated = msg.bgEmbeddingsGenerated;
-      result.jsAnimationEmbeddingsGenerated = msg.jsAnimationEmbeddingsGenerated;
-      result.responsiveEmbeddingsGenerated = msg.responsiveEmbeddingsGenerated;
-      result.partEmbeddingsGenerated = msg.partEmbeddingsGenerated;
-      result.embeddingFailedChunks += msg.embeddingFailedChunks;
-    });
-  } catch (textError) {
-    result.embeddingFailedChunks++;
-    const detail = sanitizeErrorMessage(textError);
-    // PR2 (v0.4.0): fork 自体が例外を投げた場合の skipReason
-    // PR2 (v0.4.0): skipReason when fork() itself threw
-    setSkipReasonIfUnset(result, "text_fork_failed", detail);
-    logger.warn("[Phase5-ForkOrchestrator] Text child fork failed", {
-      error: detail,
+      result,
     });
   }
 
-  // OOM-FIX-2: Release textInitMsg after text child completes — frees IPC JSON data
-  textInitMsg = null;
+  // OOM-FIX-2: Release the text payloads after all text forks complete.
+  textPayloads = null;
   if (typeof globalThis.gc === "function") globalThis.gc();
 
-  // ====================================================================
-  // Step 2: Resolve Part Bounding Boxes (parent — requires sharedBrowser)
-  // ====================================================================
+  // --- Step 2: Resolve Part Bounding Boxes (parent — requires sharedBrowser).
+  //              Must run BEFORE the part_visual fork (ADR-0039 B-3). ---
   const hasParts = (partsSavedCount ?? 0) > 0;
   if (hasParts) {
     try {
@@ -786,82 +1272,61 @@ export async function runPhase5ViaFork(
     }
   }
 
-  // ====================================================================
-  // Step 3: Visual Embedding Child
-  // ====================================================================
-  const hasSections = (sectionSaveResult?.idMapping?.size ?? 0) > 0;
+  // --- Step 3: Visual sub-phase forks (section_visual / part_visual). Gated on
+  //              screenshot presence (the screenshot is the visual source). ---
   const hasScreenshot = !!screenshotPngPath && fs.existsSync(screenshotPngPath);
-
-  if (hasScreenshot && (hasSections || hasParts)) {
+  if (hasScreenshot) {
     const visualScriptPath = resolveChildScriptPath("phase-5-visual-embedding-child.js");
     const fallbackEnabled =
       (process.env["ENABLE_SECTION_SCREENSHOT_FALLBACK"] ?? "true") === "true";
 
-    // OOM-FIX-2: Stringify only for visual child init (after text child freed).
-    // This avoids holding 2 copies of layoutResultJson simultaneously.
+    // OOM-FIX-2: Stringify the visual layout JSON once (after text payloads
+    // freed) and release the original object reference.
     const visualLayoutJson = layoutResultForNarrative
       ? JSON.stringify(layoutResultForNarrative)
       : null;
-
-    // OOM-FIX: Release original object reference after JSON serialization.
-    // Visual child receives JSON string only; original object is no longer needed.
     (params as unknown as Record<string, unknown>).layoutResultForNarrative = null;
     if (typeof globalThis.gc === "function") globalThis.gc();
 
-    const visualInitMsg: ParentToChildMessage = {
-      type: "init-visual",
-      webPageId,
-      url,
-      screenshotPngPath: screenshotPngPath!,
-      sectionIdMapping: serializeIdMapping(sectionSaveResult?.idMapping),
-      partsSavedCount: partsSavedCount ?? 0,
-      // v0.4.0 PR4: Part visual embedding 同期フェーズ上限を visual child へ伝搬
-      // v0.4.0 PR4: propagate sync-phase Part visual embedding cap to visual child
-      ...(partsLimit !== undefined ? { partsLimit } : {}),
-      layoutResultJson: visualLayoutJson,
-      viewportWidth: job.data.options?.layoutOptions?.viewport?.width,
-      viewportHeight: job.data.options?.layoutOptions?.viewport?.height,
-      fallbackEnabled,
-      dinov2ModelPath: deps.dinov2ModelPath,
-    };
+    const visualDescriptors = subPhaseForkEnabled
+      ? buildVisualSubPhaseDescriptors(params)
+      : [
+          {
+            subPhase: undefined as unknown as VisualSubPhaseDispatch,
+            workload: "visual" as const,
+            shouldRun: true,
+          },
+        ];
 
-    try {
-      const visualResult = await runChildProcess({
+    for (const descriptor of visualDescriptors) {
+      if (!descriptor.shouldRun) continue;
+      await runVisualSubPhaseFork({
+        subPhase: descriptor.subPhase,
         scriptPath: visualScriptPath,
-        initMessage: visualInitMsg,
-        timeoutMs: VISUAL_CHILD_TIMEOUT_MS,
+        webPageId,
+        url,
+        screenshotPngPath: screenshotPngPath!,
+        sectionIdMapping: serializeIdMapping(sectionSaveResult?.idMapping),
+        partsSavedCount: partsSavedCount ?? 0,
+        partsLimit,
+        layoutResultJson: visualLayoutJson,
+        viewportWidth: job.data.options?.layoutOptions?.viewport?.width,
+        viewportHeight: job.data.options?.layoutOptions?.viewport?.height,
+        fallbackEnabled,
+        dinov2ModelPath: deps.dinov2ModelPath,
         job,
         effectiveToken,
         effectiveLockDuration,
-        label: "visual",
-      });
-
-      mergeChildResult(
-        visualResult,
-        "visual-result",
-        "Visual",
-        VISUAL_CHANNEL_REASONS,
         result,
-        (msg) => {
-          if (msg.type !== "visual-result") return;
-          result.sectionVisualEmbeddingsGenerated = msg.sectionVisualEmbeddingsGenerated;
-          result.partVisualEmbeddingsGenerated = msg.partVisualEmbeddingsGenerated;
-          // PR-D-2 / INV-EMBEDDING-INTEGRITY-005: propagate bbox_invalid counter
-          result.partVisualSkippedBboxInvalid = msg.partVisualSkippedBboxInvalid;
-          result.embeddingFailedChunks += msg.embeddingFailedChunks;
-        }
-      );
-    } catch (visualError) {
-      result.embeddingFailedChunks++;
-      const detail = sanitizeErrorMessage(visualError);
-      // PR2 (v0.4.0): fork 自体が例外を投げた場合の skipReason
-      // PR2 (v0.4.0): skipReason when fork() itself threw
-      setSkipReasonIfUnset(result, "visual_fork_failed", detail);
-      logger.warn("[Phase5-ForkOrchestrator] Visual child fork failed", {
-        error: detail,
       });
     }
   }
+
+  // PR-BT-5 (ADR-0039 §Security / unblock #8): the fork count is bounded by the
+  // static sub-phase enumeration (≤ PHASE5_TOTAL_SUBPHASE_FORK_COUNT = 9),
+  // data-row-count-independent. Referenced here so the CWE-770 cap constant is
+  // bound into the dispatch path (asserted by INV-PHASE5-SUBPHASE-FORK-EXIT-001).
+  void PHASE5_TOTAL_SUBPHASE_FORK_COUNT;
 
   // P1-17: Secondary cleanup — remove RAW decode tmp dir only (parent verifies after child exit)
   // v0.4.0 PR7d-1 (ADR-0010): cleanupPhase5TmpDirOnly() was removed and folded

@@ -69,6 +69,10 @@ import {
   EMBEDDING_BACKFILL_CATEGORIES,
   type EmbeddingBackfillCategory,
 } from "../queues/embedding-backfill-queue";
+import {
+  partVisualPendingExclusionPredicate,
+  sectionVisualPendingExclusionPredicate,
+} from "../workers/phases/types";
 
 /**
  * Per-category pending-count snapshot. Keys are Set-equal to
@@ -103,12 +107,14 @@ export async function countPartVisualBackfillTargetsWithPrisma(
   webPageId: string,
   prisma: PrismaClient
 ): Promise<{ pendingCount: number }> {
+  // ADR-0018 Amendment 7 §7.1 (UB-3, NF-TPA-01): SSOT exclusion predicate so
+  // terminal-skip parts (visual_skip_reason non-NULL) are NOT counted as pending.
   const rows = await prisma.$queryRawUnsafe<Array<{ count: bigint | string }>>(
     `SELECT COUNT(*)::bigint AS count FROM component_parts cp
      JOIN component_part_embeddings cpe ON cp.id = cpe.component_part_id
      WHERE cp.web_page_id = $1::uuid
        AND cp.pii_risk_level != 'high'
-       AND cpe.visual_embedding IS NULL`,
+       AND ${partVisualPendingExclusionPredicate("cpe")}`,
     webPageId
   );
   const raw = rows[0]?.count ?? 0;
@@ -178,14 +184,17 @@ export async function collectCategoryPendingSnapshot(
     }),
     // part_visual
     countPartVisualBackfillTargetsWithPrisma(webPageId, prisma),
-    // section_visual: text_embedding がある section のうち vision_embedding NULL
-    // section_visual: sections with text_embedding but vision_embedding NULL
+    // section_visual: text_embedding がある section のうち vision_embedding NULL。
+    // terminal-skip 行 (vision_skip_reason 非NULL) は SSOT exclusion predicate で
+    // pending から除外する (PR-BT-2、part_visual と対称、inline WHERE 禁止)。
+    // section_visual: sections with text_embedding but vision_embedding NULL.
+    // Terminal-skip rows (vision_skip_reason non-NULL) are excluded from pending
+    // via the SSOT exclusion predicate (PR-BT-2, symmetry with part_visual).
     prisma.$queryRawUnsafe<Array<{ count: bigint | string }>>(
       `SELECT COUNT(*)::bigint AS count FROM section_embeddings se
        JOIN section_patterns sp ON se.section_pattern_id = sp.id
        WHERE sp.web_page_id = $1::uuid
-         AND se.text_embedding IS NOT NULL
-         AND se.vision_embedding IS NULL`,
+         AND ${sectionVisualPendingExclusionPredicate("se")}`,
       webPageId
     ),
     // motion: motion_patterns に対応する motion_embeddings 行が無い件数
@@ -315,8 +324,12 @@ export function verifyCategoryParity(pendingSnapshot: CategoryPendingSnapshot): 
  *
  * カテゴリ / Categories (matching `EMBEDDING_BACKFILL_CATEGORIES`):
  *   - part_text: component_parts.embedding IS NULL
- *   - part_visual: component_part_embeddings.visual_embedding IS NULL (PII filtered)
- *   - section_visual: section_embeddings.text_embedding IS NOT NULL AND vision_embedding IS NULL
+ *   - part_visual: component_part_embeddings via partVisualPendingExclusionPredicate
+ *     (visual_embedding IS NULL AND visual_skip_reason IS NULL, PII filtered)
+ *   - section_visual: section_embeddings via sectionVisualPendingExclusionPredicate
+ *     (text_embedding IS NOT NULL AND vision_embedding IS NULL AND vision_skip_reason
+ *     IS NULL AND NOT high-PII — PR-BT-2 terminal-skip exclusion + PR-C4 PII filter,
+ *     symmetry with part_visual)
  *   - motion: motion_patterns without motion_embeddings row
  *   - background: background_designs without background_design_embeddings row
  *   - js_animation: js_animation_patterns without js_animation_embeddings row

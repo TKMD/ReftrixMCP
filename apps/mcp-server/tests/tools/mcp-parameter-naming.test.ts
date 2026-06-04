@@ -139,6 +139,15 @@ const DEPRECATED_CAMEL_CASE_PARAMS: Record<string, string[]> = {
     "accessibilityOptions",
     "performanceOptions",
     "waitUntil",
+    // 以下5つは Zod canonical schema (input.schemas.ts) で既に camelCase 定義済み。
+    // async-coercion fix で advertised inputSchema にミラー追加（coerceArgs は advertised
+    // properties のみ走査するため、ここに無いと文字列→scalar 変換されず VALIDATION_ERROR）。
+    // 既存の layoutOptions/motionOptions 等と同性質の grandfathered camelCase。
+    "narrativeOptions",
+    "visionOptions",
+    "layoutTimeout",
+    "motionTimeout",
+    "qualityTimeout",
   ],
 
   // Motion ツール

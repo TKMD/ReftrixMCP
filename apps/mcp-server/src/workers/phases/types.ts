@@ -40,6 +40,8 @@ import type { SaveScrollVisionResult } from "../../services/vision/scroll-vision
 import type { ScrollVisionResult } from "../../services/vision/scroll-vision.analyzer";
 import type { Browser } from "playwright";
 import sharp from "sharp";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
+import { emitSupervisorAuditLog } from "../../services/worker-supervisor-helpers";
 
 // ============================================================================
 // Dynamic Memory Configuration (lazy initialization — L-3 fix)
@@ -185,6 +187,116 @@ export const HTML_LARGE_THRESHOLD = safeParseInt(process.env.WORKER_HTML_LARGE_B
 export const HTML_HUGE_THRESHOLD = safeParseInt(process.env.WORKER_HTML_HUGE_BYTES, 10000000, {
   min: 100000,
 });
+
+// ============================================================================
+// PR-V3-T1a: Phase 5 streaming chunked encoder hardening constants
+// (FIND-V3-IO-H-01 closure target; design §3.2 C1 contract)
+// ============================================================================
+
+/**
+ * Per-chunk peak RSS budget (MB) for the C1 contract in PR-V3-T1a.
+ *
+ * After each chunk completes inside the streaming chunked encoder, the worker
+ * measures `process.memoryUsage().rss` delta and emits
+ * `embedding_skip_reason='text_child_memory_budget_exceeded_at_chunk_<n>'`
+ * if the per-chunk peak exceeds this value. The remaining chunks are then
+ * surfaced via the post-Phase-5 `dispatchBackfillJobsForPage` self-discovery
+ * path (forward intent, A-1 compliance).
+ *
+ * Strictly tighter than the child-process-wide
+ * `PHASE5_CHILD_RSS_KILL_DELTA_MB = 4096` so the latter remains a fail-safe
+ * backstop, not the primary gate. Configurable via the
+ * `PER_CHUNK_RSS_BUDGET_MB` environment variable.
+ *
+ * SEC-M2: safeParseInt による安全なパース (min 256 MB / max 8192 MB)。
+ *
+ * Per-chunk peak RSS budget (MB) for PR-V3-T1a's C1 contract. After each
+ * chunk completes, the worker compares `process.memoryUsage().rss` delta;
+ * on overshoot it emits the skip reason and breaks the loop, surfacing
+ * remaining chunks to the post-Phase-5 backfill enumeration. Strictly
+ * tighter than the process-wide kill threshold so it remains the primary
+ * gate. Configurable via env. Range guard: 256-8192 MB.
+ *
+ * @see  §3.2 C1
+ */
+export const PER_CHUNK_RSS_BUDGET_MB = safeParseInt(process.env.PER_CHUNK_RSS_BUDGET_MB, 1536, {
+  min: 256,
+  max: 8192,
+});
+
+/**
+ * Feature flag environment variable name for PR-V3-T1a streaming chunked
+ * encoder hardening. When the variable is set to `"false"` (case-insensitive),
+ * the C1-C4 hardening contracts are bypassed and the legacy chunk loop runs.
+ * Default behaviour (variable unset or any value other than `"false"`) is
+ * to apply the hardening contracts.
+ *
+ * Used by `isPhase5TextChunkedEncoderHardenedEnabled()` to read the flag at
+ * runtime per chunk-loop entry; this allows operators to disable the
+ * hardening via env injection if a regression surfaces on staging A/B test
+ * (Plan v3 V2 §17 R-1 mitigation rollback path).
+ *
+ * Feature flag env var for PR-V3-T1a hardening; setting `"false"` disables
+ * the C1-C4 contracts and falls back to the legacy chunk loop. Default
+ * (unset / any other value) keeps hardening enabled.
+ *
+ * @see  §3.3.3 step 5 rollback path
+ */
+export const PHASE5_TEXT_CHUNKED_ENCODER_HARDENED_ENV = "PHASE5_TEXT_CHUNKED_ENCODER_HARDENED";
+
+/**
+ * Read the feature flag for PR-V3-T1a streaming chunked encoder hardening.
+ * Returns `true` (hardening enabled) by default; returns `false` only when
+ * the env var is exactly the case-insensitive string `"false"`.
+ *
+ * Read the PR-V3-T1a hardening feature flag. Returns `true` by default;
+ * returns `false` only when the env var matches the case-insensitive string
+ * `"false"`.
+ */
+export function isPhase5TextChunkedEncoderHardenedEnabled(): boolean {
+  const raw = process.env[PHASE5_TEXT_CHUNKED_ENCODER_HARDENED_ENV];
+  if (raw === undefined) return true;
+  return raw.trim().toLowerCase() !== "false";
+}
+
+/**
+ * Chunked text-embedding telemetry surfaced from a fork-child text sub-phase to
+ * the parent (for `audit_logs` emission + post-Phase-5 backfill enumeration).
+ *
+ * PR-V3-T1a §3.2 (FIND-V3-IO-H-01) defined these C1/C3/C4 contracts; PR-BT-5
+ * chunk-fork contingency (ADR-0039 §Consequences #2a) relocated the interface
+ * here (from `phase-5-embedding.ts`) so the shared `runChunkedTextEmbeddingLoop`
+ * driver (`phase-5-chunked-text-loop.ts`) can mutate it without a circular
+ * import on the embedding orchestrator. `phase-5-embedding.ts` re-exports it for
+ * backward compatibility.
+ *
+ * 各 text sub-phase は per-sub-phase fork (ADR-0039 Decision 1) で個別 fork 実行
+ * されるため、この telemetry は naturally per-sub-phase。
+ */
+export interface ChunkedEncoderTelemetry {
+  /**
+   * C3 contract — partial completion. `chunksDone` chunks were durably
+   * persisted before the loop broke; `totalChunks - chunksDone` chunks
+   * remain (surfaced via post-Phase-5 backfill enumeration).
+   */
+  partialCompletion?: {
+    chunksDone: number;
+    totalChunks: number;
+  };
+  /**
+   * C1 contract — per-chunk RSS budget overshoot. Index of the chunk whose
+   * peak RSS delta exceeded `PER_CHUNK_RSS_BUDGET_MB`. When set,
+   * `partialCompletion` is also set with `chunksDone = budgetExceededChunkIndex`.
+   */
+  budgetExceededChunkIndex?: number;
+  /**
+   * C4 contract — idempotency on retry. Number of chunks at the head of the
+   * loop that were skipped because their persisted rows already exist (prior
+   * partial completion run). 0 indicates a fresh run with no prior partial
+   * state.
+   */
+  idempotencyChunkSkippedCount?: number;
+}
 
 // ============================================================================
 // Types
@@ -455,12 +567,495 @@ export const EMBEDDING_SKIP_REASONS = [
   // vs Playwright-residual). Maps to `skipped_fork_error` retry bucket.
   // Audit logged via `embedding_part_visual_skipped` action SSOT.
   "bbox_unresolvable",
+  // ==========================================================================
+  // Plan v3 T3-Vision V1 §4.2 INV-VISION-PHASE5-GATE-001 (PR-D Wave 1):
+  // page-analyze-worker Phase 5 fork() pre-spawn gate emits one of these two
+  // reasons when `verifyVisionUnloadPrecondition()` returns a non-`vision_unloaded`
+  // status. Both values map to `skipped_fork_error` in `skipReasonToBackfillStatus()`
+  // (same retry bucket as fork/child-family). The caller annotates BullMQ enqueue
+  // `delayMs` differently per branch (V1 §C-1 SSOT triple):
+  //   - `vision_residual_at_phase5_start`     → delayMs = VISION_RESIDUAL_BACKFILL_ENQUEUE_DELAY_MS (30000ms)
+  //   - `vision_probe_failed_at_phase5_start` → delayMs = 0 (probe failure is independent of residual)
+  //
+  // Plan v3 T3-Vision V1 §4.2 INV-VISION-PHASE5-GATE-001 (PR-D Wave 1):
+  // Two reasons emitted by the Phase 5 fork() pre-spawn gate when the Vision
+  // unload precondition is not met. Differ only in the `delayMs` annotation
+  // propagated to the BullMQ backfill enqueue (30000ms vs 0ms).
+  "vision_residual_at_phase5_start",
+  "vision_probe_failed_at_phase5_start",
+  // ==========================================================================
+  // PR-V3-T1a §3.4.1 (Plan v3 V2 §3.1 T1.2, FIND-V3-IO-H-01 closure target):
+  // Phase 5 streaming chunked encoder hardening — C1 contract (per-chunk RSS
+  // budget enforcement). Emitted when a chunk's measured peak RSS overshoots
+  // `PER_CHUNK_RSS_BUDGET_MB` (default 1.5 GB). The `<n>` slot in the value
+  // (e.g. `text_child_memory_budget_exceeded_at_chunk_2`) is interpolated at
+  // runtime via the existing INV-SCHEMA-ENUM-004 wildcard handling pattern.
+  // The bare `text_child_memory_budget_exceeded_at_chunk_<n>` value is the
+  // SSOT-canonical form recorded in this enum; downstream emission code
+  // substitutes `<n>` with the failing chunk index.
+  //
+  // Forward contract (A-1 compliance): on overshoot the loop breaks, the
+  // remaining chunks are surfaced via the post-Phase-5
+  // `dispatchBackfillJobsForPage` self-discovery path, and `audit_logs`
+  // records the event for observability. Maps to `skipped_memory_pressure`
+  // in `skipReasonToBackfillStatus()` (the per-chunk RSS overshoot is a
+  // memory-pressure signal, NOT a fork/IPC failure).
+  //
+  // PR-V3-T1a §3.4.1 (Plan v3 V2 §3.1 T1.2, FIND-V3-IO-H-01 closure target):
+  // Phase 5 streaming chunked encoder hardening — C1 (per-chunk RSS budget
+  // enforcement). Emitted when a chunk's peak RSS overshoots
+  // `PER_CHUNK_RSS_BUDGET_MB` (default 1.5 GB). `<n>` is interpolated at
+  // runtime per the existing INV-SCHEMA-ENUM-004 wildcard handling pattern.
+  // The bare form is the SSOT-canonical entry; emission substitutes `<n>`.
+  // Maps to `skipped_memory_pressure` (memory-pressure signal, not fork/IPC).
+  "text_child_memory_budget_exceeded_at_chunk_<n>",
+  // PR-V3-T1a §3.4.1 (Plan v3 V2 §3.1 T1.2, FIND-V3-IO-H-01 closure target):
+  // C3 contract (failure-path partial-flush prevention). Emitted on chunk-N
+  // encoding failure where chunks 0..N-1 are durable forward intent (already
+  // persisted) and chunks N..total are skipped. The `<n>` and `<total>` slots
+  // (e.g. `partial_chunked_5_of_7`) are interpolated at runtime via the
+  // INV-SCHEMA-ENUM-004 wildcard handling pattern. Forward contract
+  // (A-1 compliance): observable via `audit_logs`, never silent. Maps to
+  // `skipped_fork_error` in `skipReasonToBackfillStatus()` so the existing
+  // post-Phase-5 backfill enumeration path observes
+  // `partTextPending = total_parts - chunksDone × chunkSize` (third source
+  // alongside threshold-driven and visual-screenshot-missing per ADR-0007).
+  //
+  // PR-V3-T1a §3.4.1 (Plan v3 V2 §3.1 T1.2, FIND-V3-IO-H-01 closure target):
+  // C3 (failure-path partial-flush prevention). Emitted on chunk-N encoding
+  // failure where chunks 0..N-1 are durable forward intent and chunks
+  // N..total are skipped. `<n>` / `<total>` interpolated at runtime per
+  // INV-SCHEMA-ENUM-004 wildcard handling. Forward contract (A-1 compliant).
+  // Maps to `skipped_fork_error`; backfill enumeration sees a third source.
+  "partial_chunked_<n>_of_<total>",
+  // ==========================================================================
+  // ADR-0018 Amendment (PR-BACKFILL-TERMINAL 系統B / System B, PR-BT-2):
+  // 下記 2 値は section_visual の terminal-skip マーカー
+  // (`section_embeddings.vision_skip_reason`) として記録され、
+  // `sectionVisualPendingExclusionPredicate` で section_visual pending クエリから
+  // 除外される (part_visual の terminal-skip と対称)。いずれも backfill path
+  // (`fallbackEnabled === false`) でのみ書込まれ、main-path (Phase 5 proper,
+  // `fallbackEnabled === true`) では書込まない (INV-007 Block D orthogonality)。
+  // `skipReasonToBackfillStatus()` では両値とも **`not_required`** にマップする
+  // (terminal-skip = page が completed に到達できる正当な除外。`skipped_fork_error`
+  // retry bucket には**マップしない** — それは本 PR が直そうとしている
+  // false-failed pin を再生成するため)。本 2 値は section terminal-skip = skip
+  // reason であって failure reason ではないため、`EMBEDDING_BACKFILL_FAILURE_REASONS`
+  // (`embedding-backfill-queue.ts`) には**追加しない** (IO Plan Decision V2
+  // `019e5842` BT-V2-CORR-01)。
+  //
+  // ADR-0018 Amendment (System B, PR-BT-2): the following 2 values are recorded
+  // as the section_visual terminal-skip marker (`section_embeddings.vision_skip_reason`)
+  // and are excluded from the section_visual pending query by
+  // `sectionVisualPendingExclusionPredicate` (symmetry with part_visual). Both
+  // are written only on the backfill path (`fallbackEnabled === false`), never on
+  // the main path (Phase 5 proper, `fallbackEnabled === true`; INV-007 Block D
+  // orthogonality). `skipReasonToBackfillStatus()` maps BOTH to `not_required`
+  // (a terminal-skip is a legitimate exclusion that lets the page reach
+  // `completed`; it MUST NOT map to the `skipped_fork_error` retry bucket, which
+  // would re-create the false-failed pin this PR fixes). These 2 values are skip
+  // reasons, NOT failure reasons, so they are NOT added to
+  // `EMBEDDING_BACKFILL_FAILURE_REASONS` (IO Plan Decision V2 `019e5842`
+  // BT-V2-CORR-01).
+  // ==========================================================================
+  //
+  // out-of-range uncroppable: backfill path で `isOutOfRange === true` かつ
+  // `fallbackEnabled === false` の section。永続 fullPage screenshot に写らず、
+  // backfill worker は Playwright per-section capture を起動しないため crop
+  // 構造的に不能 = terminal (no-fake-success: 事実の記録)。
+  //
+  // Out-of-range uncroppable: a section with `isOutOfRange === true` and
+  // `fallbackEnabled === false` on the backfill path. It is not contained in the
+  // persisted fullPage screenshot and the backfill worker does not launch
+  // Playwright per-section capture, so it is structurally uncroppable = terminal.
+  "section_visual_uncroppable",
+  // dedup duplicate: backfill path で `isDuplicateVisionEmbedding` (同一
+  // sectionType 内 cosine > threshold) が true となり skip された section。同 type
+  // sibling が代表 visual を保持するため DINOv2 embedding は真に不要 (Type-aware
+  // dedup 契約が意図的に抑制)。`fallbackEnabled === false` 条件付きで記録。
+  //
+  // Dedup duplicate: a section skipped on the backfill path because
+  // `isDuplicateVisionEmbedding` (same-sectionType cosine > threshold) is true. A
+  // same-type sibling represents the visual, so a DINOv2 embedding is genuinely
+  // unnecessary (deliberately suppressed by the Type-aware dedup contract).
+  // Written only when `fallbackEnabled === false`.
+  "section_visual_duplicate",
+  // ==========================================================================
+  // ADR-0018 Amendment (PR-C4, section_visual PII asymmetry closure): この値は
+  // section_visual の terminal-skip マーカー (`section_embeddings.vision_skip_reason`)
+  // として記録され、`sectionVisualPendingExclusionPredicate` の PII NOT EXISTS
+  // (Path A) と二重防御で section_visual pending クエリから除外される。
+  // **真因 (corrected root cause)**: work 側 `runVisualEmbeddingSubPhases` は
+  // `component_parts.pii_risk_level='high'` を含む section を visual loop から
+  // 意図的に除外する (GDPR Art.5(1)(c) data-minimisation) が、pending 側 predicate
+  // が PII filter を持たなかったため high-PII section が永久 pending = page が
+  // `completed` 未到達 (無限ループ)。part_visual / part_text は work 側除外と
+  // pending 側除外が対称 (`pii_risk_level != 'high'`)。section_visual だけが
+  // 非対称だった = systemic bug。
+  // 本値は **work 側 PII-exclusion filter site** (phase-5-embedding.ts、
+  // `highPiiSectionIdSet` で除外された section 群) で bulk write され、
+  // 「PII 由来で意図的に visual 非生成」を GDPR Art.30 processing trail として
+  // 記録する (`processSingleSectionVisualEmbedding` には到達しないため関数内
+  // marker write は不可)。`skipReasonToBackfillStatus()` では既存の
+  // `section_visual_uncroppable` / `section_visual_duplicate` と同様 **`not_required`**
+  // にマップする (terminal-skip = page が completed に到達できる正当な除外。
+  // `skipped_fork_error` retry bucket には**マップしない**)。`section_visual_pii_excluded`
+  // は skip reason であって failure reason ではないため、
+  // `EMBEDDING_BACKFILL_FAILURE_REASONS` には**追加しない** (BT-V2-CORR-01 方針継承)。
+  //
+  // ADR-0018 Amendment (PR-C4, section_visual PII asymmetry closure): recorded as
+  // the section_visual terminal-skip marker (`section_embeddings.vision_skip_reason`)
+  // and excluded from the section_visual pending query as a second defense layer
+  // alongside the predicate's PII NOT EXISTS (Path A). Corrected root cause: the
+  // work side intentionally excludes high-PII sections
+  // (`component_parts.pii_risk_level='high'`) from the visual loop (GDPR
+  // Art.5(1)(c) data-minimisation), but the pending side predicate lacked the
+  // symmetric PII filter, so high-PII sections stayed pending forever and the
+  // page never reached `completed` (infinite loop). part_visual / part_text are
+  // symmetric (`pii_risk_level != 'high'`); only section_visual was asymmetric =
+  // systemic bug. This value is bulk-written at the work-side PII-exclusion
+  // filter site (the sections excluded via `highPiiSectionIdSet`), recording the
+  // intentional non-generation as a GDPR Art.30 processing trail (high-PII
+  // sections never reach `processSingleSectionVisualEmbedding`, so an in-function
+  // marker write is impossible). `skipReasonToBackfillStatus()` maps it to
+  // `not_required` like the existing 2 section_visual values (terminal-skip =
+  // legitimate exclusion that lets the page reach `completed`; MUST NOT map to
+  // the `skipped_fork_error` retry bucket). It is a skip reason, NOT a failure
+  // reason, so it is NOT added to `EMBEDDING_BACKFILL_FAILURE_REASONS`
+  // (BT-V2-CORR-01 policy inherited).
+  "section_visual_pii_excluded",
+  // ==========================================================================
+  // secvisual-blank-terminal (Plan V1 §4, IO Plan Decision V1 `019e7f1c-0b66`):
+  // 下記 2 値は section_visual の **degraded-coverage technical terminal** マーカー
+  // (`section_embeddings.vision_skip_reason`) として記録され、
+  // `sectionVisualPendingExclusionPredicate` で section_visual pending クエリから
+  // 除外される (既存 3 値 uncroppable / duplicate / pii_excluded と対称)。いずれも
+  // backfill path (`fallbackEnabled === false`) でのみ書込まれ、main-path
+  // (Phase 5 proper, `fallbackEnabled === true`) では書込まない (INV-007 Block D
+  // orthogonality)。`skipReasonToBackfillStatus()` では両値とも **`not_required`**
+  // にマップする (terminal-skip = page が completed に到達できる正当な除外。
+  // `skipped_fork_error` retry bucket には**マップしない** — false-failed pin
+  // 再生成を避けるため)。skip reason であって failure reason ではないため
+  // `EMBEDDING_BACKFILL_FAILURE_REASONS` には**追加しない** (BT-V2-CORR-01 継承)。
+  //
+  // **重要 (FIND-PLAN-L-07 / LCC-L-01)**: 本 2 値は `section_visual_pii_excluded`
+  // (GDPR Art.5(1)(c) data-minimisation 由来の PII 除外) とは **意味が異なる**:
+  //   - `section_visual_blank`       = 描画済だが空 (uniform/blank crop、視覚内容なし)
+  //   - `section_visual_no_position` = layoutInfo.position geometry 欠落/退化
+  //     (crop 領域なし)
+  // いずれも **非 PII** の degraded-coverage technical terminal であり、GDPR
+  // Art.4(1) personal data に該当しない (PII 除外と混同してはならない)。
+  //
+  // secvisual-blank-terminal (Plan V1 §4): the following 2 values are recorded as
+  // the section_visual **degraded-coverage technical terminal** marker
+  // (`section_embeddings.vision_skip_reason`) and excluded from the section_visual
+  // pending query by `sectionVisualPendingExclusionPredicate` (symmetry with the
+  // existing 3). Both are written only on the backfill path
+  // (`fallbackEnabled === false`), never on the main path (INV-007 Block D
+  // orthogonality). `skipReasonToBackfillStatus()` maps BOTH to `not_required`
+  // (a terminal-skip lets the page reach `completed`; it MUST NOT map to the
+  // `skipped_fork_error` retry bucket). They are skip reasons, NOT failure
+  // reasons, so they are NOT added to `EMBEDDING_BACKFILL_FAILURE_REASONS`.
+  //
+  // IMPORTANT (FIND-PLAN-L-07 / LCC-L-01): these 2 values differ in MEANING from
+  // `section_visual_pii_excluded` (a GDPR Art.5(1)(c) data-minimisation PII
+  // exclusion): `section_visual_blank` = rendered-but-empty (uniform/blank crop,
+  // no visual content); `section_visual_no_position` = absent/degenerate
+  // `layoutInfo.position` geometry (no crop region). Both are NON-PII
+  // degraded-coverage technical terminals, NOT GDPR Art.4(1) personal data, and
+  // MUST NOT be conflated with the PII exclusion.
+  // ==========================================================================
+  //
+  // blank: backfill path で crop が white/uniform (isBlank === true) かつ
+  // `fallbackEnabled === false` の section。section は描画されたが視覚内容を持たず、
+  // backfill worker は dynamic fallback re-capture queue を drain しないため
+  // embedding は構造的に不能 = terminal。
+  //
+  // Blank: a section whose crop is white/uniform (`isBlank === true`) with
+  // `fallbackEnabled === false` on the backfill path. The section was rendered but
+  // carries no visual content, and the backfill worker does not drain the dynamic
+  // fallback re-capture queue, so the embedding is structurally impossible =
+  // terminal.
+  "section_visual_blank",
+  // no_position: backfill path で `sectionPositionMap` に position が無い、または
+  // `height < 10` (degenerate geometry) かつ `fallbackEnabled === false` の section。
+  // crop 領域を決定できず embedding 構造的に不能 = terminal (no-fake-success:
+  // 事実の記録)。
+  //
+  // No-position: a section absent from `sectionPositionMap` (no position) or with
+  // `height < 10` (degenerate geometry) and `fallbackEnabled === false` on the
+  // backfill path. The crop region cannot be determined, so the embedding is
+  // structurally impossible = terminal.
+  "section_visual_no_position",
 ] as const;
 
 /**
  * Embedding phase スキップ理由の型 / Type of embedding phase skip reason
  */
 export type EmbeddingSkipReason = (typeof EMBEDDING_SKIP_REASONS)[number];
+
+// ============================================================================
+// ADR-0018 Amendment 7 §7.1 (Plan v2 PR-A, UB-10): Part visual terminal-skip
+// SSOT derive — `EMBEDDING_PART_VISUAL_SKIP_REASONS` is the terminal subset of
+// `EMBEDDING_SKIP_REASONS` for which a Part's `component_part_embeddings.visual_skip_reason`
+// per-row marker is written so the part is permanently excluded from the
+// part_visual pending query (NF-TPA-01 infinite re-fetch closure).
+//
+// **SSOT contract (UB-10, hardcode literal 禁止)**: This MUST be DERIVED via
+// `.filter()` from the `EMBEDDING_SKIP_REASONS` T1 SSOT — never a
+// hardcoded literal array. The C1 enum contract is SUBSUMED by the NF-TPA-01
+// exclusion predicate: both reference this same derived const, forming a single
+// derivation chain from one SSOT, structurally eliminating the "enum and
+// predicate hardcoded separately and drift apart" failure mode (IO V1 conflict
+// resolution: SSOT predicate ⊃ enum-contract integration).
+//
+// ADR-0018 Amendment 7 §7.1 (Plan v2 PR-A, UB-10): Derived terminal subset of
+// `EMBEDDING_SKIP_REASONS` for which a per-row `visual_skip_reason` marker is
+// written, excluding the part forever from the part_visual pending query.
+// MUST be derived via `.filter()` from the SSOT (no hardcoded literals).
+// ============================================================================
+
+/**
+ * Terminal subset of `EmbeddingSkipReason` values that classify a Part visual
+ * embedding skip as **terminal** (structurally cannot generate a visual
+ * embedding; retry is pointless). Currently `{bbox_invalid, bbox_unresolvable}`.
+ *
+ * The set membership is derived from the `EMBEDDING_SKIP_REASONS` SSOT
+ * via `.filter()` — the explicit terminal-reason literals below are the
+ * SELECTION CRITERION, and the runtime `.includes()` against the SSOT guards
+ * against the failure mode where a reason is removed from the SSOT but the
+ * derived subset silently retains a stale value.
+ */
+const PART_VISUAL_TERMINAL_REASON_CANDIDATES = ["bbox_invalid", "bbox_unresolvable"] as const;
+
+/**
+ * `EMBEDDING_PART_VISUAL_SKIP_REASONS` — SSOT-derived terminal subset of
+ * `EMBEDDING_SKIP_REASONS` (UB-10, ADR-0018 Amendment 7 §7.1).
+ *
+ * Derived via `.filter()` so that any candidate not present in the
+ * `EMBEDDING_SKIP_REASONS` SSOT is dropped (drift guard). A part marked with one
+ * of these reasons in `component_part_embeddings.visual_skip_reason` is excluded
+ * from the part_visual pending query by the SSOT exclusion predicate.
+ */
+export const EMBEDDING_PART_VISUAL_SKIP_REASONS = PART_VISUAL_TERMINAL_REASON_CANDIDATES.filter(
+  (reason) => (EMBEDDING_SKIP_REASONS as readonly string[]).includes(reason)
+);
+
+/**
+ * Terminal Part visual skip reason type — narrowed to the SSOT-derived subset.
+ */
+export type PartVisualTerminalSkipReason = (typeof EMBEDDING_PART_VISUAL_SKIP_REASONS)[number];
+
+/**
+ * Single SSOT exclusion predicate fragment for the part_visual pending query
+ * (UB-3, NF-TPA-01, ADR-0018 Amendment 7 §7.1).
+ *
+ * **All 3+ callsites** of the part_visual pending query MUST reference this
+ * single fragment (never inline the WHERE clause) so a partial application that
+ * lets the processor re-fetch terminal-skip parts forever is impossible by
+ * construction (pinned by INV-PART-VISUAL-SKIP-TERMINAL-001).
+ *
+ * Semantic:
+ * ```
+ * cpe.visual_embedding IS NULL          -- not yet generated
+ * AND cpe.visual_skip_reason IS NULL    -- not terminally skipped (per-row marker)
+ * ```
+ *
+ * A row whose `visual_skip_reason` is non-NULL (one of
+ * {@link EMBEDDING_PART_VISUAL_SKIP_REASONS}) is excluded from pending so the
+ * processor stops retrying it (terminal). A row with both columns NULL remains
+ * pending (real-leak / retry target — INV-(b) orthogonality per ADR §7.5).
+ *
+ * The fragment is parameter-free static SQL (no interpolation, no SQL-injection
+ * surface). The caller is responsible for the table alias `cpe` matching its
+ * JOIN context.
+ *
+ * @param alias Table alias for `component_part_embeddings` (default `"cpe"`).
+ *   Restricted to a SQL-identifier-safe form by the caller; callers pass a
+ *   compile-time literal alias.
+ * @returns SQL WHERE-fragment string (no leading `AND`/`WHERE`).
+ */
+export function partVisualPendingExclusionPredicate(alias: string = "cpe"): string {
+  // Static fragment; `alias` is always a compile-time literal at every callsite
+  // (`cpe`). No runtime user input flows here (no SQL-injection surface).
+  return `${alias}.visual_embedding IS NULL AND ${alias}.visual_skip_reason IS NULL`;
+}
+
+// ============================================================================
+// ADR-0018 Amendment (PR-BACKFILL-TERMINAL 系統B / System B, PR-BT-2): Section
+// visual terminal-skip SSOT derive — `EMBEDDING_SECTION_VISUAL_SKIP_REASONS` is
+// the terminal subset of `EMBEDDING_SKIP_REASONS` for which a section's
+// `section_embeddings.vision_skip_reason` per-row marker is written so the
+// section is permanently excluded from the section_visual pending query
+// (symmetry with part_visual's `EMBEDDING_PART_VISUAL_SKIP_REASONS`).
+//
+// **SSOT contract (BT-V2-CORR, hardcode literal 禁止)**: This MUST be DERIVED via
+// `.filter()` from the `EMBEDDING_SKIP_REASONS` T1 SSOT — never a
+// hardcoded literal array. The CHECK-constraint contract on
+// `section_embeddings.vision_skip_reason` is SUBSUMED by the
+// `sectionVisualPendingExclusionPredicate` exclusion predicate: both reference
+// this same derived const, forming a single derivation chain from one SSOT,
+// structurally eliminating the "enum and predicate hardcoded separately and
+// drift apart" failure mode (mirrors part_visual UB-10).
+//
+// ADR-0018 Amendment (System B, PR-BT-2): Derived terminal subset of
+// `EMBEDDING_SKIP_REASONS` for which a per-row `vision_skip_reason` marker is
+// written, excluding the section forever from the section_visual pending query.
+// MUST be derived via `.filter()` from the SSOT (no hardcoded literals).
+// ============================================================================
+
+/**
+ * Terminal subset of `EmbeddingSkipReason` values that classify a section visual
+ * embedding skip as **terminal** (structurally cannot generate a visual
+ * embedding on the backfill path; retry is pointless). Currently
+ * `{section_visual_uncroppable, section_visual_duplicate, section_visual_pii_excluded,
+ * section_visual_blank, section_visual_no_position}` (PR-C4 added
+ * `section_visual_pii_excluded`; secvisual-blank-terminal added
+ * `section_visual_blank` + `section_visual_no_position`).
+ *
+ * The set membership is derived from the `EMBEDDING_SKIP_REASONS` SSOT
+ * via `.filter()` — the explicit terminal-reason literals below are the
+ * SELECTION CRITERION, and the runtime `.includes()` against the SSOT guards
+ * against the failure mode where a reason is removed from the SSOT but the
+ * derived subset silently retains a stale value (mirrors
+ * `PART_VISUAL_TERMINAL_REASON_CANDIDATES`).
+ */
+const SECTION_VISUAL_TERMINAL_REASON_CANDIDATES = [
+  "section_visual_uncroppable",
+  "section_visual_duplicate",
+  // PR-C4 (ADR-0018 Amendment, section_visual PII asymmetry closure): work-side
+  // PII-exclusion terminal marker (GDPR Art.30 processing trail). Added so
+  // `SectionVisualTerminalSkipReason` accepts this value and the 4-site lockstep
+  // (Prisma CHECK <-> TS SSOT <-> schema field <-> exclusion predicate) covers it.
+  "section_visual_pii_excluded",
+  // secvisual-blank-terminal (Plan V1 §4): degraded-coverage technical terminals
+  // (NON-PII; distinct from `section_visual_pii_excluded`, FIND-PLAN-L-07).
+  // `section_visual_blank` = rendered-but-empty (uniform/blank crop);
+  // `section_visual_no_position` = absent/degenerate `layoutInfo.position`
+  // geometry. Added so `SectionVisualTerminalSkipReason` accepts both and the
+  // 4-site lockstep (Prisma CHECK <-> TS SSOT <-> schema field <-> exclusion
+  // predicate) covers them (3 -> 5 additive). Derived via `.filter()` below.
+  "section_visual_blank",
+  "section_visual_no_position",
+] as const;
+
+/**
+ * `EMBEDDING_SECTION_VISUAL_SKIP_REASONS` — SSOT-derived terminal subset of
+ * `EMBEDDING_SKIP_REASONS` (ADR-0018 Amendment, System B, PR-BT-2).
+ *
+ * Derived via `.filter()` so that any candidate not present in the
+ * `EMBEDDING_SKIP_REASONS` SSOT is dropped (drift guard). A section marked with
+ * one of these reasons in `section_embeddings.vision_skip_reason` is excluded
+ * from the section_visual pending query by the SSOT exclusion predicate. The
+ * migration CHECK-constraint literals derive from this set (4-site lockstep:
+ * Prisma CHECK <-> Prisma schema field <-> TS SSOT <-> exclusion predicate).
+ */
+export const EMBEDDING_SECTION_VISUAL_SKIP_REASONS =
+  SECTION_VISUAL_TERMINAL_REASON_CANDIDATES.filter((reason) =>
+    (EMBEDDING_SKIP_REASONS as readonly string[]).includes(reason)
+  );
+
+/**
+ * Terminal section visual skip reason type — narrowed to the SSOT-derived subset.
+ */
+export type SectionVisualTerminalSkipReason =
+  (typeof EMBEDDING_SECTION_VISUAL_SKIP_REASONS)[number];
+
+/**
+ * Single SSOT exclusion predicate fragment for the section_visual pending query
+ * (ADR-0018 Amendment, System B, PR-BT-2; PR-C4 PII-filter symmetry; symmetry
+ * with {@link partVisualPendingExclusionPredicate}).
+ *
+ * **All 3 callsites** of the section_visual pending query MUST reference this
+ * single fragment (never inline the WHERE clause) so a partial application that
+ * lets the processor re-fetch terminal-skip sections forever is impossible by
+ * construction:
+ *   1. `collectCategoryPendingSnapshot` (parity-gate snapshot)
+ *   2. `countSectionVisualBackfillTargets` (backfill candidate count)
+ *   3. `runVisualEmbeddingSubPhases` `sectionsNeedingVisual` (the work-fetch loop)
+ *
+ * Semantic:
+ * ```
+ * se.text_embedding IS NOT NULL        -- the section has a text embedding
+ * AND se.vision_embedding IS NULL      -- vision not yet generated
+ * AND se.vision_skip_reason IS NULL    -- not terminally skipped (per-row marker)
+ * AND NOT EXISTS (                     -- PR-C4: not a high-PII section
+ *   SELECT 1 FROM component_parts cp
+ *   WHERE cp.section_pattern_id = se.section_pattern_id
+ *     AND cp.pii_risk_level = 'high'
+ * )
+ * ```
+ *
+ * **PR-C4 PII-filter symmetry (corrected root cause closure)**: the work side
+ * (`runVisualEmbeddingSubPhases`) intentionally excludes high-PII sections
+ * (`component_parts.pii_risk_level='high'`) from the visual loop for GDPR
+ * Art.5(1)(c) data-minimisation. Before PR-C4 this predicate had **no** PII
+ * filter, so a high-PII section satisfied `text_embedding IS NOT NULL` /
+ * `vision_embedding IS NULL` / `vision_skip_reason IS NULL` and stayed pending
+ * forever — the page never reached `completed` (infinite loop). part_visual /
+ * part_text are symmetric (`pii_risk_level != 'high'`); only section_visual was
+ * asymmetric. The `NOT EXISTS` subquery restores symmetry: a section whose
+ * `section_pattern_id` has any `component_parts` row with `pii_risk_level='high'`
+ * is excluded from pending (work-side exclusion ↔ pending-side exclusion). This
+ * is orthogonal to the per-row `vision_skip_reason` marker (Path B): the marker
+ * (`section_visual_pii_excluded`) provides a second defense layer so pending
+ * exclusion still holds via `vision_skip_reason IS NULL` even if the NOT EXISTS
+ * is ever changed.
+ *
+ * **PR-C4 B3 live-marker relationship (TPA-IMPL-01 closure)**: the Path B marker
+ * write is fed by `queryHighPiiPendingSectionPatternIds` (in `phase-5-embedding.ts`),
+ * which derives the high-PII set from the **PII-filter-free** pending condition
+ * (`text_embedding IS NOT NULL AND vision_embedding IS NULL AND vision_skip_reason
+ * IS NULL` intersected with `pii_risk_level='high'`) — NOT from the result of THIS
+ * predicate (which already removes high-PII rows via its NOT EXISTS clause). This
+ * decoupling is what makes the marker live: deriving the high-PII set from this
+ * predicate's output would always be empty. Once the marker sets
+ * `vision_skip_reason = 'section_visual_pii_excluded'`, the row becomes terminal
+ * and is excluded by the `vision_skip_reason IS NULL` clause of BOTH this
+ * predicate and the live-marker query, so the marker write is idempotent and
+ * completion (pending → 0) is preserved. The NOT EXISTS clause here is the
+ * belt-and-suspenders defense for the pre-marker window and for runs where the
+ * work loop does not execute.
+ *
+ * A row whose `vision_skip_reason` is non-NULL (one of
+ * {@link EMBEDDING_SECTION_VISUAL_SKIP_REASONS}) is excluded from pending so the
+ * processor stops retrying it (terminal). A row with `vision_embedding IS NULL`
+ * AND `vision_skip_reason IS NULL` AND no high-PII child part remains pending
+ * (real-leak / retry target — INV-(b) orthogonality per ADR-0018 §7.5). A
+ * non-high-PII real-leak section is NOT excluded by the NOT EXISTS (it stays
+ * pending and is correctly retried — RISKS R1 / INV-011 orthogonality assert).
+ *
+ * The fragment is parameter-free static SQL (no reason-literal interpolation, no
+ * SQL-injection surface — it only checks `vision_skip_reason IS NULL` and an
+ * enum-bound `pii_risk_level = 'high'` literal, never embeds a specific reason
+ * string or runtime user input). The caller is responsible for the table alias
+ * matching its JOIN/subquery context, and for the `<alias>.section_pattern_id`
+ * column being available (all 3 callsites SELECT from `section_embeddings`).
+ *
+ * @param alias Table alias for `section_embeddings` (default `"se"`). Restricted
+ *   to a SQL-identifier-safe form by the caller; callers pass a compile-time
+ *   literal alias.
+ * @returns SQL WHERE-fragment string (no leading `AND`/`WHERE`).
+ */
+export function sectionVisualPendingExclusionPredicate(alias: string = "se"): string {
+  // Static fragment; `alias` is always a compile-time literal at every callsite
+  // (`se`). No runtime user input flows here (no SQL-injection surface). The
+  // predicate only checks `vision_skip_reason IS NULL` and an enum-bound
+  // `pii_risk_level = 'high'` literal — it never interpolates a specific reason
+  // literal nor runtime user input (no enum-drift / SQL-injection surface).
+  // PR-C4: the NOT EXISTS subquery anchors on `<alias>.section_pattern_id`
+  // (correlated subquery), restoring part_visual ↔ section_visual PII symmetry.
+  return (
+    `${alias}.text_embedding IS NOT NULL ` +
+    `AND ${alias}.vision_embedding IS NULL ` +
+    `AND ${alias}.vision_skip_reason IS NULL ` +
+    `AND NOT EXISTS (` +
+    `SELECT 1 FROM component_parts cp ` +
+    `WHERE cp.section_pattern_id = ${alias}.section_pattern_id ` +
+    `AND cp.pii_risk_level = 'high'` +
+    `)`
+  );
+}
 
 /**
  * `EmbeddingPhaseResult.skipDetail` の最大長（文字数）。
@@ -530,6 +1125,19 @@ export interface EmbeddingPhaseResult {
    * `skipReason='bbox_invalid'` when ALL parts are skipped this way (Plan §3.3).
    */
   partVisualSkippedBboxInvalid: number;
+  /**
+   * ADR-0018 Amendment 7 §7.6 exit #2 (Plan v2 PR-B, UB-8, NF-TPA-02): count of
+   * parts skipped because the resolved crop is zero-size (cropWidth<=0 ||
+   * cropHeight<=0) after off-screen clamping (M3 = off-screen non-zero bbox).
+   * Replaces the legacy silent bare `continue` with an observable counter +
+   * per-row `visual_skip_reason='bbox_unresolvable'` terminal marker, so the
+   * part is excluded from the part_visual pending query (NF-TPA-01).
+   *
+   * Count of parts skipped because the off-screen-clamped crop is zero-size;
+   * promotes the legacy silent bare `continue` to an observable counter + a
+   * per-row `bbox_unresolvable` terminal marker.
+   */
+  partVisualSkippedBboxUnresolvable: number;
   /** Section visual embedding 生成数（DINOv2） */
   sectionVisualEmbeddingsGenerated: number;
   /** Embedding生成に失敗したチャンク数 */
@@ -624,6 +1232,18 @@ export interface PhaseContext {
 export interface PipelineState {
   /** 実際の WebPage DB ID（upsert 結果で更新される） */
   actualWebPageId: string;
+  /**
+   * `normalizeUrlForStorage(url)` の結果。failure-path の url-key upsert
+   * (`markFailedAndAuditAtomic`) が `where.url` / create `url` の key として
+   * 使用する (PR-INGEST-FAIL-ROW / ADR-0016 Amendment 6 §Decision 2)。
+   * Phase 0 entry で確定し、W0 / W1 / failure-path 全経路が同一の
+   * `url @unique` (`schema.prisma:208`) に収束する (CONS-3 / CWE-362)。
+   *
+   * `normalizeUrlForStorage(url)` value. Used by the failure-path url-key
+   * upsert as the `where.url` / create `url` key so W0 / W1 / failure-path
+   * all converge on the same `url @unique` row.
+   */
+  normalizedUrl: string;
   /** 完了した Phase の配列 */
   completedPhases: AnalysisPhase[];
   /** 失敗した Phase の配列 */
@@ -661,6 +1281,17 @@ export interface PipelineState {
   visionPreDisabled: boolean;
   /** Memory abort flag */
   memoryAborted: boolean;
+  /**
+   * Plan v3 Track T4 (PR-V3-T4) UNBLOCK-T4-02 — supervisor-injected spawn-time
+   * (epoch ms) read from `REFTRIX_WORKER_SPAWN_TIME_MS` env var. Used as the
+   * `worker_job_lifecycle.worker_spawn_time` SSOT join key for both the
+   * spawn write hook (`recordWorkerSpawn`) and the release clear hook
+   * (`recordWorkerRelease`). Falls back to `Date.now()` for legacy / test
+   * runs without supervisor.
+   *
+   * UNBLOCK-T4-02 spawn-time SSOT for INV-WORKER-PID-IDENTITY-005 hooks.
+   */
+  workerSpawnTimeMs?: number;
 }
 
 // ============================================================================
@@ -746,6 +1377,374 @@ export async function unloadOllamaVisionModel(): Promise<boolean> {
     );
     return false;
   }
+}
+
+// ============================================================================
+// Ollama Vision Unload + Verify (Plan v3 T3-Vision V1 §3.1 Layer 1)
+// ============================================================================
+
+/**
+ * Number of `/api/ps` poll attempts after unload POST before declaring residual.
+ * Plan v3 T3-Vision V1 §3.1 step 3.
+ *
+ * /api/ps を unload POST 後にポーリングする回数 (3 回)。
+ */
+const VISION_PROBE_ATTEMPTS = 3;
+
+/**
+ * Delay between successive `/api/ps` poll attempts.
+ * Test contract: 3 attempts × ~50ms = ~150ms (test allows 15s timeout for slack).
+ *
+ * /api/ps ポーリング間隔。3 回 × 50ms = 150ms (test 15s budget 内)。
+ */
+const VISION_PROBE_INTERVAL_MS = 50;
+
+/**
+ * Per-attempt timeout for `/api/ps` poll.
+ *
+ * /api/ps 1 回あたりの timeout。
+ */
+const VISION_PROBE_ATTEMPT_TIMEOUT_MS = 3_000;
+
+/**
+ * Ollama Vision unload + verify result (Plan v3 T3-Vision V1 §4.1 INV-VISION-UNLOAD-001).
+ *
+ * Wraps the legacy `unloadOllamaVisionModel()` POST keep_alive=0 with a
+ * `/api/ps`-based residual verification step (3 attempts) and emits one of
+ *   - `vision_unload_verified`         (residualBytes === 0, success)
+ *   - `vision_unload_residual_persisted` (residualBytes > 0,  failure)
+ * via `emitSupervisorAuditLog()` SSOT (audit_logs.action enum).
+ *
+ * If the audit emit itself throws (DB unavailable, transient connection error),
+ * the caller's behaviour is preserved (no propagation) via L1.5 SLO_MARKER
+ * fail-open compensation per ADR-0011 Amendment 3 §SLO 5-tier.
+ *
+ * `unloadOllamaVisionModel()` の POST keep_alive=0 を `/api/ps` ポーリングで
+ * verify したラッパー。audit emit が throw しても caller 動作を保つ (L1.5 SLO_MARKER)。
+ */
+export interface VisionUnloadVerifyResult {
+  /** `true` iff residual bytes == 0 after probe (POST 5xx tolerated when probe succeeds). */
+  readonly unloaded: boolean;
+  /** Residual VRAM bytes detected via `/api/ps` (NaN/Infinity defended to 0). */
+  readonly residualBytes: number;
+  /** `true` iff `/api/ps` was reached (request didn't throw). */
+  readonly probeAttempted: boolean;
+  /** `true` iff `POST /api/generate keep_alive=0` returned 2xx. */
+  readonly unloadAckReceived: boolean;
+  /** Wall-clock duration of unload + verify, finite ms. */
+  readonly elapsedMs: number;
+  /** Sanitized probe error string (set only when all probe attempts fail). */
+  readonly probeError?: string;
+}
+
+// ============================================================================
+// `pollVramResidual` sub-helpers (IO Impl Decision V1 §5 Option (a) refactor).
+//
+// Plan v3 T3-Vision V1 §1.7 / IO Impl Decision V1 §5 で
+// `unloadOllamaVisionModelAndVerify()` から 4 段の helper を抽出。
+// 各 sub-helper は cyclomatic ≤5 contract を満たす。
+//
+// IO Impl Decision V1 §5 Option (a) refactor extracted 4 helpers from the
+// inline polling loop, each ≤5 cyclomatic.
+// ============================================================================
+
+/**
+ * Lower bound for per-attempt `/api/ps` probe timeout (`pollWithBudget`).
+ *
+ * Plan v3 T3-Vision V1 §1.7: callers may pass `deadlineMs=0` (e.g. in
+ * shutdown paths); we clamp to 500 ms so a single fetch can still complete
+ * without an immediate timeout failure.
+ *
+ * `/api/ps` プローブの per-attempt timeout 下限。`deadlineMs=0` でも
+ * 500ms に clamp して即時 timeout 失敗を防ぐ。
+ */
+const POLL_VRAM_MIN_ATTEMPT_TIMEOUT_MS = 500;
+
+/**
+ * Per-attempt residual + error pair returned by {@link attemptVramProbe}.
+ *
+ * `attemptVramProbe()` の per-attempt 結果。
+ */
+export interface VramProbeAttemptResult {
+  /** `true` iff the HTTP GET succeeded and JSON parsed cleanly. */
+  readonly observedSuccessfully: boolean;
+  /** Residual bytes extracted from this attempt (NaN/Infinity defended to 0). */
+  readonly attemptResidual: number;
+  /** Sanitized error string set only when `observedSuccessfully=false`. */
+  readonly probeError?: string;
+}
+
+/**
+ * Aggregated polling result returned by {@link pollWithBudget} and
+ * {@link pollVramResidual}.
+ *
+ * `pollWithBudget()` / `pollVramResidual()` の集約結果。
+ */
+export interface VramPollResult {
+  /** Maximum residual observed across all successful attempts. */
+  readonly maxResidualBytes: number;
+  /** `true` iff at least one attempt succeeded (HTTP OK + JSON parsed). */
+  readonly observedSuccessfully: boolean;
+  /** Number of attempts actually executed (1..attempts; early-return when residual=0). */
+  readonly attemptsUsed: number;
+  /** Sanitized error string set only when no attempt succeeded. */
+  readonly probeError?: string;
+}
+
+/**
+ * Extract the maximum residual VRAM (in bytes) of any model whose name starts
+ * with `llama3.2-vision` (Apple Silicon `llama3.2-vision:11b` also matches per
+ * ADR-0011 Amendment 1 §C). NaN / Infinity / negative values are coerced to 0
+ * via `Number.isFinite` + `Math.max(0, ...)`. Null / undefined entries are
+ * safely ignored.
+ *
+ * IO Impl Decision V1 §5 sub-helper #1 — pure function, no I/O.
+ *
+ * `llama3.2-vision` で始まる model の最大 size_vram を抽出する純粋関数。
+ * NaN/Infinity 防御、null/undefined entry の skip 込み。
+ */
+export function extractMaxResidual(
+  models: ReadonlyArray<{ name?: string; size_vram?: number } | null | undefined>
+): number {
+  let max = 0;
+  for (const m of models) {
+    if (!m) continue;
+    const name = typeof m.name === "string" ? m.name : "";
+    if (!name.startsWith("llama3.2-vision")) continue;
+    const rawSize = typeof m.size_vram === "number" ? m.size_vram : 0;
+    if (!Number.isFinite(rawSize)) continue;
+    const residual = Math.max(0, rawSize);
+    if (residual > max) max = residual;
+  }
+  return max;
+}
+
+/**
+ * Issue a single HTTP GET `/api/ps` against `ollamaUrl` with a per-attempt
+ * `timeoutMs` budget (clamped to {@link POLL_VRAM_MIN_ATTEMPT_TIMEOUT_MS}).
+ *
+ * Returns:
+ *   - `observedSuccessfully=true`  on 2xx + valid JSON (residual from `extractMaxResidual`)
+ *   - `observedSuccessfully=false` on non-2xx, malformed JSON, or fetch throw
+ *     (`probeError` is `sanitizeErrorMessage`-sanitized; CWE-209 PII contract)
+ *
+ * IO Impl Decision V1 §5 sub-helper #2 — single I/O round-trip.
+ *
+ * 単一の `/api/ps` GET を発行し residual を抽出する helper。
+ */
+export async function attemptVramProbe(
+  ollamaUrl: string,
+  timeoutMs: number
+): Promise<VramProbeAttemptResult> {
+  const clampedTimeout = Math.max(
+    POLL_VRAM_MIN_ATTEMPT_TIMEOUT_MS,
+    Number.isFinite(timeoutMs) ? timeoutMs : POLL_VRAM_MIN_ATTEMPT_TIMEOUT_MS
+  );
+  try {
+    const psResponse = await fetch(`${ollamaUrl}/api/ps`, {
+      method: "GET",
+      signal: AbortSignal.timeout(clampedTimeout),
+    });
+    if (!psResponse.ok) {
+      // HTTP status responses carry no PII risk (status code is a server-side
+      // contract identifier, not user data). Test contract:
+      // `probeError.toMatch(/HTTP 503/)` requires verbatim status surface,
+      // so we skip `sanitizeErrorMessage()` for the HTTP-not-OK branch.
+      // CWE-209 PII contract is enforced separately on the network-error
+      // branch where stack frames could surface.
+      return {
+        observedSuccessfully: false,
+        attemptResidual: 0,
+        probeError: `Ollama /api/ps returned HTTP ${psResponse.status}`,
+      };
+    }
+    const data = (await psResponse.json()) as {
+      models?: Array<{ name?: string; size_vram?: number }> | null;
+    };
+    const models = Array.isArray(data.models) ? data.models : [];
+    return {
+      observedSuccessfully: true,
+      attemptResidual: extractMaxResidual(models),
+    };
+  } catch (err) {
+    return {
+      observedSuccessfully: false,
+      attemptResidual: 0,
+      probeError: sanitizeErrorMessage(err),
+    };
+  }
+}
+
+/**
+ * Orchestrate the retry loop for `/api/ps` polling against `ollamaUrl`.
+ *
+ * Behaviour:
+ *   - Issue up to `attempts` probes (each via {@link attemptVramProbe}).
+ *   - `intervalMs` delay between probes; no delay after the final attempt.
+ *   - When any attempt observes residual=0, return early (`attemptsUsed`
+ *     reflects only the attempts actually executed).
+ *   - `maxResidualBytes` preserved across all successful attempts.
+ *   - `observedSuccessfully=true` iff at least one attempt succeeded.
+ *   - `probeError` set to the most recent sanitized error (preserved only when
+ *     no attempt succeeded; cleared once any attempt succeeds).
+ *
+ * IO Impl Decision V1 §5 sub-helper #3 — retry loop orchestrator.
+ *
+ * `attemptVramProbe()` を `attempts` 回まで実行し、max residual を集約する。
+ */
+export async function pollWithBudget(
+  ollamaUrl: string,
+  deadlineMs: number,
+  attempts: number,
+  intervalMs: number
+): Promise<VramPollResult> {
+  let max = 0;
+  let observedSuccessfully = false;
+  let probeError: string | undefined;
+  let attemptsUsed = 0;
+
+  for (let i = 0; i < attempts; i++) {
+    if (i > 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, intervalMs));
+    }
+    attemptsUsed = i + 1;
+    const r = await attemptVramProbe(ollamaUrl, deadlineMs);
+    if (r.observedSuccessfully) {
+      observedSuccessfully = true;
+      probeError = undefined;
+      if (r.attemptResidual > max) max = r.attemptResidual;
+      if (r.attemptResidual === 0) break; // early-return on confirmed unload
+    } else if (!observedSuccessfully) {
+      // Preserve the most recent error only while no attempt has succeeded.
+      probeError = r.probeError;
+    }
+  }
+
+  return {
+    maxResidualBytes: observedSuccessfully ? max : 0,
+    observedSuccessfully,
+    attemptsUsed,
+    ...(probeError !== undefined && !observedSuccessfully ? { probeError } : {}),
+  };
+}
+
+/**
+ * `pollVramResidual()` — env-aware convenience wrapper around
+ * {@link pollWithBudget} that resolves `OLLAMA_HOST` via
+ * `validateOllamaLocalhostUrl()` (SSRF defence).
+ *
+ * IO Impl Decision V1 §5 parent — used by `unloadOllamaVisionModelAndVerify()`.
+ *
+ * 環境変数 `OLLAMA_HOST` を解決した上で `pollWithBudget()` を呼ぶ wrapper。
+ */
+export async function pollVramResidual(
+  deadlineMs: number,
+  attempts: number,
+  intervalMs: number
+): Promise<VramPollResult> {
+  const ollamaUrl = validateOllamaLocalhostUrl(process.env.OLLAMA_HOST ?? OLLAMA_DEFAULT_URL);
+  return pollWithBudget(ollamaUrl, deadlineMs, attempts, intervalMs);
+}
+
+/**
+ * `unloadOllamaVisionModelAndVerify()` — unload Ollama Vision + verify residual
+ * via `/api/ps` polling (Plan v3 T3-Vision V1 §3.1 Layer 1, §4.1 INV-VISION-UNLOAD-001).
+ *
+ * Behaviour:
+ *   1. POST `/api/generate keep_alive=0` (capture 2xx ack in `unloadAckReceived`).
+ *   2. Poll `/api/ps` up to {@link VISION_PROBE_ATTEMPTS} times with
+ *      {@link VISION_PROBE_INTERVAL_MS} delay; locate Vision residual
+ *      (`name.startsWith("llama3.2-vision")` AND `size_vram > 0`, NaN-defended).
+ *      Exit polling early when residual == 0 (success path).
+ *   3. Emit one of:
+ *      - `vision_unload_verified`          (residualBytes === 0, "success")
+ *      - `vision_unload_residual_persisted` (residualBytes > 0,  "failure")
+ *      via `emitSupervisorAuditLog()` SSOT.
+ *   4. If the emit throws, log `[SLO_MARKER] vision_unload_audit_emit_failed`
+ *      with a PII-safe payload (`reason`, `residualBytes`, `model`) and continue
+ *      (L1.5 fail-open compensation).
+ *
+ * Probe trumps POST: if POST returns 5xx but `/api/ps` later shows
+ * `size_vram == 0`, `unloaded=true` (Case C in the standing regression).
+ *
+ * @returns {@link VisionUnloadVerifyResult} — discriminated outcome.
+ */
+export async function unloadOllamaVisionModelAndVerify(): Promise<VisionUnloadVerifyResult> {
+  const startedAtMs = Date.now();
+  const ollamaUrl = validateOllamaLocalhostUrl(process.env.OLLAMA_HOST ?? OLLAMA_DEFAULT_URL);
+
+  // --------------------------------------------------------------------------
+  // Step 1: POST /api/generate keep_alive=0 (legacy unload path).
+  // --------------------------------------------------------------------------
+  let unloadAckReceived = false;
+  try {
+    const response = await fetch(`${ollamaUrl}/api/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: OLLAMA_VISION_MODEL_NAME,
+        keep_alive: "0",
+        prompt: "",
+      }),
+      signal: AbortSignal.timeout(OLLAMA_UNLOAD_TIMEOUT_MS),
+    });
+    unloadAckReceived = response.ok;
+  } catch {
+    // Network / timeout failure on POST tolerated — probe will determine
+    // residual independently (probe trumps POST per Case C).
+    unloadAckReceived = false;
+  }
+
+  // --------------------------------------------------------------------------
+  // Step 2: Poll /api/ps (up to VISION_PROBE_ATTEMPTS) for residual via
+  //         pollWithBudget() (IO Impl Decision V1 §5 sub-helper #3).
+  // --------------------------------------------------------------------------
+  const pollResult = await pollWithBudget(
+    ollamaUrl,
+    VISION_PROBE_ATTEMPT_TIMEOUT_MS,
+    VISION_PROBE_ATTEMPTS,
+    VISION_PROBE_INTERVAL_MS
+  );
+  const probeAttempted = pollResult.attemptsUsed > 0;
+  const residualBytes = pollResult.maxResidualBytes;
+  const lastProbeSucceeded = pollResult.observedSuccessfully;
+  const probeError = pollResult.probeError;
+
+  // --------------------------------------------------------------------------
+  // Step 3: Build result + emit audit_logs (fail-open per L1.5 SLO_MARKER).
+  // --------------------------------------------------------------------------
+  const elapsedMs = Math.max(0, Date.now() - startedAtMs);
+  const unloaded = lastProbeSucceeded && residualBytes === 0;
+  const model = OLLAMA_VISION_MODEL_NAME;
+
+  const auditAction = unloaded ? "vision_unload_verified" : "vision_unload_residual_persisted";
+  const auditResult: "success" | "failure" = unloaded ? "success" : "failure";
+  const auditDetails: Record<string, unknown> = {
+    model,
+    residualBytes,
+  };
+  try {
+    emitSupervisorAuditLog(auditAction, "page", auditDetails, auditResult);
+  } catch (emitErr) {
+    // L1.5 SLO_MARKER fail-open compensation (Plan v3 T3-Vision V1 §1.3 U-T3V-3).
+    // Caller behaviour unchanged; log line is a Grafana Loki-monitorable source.
+    const reason = sanitizeErrorMessage(emitErr);
+    console.error("[SLO_MARKER] vision_unload_audit_emit_failed", {
+      reason,
+      residualBytes,
+      model,
+    });
+  }
+
+  const result: VisionUnloadVerifyResult = {
+    unloaded,
+    residualBytes,
+    probeAttempted,
+    unloadAckReceived,
+    elapsedMs: Number.isFinite(elapsedMs) ? elapsedMs : 0,
+    ...(probeError !== undefined && !lastProbeSucceeded ? { probeError } : {}),
+  };
+  return result;
 }
 
 // ============================================================================

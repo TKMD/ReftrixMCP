@@ -442,14 +442,21 @@ describe("isBlankImage RAW/PNG compatibility (TPA-2)", () => {
 // ============================================================================
 
 describe("PII protection filter maintained (PII-1)", () => {
-  it("should verify Phase 5 source retains highPiiSectionIds filtering logic", () => {
+  it("should verify Phase 5 source retains high-PII section filtering logic", () => {
     const phase5Source = fs.readFileSync(
       path.resolve(__dirname, "../../../src/workers/phases/phase-5-embedding.ts"),
       "utf8"
     );
 
-    // highPiiSectionIds filtering must still exist in Phase 5
-    expect(phase5Source).toContain("highPiiSectionIds");
+    // PII protection (GDPR Art. 5(1)(c)) must still exist in Phase 5.
+    // PR-C4 / CO-5 リファクタ追従: the high-PII section filter was refactored from the
+    // bare plural `highPiiSectionIds` array name to the `highPiiSectionIdSet` (Set) shape.
+    // PII protection is intact — only the variable-name pin was stale, so this source-pin
+    // now follows production's real shape (`highPiiSectionIdSet` + `pii_risk_level = 'high'`).
+    // PR-C4 / CO-5 refactor follow-through: production renamed the high-PII filter from the
+    // plural `highPiiSectionIds` array to a `highPiiSectionIdSet` (`new Set(...)`) at
+    // phase-5-embedding.ts. We verify the PII guard still exists via the new symbol name
+    // rather than the removed plural literal.
     expect(phase5Source).toContain("highPiiSectionIdSet");
     expect(phase5Source).toContain("pii_risk_level");
     expect(phase5Source).toContain("GDPR Art. 5(1)(c)");

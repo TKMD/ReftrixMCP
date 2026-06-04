@@ -81,6 +81,7 @@ pnpm db:migrate && pnpm db:seed
 pnpm build
 pnpm exec playwright install chromium            # browser for page crawling
 pnpm --filter @reftrixmcp/ml download:dinov2        # DINOv2 visual embedding model (~800 MB)
+pnpm --filter @reftrixmcp/ml repair:e5-cache --check # (optional) verify multilingual-e5-base ONNX cache (~1.1 GB) integrity
 curl -fsSL https://ollama.com/install.sh | sh    # install Ollama
 ollama pull llama3.2-vision                      # vision model (~7.9 GB)
 ollama serve                                     # keep running in a separate terminal
@@ -174,10 +175,14 @@ MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (<!-- gen:tool-count 
 - `onnxruntime-node` is an optional dependency; ML features (embedding, visual search) require explicit install: `pnpm add onnxruntime-node`. Non-ML tools (layout analysis, quality evaluation, code generation) work without it
 - CPU-mode embedding takes ~2-5 s per text; GPU recommended for batch workloads
 - Minimum 16 GB RAM; 32 GB recommended for concurrent analysis with Ollama Vision
-- First embedding call downloads ~400 MB model (multilingual-e5-base)
+- First embedding call downloads ~1.1 GB ONNX model (multilingual-e5-base, FP32) into the transformers.js cache. Verify integrity at any time with `pnpm --filter @reftrixmcp/ml repair:e5-cache --check`; pass `--repair` to re-download on size/SHA-256 mismatch, or `--force` to always re-download
 - `page.analyze` workers are auto-forked by `WorkerSupervisor` when the MCP server starts (v0.4.0 PR7d-2+); manual start is developer-only (`REFTRIX_ALLOW_MANUAL_WORKER=true` required when MCP server is running)
 - Vision analysis (layout, motion, narrative) requires Ollama + `llama3.2-vision` running locally
 - DINOv2 visual embedding model requires ~800 MB download (ViT-B/14 ONNX)
+
+## Release notes / リリースノート
+
+- **Plan v4.4 PR-N (2026-05-17)**: `WorkerSupervisorOptions.restartDelayMs` field formal removal + env-only canonical SSOT consolidation per ADR-0035 Amendment 1 §Decision 5. The `WORKER_RESTART_DELAY_MS` and `EMBEDDING_BACKFILL_RESTART_DELAY_MS` environment variables are now the sole source of truth for per-type restart cooldown values; resolution is performed via `getRestartDelayMsForType(workerType)`. Server version bumped to 0.6.0. / `WorkerSupervisorOptions.restartDelayMs` フィールドを正式削除し、ADR-0035 Amendment 1 §Decision 5 に従い env-only canonical SSOT へ一元化。`WORKER_RESTART_DELAY_MS` と `EMBEDDING_BACKFILL_RESTART_DELAY_MS` 環境変数が per-type restart cooldown 値の唯一の真実源となり、`getRestartDelayMsForType(workerType)` 経由で解決される。サーバーバージョンを 0.6.0 に bump。
 
 ## License
 

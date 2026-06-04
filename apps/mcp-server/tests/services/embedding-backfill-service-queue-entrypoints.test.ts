@@ -85,11 +85,16 @@ describe("embedding-backfill.service Queue entry points (v0.4.0 PR4)", () => {
       expect(serviceSource).toContain("Promise<{ pendingCount: number }>");
     });
 
-    it("should JOIN component_part_embeddings and filter visual_embedding IS NULL", () => {
+    it("should JOIN component_part_embeddings and filter via the SSOT exclusion predicate (ADR-0018 Amendment 7 §7.1)", () => {
       expect(serviceSource).toContain(
         "JOIN component_part_embeddings cpe ON cp.id = cpe.component_part_id"
       );
-      expect(serviceSource).toContain("cpe.visual_embedding IS NULL");
+      // ADR-0018 Amendment 7 §7.1 (Plan v2 PR-B, UB-3): the inline
+      // `cpe.visual_embedding IS NULL` WHERE was replaced by the single SSOT
+      // exclusion predicate helper so terminal-skip parts (visual_skip_reason
+      // non-NULL) are excluded from pending (NF-TPA-01). The pending condition is
+      // now produced by partVisualPendingExclusionPredicate("cpe").
+      expect(serviceSource).toContain('partVisualPendingExclusionPredicate("cpe")');
     });
 
     it("should exclude piiRiskLevel='high' parts (GDPR Art. 5(1)(c))", () => {

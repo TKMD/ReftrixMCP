@@ -78,6 +78,12 @@ const SRC_WORKER_SUPERVISOR = path.resolve(
   REPO_ROOT_RELATIVE_FROM_TEST,
   "src/services/worker-supervisor.service.ts"
 );
+// CO-26 split: spawn / exit / IPC handling moved to Module B (lifecycle).
+const SRC_WORKER_SUPERVISOR_LIFECYCLE = path.resolve(
+  __dirname,
+  REPO_ROOT_RELATIVE_FROM_TEST,
+  "src/services/worker-supervisor-lifecycle.service.ts"
+);
 const SRC_WORKER_SUPERVISOR_HELPERS = path.resolve(
   __dirname,
   REPO_ROOT_RELATIVE_FROM_TEST,
@@ -86,6 +92,14 @@ const SRC_WORKER_SUPERVISOR_HELPERS = path.resolve(
 
 function readSource(absPath: string): string {
   return fs.readFileSync(absPath, "utf-8");
+}
+
+/**
+ * CO-26 split helper — combined source from Module A facade + Module B lifecycle.
+ * Static-grep regression guards check across both modules to preserve INV contracts.
+ */
+function readCombinedSupervisorSource(): string {
+  return readSource(SRC_WORKER_SUPERVISOR) + "\n" + readSource(SRC_WORKER_SUPERVISOR_LIFECYCLE);
 }
 
 // ============================================================================
@@ -140,17 +154,38 @@ describe("INV-WORKER-LOCK-003-MOTION-SIGABRT-006: Fix-2 pre-fork parent dispose 
     // Source-code contract: parent Worker Thread MUST dispose its ONNX
     // session before fork() so the child does not COW-inherit a mid-
     // inference native pthread.
+    //
+    // Plan v4.5 PR3 Unblock U-3 (FIND-IMPL-TDA-PR3-CC): `runForkOrFallback`
+    // was refactored (CC 13 → 5) by extracting `disposeParentOnnxBeforeFork()`
+    // (holds the dispose call) and `executeForkAndMapResult()` (holds the fork
+    // orchestrator dynamic import) into standalone helpers. The dispose-before-
+    // fork runtime invariant is unchanged; it is now expressed as the ORDER of
+    // those two helper CALLS inside `runForkOrFallback`, plus the dispose call
+    // sitting inside the dispose helper before the orchestrator import inside
+    // the fork helper.
     const src = readSource(SRC_BACKFILL_PROCESSORS);
 
-    // Verify the dispose call sits inside runForkOrFallback before the
-    // dynamic import of the fork orchestrator.
+    // (a) Inside runForkOrFallback: the dispose helper is invoked before the
+    //     fork-execute helper (call-order = runtime dispose-before-fork).
     const runForkIdx = src.indexOf("async function runForkOrFallback(");
-    const disposeIdx = src.indexOf("await mlEmbeddingService.dispose();");
-    const orchestratorImportIdx = src.indexOf(
-      'await import("../workers/phases/embedding-backfill-fork-orchestrator.js")'
+    const disposeCallIdx = src.indexOf("await disposeParentOnnxBeforeFork();", runForkIdx);
+    const forkExecCallIdx = src.indexOf(
+      "await executeForkAndMapResult(category, ctx);",
+      runForkIdx
     );
     expect(runForkIdx).toBeGreaterThan(0);
-    expect(disposeIdx).toBeGreaterThan(runForkIdx);
+    expect(disposeCallIdx).toBeGreaterThan(runForkIdx);
+    expect(forkExecCallIdx).toBeGreaterThan(disposeCallIdx);
+
+    // (b) The dispose call (in disposeParentOnnxBeforeFork) precedes the fork
+    //     orchestrator dynamic import (in executeForkAndMapResult) in file
+    //     order, so the parent ONNX session is always torn down before any
+    //     fork() handoff path is reachable.
+    const disposeIdx = src.indexOf("await mlEmbeddingService.dispose();");
+    const orchestratorImportIdx = src.indexOf(
+      '"../workers/phases/embedding-backfill-fork-orchestrator.js"'
+    );
+    expect(disposeIdx).toBeGreaterThan(0);
     expect(orchestratorImportIdx).toBeGreaterThan(disposeIdx);
 
     // Best-effort semantic: dispose failure MUST emit warn log + continue.
@@ -183,7 +218,8 @@ describe("INV-WORKER-LOCK-003-MOTION-SIGABRT-006: Fix-3 SIGABRT detection + resp
     //   (b) audit_logs.action = 'worker_sigabrt_detected' is emitted
     //   (c) consecutive count threshold = 3 triggers suppress
     //   (d) suppress extension = 60_000ms (additional respawn delay)
-    const supSrc = readSource(SRC_WORKER_SUPERVISOR);
+    // CO-26 split: processSigabrtSignal callsite moved to Module B (lifecycle).
+    const supSrc = readCombinedSupervisorSource();
     const helperSrc = readSource(SRC_WORKER_SUPERVISOR_HELPERS);
 
     // (a) structured detection (helper-driven)

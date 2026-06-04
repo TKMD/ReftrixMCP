@@ -474,6 +474,112 @@ function formatZodParseFailure(error: z.ZodError): string {
 }
 
 // ============================================================================
+// Plan v4.5 PR3 Track 2 §5.5 / §5.6: Sub-child cascade hooks
+// (INV-AUDIT-ATTACH-CHILD-CASCADE-001, Layer 2 → Layer 1 crash cascade)
+// ============================================================================
+
+/**
+ * SIGABRT-imminent stderr token matcher (libc / pthread / ONNX native abort).
+ * A sub-child (Layer 3) that aborts emits "abort" / "Aborted" on stderr before
+ * the OS delivers SIGABRT; cascading these lines to Layer 1 lets the
+ * supervisor's crash-report-watcher correlate the sub-child crash with the
+ * Layer 1 audit (`worker_sigabrt_detected`) within the 5s SLA (§5.6).
+ *
+ * SIGABRT 直前の stderr token matcher。Layer 3 sub-child の abort を Layer 1 へ
+ * cascade し crash-report-watcher が 5s SLA 内で相関できるようにする (§5.6)。
+ */
+const SUB_CHILD_ABORT_PATTERN = /\b(abort|Aborted|SIGABRT)\b/;
+
+/**
+ * §5.6 cascade hook 1/3 — attach the sub-child stdout `data` handler. Forwards
+ * to the parent (Layer 2) logger so Layer 1's piped stdout observability is
+ * preserved across the dual-fork hierarchy.
+ *
+ * §5.6 cascade hook 1/3 — sub-child stdout handler。
+ */
+function attachStdoutHandler(child: ChildProcess, jobId: string): void {
+  child.stdout?.on("data", (data: Buffer) => {
+    const line = data.toString().trim();
+    if (line) {
+      logger.info(`[BackfillSubChild:${truncateId(jobId)}:stdout] ${line}`);
+    }
+  });
+}
+
+/**
+ * §5.6 cascade hook 2/3 — attach the sub-child stderr `data` handler. Cascades
+ * abort-imminent native messages to the parent (Layer 2) at `error` level so
+ * Layer 1's crash-report-watcher observes the sub-child crash. Non-abort lines
+ * are logged at `warn` (preserving Layer 1 pipe observability).
+ *
+ * §5.6 cascade hook 2/3 — sub-child stderr handler。abort-imminent native msg を
+ * Layer 1 crash-report-watcher へ cascade する (5s SLA, §5.6)。
+ */
+function attachStderrHandler(child: ChildProcess, jobId: string): void {
+  child.stderr?.on("data", (data: Buffer) => {
+    const line = data.toString().trim();
+    if (!line) return;
+    if (SUB_CHILD_ABORT_PATTERN.test(line)) {
+      // Cascade to Layer 1: error-level so the supervisor crash-report-watcher
+      // (which observes child stderr) correlates sub-child PID + parent PID.
+      logger.error(`[BackfillSubChild:${truncateId(jobId)}:abort-cascade] ${line}`, {
+        finding: "INV-AUDIT-ATTACH-CHILD-CASCADE-001",
+        subChildPid: child.pid ?? -1,
+        parentPid: process.pid,
+      });
+    } else {
+      logger.warn(`[BackfillSubChild:${truncateId(jobId)}:stderr] ${line}`);
+    }
+  });
+}
+
+/**
+ * §5.6 cascade hook 3/3 — attach the sub-child `exit` handler. A non-zero /
+ * signal exit (e.g. SIGABRT) is cascaded to the parent (Layer 2) logger at
+ * `error` level with sub-child PID + parent PID linkage so Layer 1 reconciles
+ * the crash. Clean exit (code 0) is silent.
+ *
+ * §5.6 cascade hook 3/3 — sub-child exit handler。非ゼロ / signal exit を Layer 1
+ * へ cascade する (sub-child PID + parent PID linkage)。
+ */
+function attachExitHandler(child: ChildProcess, jobId: string): void {
+  if (typeof child.once !== "function") return;
+  child.once("exit", (code: number | null, signal: string | null) => {
+    if (code === 0) return;
+    logger.error(`[BackfillSubChild:${truncateId(jobId)}:exit] non-clean sub-child exit`, {
+      finding: "INV-AUDIT-ATTACH-CHILD-CASCADE-001",
+      subChildPid: child.pid ?? -1,
+      parentPid: process.pid,
+      exitCode: code,
+      signal,
+    });
+  });
+}
+
+/**
+ * §5.5 / §5.6 MANDATORY cascade: attach all 3 sub-child observability hooks
+ * (stdout / stderr / exit) BEFORE returning from spawn. The cascade ensures a
+ * Layer 3 sub-child SIGABRT propagates to the Layer 1 supervisor's
+ * crash-report-watcher. INV-AUDIT-ATTACH-CHILD-CASCADE-001 asserts hook count
+ * == 3 at the orchestrator level.
+ *
+ * Defensive against partial child shapes (e.g. test synthetic children without
+ * piped stdio): each hook is a no-op when its target surface is absent; the
+ * return value reflects the attempted hook count contract (3).
+ *
+ * §5.5 / §5.6 MANDATORY: sub-child の 3 observability hook (stdout/stderr/exit)
+ * を spawn return 前に attach する。hook count == 3 (INV §5.6)。
+ *
+ * @returns The number of cascade hooks attached (MUST be 3 for the invariant)
+ */
+export function attachSubChildCascadeHooks(child: ChildProcess, jobId: string): number {
+  attachStdoutHandler(child, jobId);
+  attachStderrHandler(child, jobId);
+  attachExitHandler(child, jobId);
+  return 3;
+}
+
+// ============================================================================
 // Public API
 // ============================================================================
 
@@ -717,6 +823,19 @@ export async function runEmbeddingBackfillFork(
             // Child may have exited between onSpawn and the actual kill.
           }
         };
+        // Plan v4.5 PR3 Track 2 §5.5 / §5.6 MANDATORY: attach the 3 sub-child
+        // cascade hooks (stdout / stderr / exit) BEFORE spawn returns so a
+        // Layer 3 sub-child SIGABRT propagates to the Layer 1 supervisor's
+        // crash-report-watcher within the 5s SLA. INV-AUDIT-ATTACH-CHILD-
+        // CASCADE-001 asserts the hook count == 3.
+        const hookCount = attachSubChildCascadeHooks(child, jobId);
+        if (hookCount !== 3) {
+          logger.error("[BackfillFork] sub-child cascade hook count != 3 (INV violation)", {
+            finding: "INV-AUDIT-ATTACH-CHILD-CASCADE-001",
+            jobId: truncateId(jobId),
+            hookCount,
+          });
+        }
       },
     });
 

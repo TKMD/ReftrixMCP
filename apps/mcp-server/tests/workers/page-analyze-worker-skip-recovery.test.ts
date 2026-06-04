@@ -240,14 +240,20 @@ describe("PR7b: page-analyze-worker skip recovery (ADR-0008)", () => {
       expect(workerSource).toMatch(/phase5Config\.parentRssMaxMb/);
     });
 
-    it("parentRssMb 超過時は memoryAbortEmbedding=true + system_memavailable_low / over-cap sets memoryAbort + skipReason", () => {
-      // 親 RSS 超過時のブロックが memoryAbortEmbedding と skipReason を設定する
-      // The parent-RSS over-cap block sets memoryAbortEmbedding and skipReason
-      const idx = workerSource.indexOf("Parent RSS exceeds Phase 5 ceiling");
-      expect(idx).toBeGreaterThan(0);
-      const slice = workerSource.slice(idx, idx + 1500);
-      expect(slice).toMatch(/memoryAbortEmbedding\s*=\s*true/);
-      expect(slice).toMatch(/observedSkipReason\s*=\s*"system_memavailable_low"/);
+    it("PR-C3 (系統B): 親 RSS 超過でも skip せず trim + ceiling fallback で fork 継続 / parent-RSS over-cap no longer skips — trim + ceiling fallback proceeds", () => {
+      // PR-C3 (CPU true-10/10 plan V1.1 §3.3) supersedes the pre-PR-C3 parent-RSS
+      // skip path: the legacy "Parent RSS exceeds Phase 5 ceiling, skipping fork"
+      // branch (which set memoryAbortEmbedding=true + observedSkipReason=
+      // "system_memavailable_low") is REMOVED and replaced by `trimParentRssAndDecide`
+      // (global.gc + re-measure → deterministic ceiling fallback proceed). The
+      // authoritative contract now lives in INV-PHASE5-PARENT-RSS-TRIM-001.
+      // The legacy skip-on-parent-RSS path must be gone.
+      expect(workerSource).not.toContain("Parent RSS exceeds Phase 5 ceiling");
+      // The trim helper is wired before the ceiling decision (proceed, never skip
+      // on the parent-RSS gate). The hard skip is now only the heap-critical
+      // checkMemoryPressure().shouldAbort branch.
+      expect(workerSource).toMatch(/trimParentRssAndDecide\s*\(/);
+      expect(workerSource).toMatch(/from\s+"\.\/phases\/phase5-parent-rss-trim"/);
     });
   });
 });

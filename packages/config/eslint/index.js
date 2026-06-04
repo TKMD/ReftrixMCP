@@ -42,6 +42,22 @@ export const baseConfig = [
       "@typescript-eslint/consistent-type-imports": ["error", { prefer: "type-imports" }],
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "no-undef": "off",
+      // FIND-WAVE4-TPA-V4-H-01 canonical fix (TPA V4 BLOCK Phase 4 commit gate unblock):
+      // Base ESLint `no-redeclare` flags legitimate TypeScript function overload signatures
+      // as duplicates (e.g. `truncateAuditTargetId` in audit-log.service.ts:211-213,
+      // Wave 5 LCC canonical CWE-209 non-null guarantee pattern). The TypeScript-aware
+      // replacement `@typescript-eslint/no-redeclare` correctly understands overload
+      // signatures and only flags actual redeclarations. Monorepo-wide application
+      // (Option 1 per TPA V4 recommendation) — see TPA V4 BLOCK anchor 019e1913-23b9.
+      //
+      // FIND-WAVE4-TPA-V4-H-01 canonical fix (TPA V4 BLOCK Phase 4 commit gate unblock):
+      // ベース ESLint の `no-redeclare` は TypeScript の正当な関数オーバーロード署名
+      // (例: audit-log.service.ts:211-213 の `truncateAuditTargetId`, Wave 5 LCC canonical
+      // CWE-209 非 null 保証パターン) を重複として誤検出する。TypeScript 対応版の
+      // `@typescript-eslint/no-redeclare` は overload signature を正しく理解し、実際の
+      // 再宣言のみを検出する。Monorepo 全体適用 (TPA V4 推奨 Option 1)。
+      "no-redeclare": "off",
+      "@typescript-eslint/no-redeclare": "error",
       // PR-D-6 Phase 2 IO spot decision 019db5a5-b84d-71cd-a198-95f9c8c1cbb7 (Option A):
       // Base rule `off` silences pre-existing 541 src + 22 scripts violations deferred to
       // Q3-2026 monorepo-wide rollout backlog (FIND-TDA-07 successor issue). Scope-limited
@@ -96,6 +112,12 @@ export const baseConfig = [
       "@typescript-eslint/consistent-type-imports": ["error", { prefer: "type-imports" }],
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "no-undef": "off",
+      // FIND-WAVE4-TPA-V4-H-01 canonical fix — see `.ts` block comment for rationale.
+      // Defensive: TypeScript overload signatures may also appear in `.tsx` files.
+      // FIND-WAVE4-TPA-V4-H-01 canonical fix — `.ts` ブロックのコメント参照。
+      // 防御的措置: TS overload signature は `.tsx` ファイルにも出現する可能性あり。
+      "no-redeclare": "off",
+      "@typescript-eslint/no-redeclare": "error",
     },
   },
   // Test files (.test.ts, .test.tsx, .spec.ts, .spec.tsx)
@@ -280,6 +302,136 @@ export const baseConfig = [
     files: ["apps/mcp-server/src/services/worker-supervisor.service.ts"],
     rules: {
       "max-lines": ["error", { max: 1500, skipBlankLines: false, skipComments: false }],
+    },
+  },
+  // Plan v4.5 PR3 IO Impl Decision V0 Unblock U-3 (FIND-IMPL-TDA-PR3-CC M):
+  // Scope-limited `complexity: ["error", 10]` machine-enforcement for the two
+  // PR3 Track 2 fork-mode + per-job-lock files. Closes the gap where neither
+  // `runForkOrFallback` (refactored 13 → 5) nor the worker-supervisor lifecycle
+  // exit handler were complexity-gated, making `pnpm lint` exit 0 misleading.
+  // Follows the existing scope-limited pattern (PR-D-6 / PR-D-8 blocks above):
+  // the base rule stays `complexity: "off"` for the 563 pre-existing monorepo
+  // violations deferred to the Q3-2026 successor issue. Two pre-existing
+  // CC>10 functions in these files (`resolveAndPersistBboxes` CC=17,
+  // `handleWorkerExit` CC=11) are NOT in PR3 scope and carry inline
+  // `// eslint-disable-next-line complexity` + a Plan v4.6 tracked-issue
+  // rationale (FIND-IMPL-TDA-PR3-CC-CARRYOVER, deadline 2026-05-22).
+  //
+  // Plan v4.5 PR3 IO Impl Decision V0 Unblock U-3 (FIND-IMPL-TDA-PR3-CC M):
+  // PR3 Track 2 の fork-mode + per-job-lock 2 ファイルに限定して
+  // `complexity: ["error", 10]` を machine-enforce する。`runForkOrFallback`
+  // (13 → 5 に refactor) と lifecycle exit handler が complexity gate されず
+  // `pnpm lint` exit 0 が誤誘導していた gap を closure。base rule は既存 563
+  // 違反のため `off` のまま (Q3-2026 successor issue 繰越)。本ファイル内の
+  // pre-existing CC>10 2 件は PR3 scope 外で inline disable + Plan v4.6
+  // tracked-issue (FIND-IMPL-TDA-PR3-CC-CARRYOVER, deadline 2026-05-22)。
+  {
+    files: [
+      "apps/mcp-server/src/queues/embedding-backfill-processors.ts",
+      "apps/mcp-server/src/services/worker-supervisor-lifecycle.service.ts",
+    ],
+    rules: {
+      complexity: ["error", 10],
+    },
+  },
+  // PR-1 GPU-COORD IO Plan Decision V1 (anchor 019e562d) FIND-PLAN-H-03 (TDA-H-01):
+  // Scope-limited `complexity: ["error", 10]` machine-enforcement for the Phase 5
+  // fork-child VRAM probe (GPU-COORD). `phase-5-embedding.ts` is NOT added here
+  // (it carries pre-existing CC>10 functions under the base `complexity: "off"`,
+  // Q3-2026 successor issue); instead the new GPU branches are extracted into the
+  // dedicated leaf helper `phase-5-gpu-probe.ts` (all functions CC ≤ 10), and the
+  // leaf threshold module `vram-thresholds.ts` is pure constants. This makes
+  // `pnpm lint` exit 0 a real complexity guarantee for the new GPU-COORD code path
+  // (closes the misleading-exit-0 gap per FIND-PLAN-H-03). Follows the existing
+  // scope-limited pattern (PR-D-6 / PR-D-8 / Plan v4.5 PR3 blocks above).
+  //
+  // PR-1 GPU-COORD FIND-PLAN-H-03: GPU-COORD の新規分岐を leaf helper
+  // `phase-5-gpu-probe.ts` に抽出し `complexity: ["error", 10]` を machine-enforce。
+  {
+    files: [
+      "apps/mcp-server/src/workers/phases/phase-5-gpu-probe.ts",
+      "apps/mcp-server/src/services/vision/vram-thresholds.ts",
+    ],
+    rules: {
+      complexity: ["error", 10],
+    },
+  },
+  // PR-BT-4 (ADR-0018 Amendment 10 Decision 10.1 + 10.4, U3): scope-limited
+  // `complexity: ["error", 10]` machine-enforcement for the H-1 analysis-status
+  // guard pure decision leaf helper. `embedding-backfill-worker.ts` is NOT added
+  // here (it carries pre-existing CC>10 functions under the base
+  // `complexity: "off"`, Q3-2026 successor issue); instead the new guard *decision*
+  // branches are extracted into the dedicated leaf helper `backfill-analysis-guard.ts`
+  // (all functions CC ≤ 10), so `pnpm lint` exit 0 is a real complexity guarantee
+  // for the new H-1 code path. Follows the existing scope-limited pattern
+  // (PR-D-6 / PR-D-8 / Plan v4.5 PR3 / GPU-COORD blocks above).
+  {
+    files: ["apps/mcp-server/src/workers/phases/backfill-analysis-guard.ts"],
+    rules: {
+      complexity: ["error", 10],
+    },
+  },
+  // PR-BT-5 (M-1-RSS, ADR-0039 Decision 1, unblock #9 / TDA-M-02): scope-limited
+  // `complexity: ["error", 10]` machine-enforcement for the per-sub-phase fork
+  // dispatch *decision* leaf. `phase-5-fork-orchestrator.ts` is NOT added here
+  // (it retains the dispatch loop orchestration under the base `complexity:
+  // "off"`); instead the dispatch *decision* branches (descriptor builders +
+  // skip predicates) are extracted into the dedicated leaf
+  // `phase-5-subphase-dispatch.ts` (all functions CC ≤ 10), so `pnpm lint`
+  // exit 0 is a real complexity guarantee for the new dispatch decision path.
+  // Follows the existing scope-limited pattern (PR-D-6 / PR-D-8 / Plan v4.5 PR3
+  // / GPU-COORD / PR-BT-4 blocks above).
+  {
+    files: ["apps/mcp-server/src/workers/phases/phase-5-subphase-dispatch.ts"],
+    rules: {
+      complexity: ["error", 10],
+    },
+  },
+  // PR-BT-5 chunk-fork contingency (ADR-0039 §Consequences #2a): scope-limited
+  // `complexity: ["error", 10]` machine-enforcement for the shared chunked
+  // text-embedding loop driver. `phase-5-embedding.ts` is NOT added here (it
+  // carries pre-existing CC>10 functions under the base `complexity: "off"`,
+  // Q3-2026 successor issue); instead the canonical chunk loop (C1 per-chunk RSS
+  // budget break + adaptive halving + chunk-boundary dispose) is extracted into
+  // the dedicated leaf `phase-5-chunked-text-loop.ts` (all functions CC ≤ 10),
+  // so `pnpm lint` exit 0 is a real complexity guarantee for the new chunk-fork
+  // contingency code path. Follows the existing scope-limited pattern (PR-D-6 /
+  // PR-D-8 / Plan v4.5 PR3 / GPU-COORD / PR-BT-4 / PR-BT-5 dispatch blocks above).
+  {
+    files: ["apps/mcp-server/src/workers/phases/phase-5-chunked-text-loop.ts"],
+    rules: {
+      complexity: ["error", 10],
+    },
+  },
+  // PR-C3 (系統B, CPU true-10/10 plan V1.1 §3.3 / §3.4 TDA-RE-M-01): scope-limited
+  // `complexity: ["error", 10]` for the parent-RSS trim + ceiling-fallback leaf.
+  // `page-analyze-worker.ts` (3470 LoC, base `complexity: "off"`, pre-existing
+  // CC>10 group, Q3-2026 successor issue) is NOT added here; the new trim/recompute/
+  // fallback decision logic is extracted into the dedicated leaf
+  // `phase5-parent-rss-trim.ts` (pure fn, CC ≤ 10), so `pnpm lint` exit 0 is a real
+  // complexity guarantee for the new code path. Follows the canonical leaf-extraction
+  // pattern (PR-D-6 / PR-D-8 / Plan v4.5 PR3 / GPU-COORD / PR-BT-4 / PR-BT-5 / chunked-text-loop above).
+  {
+    files: ["apps/mcp-server/src/workers/phases/phase5-parent-rss-trim.ts"],
+    rules: {
+      complexity: ["error", 10],
+    },
+  },
+  // PR-C2 (Layer 2, CPU true 10/10 plan V1.1 §3.4, TDA-RE-M-01): scope-limited
+  // `complexity: ["error", 10]` machine-enforcement for the backfill enqueue ↔
+  // markComplete ordering relocation leaf. `page-analyze-worker.ts` is NOT added
+  // here (it is 3470 LoC carrying ~563 pre-existing CC>10 functions under the
+  // base `complexity: "off"`, Q3-2026 successor issue); instead the ordering
+  // orchestration is extracted into the dedicated leaf
+  // `backfill-enqueue-relocation.ts` (all functions CC ≤ 10), so `pnpm lint`
+  // exit 0 is a real complexity guarantee for the new ordering code path (closes
+  // the misleading-exit-0 gap per FIND-IO-V0-M-06). Follows the existing
+  // scope-limited pattern (PR-D-6 / PR-D-8 / Plan v4.5 PR3 / GPU-COORD / PR-BT-4
+  // / PR-BT-5 / phase-5-chunked-text-loop.ts blocks above).
+  {
+    files: ["apps/mcp-server/src/workers/phases/backfill-enqueue-relocation.ts"],
+    rules: {
+      complexity: ["error", 10],
     },
   },
   {

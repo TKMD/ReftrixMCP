@@ -8,6 +8,15 @@
  * Zod スキーマのレンジ（512 MB 〜 131,072 MB）と NaN / Infinity / 負値の
  * fallback 動作を確認する。
  *
+ * PR-V3-T1a §3.4.2 / FIND-V3-IO-M-07 absorbed-as-tail per IO Plan Decision V1
+ * (anchor 019dfab3-607d): DEFAULT_PARENT_RSS_MAX_MB raised 7168 → 8192 in
+ * commit dcc754ee. T1a #38 NOT re-opened (CC-3 Phase 3 docs traceability via
+ * FIND-V3-IO-M-07 disposition update + 3-CHANGELOG cross-reference).
+ *
+ * PR-V3-T1a (2026-05-06):
+ * - DEFAULT_PARENT_RSS_MAX_MB を 7168 → 8192 に再緩和（dcc754ee で実装、
+ *   本 test は Phase 2 cleanup-pre-existing-baseline で同期）
+ *
  * PR7e-β2 (2026-04-17):
  * - DEFAULT_PARENT_RSS_MAX_MB を 4096 → 7168 にさらに段階緩和
  *   (reftrix.io: RSS=5528MB, Stripe: RSS=5027MB の実測値で β1 4096 でも
@@ -18,6 +27,10 @@
  * - DEFAULT_MAX_SECTIONS_INPUT (=50) + PHASE5_MAX_SECTIONS_INPUT env を新設
  *
  * Verifies `loadPhase5Config()` behaviour on boundary / invalid / default inputs.
+ *
+ * PR-V3-T1a (2026-05-06):
+ * - DEFAULT_PARENT_RSS_MAX_MB raised 7168 → 8192 (committed in dcc754ee;
+ *   this test re-aligned in Phase 2 cleanup-pre-existing-baseline)
  *
  * PR7e-β2 (2026-04-17):
  * - DEFAULT_PARENT_RSS_MAX_MB raised 4096 → 7168 (further tier relaxation
@@ -54,9 +67,9 @@ describe("Phase 5 Config — parentRssMaxMb", () => {
     }
   });
 
-  it("should return default (7168 MB) when env var is unset (PR7e-β2 tier relaxation)", () => {
+  it("should return default (8192 MB) when env var is unset (PR-V3-T1a tier relaxation)", () => {
     const config = loadPhase5Config();
-    expect(config.parentRssMaxMb).toBe(7168);
+    expect(config.parentRssMaxMb).toBe(8192);
   });
 
   it("should accept a valid integer in-range", () => {
@@ -73,31 +86,31 @@ describe("Phase 5 Config — parentRssMaxMb", () => {
     expect(loadPhase5Config().parentRssMaxMb).toBe(131072);
   });
 
-  it("should fall back to default (7168) on out-of-range values", () => {
+  it("should fall back to default (8192) on out-of-range values", () => {
     process.env["PHASE5_PARENT_RSS_MAX_MB"] = "100";
-    expect(loadPhase5Config().parentRssMaxMb).toBe(7168);
+    expect(loadPhase5Config().parentRssMaxMb).toBe(8192);
 
     process.env["PHASE5_PARENT_RSS_MAX_MB"] = "999999";
-    expect(loadPhase5Config().parentRssMaxMb).toBe(7168);
+    expect(loadPhase5Config().parentRssMaxMb).toBe(8192);
   });
 
-  it("should fall back to default (7168) on NaN / Infinity / negative / non-integer", () => {
+  it("should fall back to default (8192) on NaN / Infinity / negative / non-integer", () => {
     process.env["PHASE5_PARENT_RSS_MAX_MB"] = "not-a-number";
-    expect(loadPhase5Config().parentRssMaxMb).toBe(7168);
+    expect(loadPhase5Config().parentRssMaxMb).toBe(8192);
 
     process.env["PHASE5_PARENT_RSS_MAX_MB"] = "Infinity";
-    expect(loadPhase5Config().parentRssMaxMb).toBe(7168);
+    expect(loadPhase5Config().parentRssMaxMb).toBe(8192);
 
     process.env["PHASE5_PARENT_RSS_MAX_MB"] = "-1024";
-    expect(loadPhase5Config().parentRssMaxMb).toBe(7168);
+    expect(loadPhase5Config().parentRssMaxMb).toBe(8192);
 
     process.env["PHASE5_PARENT_RSS_MAX_MB"] = "1024.5";
-    expect(loadPhase5Config().parentRssMaxMb).toBe(7168);
+    expect(loadPhase5Config().parentRssMaxMb).toBe(8192);
   });
 
   it("should have a matching Zod schema default", () => {
     const result = Phase5ConfigSchema.parse({});
-    expect(result.parentRssMaxMb).toBe(7168);
+    expect(result.parentRssMaxMb).toBe(8192);
     expect(result.maxSectionsInput).toBe(50);
   });
 });
@@ -179,7 +192,7 @@ describe("Phase 5 Config — maxSectionsInput (PR7e-β1)", () => {
     process.env["PHASE5_PARENT_RSS_MAX_MB"] = "Infinity";
     process.env["PHASE5_MAX_SECTIONS_INPUT"] = "100";
     let config = loadPhase5Config();
-    expect(config.parentRssMaxMb).toBe(7168); // fallback (PR7e-β2)
+    expect(config.parentRssMaxMb).toBe(8192); // fallback (PR-V3-T1a)
     expect(config.maxSectionsInput).toBe(100); // preserved
 
     // rss valid, sections invalid

@@ -1,8 +1,8 @@
-// SPDX-FileCopyrightText: 2026 TKMD and Reftrix Contributors
+// SPDX-FileCopyrightText: 2025-2026 Reftrix Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * WorkerSupervisor Service
+ * WorkerSupervisor Service — Facade Module (Module A)
  *
  * page.analyzeワーカープロセスのライフサイクルを自動管理するサービス。
  * OOM問題（16GBヒープ上限で2-3サイト後にクラッシュ）をプロセス再起動で解決する。
@@ -13,39 +13,47 @@
  * - クラッシュ時の自動再起動（exit code/signal 両対応）
  * - graceful shutdown（SIGTERM → タイムアウト → SIGKILL エスカレーション）
  * - maxRestartAttempts による連続クラッシュ時の停止
- * - [TDA-V11-02 / FIND-IMPL-TDA-D1b-01 L, deadline 2026-05-25, Registry §13.17.7] ESLint max-lines=1500 file at-cap; extract new logic to `worker-supervisor-helpers.ts` (PR-D-8 helper convention) before adding here. Cross-ref: Registry §13.16.4 + §13.17.5 + INV-EMBEDDING-MOTION-WORKER-SIGABRT-006.
  *
+ * CO-26 split (Phase 2 Step 5): mechanical 3-module split.
+ *   - Module A (this file): facade — class composition + public types + singleton + DI factory + cuda detection + script path resolver + re-export shim
+ *   - Module B (`worker-supervisor-lifecycle.service.ts`): spawn / IPC dispatch / exit handling / initiated restart / IPC_SHUTDOWN_GRACE_MS
+ *   - Module C (`worker-supervisor-lock-orchestrator.service.ts`): Redis active-worker lock orchestration (acquire / release / heartbeat / instance lifecycle)
+ *
+ * Module A is the **single owner** of WorkerSupervisor state; Modules B and C
+ * receive the WorkerSupervisor reference via constructor and access cross-module
+ * callables via `this.supervisor.getLifecycle()` / `this.supervisor.getLockOrchestrator()`
+ * indirect path (TPA-01 explicit state-sharing accessor pattern). Modules B and C
+ * never directly import each other (INV-WORKER-MODULE-IMPORT-CYCLE-001 AST gate).
+ *
+ * @see  (CO-26 split design)
+ * @see ADR-0011 § Worker Dual-run Prevention
  * @module services/worker-supervisor
  */
 
-import { fork, type ChildProcess } from "node:child_process";
+import { type ChildProcess } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { v7 as uuidv7 } from "uuid";
 import { logger, isDevelopment } from "../utils/logger";
 import { computeMemoryProfile } from "./worker-memory-profile";
-import { LOCK_HEARTBEAT_INTERVAL_MS, WorkerActiveLockService } from "./worker-active-lock.service";
+import { PER_JOB_LOCK_KEY_NAMESPACE, WorkerActiveLockService } from "./worker-active-lock.service";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
-// PR-D-8 Phase 2 — WorkerType SSOT (§3.2.1 / TDA-01 H) and IPC schema SSOT
-// (§3.2.2 / TPA-02 H). `assertNeverWorkerType` powers the exhaustive-switch
-// contract that makes future WorkerType additions fail compile in every
-// consuming callsite rather than silently ignoring the new type.
-// PR-D-8 Phase 2: WorkerType / IPC スキーマ SSOT と exhaustive-switch 契約。
 import { WORKER_TYPES, type WorkerType } from "../types/worker-type";
 import type { WorkerIpcMessage } from "../schemas/worker-ipc.schema";
-// Helpers extracted to worker-supervisor-helpers.ts for max-lines (TDA-V11-02).
-// Bottom re-exports keep external importer compat (tests, consumers).
-import {
-  buildBootTokens,
-  buildDefaultWorkerTypeConfigs,
-  clearLockHeartbeatTimer,
-  emitWorkerRestartAudit,
-  executeSelfChainedRespawn,
-  processSigabrtSignal,
-  runAcquireLockWithRetryOrchestrator,
-  scheduleSigabrtAwareRespawn,
-  verifyWorkerIpcMessage,
-} from "./worker-supervisor-helpers";
-import { verifyVisionUnloadPrecondition } from "./vision/vision-unload-handshake";
+import { buildBootTokens, buildDefaultWorkerTypeConfigs } from "./worker-supervisor-helpers";
+import { WorkerSupervisorLifecycle } from "./worker-supervisor-lifecycle.service";
+import { WorkerSupervisorLockOrchestrator } from "./worker-supervisor-lock-orchestrator.service";
+
+// Plan v3 Track T4 (PR-V3-T4) UNBLOCK-T4-04 — Module B DI lift.
+// PrismaClient is imported at Module A only; Module B / Module C / failure-path
+// service consume it via `WorkerSupervisor.getPrismaClient()` accessor (DI
+// inversion) instead of a direct `@reftrixmcp/database` import. Test fixtures
+// override via {@link WorkerSupervisor.setPrismaClientForTesting}.
+//
+// UNBLOCK-T4-04 Module B DI lift: Module A owns the Prisma client; Module B
+// consumes it through the `getPrismaClient()` accessor.
+import { prisma as defaultPrismaClient } from "@reftrixmcp/database";
+import type { PrismaClient } from "@prisma/client";
 
 // ============================================================================
 // CUDA Library Path Auto-Detection
@@ -55,7 +63,6 @@ import { verifyVisionUnloadPrecondition } from "./vision/vision-unload-handshake
  * CUDA 12 ライブラリの既知パスから LD_LIBRARY_PATH を構築する (pip install
  * nvidia-cudnn-cu12 + Ollama CUDA v12 自動検出)。LD_LIBRARY_PATH 未設定時のみ。
  * SEC: ファイルシステム読み取りのみ、パスは固定リスト。
- * CC=16 — pre-existing pre-PR-D-8 code; refactor tracked in FIND-TDA-07 Q3-2026.
  */
 // eslint-disable-next-line complexity
 function detectCudaLibPaths(): string | null {
@@ -120,7 +127,7 @@ function detectCudaLibPaths(): string | null {
 }
 
 // ============================================================================
-// Types
+// Public Types
 // ============================================================================
 
 /**
@@ -139,8 +146,13 @@ export interface WorkerSupervisorOptions {
   maxRestartAttempts: number;
   /** graceful shutdown のタイムアウト（ms）。超過でSIGKILL送信 */
   shutdownTimeoutMs: number;
-  /** 再起動間の最小間隔（ms）。連続クラッシュのスロットリング */
-  restartDelayMs?: number;
+  // Plan v4.4 PR-N-A / ADR-0035 Amendment 1 §Decision 5:
+  // `restartDelayMs` field removed. Per-type restart cooldown is resolved
+  // exclusively via the module-level `getRestartDelayMsForType(workerType)`
+  // helper, which reads `WORKER_RESTART_DELAY_MS` (page) or
+  // `EMBEDDING_BACKFILL_RESTART_DELAY_MS` (embedding-backfill) env vars.
+  // Plan v4.1 CWE-770 41.67h/day DoS boundary preserved via
+  // `PAGE_RESTART_DELAY_MS_MIN = 500` (see below).
 }
 
 /**
@@ -149,32 +161,14 @@ export interface WorkerSupervisorOptions {
 export type WorkerState = "idle" | "running" | "restarting" | "stopped" | "crashed";
 
 /**
- * ワーカーからスーパーバイザーへのIPCメッセージ型 (legacy alias for back-compat)
- *
- * P1-D: job-completed — BullMQ Worker.on('completed') で送信。
- *       maxJobsBeforeRestart カウンタの駆動に使用。
- *
- * PR-D-8: the authoritative IPC message type is {@link WorkerIpcMessage}
- * (SSOT: `apps/mcp-server/src/schemas/worker-ipc.schema.ts`). This alias
- * is retained for pre-PR-D-8 consumers and will be removed once internal
- * callers are migrated.
- *
- * PR-D-8 以降、IPC メッセージ型の SSOT は {@link WorkerIpcMessage}。
- * 本 alias は旧 consumer 互換用で、移行完了後に削除される。
+ * Legacy IPC message type alias (deprecated, use {@link WorkerIpcMessage}).
  *
  * @deprecated Use {@link WorkerIpcMessage} (schemas/worker-ipc.schema).
  */
 export type WorkerMessage = WorkerIpcMessage;
 
-// ============================================================================
-// PR-D-8 Phase 2 — Multi-WorkerType config + per-child state (§3.2.3 / §3.2.4)
-// ============================================================================
-
 /**
- * Per-{@link WorkerType} supervisor configuration. One entry per supported
- * WorkerType; keys must be exhaustive against the SSOT union.
- *
- * PR-D-8 §3.2.3: WorkerType ごとの supervisor 設定。SSOT union に対して網羅的。
+ * Per-{@link WorkerType} supervisor configuration. PR-D-8 §3.2.3.
  */
 export interface WorkerTypeConfig {
   /** Path to the fork target (`start-workers.js` entry point). */
@@ -185,32 +179,16 @@ export interface WorkerTypeConfig {
   maxJobsBeforeRestart: number;
   /** RSS-delta kill threshold in MB (Phase 5 style). */
   rssKillDeltaMB: number;
-  /**
-   * Env var name used to propagate this type's boot token to the child.
-   * Rule 2 (Plan v1.1 §3.2.4) — distinct env var per type prevents token
-   * reuse across types.
-   */
+  /** Env var name used to propagate this type's boot token to the child. */
   bootTokenEnv: string;
-  /**
-   * Env var name the child reads to self-identify its WorkerType. Rule 4
-   * (§3.2.4) forces the child to exit(1) if argv disagrees with
-   * `REFTRIX_WORKER_CHILD_TYPE`.
-   */
+  /** Env var name the child reads to self-identify its WorkerType. */
   childTypeEnv: string;
-  /**
-   * Staggered-spawn priority. TPA-01 H: `primary` spawns first; `secondary`
-   * waits for primary's first heartbeat (or 10s timeout) before spawning.
-   */
+  /** Staggered-spawn priority. */
   schedulingPriority: "primary" | "secondary";
 }
 
 /**
- * Per-child runtime state held by the supervisor. One entry per live child
- * in `Map<WorkerType, WorkerChildState>`. TDA-V11-02: extracted as a helper
- * type to keep `WorkerSupervisor` class body focused on lifecycle logic.
- *
- * PR-D-8 §3.2.3: supervisor が保持する per-child 状態。TDA-V11-02 の
- * helper 型抽出。
+ * Per-child runtime state held by the supervisor. PR-D-8 §3.2.3.
  */
 export interface WorkerChildState {
   child: ChildProcess;
@@ -223,81 +201,184 @@ export interface WorkerChildState {
   jobsProcessed: number;
   startedAt: number;
   lastHeartbeatAt: number;
-  /**
-   * SEC-02 Rule 5 spoofing / TTL fallback suppression deadline (epoch ms).
-   * When set, supervisor refuses to respawn this type until this timestamp.
-   */
+  /** SEC-02 Rule 5 spoofing / TTL fallback suppression deadline (epoch ms). */
   restartSuppressUntil: number | null;
 }
-
-/** IPC 'shutdown' メッセージ送信後、SIGTERMまでの猶予（ms） */
-const IPC_SHUTDOWN_GRACE_MS = 2000;
 
 // ============================================================================
 // Default Configuration
 // ============================================================================
 
-/** デフォルトの再起動遅延（ms） */
-const DEFAULT_RESTART_DELAY_MS = 1000;
+// Plan v4.4 PR-N-A / ADR-0035 Amendment 1 §Decision 5:
+// `DEFAULT_RESTART_DELAY_MS = 1000` orphan constant removed. Per-type
+// canonical defaults (`DEFAULT_PAGE_RESTART_DELAY_MS = 3000` /
+// `DEFAULT_BACKFILL_RESTART_DELAY_MS = 8000`) are defined below and routed
+// via `getRestartDelayMsForType(workerType)` (ADR-0035 §Decision 3 canonical
+// SSOT). INV-WORKER-RESTART-DELAY-SSOT-001 standing test guards the
+// forward-compat AST sweep for hardcoded literal regression.
 
 /**
- * 環境変数を安全にパースする（SEC監査 Medium #1 対応）
- * NaN、0以下の値はデフォルトにフォールバックする。
+ * Plan v4.3 PR-M-A: per-type cooldown for the embedding-backfill WorkerType.
+ *
+ * 旧実装は `page` / `embedding-backfill` 双方が `WORKER_RESTART_DELAY_MS`
+ * (default 3000ms) を共有していたため、embedding-backfill の OOM 連鎖再起動
+ * 抑制目的に 8000ms の独立 cooldown を導入する。`page` worker の cooldown は
+ * 不変 (Plan v4.1 CWE-770 41.67h/day DoS closure を維持する境界制約)。
+ *
+ * Plan v4.3 PR-M-A — independent restart delay for embedding-backfill
+ * workers (default 8000ms; `EMBEDDING_BACKFILL_RESTART_DELAY_MS` env override
+ * with range 500..86400000ms). `page` worker restart cooldown is unchanged
+ * (Plan v4.1 CWE-770 boundary preserved).
  */
-function safeParseInt(value: string | undefined, defaultValue: number, min: number = 1): number {
+const DEFAULT_BACKFILL_RESTART_DELAY_MS = 8000;
+const BACKFILL_RESTART_DELAY_MS_MIN = 500;
+const BACKFILL_RESTART_DELAY_MS_MAX = 86_400_000;
+
+/**
+ * 環境変数を安全にパースする（NaN、最小値未満はデフォルトにフォールバック）
+ *
+ * Plan v4.3 PR-M-A: optional `max` parameter for range-validated parsing
+ * (used by `EMBEDDING_BACKFILL_RESTART_DELAY_MS` to bound the cooldown).
+ */
+function safeParseInt(
+  value: string | undefined,
+  defaultValue: number,
+  min: number = 1,
+  max?: number
+): number {
   if (value === undefined || value === "") return defaultValue;
   const parsed = parseInt(value, 10);
   if (isNaN(parsed) || parsed < min) return defaultValue;
+  if (max !== undefined && parsed > max) return defaultValue;
   return parsed;
 }
 
 // ============================================================================
-// WorkerSupervisor Class
+// Plan v4.3 PR-M-A refinement (PR-M Phase 2 Step 6 Quality Gate fix)
+// ----------------------------------------------------------------------------
+// ADR-0035 §Decision 3 canonical contract: `getRestartDelayMsForType(workerType)`
+// として module-level helper を export し、worker-supervisor-lifecycle.service.ts
+// の 4 callsites + INV-EMBEDDING-WORKER-INIT-001 standing test contract に
+// 整合させる。
+//
+// PR-M-A 初版は instance method overload (`getRestartDelayMs(workerType?)`) を
+// 採用したが、ADR-0035 §Decision 3 canonical name とは divergence していた
+// (anchor `019e3087-59de`)。PR-M-C test (anchor `019e3091-8450`) は
+// module-level named export を expect しており、本 helper でその contract を
+// 満たす。
+//
+// Legacy CLI flag `"page-analyze"` は START_WORKERS_CLI_MAPPING (types/worker-type.ts)
+// と同じ rationale で `"page"` に正規化する (1-cycle backward compat)。
+//
+// 環境変数 semantics:
+//   - `embedding-backfill` → `EMBEDDING_BACKFILL_RESTART_DELAY_MS`
+//     (default 8000ms, range 500..86400000ms)
+//   - `page` (+ legacy `page-analyze`) → `WORKER_RESTART_DELAY_MS`
+//     (default 3000ms, Plan v4.1 CWE-770 41.67h/day DoS boundary preserved)
+//
+// ADR-0035 §Decision 3 canonical contract — module-level named export of
+// `getRestartDelayMsForType(workerType)`, aligning with the 4 callsites in
+// `worker-supervisor-lifecycle.service.ts` and the INV-EMBEDDING-WORKER-INIT-001
+// standing test (PR-M-C anchor `019e3091-8450`). Plan v4.3 PR-M-A initial
+// landing used an instance-method overload form (`getRestartDelayMs(workerType?)`,
+// anchor `019e3087-59de`); this refinement reconciles the contract divergence.
+// Legacy CLI flag `"page-analyze"` is normalised to `"page"` per the same
+// rationale as `START_WORKERS_CLI_MAPPING` in `types/worker-type.ts`.
+// ============================================================================
+
+const DEFAULT_PAGE_RESTART_DELAY_MS = 3000;
+// Plan v4.4 PR-N-A / ADR-0035 Amendment 1 §Decision 5:
+// `PAGE_RESTART_DELAY_MS_MIN` raised from `1` → `500` per SEC M-01 CWE-770
+// boundary preservation (Plan v4.1 41.67h/day DoS upper bound). Values below
+// 500ms are rejected and fall back to `DEFAULT_PAGE_RESTART_DELAY_MS`. This
+// matches the `BACKFILL_RESTART_DELAY_MS_MIN = 500` lower bound for
+// symmetry and INV-PAGE-RESTART-DELAY-MIN-BOUND-CWE770-001 verifies the
+// boundary semantic.
+const PAGE_RESTART_DELAY_MS_MIN = 500;
+
+/**
+ * ADR-0035 §Decision 3 canonical per-type restart cooldown helper.
+ *
+ * Resolves the planned-restart cooldown for the given WorkerType by reading
+ * the per-type env override (with NaN/range guards) and falling back to the
+ * default value defined in the ADR.
+ *
+ * - `embedding-backfill` → `EMBEDDING_BACKFILL_RESTART_DELAY_MS`
+ *   (default 8000ms, range 500..86400000ms)
+ * - `page` (and legacy CLI flag `"page-analyze"`) → `WORKER_RESTART_DELAY_MS`
+ *   (default 3000ms, Plan v4.1 CWE-770 boundary preserved)
+ *
+ * Plan v4.3 PR-M Phase 2 Step 6 Quality Gate refinement (PR-M-A scope
+ * contract divergence closure). See module-level comment block above for
+ * historical context (anchors `019e3087-59de` / `019e3091-8450`).
+ *
+ * @param workerType Canonical WorkerType OR legacy CLI flag `"page-analyze"`
+ *                   (normalised to `"page"` for 1-cycle backward compat).
+ * @returns Restart delay in ms for the specified WorkerType.
+ */
+export function getRestartDelayMsForType(workerType: WorkerType | "page-analyze"): number {
+  // Legacy CLI flag normalisation (mirrors START_WORKERS_CLI_MAPPING semantics).
+  const canonical: WorkerType = workerType === "page-analyze" ? "page" : workerType;
+
+  if (canonical === "embedding-backfill") {
+    return safeParseInt(
+      process.env.EMBEDDING_BACKFILL_RESTART_DELAY_MS,
+      DEFAULT_BACKFILL_RESTART_DELAY_MS,
+      BACKFILL_RESTART_DELAY_MS_MIN,
+      BACKFILL_RESTART_DELAY_MS_MAX
+    );
+  }
+  return safeParseInt(
+    process.env.WORKER_RESTART_DELAY_MS,
+    DEFAULT_PAGE_RESTART_DELAY_MS,
+    PAGE_RESTART_DELAY_MS_MIN
+  );
+}
+
+// ============================================================================
+// WorkerSupervisor Class — Facade composing Module B (lifecycle) + Module C (lock)
 // ============================================================================
 
 /**
- * Per-type WorkerSupervisor (Plan v1.1 §3.2.3 / PR-D-8 Phase 2 re-impl).
+ * Per-type WorkerSupervisor (PR-D-8 Phase 2). Facade composing
+ * {@link WorkerSupervisorLifecycle} (Module B) and
+ * {@link WorkerSupervisorLockOrchestrator} (Module C).
  *
- * Manages independent fork-supervised children per WorkerType
- * (`Map<WorkerType, WorkerChildState>`) with: per-type boot tokens (§3.2.4
- * Rule 1, MF-03), Rule 5 IPC binding via `verifyWorkerIpcMessage` (MF-02 /
- * SEC-IMPL-01), self-chained respawn protocol from `handleWorkerExit`
- * (MF-04 / SEC-IMPL-03), `worker_supervisor_restart` audit_logs emit at
- * every restart (MF-08 / LCC-IMPL-01), and `sanitizeErrorMessage` at child
- * error handler (MF-09 / SEC-IMPL-05).
+ * State ownership (Module A as single owner):
+ *   - `typeConfigs` / `bootTokens` / `bindingTable` (immutable on construction)
+ *   - `children` Map / `perTypeState` Map (mutated by Module B via state-mutator accessors)
+ *   - `sigabrtCountByWorkerType` / `lastSigabrtAuditByWorkerType` (mutated by Module B)
  *
- * Backward-compat: legacy `getWorkerSupervisor()` / `notifyJobCompleted()` /
- * `getWorkerProcess()` API defaults to the `page` WorkerType so existing
- * call sites (analyze.tool, batch-analyze.tool, MCP index) need no churn.
+ * Lock state (Module C as owner per SEC FIND-M-02 + TDA + TPA 4-way unanimous):
+ *   - `lockAcquired` / `lockHeartbeatTimers` / `lockAcquireInflight` Maps inside
+ *     `WorkerSupervisorLockOrchestrator`
+ *
+ * Cross-module indirect path (TPA-01): Module B → A → C and C → A → B; never B → C or C → B.
  */
 export class WorkerSupervisor {
   // --------------------------------------------------------------------------
-  // Per-type child state (PR-D-8 §3.2.3 MF-01)
+  // State (Module A owns)
   // --------------------------------------------------------------------------
 
-  /** Per-type 設定 — コンストラクタで `WORKER_TYPES` 網羅性を確認。 */
   private readonly typeConfigs: Record<WorkerType, WorkerTypeConfig>;
-  /** Per-type 子プロセス state。各 WorkerType は最大 1 子を保持。 */
   private readonly children: Map<WorkerType, WorkerChildState> = new Map();
-  /**
-   * pid → WorkerType binding (§3.2.4 Rule 5)。fork() 直後に同期登録し、子の
-   * 初回 IPC が到着する前に entry を確立する。
-   */
   private readonly bindingTable: Map<number, WorkerType> = new Map();
-  /**
-   * Per-type 独立 boot token (§3.2.4 Rule 1)。2 回 `randomUUID()` を独立に
-   * 呼ぶことで CWE-290 cross-type impersonation を防ぐ。single reuse 禁止。
-   */
   private readonly bootTokens: Record<WorkerType, string>;
 
   /**
-   * Legacy WorkerSupervisorOptions config — `page` の per-type 既定値および
-   * `maxRestartAttempts` / `shutdownTimeoutMs` の全 type 共通源。
+   * Plan v4.5 PR3 Track 2 (§4.2.2 OrphanCleanupContract): single UUIDv7 boot
+   * epoch issued once at supervisor construction. Per-job sub-child locks store
+   * this value alongside the nonce so orphan-cleanup can release ONLY locks
+   * originating from THIS supervisor boot (CWE-367 TOCTOU double-verify).
+   *
+   * Supervisor 起動時に 1 度発行する UUIDv7 boot epoch (§4.2.2)。orphan-cleanup
+   * は本 epoch 一致時のみ release する (CWE-367 二重 verify)。
    */
+  private readonly bootEpoch: string = uuidv7();
+
   private readonly config: Required<Omit<WorkerSupervisorOptions, "workerArgs" | "workerEnv">> &
     Pick<WorkerSupervisorOptions, "workerArgs" | "workerEnv">;
 
-  /** Per-type 独立 restart counter / state。 */
   private readonly perTypeState: Map<
     WorkerType,
     {
@@ -310,28 +391,44 @@ export class WorkerSupervisor {
 
   private isShuttingDown = false;
 
-  // Redis active-worker lock (per-type, ADR-0011 Amendment)
-  private lockService: WorkerActiveLockService | null = null;
-  private readonly lockAcquired: Map<WorkerType, boolean> = new Map();
-  private readonly lockHeartbeatTimers: Map<WorkerType, ReturnType<typeof setInterval>> = new Map();
-  private readonly lockAcquireInflight: Map<WorkerType, boolean> = new Map();
-
-  // Fix-3 (INFRA-EMBEDDING-MOTION-SIGABRT-001): SIGABRT count + audit rate-limit (helper-driven).
+  // Fix-3 (INFRA-EMBEDDING-MOTION-SIGABRT-001): SIGABRT count + audit rate-limit.
   private readonly sigabrtCountByWorkerType: Map<WorkerType, number> = new Map();
   private readonly lastSigabrtAuditByWorkerType: Map<WorkerType, number> = new Map();
 
+  // --------------------------------------------------------------------------
+  // Composition (CO-26 split: Module B + Module C)
+  // --------------------------------------------------------------------------
+
+  private readonly lifecycle: WorkerSupervisorLifecycle;
+  private readonly lockOrchestrator: WorkerSupervisorLockOrchestrator;
+
+  // --------------------------------------------------------------------------
+  // Plan v3 Track T4 (PR-V3-T4) UNBLOCK-T4-04 — Module B DI lift
+  // --------------------------------------------------------------------------
+
+  /**
+   * Per-instance Prisma client reference. Defaults to the singleton from
+   * `@reftrixmcp/database` but is replaceable via
+   * {@link setPrismaClientForTesting} for test fixtures (UNBLOCK-T4-04 DI lift).
+   *
+   * Module A owns the Prisma client; Module B / failure-path service consume
+   * it via {@link getPrismaClient} accessor instead of a direct import. This
+   * inverts the dependency so test fixtures can inject a mock without module
+   * cache surgery.
+   *
+   * Plan v3 T4 UNBLOCK-T4-04 Prisma client per-instance owner.
+   */
+  private prismaClient: PrismaClient = defaultPrismaClient;
+
   constructor(options: WorkerSupervisorOptions) {
+    // Plan v4.4 PR-N-A / ADR-0035 Amendment 1 §Decision 5:
+    // `restartDelayMs` field removed from options merge. Per-type cooldown
+    // is now exclusively resolved via `getRestartDelayMsForType(workerType)`
+    // at call site (no constructor-level default merge needed).
     this.config = {
       ...options,
-      restartDelayMs: options.restartDelayMs ?? DEFAULT_RESTART_DELAY_MS,
     };
 
-    // PR-D-8 §3.2.3 MF-01: per-type config map. Default per-type values are
-    // sourced from `buildDefaultWorkerTypeConfigs(workerScript)`; the `page`
-    // entry is then overridden so the legacy `WorkerSupervisorOptions`-based
-    // constructor surface continues to drive `page` lifecycle.
-    // PR-D-8 §3.2.3 MF-01: per-type config map。`page` は legacy options で
-    // 上書きすることで既存呼び出しサイトとの互換を維持する。
     const defaults = buildDefaultWorkerTypeConfigs(options.workerScript);
     this.typeConfigs = {
       page: {
@@ -342,7 +439,7 @@ export class WorkerSupervisor {
       "embedding-backfill": defaults["embedding-backfill"],
     };
 
-    // §3.2.4 Rule 1: independent per-type tokens (helper for max-lines compliance).
+    // §3.2.4 Rule 1: independent per-type tokens.
     this.bootTokens = buildBootTokens();
 
     for (const workerType of WORKER_TYPES) {
@@ -352,72 +449,306 @@ export class WorkerSupervisor {
         restartCount: 0,
         pendingRestart: false,
       });
-      this.lockAcquired.set(workerType, false);
-      this.lockAcquireInflight.set(workerType, false);
     }
+
+    // SEC L-01: Module C MUST be instantiated before Module B so the lifecycle
+    // module can rely on `this.lockOrchestrator` being available during its own
+    // construction (current implementation is constructor-light, but order is
+    // contract-preserving for future extensions).
+    this.lockOrchestrator = new WorkerSupervisorLockOrchestrator(
+      this,
+      this.bootTokens,
+      instantiateLockServiceForSupervisor
+    );
+    this.lifecycle = new WorkerSupervisorLifecycle(this);
+  }
+
+  // --------------------------------------------------------------------------
+  // @internal Composition accessors (Module B/C indirect path; TPA-01)
+  // --------------------------------------------------------------------------
+
+  /** @internal Module B/C indirect path (`this.supervisor.getLifecycle().X()`). */
+  getLifecycle(): WorkerSupervisorLifecycle {
+    return this.lifecycle;
+  }
+
+  /** @internal Module B/C indirect path (`this.supervisor.getLockOrchestrator().X()`). */
+  getLockOrchestrator(): WorkerSupervisorLockOrchestrator {
+    return this.lockOrchestrator;
   }
 
   /**
-   * Boot token for the `page` WorkerType. Exposed for test assertions only.
+   * @internal Module B / failure-path service indirect path for the Prisma
+   * client (UNBLOCK-T4-04 DI lift). Module B and the failure-path service
+   * consume `WorkerSupervisor.getPrismaClient()` instead of importing
+   * `@reftrixmcp/database` directly so test fixtures can inject a mock via
+   * {@link setPrismaClientForTesting}.
    *
-   * @internal exposed for tests (legacy single-token interface; tests asserting
-   * on multi-type behaviour should use {@link getBootTokenForType}).
+   * Plan v3 T4 UNBLOCK-T4-04 Prisma client accessor (DI inversion).
    */
+  getPrismaClient(): PrismaClient {
+    return this.prismaClient;
+  }
+
+  /**
+   * @internal **Test-only** mutator — overrides the Prisma client used by
+   * Module B / failure-path service. Production code MUST NOT call this
+   * accessor.
+   *
+   * Plan v3 T4 UNBLOCK-T4-04 test-only Prisma client setter.
+   *
+   * @param client - Mocked Prisma client for test fixtures
+   */
+  setPrismaClientForTesting(client: PrismaClient): void {
+    this.prismaClient = client;
+  }
+
+  // --------------------------------------------------------------------------
+  // Public API — accessors (test / monitoring)
+  // --------------------------------------------------------------------------
+
+  /** @internal Test-only legacy single-token interface. */
   getBootToken(): string {
     return this.bootTokens.page;
   }
 
-  /**
-   * Per-type boot token accessor for tests.
-   *
-   * @internal Test-only.
-   */
+  /** @internal Test-only per-type boot token accessor. */
   getBootTokenForType(workerType: WorkerType): string {
     return this.bootTokens[workerType];
   }
 
-  /**
-   * Per-type config accessor for tests.
-   *
-   * @internal Test-only.
-   */
+  /** @internal Test-only per-type config accessor. */
   getTypeConfig(workerType: WorkerType): WorkerTypeConfig {
     return this.typeConfigs[workerType];
   }
 
+  /** @internal Test-only — used by Module B (env injection) for the full type config map. */
+  getAllTypeConfigs(): Record<WorkerType, WorkerTypeConfig> {
+    return this.typeConfigs;
+  }
+
+  /** @internal Test-only — used by Module B (env injection) for the full boot tokens map. */
+  getAllBootTokens(): Record<WorkerType, string> {
+    return this.bootTokens;
+  }
+
   /**
-   * Get the live child state for a WorkerType (or `null` if no live child).
+   * Plan v4.5 PR3 Track 2 (§4.2.2): the supervisor's single UUIDv7 boot epoch.
+   * Per-job sub-child locks store this so orphan-cleanup can verify own-origin.
    *
-   * @internal Test-only.
+   * Supervisor の UUIDv7 boot epoch (§4.2.2)。per-job lock の own-origin verify 用。
    */
+  getBootEpoch(): string {
+    return this.bootEpoch;
+  }
+
+  /**
+   * Plan v4.5 PR3 Track 2 (§4.2.2 OrphanCleanupContract / CWE-367 closure):
+   * scan all per-job sub-child locks and release ONLY those whose stored
+   * `bootEpoch` matches THIS supervisor's boot epoch (own-origin orphans left
+   * by a crashed/restarted sub-child). Locks owned by a different bootEpoch
+   * are a "live owner" and are skipped. Fail-open: Redis-unreachable returns 0
+   * released (does not block startup).
+   *
+   * supervisor 起動時に per-job lock を scan し、自 bootEpoch 一致の orphan のみ
+   * release する (§4.2.2、CWE-367)。別 bootEpoch は live owner として skip。
+   *
+   * @returns Number of orphan locks released (0 on Redis-unreachable, fail-open)
+   */
+  async cleanupOrphanPerJobLocks(): Promise<number> {
+    const lockService = instantiateLockServiceForSupervisor();
+    let released = 0;
+    try {
+      const entries = await lockService.scanOrphanPerJobLocks();
+      for (const entry of entries) {
+        // Own-origin verify (§4.2.2): release ONLY when stored bootEpoch matches
+        // this supervisor's boot epoch AND a decodable nonce exists. A null
+        // bootEpoch (undecodable / foreign) is conservatively treated as a live
+        // owner and skipped (never auto-deleted by mistake).
+        if (entry.bootEpoch !== this.bootEpoch || entry.nonce === null) {
+          continue;
+        }
+        const jobId = entry.key.startsWith(PER_JOB_LOCK_KEY_NAMESPACE)
+          ? entry.key.slice(PER_JOB_LOCK_KEY_NAMESPACE.length)
+          : null;
+        if (jobId === null) continue;
+        const ok = await lockService.releasePerJobSubChildLock(jobId, entry.nonce, this.bootEpoch);
+        if (ok) released++;
+      }
+    } catch (error) {
+      // Fail-open: orphan cleanup must never block supervisor startup.
+      logger.warn("[WorkerSupervisor] cleanupOrphanPerJobLocks failed (fail-open)", {
+        error: sanitizeErrorMessage(error),
+      });
+    } finally {
+      void lockService.close().catch(() => {
+        /* best-effort */
+      });
+    }
+    return released;
+  }
+
+  /** @internal Used by Module B (env injection). */
+  getLegacyWorkerEnv(): Record<string, string> | undefined {
+    return this.config.workerEnv;
+  }
+
+  /** Get the live child state for a WorkerType (or `null` if no live child). */
   getChildState(workerType: WorkerType): WorkerChildState | null {
     return this.children.get(workerType) ?? null;
   }
 
-  /**
-   * pid → WorkerType binding accessor for tests asserting on Rule 5.
-   *
-   * @internal Test-only.
-   */
+  /** @internal Used by Module B to set a freshly forked child's state. */
+  setChildState(workerType: WorkerType, state: WorkerChildState): void {
+    this.children.set(workerType, state);
+  }
+
+  /** @internal Used by Module B to bind pid → workerType synchronously after fork(). */
+  bindPidToWorkerType(pid: number, workerType: WorkerType): void {
+    this.bindingTable.set(pid, workerType);
+  }
+
+  /** @internal Test-only pid → WorkerType binding accessor (Rule 5). */
   getBindingTableSnapshot(): ReadonlyMap<number, WorkerType> {
     return this.bindingTable;
   }
 
+  /** @internal Used by Module B during exit cleanup. */
+  removeChild(workerType: WorkerType, exitedPid: number | undefined): void {
+    if (exitedPid !== undefined && exitedPid >= 0) {
+      this.bindingTable.delete(exitedPid);
+    }
+    this.children.delete(workerType);
+  }
+
+  /** @internal Used by Module B for SIGABRT audit rate-limit Map. */
+  getSigabrtCountByWorkerType(): Map<WorkerType, number> {
+    return this.sigabrtCountByWorkerType;
+  }
+
+  /** @internal Used by Module B for SIGABRT audit rate-limit Map. */
+  getLastSigabrtAuditByWorkerType(): Map<WorkerType, number> {
+    return this.lastSigabrtAuditByWorkerType;
+  }
+
+  /** @internal Used by Module B (config readers). */
+  getMaxRestartAttempts(): number {
+    return this.config.maxRestartAttempts;
+  }
+
+  /** @internal Used by Module B (config readers). */
+  getShutdownTimeoutMs(): number {
+    return this.config.shutdownTimeoutMs;
+  }
+
   /**
-   * ワーカーが起動していなければ起動する (legacy single-worker API; defaults to
-   * `page`). For multi-type spawn use {@link ensureWorkerRunningForType}.
+   * @internal Used by Module B (config readers).
    *
-   * 冪等操作。legacy 互換 API として `page` をデフォルト起動する。
+   * Plan v4.3 PR-M-A: Per-type restart cooldown accessor. `embedding-backfill`
+   * は `EMBEDDING_BACKFILL_RESTART_DELAY_MS` env (default 8000ms、range
+   * 500..86400000ms) を採用し、`page` は legacy `WORKER_RESTART_DELAY_MS`
+   * (default 3000ms) を維持する (Plan v4.1 CWE-770 boundary preserved)。
+   *
+   * Per-type restart cooldown accessor. `embedding-backfill` uses
+   * `EMBEDDING_BACKFILL_RESTART_DELAY_MS` (default 8000ms, range
+   * 500..86400000ms); `page` keeps the legacy default (3000ms / Plan v4.1
+   * CWE-770 boundary). Overload: when called without arguments, returns the
+   * legacy `page` cooldown (backward-compatible with pre-PR-M-A callers).
+   *
+   * @param workerType Optional WorkerType discriminator (defaults to `page`).
+   * @returns restart delay in ms for the specified WorkerType.
+   */
+  getRestartDelayMs(workerType?: WorkerType): number {
+    // Plan v4.3 PR-M Phase 2 Step 6 refinement: delegate to module-level
+    // canonical helper (`getRestartDelayMsForType`) to avoid duplicate logic
+    // and guarantee semantic equivalence with the ADR-0035 §Decision 3
+    // contract verified by INV-EMBEDDING-WORKER-INIT-001 standing test.
+    //
+    // Plan v4.4 PR-N-A / ADR-0035 Amendment 1 §Decision 5: the legacy
+    // `this.config.restartDelayMs` field has been removed entirely. The
+    // module-level `getRestartDelayMsForType(workerType)` helper is now the
+    // exclusive SSOT for per-type restart cooldown — reading
+    // `WORKER_RESTART_DELAY_MS` (page, default 3000ms, min 500ms per Plan
+    // v4.1 CWE-770 boundary) or `EMBEDDING_BACKFILL_RESTART_DELAY_MS`
+    // (embedding-backfill, default 8000ms). Backward compat: when
+    // `workerType` is omitted, default to `"page"` (legacy callers
+    // pre-PR-M-A treated the method as the page cooldown accessor).
+    return getRestartDelayMsForType(workerType ?? "page");
+  }
+
+  /** @internal Used by Module B (shutdown gate). */
+  isShuttingDownNow(): boolean {
+    return this.isShuttingDown;
+  }
+
+  // --------------------------------------------------------------------------
+  // State-mutator accessors (Module B → Module A perTypeState mutation)
+  // --------------------------------------------------------------------------
+
+  /** @internal */
+  isPendingRestart(workerType: WorkerType): boolean {
+    return this.requirePerTypeState(workerType).pendingRestart;
+  }
+
+  /** @internal */
+  setPendingRestart(workerType: WorkerType): void {
+    this.requirePerTypeState(workerType).pendingRestart = true;
+  }
+
+  /** @internal */
+  clearPendingRestart(workerType: WorkerType): void {
+    this.requirePerTypeState(workerType).pendingRestart = false;
+  }
+
+  /** @internal */
+  resetRestartCount(workerType: WorkerType): void {
+    this.requirePerTypeState(workerType).restartCount = 0;
+  }
+
+  /** @internal */
+  incrementRestartCount(workerType: WorkerType): void {
+    this.requirePerTypeState(workerType).restartCount++;
+  }
+
+  /** @internal */
+  resetCompletedJobCount(workerType: WorkerType): void {
+    this.requirePerTypeState(workerType).completedJobCount = 0;
+  }
+
+  /** @internal */
+  markWorkerRunning(workerType: WorkerType): void {
+    this.requirePerTypeState(workerType).state = "running";
+  }
+
+  /** @internal */
+  markWorkerRestarting(workerType: WorkerType): void {
+    this.requirePerTypeState(workerType).state = "restarting";
+  }
+
+  /** @internal */
+  markWorkerStopped(workerType: WorkerType): void {
+    this.requirePerTypeState(workerType).state = "stopped";
+  }
+
+  /** @internal */
+  markWorkerCrashed(workerType: WorkerType): void {
+    this.requirePerTypeState(workerType).state = "crashed";
+  }
+
+  // --------------------------------------------------------------------------
+  // Public API — lifecycle entry
+  // --------------------------------------------------------------------------
+
+  /**
+   * ワーカーが起動していなければ起動する (legacy single-worker API; `page`).
+   * 冪等。
    */
   ensureWorkerRunning(): void {
     this.ensureWorkerRunningForType("page");
   }
 
   /**
-   * Per-type ensure-running entry point (PR-D-8 MF-01). Idempotent: if the
-   * type's child is already running, no-op.
-   *
-   * Per-type の起動エントリポイント。既に running 中の type は no-op。
+   * Per-type ensure-running entry point (PR-D-8 MF-01). Idempotent.
    */
   ensureWorkerRunningForType(workerType: WorkerType): void {
     const state = this.requirePerTypeState(workerType);
@@ -427,9 +758,8 @@ export class WorkerSupervisor {
     if (state.state === "stopped") return;
     if (state.state === "restarting") return;
 
-    // PR7d-2: Publish boot token to Redis so manual Worker invocations can
-    // detect us. Best-effort; failure does not block fork-supervised spawn.
-    this.acquireRedisLockBestEffort(workerType);
+    // PR7d-2: Publish boot token to Redis. Best-effort.
+    this.lockOrchestrator.acquireRedisLockBestEffort(workerType);
 
     // crashed 状態からの自動復旧 (legacy semantics retained)
     if (state.state === "crashed") {
@@ -441,120 +771,63 @@ export class WorkerSupervisor {
       state.state = "idle";
     }
 
-    this.spawnWorker(workerType);
+    this.lifecycle.spawnWorker(workerType);
   }
 
   /**
-   * PR-D-8 MF-07 (TPA-IMPL-V11-08): staggered multi-type spawn. Spawns `primary`,
-   * awaits first IPC heartbeat (or 10s timeout), then spawns `secondary` — prevents
-   * allocation spike from concurrent DINOv2 + e5-base ONNX init (Plan v1.1 §3.3).
-   *
-   * Multi-type 起動 API。primary heartbeat (最大 10s) 受信後に secondary 起動で
-   * 両子同時 ML モデル初期化の RSS spike を回避 (Plan v1.1 §3.3)。
-   *
-   * @param heartbeatTimeoutMs Override default 10s heartbeat wait (test injection)
+   * PR-D-8 MF-07: staggered multi-type spawn. Spawns `primary`, awaits first
+   * IPC heartbeat (or 10s timeout), then spawns `secondary`.
    */
   async ensureAllWorkersRunningStaggered(heartbeatTimeoutMs: number = 10_000): Promise<void> {
-    const primary = this.firstWorkerTypeOfPriority("primary");
-    const secondary = this.firstWorkerTypeOfPriority("secondary");
-    if (!primary || !secondary) {
-      logger.warn("[WorkerSupervisor] ensureAllWorkersRunningStaggered: missing priority", {
-        primary,
-        secondary,
-      });
-      return;
-    }
-    this.ensureWorkerRunningForType(primary);
-    await this.waitForFirstHeartbeat(primary, heartbeatTimeoutMs);
-    // ADR-0011 Amendment 2 §A2.2.3: fail-closed Vision unload precondition
-    if ((await verifyVisionUnloadPrecondition()).status === "vision_unloaded")
-      this.ensureWorkerRunningForType(secondary);
+    return this.lifecycle.ensureAllWorkersRunningStaggered(heartbeatTimeoutMs);
   }
 
-  /** Find the first WorkerType whose schedulingPriority matches; null if none. */
-  private firstWorkerTypeOfPriority(priority: "primary" | "secondary"): WorkerType | null {
+  /** @internal Used by Module B's staggered spawn. */
+  firstWorkerTypeOfPriority(priority: "primary" | "secondary"): WorkerType | null {
     for (const workerType of WORKER_TYPES) {
       if (this.typeConfigs[workerType].schedulingPriority === priority) return workerType;
     }
     return null;
   }
 
-  /**
-   * Wait until the live child for `workerType` reports its first heartbeat,
-   * or `timeoutMs` elapses. Resolves silently on timeout (non-fatal).
-   * 子の first heartbeat 待機 — timeout 時は静かに resolve。
-   */
-  private async waitForFirstHeartbeat(workerType: WorkerType, timeoutMs: number): Promise<void> {
-    const childState = this.children.get(workerType);
-    if (!childState) return;
-    const startedAt = childState.startedAt;
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-      const current = this.children.get(workerType);
-      // first heartbeat = lastHeartbeatAt が startedAt から進んだ瞬間。
-      if (current && current.lastHeartbeatAt > startedAt) return;
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-    logger.warn("[WorkerSupervisor] First heartbeat timeout (continuing)", {
-      workerType,
-      timeoutMs,
-    });
-  }
+  // --------------------------------------------------------------------------
+  // Public API — state observers
+  // --------------------------------------------------------------------------
 
-  /**
-   * 現在のワーカー状態を取得 (legacy alias for `page`).
-   */
+  /** Legacy alias for `page`. */
   getState(): WorkerState {
     return this.getStateForType("page");
   }
 
-  /**
-   * Per-type state accessor.
-   */
   getStateForType(workerType: WorkerType): WorkerState {
     return this.requirePerTypeState(workerType).state;
   }
 
-  /**
-   * 完了ジョブカウントを取得 (legacy alias for `page`).
-   */
+  /** Legacy alias for `page`. */
   getCompletedJobCount(): number {
     return this.getCompletedJobCountForType("page");
   }
 
-  /**
-   * Per-type completed-job count accessor.
-   */
   getCompletedJobCountForType(workerType: WorkerType): number {
     return this.requirePerTypeState(workerType).completedJobCount;
   }
 
-  /**
-   * 再起動回数を取得 (legacy alias for `page`).
-   */
+  /** Legacy alias for `page`. */
   getRestartCount(): number {
     return this.getRestartCountForType("page");
   }
 
-  /**
-   * Per-type restart-count accessor.
-   */
   getRestartCountForType(workerType: WorkerType): number {
     return this.requirePerTypeState(workerType).restartCount;
   }
 
-  /**
-   * ジョブ完了を通知 (legacy single-worker API; defaults to `page`).
-   *
-   * Legacy 互換 API。`page` のジョブ完了として扱う。
-   */
+  /** Legacy alias for `page`. */
   notifyJobCompleted(): void {
     this.notifyJobCompletedForType("page");
   }
 
   /**
    * Per-type notification (Rule 5 verification dispatches here on valid IPC).
-   *
    * 内部カウンタをインクリメントし、maxJobsBeforeRestart に達したら計画的再起動。
    */
   notifyJobCompletedForType(workerType: WorkerType): void {
@@ -570,767 +843,54 @@ export class WorkerSupervisor {
     }
 
     if (state.completedJobCount >= this.typeConfigs[workerType].maxJobsBeforeRestart) {
-      this.initiateRestart(workerType, "job_count_threshold");
+      this.lifecycle.initiateRestart(workerType, "job_count_threshold");
     }
   }
 
+  // --------------------------------------------------------------------------
+  // Public API — shutdown
+  // --------------------------------------------------------------------------
+
   /**
-   * graceful shutdown — terminates every live child and releases every per-type
-   * Redis lock. 3-Phase Shutdown Protocol per child.
-   *
-   * 全 type を順次 graceful shutdown する。各 child に 3-Phase プロトコル適用。
+   * graceful shutdown — terminates every live child and releases every
+   * per-type Redis lock. 3-Phase Shutdown Protocol per child.
    */
   async shutdown(): Promise<void> {
     this.isShuttingDown = true;
 
+    // ADR-0011 Amendment 7 §A7.4 (CWE-400 timer-leak defense layer 2): clear the
+    // deferred secondary-spawn retry timer. Layer 1 is the callback-head
+    // `isShuttingDownNow()` guard inside the retry tick. INV-011 (d).
+    this.lifecycle.clearSecondarySpawnRetryTimer();
+
     // Per-type Redis lock release (fire-and-forget for each type).
     for (const workerType of WORKER_TYPES) {
-      void this.releaseRedisLockBestEffort(workerType);
+      void this.lockOrchestrator.releaseRedisLockBestEffort(workerType);
     }
 
     const shutdownPromises: Array<Promise<void>> = [];
     for (const workerType of WORKER_TYPES) {
-      shutdownPromises.push(this.shutdownChild(workerType));
+      shutdownPromises.push(this.lifecycle.shutdownChild(workerType));
     }
     await Promise.all(shutdownPromises);
   }
 
-  /**
-   * Per-type child shutdown — 3-Phase Protocol: IPC 'shutdown' → SIGTERM
-   * (after IPC_SHUTDOWN_GRACE_MS) → SIGKILL escalation (after shutdownTimeoutMs).
-   */
-  private async shutdownChild(workerType: WorkerType): Promise<void> {
-    const childState = this.children.get(workerType);
-    const state = this.requirePerTypeState(workerType);
-    if (!childState) {
-      state.state = "stopped";
-      return;
-    }
-    const workerToKill = childState.child;
-    const childPid = childState.pid;
+  // --------------------------------------------------------------------------
+  // Public API — child process accessor (legacy)
+  // --------------------------------------------------------------------------
 
-    return new Promise<void>((resolve) => {
-      let killTimerId: ReturnType<typeof setTimeout> | null = null;
-      let sigTermTimerId: ReturnType<typeof setTimeout> | null = null;
-      const onExit = (): void => {
-        if (killTimerId !== null) clearTimeout(killTimerId);
-        if (sigTermTimerId !== null) clearTimeout(sigTermTimerId);
-        killTimerId = null;
-        sigTermTimerId = null;
-        this.children.delete(workerType);
-        this.bindingTable.delete(childPid);
-        state.state = "stopped";
-        resolve();
-      };
-      workerToKill.once("exit", onExit);
-      try {
-        if (workerToKill.connected && workerToKill.send) {
-          workerToKill.send({ type: "shutdown" });
-        }
-      } catch {
-        logger.warn("[WorkerSupervisor] IPC shutdown message failed (non-fatal)", { workerType });
-      }
-      sigTermTimerId = setTimeout(() => {
-        try {
-          workerToKill.kill("SIGTERM");
-        } catch {
-          onExit();
-        }
-      }, IPC_SHUTDOWN_GRACE_MS);
-      killTimerId = setTimeout(() => {
-        if (isDevelopment()) {
-          logger.warn("[WorkerSupervisor] Shutdown timeout, sending SIGKILL", {
-            workerType,
-            pid: childPid,
-          });
-        }
-        try {
-          workerToKill.kill("SIGKILL");
-        } catch {
-          onExit();
-        }
-      }, this.config.shutdownTimeoutMs);
-    });
-  }
-
-  /**
-   * ワーカーの ChildProcess を取得 (legacy alias for `page`).
-   *
-   * Legacy 互換 API。新規コードは {@link getWorkerProcessForType} を使用する。
-   */
+  /** Legacy alias for `page`. */
   getWorkerProcess(): ChildProcess | null {
     return this.getWorkerProcessForType("page");
   }
 
-  /**
-   * Per-type child process accessor (test/monitoring use).
-   */
   getWorkerProcessForType(workerType: WorkerType): ChildProcess | null {
     return this.children.get(workerType)?.child ?? null;
   }
 
-  // ==========================================================================
-  // Private — Spawn lifecycle (PR-D-8 §3.2.3 MF-01)
-  // ==========================================================================
-
-  /**
-   * Per-type fork. PR-D-8 §3.2.3 MF-01 — replaces legacy single-worker
-   * `spawnWorker()`. Establishes:
-   *   - per-type env injection (`bootTokenEnv`, `childTypeEnv`) per §3.2.4 MF-03
-   *   - `bindingTable` entry **before** the child can possibly send IPC
-   *   - `children.set(workerType, ...)` with a fresh `WorkerChildState`
-   *
-   * Per-type fork。Plan v1.1 §3.2.3 MF-01 に準拠。
-   */
-  private spawnWorker(workerType: WorkerType): void {
-    const config = this.typeConfigs[workerType];
-    const state = this.requirePerTypeState(workerType);
-    // PR-E-1 Option A (ADR-0011 Amendment 4 §A): lockNonce = bootToken (per-supervisor immutable). INV-007.
-    const lockNonce = this.bootTokens[workerType];
-
-    if (isDevelopment()) {
-      logger.info("[WorkerSupervisor] Spawning worker", {
-        workerType,
-        script: config.workerScript,
-        args: config.workerArgs,
-        restartCount: state.restartCount,
-      });
-    }
-
-    const env = this.buildSpawnEnv(workerType);
-    const maxOldSpace =
-      env.WORKER_MAX_OLD_SPACE_MB ?? String(computeMemoryProfile().maxOldSpaceSizeMb);
-    const execArgv = [`--max-old-space-size=${maxOldSpace}`, "--expose-gc"];
-
-    const child = fork(config.workerScript, config.workerArgs, {
-      execArgv,
-      stdio: ["ignore", "pipe", "pipe", "ipc"],
-      env,
-      cwd: path.resolve(__dirname, "../.."),
-    });
-
-    // Establish bindingTable entry SYNCHRONOUSLY so Rule 5 IPC verification
-    // never races with first-message arrival. fork() returns synchronously
-    // and the child cannot have sent any IPC before we register here.
-    // bindingTable を SYNCHRONOUS に確立 — fork() は同期返却し、子は登録前に
-    // IPC を送信できないため Rule 5 検証の race を防げる。
-    if (child.pid !== undefined) {
-      this.bindingTable.set(child.pid, workerType);
-    }
-
-    const childState: WorkerChildState = {
-      child,
-      workerType,
-      pid: child.pid ?? -1,
-      lockNonce,
-      bootToken: this.bootTokens[workerType],
-      jobsProcessed: 0,
-      startedAt: Date.now(),
-      lastHeartbeatAt: Date.now(),
-      restartSuppressUntil: null,
-    };
-    this.children.set(workerType, childState);
-    state.state = "running";
-
-    this.attachChildEventHandlers(workerType, child);
-
-    if (isDevelopment()) {
-      logger.info("[WorkerSupervisor] Worker spawned", {
-        workerType,
-        pid: child.pid,
-        state: state.state,
-      });
-    }
-  }
-
-  /**
-   * Build the env block for `fork()` per WorkerType. Centralises the per-type
-   * env injection (PR-D-8 §3.2.4 MF-03) so {@link spawnWorker} stays small.
-   *
-   * Per-type env 構築。`spawnWorker` から分離して complexity を抑える。
-   */
-  private buildSpawnEnv(workerType: WorkerType): Record<string, string | undefined> {
-    const config = this.typeConfigs[workerType];
-    const env: Record<string, string | undefined> = { ...process.env };
-
-    if (this.config.workerEnv && workerType === "page") {
-      // Legacy `workerEnv` only applies to the `page` WorkerType to preserve
-      // pre-PR-D-8 behaviour.
-      // Legacy `workerEnv` は `page` のみに適用 (PR-D-8 以前の挙動を保持)。
-      for (const [key, value] of Object.entries(this.config.workerEnv)) {
-        env[key] = value;
-      }
-    }
-
-    // PR7d-2: identify fork children. PR-D-8 §3.2.4 Rule 3: legacy env var
-    // continues to be set for 1-cycle backward compatibility.
-    // PR7d-2 + Rule 3: legacy env var を 1 cycle 互換目的で継続注入。
-    env.REFTRIX_WORKER_IS_CHILD = "1";
-    env.REFTRIX_WORKER_SUPERVISOR_BOOT_TOKEN = this.bootTokens[workerType];
-
-    // PR-D-8 §3.2.4 Rule 2 (MF-03): per-type env vars.
-    // Both vars are written so `start-workers.ts` can read either depending
-    // on the resolved WorkerType — harmless because each child only USES the
-    // var matching its own type.
-    // Rule 2 (MF-03): per-type env var を全 type 分注入。
-    env[this.typeConfigs.page.bootTokenEnv] = this.bootTokens.page;
-    env[this.typeConfigs["embedding-backfill"].bootTokenEnv] =
-      this.bootTokens["embedding-backfill"];
-
-    // Rule 4 (MF-03): CHILD_TYPE で自己識別。
-    env[config.childTypeEnv] = workerType;
-
-    // OOM-1: glibc malloc arena 断片化を防止。
-    if (!env.MALLOC_ARENA_MAX) {
-      env.MALLOC_ARENA_MAX = "2";
-    }
-    return env;
-  }
-
-  /**
-   * Attach exit / message / error / stdio handlers for a freshly forked child.
-   * Centralised so {@link spawnWorker} stays under cyclomatic complexity 10.
-   *
-   * fork 直後の子に各種 event handler を付ける helper。
-   */
-  private attachChildEventHandlers(workerType: WorkerType, child: ChildProcess): void {
-    if (child.stdout) {
-      child.stdout.on("data", (data: Buffer) => {
-        if (isDevelopment()) {
-          logger.debug(`[WorkerSupervisor:${workerType}:stdout] ${data.toString().trimEnd()}`);
-        }
-      });
-    }
-    if (child.stderr) {
-      child.stderr.on("data", (data: Buffer) => {
-        const message = data.toString().trimEnd();
-        logger.warn(`[WorkerSupervisor:${workerType}:stderr] ${message}`);
-      });
-    }
-
-    child.on("exit", (code: number | null, signal: string | null) => {
-      this.handleWorkerExit(workerType, code, signal);
-    });
-
-    // PR-D-8 §3.2.4 Rule 5 (MF-02 / SEC-IMPL-01 / SEC-IMPL-04): IPC dispatch
-    // via {@link verifyWorkerIpcMessage}. Rejects schema-invalid messages,
-    // workerType mismatches, and unknown senderPid; on spoofing emits
-    // `worker_type_spoofing_detected` audit_logs and SIGTERMs the child.
-    // PR-D-8 §3.2.4 Rule 5 (MF-02): verifyWorkerIpcMessage 経由で IPC dispatch。
-    child.on("message", (raw: unknown) => {
-      this.dispatchVerifiedIpc(raw, child.pid);
-    });
-
-    // MF-09 SEC-IMPL-05: sanitizeErrorMessage SSOT used to prevent CWE-209
-    // leakage of internal stacks / token-adjacent context.
-    // MF-09 SEC-IMPL-05: sanitizeErrorMessage で CWE-209 漏洩を防止。
-    child.on("error", (error: Error) => {
-      logger.error("[WorkerSupervisor] Worker process error", {
-        workerType,
-        error: sanitizeErrorMessage(error),
-        pid: child.pid,
-      });
-    });
-  }
-
-  /**
-   * IPC dispatch entry — verifies the message via {@link verifyWorkerIpcMessage}
-   * (Rule 5 / MF-02), then routes to the appropriate per-message handler.
-   *
-   * Verifier failure paths (per Plan §3.2.4 Rule 5 + §3.2.2 line 187):
-   *   - schema-invalid / unknown-workerType (parse failure) → SIGTERM offending
-   *     child + 60s suppress + audit_logs `worker_ipc_spoofing_detected`
-   *   - pid binding mismatch → SIGTERM offending child + 60s suppress +
-   *     audit_logs `worker_type_spoofing_detected`
-   *
-   * Verifier 失敗時の挙動: parse 失敗 (schema-invalid / unknown-workerType) は
-   * `worker_ipc_spoofing_detected`、binding mismatch は `worker_type_spoofing_detected`
-   * を audit emit。両者とも sender pid が bindingTable に存在する場合は
-   * SIGTERM + 60s respawn suppress に escalate される。
-   */
-  private dispatchVerifiedIpc(raw: unknown, senderPid: number | undefined): void {
-    const verified = verifyWorkerIpcMessage(raw, senderPid, this.bindingTable);
-    if (verified === null) {
-      // Verifier already logged + emitted audit_logs (either
-      // `worker_ipc_spoofing_detected` for parse failure or
-      // `worker_type_spoofing_detected` for binding mismatch). If sender pid
-      // is known, escalate SIGTERM + 60s respawn suppress per Plan §3.2.2/§3.2.4.
-      // Verifier が null 返却 + 既知 pid → SIGTERM + 60s suppress に escalate。
-      if (senderPid !== undefined && this.bindingTable.has(senderPid)) {
-        this.escalateSpoofing(senderPid);
-      }
-      return;
-    }
-    // Schema-valid + binding-consistent. Dispatch by message type.
-    if (verified.type === "job-completed") {
-      this.notifyJobCompletedForType(verified.workerType);
-    } else if (verified.type === "heartbeat") {
-      const childState = this.children.get(verified.workerType);
-      if (childState) childState.lastHeartbeatAt = Date.now();
-    } else if (verified.type === "planned-restart-request") {
-      this.initiateRestart(verified.workerType, "child_request");
-    } else if (verified.type === "fatal-error") {
-      logger.error("[WorkerSupervisor] Child reported fatal error", {
-        workerType: verified.workerType,
-        jobId: verified.jobId,
-      });
-      this.initiateRestart(verified.workerType, "fatal_error");
-    }
-  }
-
-  /**
-   * SEC-02 spoofing escalation: SIGTERM offending child + 60s respawn suppress.
-   * audit_logs emit happens inside `verifyWorkerIpcMessage`.
-   *
-   * SEC-02: 当該 child を SIGTERM、60s 再起動抑制 (audit_logs は verifier 側)。
-   */
-  private escalateSpoofing(senderPid: number): void {
-    const workerType = this.bindingTable.get(senderPid);
-    if (!workerType) return;
-    const childState = this.children.get(workerType);
-    if (!childState) return;
-    try {
-      childState.child.kill("SIGTERM");
-    } catch {
-      /* child already gone */
-    }
-    childState.restartSuppressUntil = Date.now() + 60_000;
-    logger.error("[WorkerSupervisor] Spoofing detected — SIGTERM + 60s suppress", {
-      workerType,
-      pid: senderPid,
-    });
-  }
-
-  /**
-   * Per-type exit handler. PR-D-8 MF-04: invokes
-   * {@link executeSelfChainedRespawn} before re-spawning, ensuring the
-   * exiting child's lock has been released (or detected as foreign / stale).
-   *
-   * Per-type exit handler。`executeSelfChainedRespawn` を必ず call し、
-   * lock の release 完了を確認してから respawn する。
-   */
-  private handleWorkerExit(
-    workerType: WorkerType,
-    code: number | null,
-    signal: string | null
-  ): void {
-    const state = this.requirePerTypeState(workerType);
-    const childState = this.children.get(workerType);
-    this.logExitEvent(workerType, code, signal, state);
-    this.cleanupExitedChild(workerType, childState?.pid);
-
-    if (this.isShuttingDown) {
-      state.state = "stopped";
-      return;
-    }
-
-    // §3.2.4 Rule 5: spoofing suppression window — refuse to respawn until
-    // restartSuppressUntil has elapsed.
-    // Spoofing 検出時の suppress window — 期限内は respawn 拒否。
-    if (this.shouldSuppressRespawn(workerType, childState)) {
-      state.state = "crashed";
-      return;
-    }
-
-    const exitedPid = childState?.pid;
-    const exitedNonce = childState?.lockNonce;
-    const jobsProcessed = childState?.jobsProcessed ?? 0;
-
-    if (state.pendingRestart) {
-      this.handlePlannedRestart(workerType, code, signal, exitedPid, jobsProcessed, exitedNonce);
-      return;
-    }
-    this.handleUnexpectedExit(workerType, code, signal, exitedPid, jobsProcessed, exitedNonce);
-  }
-
-  /**
-   * Emit dev-only structured log of the exit event.
-   */
-  private logExitEvent(
-    workerType: WorkerType,
-    code: number | null,
-    signal: string | null,
-    state: { restartCount: number; pendingRestart: boolean }
-  ): void {
-    if (!isDevelopment()) return;
-    logger.info("[WorkerSupervisor] Worker exited", {
-      workerType,
-      code,
-      signal,
-      isShuttingDown: this.isShuttingDown,
-      restartCount: state.restartCount,
-      pendingRestart: state.pendingRestart,
-    });
-  }
-
-  /**
-   * Drop the exited child from `children` and `bindingTable`.
-   */
-  private cleanupExitedChild(workerType: WorkerType, exitedPid: number | undefined): void {
-    if (exitedPid !== undefined && exitedPid >= 0) {
-      this.bindingTable.delete(exitedPid);
-    }
-    this.children.delete(workerType);
-  }
-
-  /**
-   * Spoofing suppression window check — extracted from {@link handleWorkerExit}
-   * to keep complexity ≤ 10.
-   */
-  private shouldSuppressRespawn(
-    workerType: WorkerType,
-    childState: WorkerChildState | undefined
-  ): boolean {
-    const suppressUntil = childState?.restartSuppressUntil ?? null;
-    if (suppressUntil === null) return false;
-    const now = Date.now();
-    if (now >= suppressUntil) return false;
-    logger.warn("[WorkerSupervisor] Restart suppressed due to spoofing window", {
-      workerType,
-      suppressRemainingMs: suppressUntil - now,
-    });
-    return true;
-  }
-
-  /**
-   * Planned-restart path — emits audit_logs and chains into the self-chained
-   * respawn protocol.
-   */
-  private handlePlannedRestart(
-    workerType: WorkerType,
-    code: number | null,
-    signal: string | null,
-    exitedPid: number | undefined,
-    jobsProcessed: number,
-    exitedNonce: string | undefined
-  ): void {
-    const state = this.requirePerTypeState(workerType);
-    state.pendingRestart = false;
-    state.restartCount = 0;
-    // MF-08 LCC-IMPL-01: audit_logs emit for planned restart.
-    emitWorkerRestartAudit(
-      workerType,
-      "planned",
-      jobsProcessed,
-      code,
-      signal,
-      exitedPid,
-      state.restartCount,
-      "success"
-    );
-    void this.runSelfChainedRespawnAndSchedule(workerType, exitedNonce);
-  }
-
-  /**
-   * Unexpected-exit path — applies maxRestartAttempts gate and emits the
-   * matching audit_logs entry (success vs failure).
-   */
-  private handleUnexpectedExit(
-    workerType: WorkerType,
-    code: number | null,
-    signal: string | null,
-    exitedPid: number | undefined,
-    jobsProcessed: number,
-    exitedNonce: string | undefined
-  ): void {
-    // Fix-3 (INFRA-EMBEDDING-MOTION-SIGABRT-001): SIGABRT detection + suppress.
-    const sigabrtSuppress = processSigabrtSignal(
-      workerType,
-      signal,
-      exitedPid,
-      this.sigabrtCountByWorkerType,
-      this.lastSigabrtAuditByWorkerType
-    );
-    const state = this.requirePerTypeState(workerType);
-    if (state.restartCount >= this.config.maxRestartAttempts) {
-      logger.error("[WorkerSupervisor] Max restart attempts reached, giving up", {
-        workerType,
-        restartCount: state.restartCount,
-        maxRestartAttempts: this.config.maxRestartAttempts,
-        lastExitCode: code,
-        lastSignal: signal,
-      });
-      state.state = "crashed";
-      clearLockHeartbeatTimer(workerType, this.lockHeartbeatTimers); // PR-E-1 NF-6 (CWE-770)
-      emitWorkerRestartAudit(
-        workerType,
-        "crash_max_attempts",
-        jobsProcessed,
-        code,
-        signal,
-        exitedPid,
-        state.restartCount,
-        "failure"
-      );
-      return;
-    }
-    state.restartCount++;
-    emitWorkerRestartAudit(
-      workerType,
-      "unexpected_exit",
-      jobsProcessed,
-      code,
-      signal,
-      exitedPid,
-      state.restartCount,
-      "success"
-    );
-    // Fix-3: gate respawn behind a 60s suppress timer on N consecutive SIGABRTs.
-    scheduleSigabrtAwareRespawn(
-      sigabrtSuppress,
-      () => this.isShuttingDown,
-      () => void this.runSelfChainedRespawnAndSchedule(workerType, exitedNonce)
-    );
-  }
-
-  /**
-   * Run the self-chained respawn protocol (MF-04 / SEC-IMPL-03) and schedule
-   * the actual respawn based on its outcome.
-   *
-   * `executeSelfChainedRespawn` の戻り値により respawn 戦略を切り替える:
-   *   - `released` / `probe_failed` → 通常 delay で respawn
-   *   - `ttl_fallback` → 60s 後に respawn (TTL 自然失効待ち)
-   *   - `foreign_lock` → respawn 中止 (他 host の lock を尊重)
-   */
-  private async runSelfChainedRespawnAndSchedule(
-    workerType: WorkerType,
-    exitedNonce: string | undefined
-  ): Promise<void> {
-    const state = this.requirePerTypeState(workerType);
-    state.state = "restarting";
-    state.completedJobCount = 0;
-
-    // If we never had a valid nonce (child died before WorkerChildState was
-    // populated) we cannot run release; just delegate to the legacy delay.
-    // 子が生成途中で exit した場合 (nonce なし) は通常 delay で respawn。
-    if (!exitedNonce) {
-      this.scheduleRespawn(workerType, this.config.restartDelayMs);
-      return;
-    }
-
-    const lockService = this.ensureLockServiceInstance();
-    if (!lockService) {
-      this.scheduleRespawn(workerType, this.config.restartDelayMs);
-      return;
-    }
-
-    let outcome: Awaited<ReturnType<typeof executeSelfChainedRespawn>>;
-    try {
-      outcome = await executeSelfChainedRespawn(lockService, workerType, exitedNonce);
-    } catch (error) {
-      logger.warn("[WorkerSupervisor] executeSelfChainedRespawn threw (non-fatal)", {
-        workerType,
-        error: sanitizeErrorMessage(error),
-      });
-      outcome = "probe_failed";
-    }
-
-    switch (outcome) {
-      case "released":
-      case "probe_failed":
-        this.scheduleRespawn(workerType, this.config.restartDelayMs);
-        break;
-      case "ttl_fallback":
-        // 60s natural expiry wait (TTL_FALLBACK_MS in plan §3.2.5).
-        this.scheduleRespawn(workerType, 60_000);
-        break;
-      case "foreign_lock":
-        // Foreign owner — fail-closed; do not respawn this type.
-        logger.error("[WorkerSupervisor] Foreign lock detected — refusing respawn", {
-          workerType,
-        });
-        state.state = "crashed";
-        clearLockHeartbeatTimer(workerType, this.lockHeartbeatTimers); // PR-E-1 NF-6 (CWE-770)
-        break;
-      default:
-        // Unreachable; fall back to default delay.
-        this.scheduleRespawn(workerType, this.config.restartDelayMs);
-    }
-  }
-
-  /**
-   * Calculate restart delay deterministically per-type and re-spawn after the
-   * timeout. shutdown 中なら respawn しない。
-   */
-  private scheduleRespawn(workerType: WorkerType, delayMs: number): void {
-    const state = this.requirePerTypeState(workerType);
-    state.state = "restarting";
-    setTimeout(() => {
-      if (this.isShuttingDown) {
-        state.state = "stopped";
-        return;
-      }
-      this.spawnWorker(workerType);
-    }, delayMs);
-  }
-
-  /**
-   * Per-type initiateRestart. PR-D-8 MF-08: emits `worker_supervisor_restart`
-   * audit_log indirectly via {@link handleWorkerExit} after the actual exit
-   * arrives; here we only set `pendingRestart` + send IPC shutdown.
-   *
-   * Per-type の initiateRestart。`pendingRestart` フラグをセットし IPC
-   * shutdown を送信する。実際の audit_logs emit は exit handler 側で行う。
-   */
-  private initiateRestart(workerType: WorkerType, reason: string): void {
-    const state = this.requirePerTypeState(workerType);
-    const childState = this.children.get(workerType);
-    if (isDevelopment()) {
-      logger.info("[WorkerSupervisor] Initiating restart", {
-        workerType,
-        reason,
-        completedJobCount: state.completedJobCount,
-      });
-    }
-    if (!childState) return;
-
-    state.state = "restarting";
-    state.pendingRestart = true;
-    const workerToRestart = childState.child;
-    const childPid = childState.pid;
-
-    try {
-      if (workerToRestart.connected && workerToRestart.send) {
-        workerToRestart.send({ type: "shutdown" });
-      }
-    } catch {
-      logger.warn("[WorkerSupervisor] IPC shutdown message failed during restart (non-fatal)", {
-        workerType,
-      });
-    }
-
-    const sigTermTimerId = setTimeout(() => {
-      try {
-        workerToRestart.kill("SIGTERM");
-      } catch {
-        /* exit handler will handle */
-      }
-    }, IPC_SHUTDOWN_GRACE_MS);
-
-    const killTimerId = setTimeout(() => {
-      if (isDevelopment()) {
-        logger.warn("[WorkerSupervisor] Restart shutdown timeout, sending SIGKILL", {
-          workerType,
-          pid: childPid,
-        });
-      }
-      try {
-        workerToRestart.kill("SIGKILL");
-      } catch {
-        /* exit handler will handle */
-      }
-    }, this.config.shutdownTimeoutMs);
-
-    workerToRestart.once("exit", () => {
-      clearTimeout(sigTermTimerId);
-      clearTimeout(killTimerId);
-    });
-  }
-
-  // ==========================================================================
-  // Private — Redis active-worker lock (per-type, ADR-0011 Amendment)
-  // ==========================================================================
-
-  private ensureLockServiceInstance(): WorkerActiveLockService | null {
-    if (this.lockService) return this.lockService;
-    if (process.env.NODE_ENV === "test") return null;
-    try {
-      this.lockService = instantiateLockServiceForSupervisor();
-      return this.lockService;
-    } catch (error) {
-      logger.warn("[WorkerSupervisor] Lock service init failed (non-fatal)", {
-        error: sanitizeErrorMessage(error),
-      });
-      return null;
-    }
-  }
-
-  /**
-   * Per-type Redis lock acquisition. Best-effort. Item 3 (CO-31) / ADR-0011
-   * Amendment 5 §A5.1: retry orchestration is delegated to the helper which
-   * consumes `tryAcquireLock` discriminated union and retries
-   * `redis_unavailable` on 100/200/400ms backoff (max 3, 700ms total).
-   */
-  private acquireRedisLockBestEffort(workerType: WorkerType): void {
-    if (this.lockAcquired.get(workerType)) return;
-    if (this.lockAcquireInflight.get(workerType)) return;
-    if (process.env.NODE_ENV === "test") return;
-    const lockService = this.ensureLockServiceInstance();
-    if (!lockService) return;
-    this.lockAcquireInflight.set(workerType, true);
-    runAcquireLockWithRetryOrchestrator(lockService, workerType, this.bootTokens[workerType], {
-      onAcquired: () => {
-        this.lockAcquired.set(workerType, true);
-        this.startLockHeartbeat(workerType);
-        if (isDevelopment()) {
-          logger.info("[WorkerSupervisor] Published active-worker lock to Redis", { workerType });
-        }
-      },
-      onHeldByOther: () => {
-        logger.warn("[WorkerSupervisor] active-worker lock held by another owner", { workerType });
-      },
-      onExhausted: () => {
-        logger.warn("[WorkerSupervisor] acquireLock exhausted (fail-open final)", { workerType });
-      },
-      onError: (error) => {
-        logger.warn("[WorkerSupervisor] acquireLock failed (non-fatal)", {
-          workerType,
-          error: sanitizeErrorMessage(error),
-        });
-      },
-      onSettled: () => this.lockAcquireInflight.set(workerType, false),
-    });
-  }
-
-  /**
-   * Per-type heartbeat to refresh the Redis TTL.
-   */
-  private startLockHeartbeat(workerType: WorkerType): void {
-    if (this.lockHeartbeatTimers.has(workerType) || !this.lockService) return;
-    const timer = setInterval(() => {
-      if (!this.lockService) return;
-      void this.lockService.extendLock(workerType, this.bootTokens[workerType]).catch(() => {
-        /* non-fatal */
-      });
-    }, LOCK_HEARTBEAT_INTERVAL_MS);
-    timer.unref?.();
-    this.lockHeartbeatTimers.set(workerType, timer);
-  }
-
-  /**
-   * Per-type Redis lock release on shutdown.
-   */
-  private async releaseRedisLockBestEffort(workerType: WorkerType): Promise<void> {
-    const heartbeatTimer = this.lockHeartbeatTimers.get(workerType);
-    if (heartbeatTimer) {
-      clearInterval(heartbeatTimer);
-      this.lockHeartbeatTimers.delete(workerType);
-    }
-    if (!this.lockService) return;
-    try {
-      if (this.lockAcquired.get(workerType)) {
-        await this.lockService.releaseLock(workerType, this.bootTokens[workerType]);
-      }
-    } catch {
-      /* best-effort */
-    }
-    this.lockAcquired.set(workerType, false);
-
-    // Close service only when no other type still owns a heartbeat.
-    // 他 type が heartbeat 継続中なら service close しない。
-    if (this.lockHeartbeatTimers.size === 0) {
-      try {
-        await this.lockService.close();
-      } catch {
-        /* best-effort */
-      }
-      this.lockService = null;
-    }
-  }
-
-  // ==========================================================================
+  // --------------------------------------------------------------------------
   // Private — utility
-  // ==========================================================================
+  // --------------------------------------------------------------------------
 
   private requirePerTypeState(workerType: WorkerType): {
     state: WorkerState;
@@ -1342,14 +902,23 @@ export class WorkerSupervisor {
     if (!s) {
       // Defensive: should never happen because constructor seeds entries for
       // every WORKER_TYPES value.
-      // 防御的: コンストラクタで必ず seed されているため到達不能。
       throw new Error(`WorkerSupervisor: missing per-type state for ${workerType}`);
     }
     return s;
   }
 }
 
-// PR-D-8 Phase 2 helper re-exports (TDA-V11-02 max-lines: helpers extracted).
+// ============================================================================
+// Re-exports for backward compat (CO-26 split: callsite churn ZERO)
+// ============================================================================
+
+// Module B re-exports — `IPC_SHUTDOWN_GRACE_MS` constant + test export.
+export {
+  IPC_SHUTDOWN_GRACE_MS,
+  __IPC_SHUTDOWN_GRACE_MS_FOR_TEST,
+} from "./worker-supervisor-lifecycle.service";
+
+// Helpers re-exports — preserved verbatim from pre-CO-26 surface.
 export {
   buildDefaultWorkerTypeConfigs,
   cliFlagForWorkerType,
@@ -1365,23 +934,12 @@ export {
 /**
  * Optional factory for the WorkerActiveLockService used by the supervisor.
  *
- * Tests (e.g., standing regression `worker-lifecycle` domain) can inject a
- * factory that returns a `WorkerActiveLockService` constructed with a
- * testcontainer-backed `Redis` client. When unset, the supervisor instantiates
- * `new WorkerActiveLockService()` lazily — preserving v0.4.0 production
- * behavior bit-for-bit.
- *
- * テスト (standing regression `worker-lifecycle` domain) が testcontainer
- * 由来 Redis を注入できるようにするための任意 factory。未設定時は production
- * 挙動 (lazy `new WorkerActiveLockService()`) を完全保持する。
- *
  * @see ADR-0016 § Service DI Refactor Plan (TDA-Plan-08)
  */
 let lockServiceFactory: (() => WorkerActiveLockService) | null = null;
 
 /**
  * Set the WorkerActiveLockService factory used by the supervisor.
- * @see ADR-0016 § Service DI Refactor Plan
  */
 export function setWorkerSupervisorLockServiceFactory(
   factory: () => WorkerActiveLockService
@@ -1391,15 +949,13 @@ export function setWorkerSupervisorLockServiceFactory(
 
 /**
  * Reset the WorkerActiveLockService factory (default `new WorkerActiveLockService()`).
- * @see ADR-0016 § Service DI Refactor Plan
  */
 export function resetWorkerSupervisorLockServiceFactory(): void {
   lockServiceFactory = null;
 }
 
 /**
- * @internal Used by `WorkerSupervisor.ensureWorkerRunning()` to obtain a lock
- * service via the factory if set, otherwise via direct construction.
+ * @internal Used by Module C's lock service instantiator closure.
  */
 export function instantiateLockServiceForSupervisor(): WorkerActiveLockService {
   return lockServiceFactory ? lockServiceFactory() : new WorkerActiveLockService();
@@ -1413,9 +969,6 @@ let supervisorInstance: WorkerSupervisor | null = null;
 
 /**
  * デフォルト設定で WorkerSupervisor シングルトンを取得する
- *
- * page.analyze ハンドラーから呼び出される。
- * 設定は環境変数から読み取る。
  */
 export function getWorkerSupervisor(): WorkerSupervisor {
   if (supervisorInstance === null) {
@@ -1438,8 +991,7 @@ export function getWorkerSupervisor(): WorkerSupervisor {
           String(profile.jsAnimationEmbeddingChunkSize),
         WORKER_MAX_OLD_SPACE_MB:
           process.env.WORKER_MAX_OLD_SPACE_MB ?? String(profile.maxOldSpaceSizeMb),
-        // GPU/ONNX: forward ONNX_EXECUTION_PROVIDER + LD_LIBRARY_PATH (explicit
-        // env or auto-detected CUDA paths) so dlopen() can find CUDA 12 libs.
+        // GPU/ONNX: forward ONNX_EXECUTION_PROVIDER + LD_LIBRARY_PATH.
         ...(process.env.ONNX_EXECUTION_PROVIDER
           ? { ONNX_EXECUTION_PROVIDER: process.env.ONNX_EXECUTION_PROVIDER }
           : {}),
@@ -1461,7 +1013,12 @@ export function getWorkerSupervisor(): WorkerSupervisor {
       maxJobsBeforeRestart: safeParseInt(process.env.WORKER_MAX_JOBS_BEFORE_RESTART, 1),
       maxRestartAttempts: safeParseInt(process.env.WORKER_MAX_RESTART_ATTEMPTS, 10),
       shutdownTimeoutMs: safeParseInt(process.env.WORKER_SHUTDOWN_TIMEOUT_MS, 10000, 1000),
-      restartDelayMs: safeParseInt(process.env.WORKER_RESTART_DELAY_MS, 3000, 500),
+      // Plan v4.4 PR-N-A / ADR-0035 Amendment 1 §Decision 5:
+      // `restartDelayMs` factory env reading removed. Per-type cooldown is
+      // resolved exclusively via `getRestartDelayMsForType(workerType)`
+      // (ADR-0035 §Decision 3 canonical SSOT). `WORKER_RESTART_DELAY_MS`
+      // env var is still read by the helper (default 3000ms, min 500ms per
+      // Plan v4.1 CWE-770 boundary preserved).
     });
   }
   return supervisorInstance;
@@ -1473,10 +1030,7 @@ export function resetWorkerSupervisor(): void {
 }
 
 /**
- * ワーカースクリプトの絶対パスを取得。env `WORKER_SCRIPT_PATH` 優先、未設定時
- * は `__dirname/../scripts/start-workers.js` (dist/services/ 起点)。fork先は
- * `start-workers.js` (entrypoint) のみ — `page-analyze-worker.js` は factory
- * 関数 module で fork しても worker が起動しない。
+ * ワーカースクリプトの絶対パスを取得。env `WORKER_SCRIPT_PATH` 優先。
  */
 function getWorkerScriptPath(): string {
   const envPath = process.env.WORKER_SCRIPT_PATH;

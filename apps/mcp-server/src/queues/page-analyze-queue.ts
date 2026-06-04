@@ -15,18 +15,62 @@
  * @module queues/page-analyze-queue
  */
 
-import { Queue, QueueEvents, type Job, type ConnectionOptions } from "bullmq";
+import { Queue, QueueEvents, type ConnectionOptions } from "bullmq";
+import { v5 as uuidv5 } from "uuid";
 import { getRedisConfig, type RedisConfig } from "../config/redis";
 import { getAuditLogService } from "../services/audit-log.service";
 import { logger } from "../utils/logger";
-import { sanitizeErrorMessage } from "../utils/sanitize-error";
+import { sanitizeAnalysisErrorForClient, sanitizeErrorMessage } from "../utils/sanitize-error";
 import { truncateId } from "../utils/truncate-id";
+import { normalizeUrlForValidation } from "../utils/url-validator";
 import { enqueueWithCollisionGuard, type EnqueueResult } from "./enqueue-with-collision-guard";
 
 /**
  * Queue name constant
  */
 export const PAGE_ANALYZE_QUEUE_NAME = "page-analyze";
+
+/**
+ * Predefined RFC 4122 URL namespace (`uuid` package `v5.URL`,
+ * `6ba7b811-9dad-11d1-80b4-00c04fd430c8`) used as the fixed seed for the
+ * page.analyze URL-stable jobId (ADR-0018 Amendment 11). No bespoke magic UUID
+ * is fabricated; the RFC 4122 URL namespace is reused so the derived jobId is a
+ * valid RFC 4122 v5 UUID that passes the existing `z.string().uuid()` schema
+ * gates without relaxation (§Schema-Gate Blast-Radius).
+ *
+ * ページ解析 URL-stable jobId の固定 seed (ADR-0018 Amendment 11)。新規 magic
+ * UUID を捏造せず RFC 4122 URL namespace を再利用するため、導出 jobId は
+ * version=5 の valid UUID となり既存の `z.string().uuid()` gate を relaxation
+ * 無しで通過する。
+ */
+const UUID_NAMESPACE_PAGE_ANALYZE_URL = uuidv5.URL;
+
+/**
+ * Build the URL-stable jobId for page.analyze (ADR-0018 Amendment 11, Strategy A).
+ *
+ * `buildUrlStableJobId(url) = uuidv5(normalizeUrlForValidation(url), v5.URL)`.
+ * Same normalized URL → same UUIDv5 (deterministic), so near-concurrent
+ * same-URL submits share one BullMQ jobId and the collision-guard helper
+ * resolves losers to the incumbent (`reused_active`) instead of spawning
+ * duplicate jobs. The result is a valid RFC 4122 v5 UUID (version field = 5),
+ * so it passes `z.string().uuid()` / MCP `format:"uuid"` unchanged.
+ *
+ * `normalizeUrlForValidation` is re-derived here (single derivation point,
+ * zero threading): `data.url` already reaches the helper, so callsites need no
+ * signature change. The function is pure-deterministic (`url-validator.ts:367`),
+ * so caller-precomputed and helper-rederived values are identical.
+ *
+ * ページ解析 BullMQ jobId を URL 派生 stable UUIDv5 に統一する helper。同一
+ * 正規化 URL → 同一 UUIDv5 のため、近接多重 same-URL submit が単一 jobId を
+ * 共有し collision-guard が敗者を incumbent (`reused_active`) に解決する。結果は
+ * RFC 4122 version=5 の valid UUID で、既存 schema gate を無改変で通過する。
+ *
+ * @param url - Raw target URL (helper re-derives normalization internally).
+ * @returns Deterministic RFC 4122 v5 UUID jobId.
+ */
+export function buildUrlStableJobId(url: string): string {
+  return uuidv5(normalizeUrlForValidation(url), UUID_NAMESPACE_PAGE_ANALYZE_URL);
+}
 
 /**
  * Job data for page analysis
@@ -467,38 +511,82 @@ export function createQueueEvents(configOverrides?: Partial<RedisConfig>): Queue
 }
 
 /**
- * Add a page analyze job to the queue
+ * Valid `AnalysisPhase` enum values, used by {@link extractCurrentPhase} for
+ * runtime validation. Mirror of the `AnalysisPhase` type union — kept inline
+ * here (instead of `as const` re-export) to avoid widening the public surface.
  *
- * @deprecated Use {@link addPageAnalyzeJobWithGuard} instead (PR-D-6,
- *   FIND-TDA-02). The legacy helper performs a bare `queue.add` without the
- *   atomic SETNX claim + observability-only audit emit required by RC-A.
- *   Kept temporarily for backward-compatible interop during the migration
- *   window; do not add new call sites.
- *   `addPageAnalyzeJobWithGuard` を使用すること (PR-D-6, FIND-TDA-02)。旧
- *   helper は RC-A 対策の atomic SETNX claim と observability-only audit
- *   emit を持たない。並立期間の後方互換のため一時保持。新規 call site
- *   追加禁止。
- *
- * @param queue - BullMQ Queue instance
- * @param data - Job data
- * @param priority - Job priority (lower = higher priority, default: 10)
- * @returns Job instance
+ * `AnalysisPhase` の有効値リスト。{@link extractCurrentPhase} が実行時検証に使用。
  */
-export async function addPageAnalyzeJob(
-  queue: Queue<PageAnalyzeJobData, PageAnalyzeJobResult>,
-  data: Omit<PageAnalyzeJobData, "createdAt">,
-  priority: number = 10
-): Promise<Job<PageAnalyzeJobData, PageAnalyzeJobResult>> {
-  const jobData: PageAnalyzeJobData = {
-    ...data,
-    createdAt: new Date().toISOString(),
-  };
+const VALID_ANALYSIS_PHASES: readonly AnalysisPhase[] = [
+  "ingest",
+  "layout",
+  "motion",
+  "quality",
+  "narrative",
+  "responsive",
+  "embedding",
+];
 
-  // Use webPageId as job ID for easy lookup
-  return queue.add(PAGE_ANALYZE_QUEUE_NAME, jobData, {
-    jobId: data.webPageId,
-    priority,
-  });
+/**
+ * Pure helper: extract a validated `currentPhase` from BullMQ progress data.
+ *
+ * Defense-in-depth design (C-4 / Plan V1 §3.4):
+ * 1. **Prototype pollution defense**: uses `Object.hasOwn()` rather than the
+ *    `in` operator so that `__proto__` / `constructor` / `toString` etc. on
+ *    the prototype chain are NOT treated as a `currentPhase` carrier. JSON
+ *    parsers (BullMQ -> ioredis -> JSON.parse) already place `__proto__` as
+ *    a regular own property, but `constructor` from a forged JSON like
+ *    `{"constructor": "motion"}` would still satisfy the `in` operator on
+ *    the inherited `Object.prototype.constructor` — `Object.hasOwn` closes
+ *    that path.
+ * 2. **Type-narrow without re-keying**: returns `undefined` when the value
+ *    is not a known `AnalysisPhase`, so the caller can fold the result with
+ *    a single optional assignment.
+ * 3. **Null-safe**: returns `undefined` for non-object / null / array progress.
+ *
+ * Returns `undefined` (NOT throws) for any non-conforming input. The progress
+ * payload originates from a trusted Worker (`job.updateProgress`), but we
+ * harden the read path because Redis is a shared boundary.
+ *
+ * BullMQ progress データから validated な `currentPhase` を抽出する純粋関数。
+ * `Object.hasOwn` で prototype 汚染攻撃を遮断、未知 phase 値や非 object 入力は
+ * `undefined` を返す（throw しない）。Redis 境界の defense-in-depth。
+ *
+ * @param progress - `job.progress` value (number | object | null | undefined)
+ * @returns Validated `AnalysisPhase` value, or `undefined` if absent/invalid.
+ *
+ * @example
+ * extractCurrentPhase({ overallProgress: 35, currentPhase: "motion" })  // "motion"
+ * extractCurrentPhase({ overallProgress: 50 })                          // undefined
+ * extractCurrentPhase({ currentPhase: "nonexistent" })                  // undefined
+ * extractCurrentPhase(50)                                                // undefined
+ * extractCurrentPhase(null)                                              // undefined
+ * extractCurrentPhase({ __proto__: { currentPhase: "motion" } })        // undefined
+ * extractCurrentPhase({ constructor: "motion" })                        // undefined (constructor is on prototype)
+ */
+export function extractCurrentPhase(progress: unknown): AnalysisPhase | undefined {
+  if (progress === null || progress === undefined || typeof progress !== "object") {
+    return undefined;
+  }
+  // Reject arrays explicitly — `typeof [] === "object"` but arrays are not
+  // valid progress carriers.
+  if (Array.isArray(progress)) {
+    return undefined;
+  }
+  // `Object.hasOwn` (ES2022) is the canonical own-property check. It does NOT
+  // traverse the prototype chain, so `__proto__` / `constructor` injections
+  // cannot trick the carrier check (Statement 1 / SEC S-2).
+  if (!Object.hasOwn(progress as object, "currentPhase")) {
+    return undefined;
+  }
+  const phaseValue = (progress as Record<string, unknown>)["currentPhase"];
+  if (typeof phaseValue !== "string") {
+    return undefined;
+  }
+  // Runtime allowlist check — narrows to AnalysisPhase only for known values.
+  return (VALID_ANALYSIS_PHASES as readonly string[]).includes(phaseValue)
+    ? (phaseValue as AnalysisPhase)
+    : undefined;
 }
 
 /**
@@ -561,27 +649,28 @@ export async function getJobStatus(
 
   // Determine currentPhase from job progress data (set by Worker via job.updateProgress)
   // The Worker sends an object with { overallProgress, currentPhase, phases, ... }
-  if (typeof job.progress === "object" && job.progress !== null && "currentPhase" in job.progress) {
-    const phaseFromProgress = (job.progress as { currentPhase: string }).currentPhase;
-    // Validate that it's a known AnalysisPhase
-    const validPhases: readonly string[] = [
-      "ingest",
-      "layout",
-      "motion",
-      "quality",
-      "narrative",
-      "responsive",
-      "embedding",
-    ];
-    if (validPhases.includes(phaseFromProgress)) {
-      status.currentPhase = phaseFromProgress as AnalysisPhase;
-    }
+  // C-4 (Plan V1 §3.4): delegate to {@link extractCurrentPhase} which provides
+  // prototype-pollution defense (Object.hasOwn, not `in`) + allowlist validation.
+  // Worker から送られる progress object から currentPhase を抽出。
+  // {@link extractCurrentPhase} は Object.hasOwn による prototype 汚染防御 + 許容値検証。
+  const extractedPhase = extractCurrentPhase(job.progress);
+  if (extractedPhase !== undefined) {
+    status.currentPhase = extractedPhase;
   }
   if (state === "completed" && job.returnvalue) {
     status.result = job.returnvalue;
   }
   if (state === "failed" && job.failedReason) {
-    status.error = job.failedReason;
+    // Plan v3 Track T4 SEC L-03 / CO-T4-02: sanitise BullMQ failedReason to
+    // client-safe `analysis_pipeline_interrupted` for T4 reasons; pass-through
+    // for non-T4 reasons. Defense-in-depth at queue boundary (in addition to
+    // page.getJobStatus tool boundary). CWE-209 information exposure.
+    // Plan v3 T4 SEC L-03: BullMQ `failedReason` 生暴露を queue 境界で sanitise。
+    // T4 reason は client-safe literal に 1:1 mapping。非 T4 は pass-through。
+    const sanitised = sanitizeAnalysisErrorForClient(job.failedReason);
+    if (sanitised !== null) {
+      status.error = sanitised;
+    }
   }
 
   return status;
@@ -657,9 +746,13 @@ export async function checkQueueHealth(
 
 /**
  * Redis key namespace for the atomic SETNX jobId claim of the page-analyze
- * queue. Expands to `reftrix:page-analyze:jobclaim:<webPageId>`.
+ * queue. Expands to `reftrix:page-analyze:jobclaim:<jobId>` where `<jobId>` is
+ * the URL-stable UUIDv5 from `buildUrlStableJobId(data.url)` (ADR-0018
+ * Amendment 11, Strategy A) — NOT the per-call `webPageId`.
  *
- * Redis key namespace for atomic SETNX jobId claim on the page-analyze queue.
+ * page-analyze queue の atomic SETNX jobId claim の Redis key namespace。
+ * `<jobId>` は `buildUrlStableJobId(data.url)` 由来の URL-stable UUIDv5 で
+ * あり、per-call `webPageId` ではない (ADR-0018 Amendment 11)。
  */
 const PAGE_ANALYZE_CLAIM_KEY_NAMESPACE = "page-analyze";
 
@@ -691,8 +784,11 @@ async function emitPageAnalyzeCollisionAudit(event: {
       details: {
         // PII-safe: webPageId is truncated via `utils/truncate-id.ts:17 truncateId` SSOT.
         webPageId: truncateId(event.webPageId, 8),
-        // Both jobIds are webPageId-only (page-analyze jobId convention), so
-        // truncate each through the same SSOT helper for symmetric PII guard.
+        // ADR-0018 Amendment 11: the originalJobId is the URL-stable UUIDv5
+        // (`buildUrlStableJobId`) and the retryJobId is `<uuidv5>__retry_<uuidv7>`.
+        // Both are truncated through the same truncateId(8) SSOT so only a
+        // 32-bit UUIDv5 fragment lands in details (no raw URL) — symmetric
+        // PII guard (LCC-RV1-L-02 / SEC-RV2-L-03, GDPR Art.30 audit trail).
         originalJobId: truncateId(event.originalJobId, 8),
         retryJobId: truncateId(event.retryJobId.split("__retry_")[0] ?? event.retryJobId, 8),
         originalState: event.originalState,
@@ -716,7 +812,7 @@ async function emitPageAnalyzeCollisionAudit(event: {
  * {@link enqueueWithCollisionGuard} generic helper. Retry jobId = `<webPageId>__retry_<uuidv7>`;
  * observability-only audit emit via {@link emitPageAnalyzeCollisionAudit}.
  *
- * Call site migration (legacy {@link addPageAnalyzeJob} → this helper) is
+ * Call site migration (legacy addPageAnalyzeJob → this helper) is
  * owned by backend-api-developer per Registry v3 Binding 3 secondary scope
  * and is intentionally **not** performed here.
  *
@@ -739,10 +835,17 @@ export async function addPageAnalyzeJobWithGuard(
     createdAt: new Date().toISOString(),
   };
 
+  // ADR-0018 Amendment 11 (Strategy A): the BullMQ jobId is the URL-stable
+  // UUIDv5 (`buildUrlStableJobId(data.url)`), NOT the per-call `data.webPageId`.
+  // This makes near-concurrent same-URL submits share one jobId so the
+  // collision guard routes losers to the incumbent (`reused_active`). The
+  // payload keeps `data.webPageId` as a per-call UUIDv7 — the worker reads
+  // `job.data.webPageId` for the web_pages FK (`page-analyze-worker.ts:1508`),
+  // so DB writes are unaffected by the jobId change.
   return await enqueueWithCollisionGuard<PageAnalyzeJobData, PageAnalyzeJobResult>({
     queue,
     queueName: PAGE_ANALYZE_QUEUE_NAME,
-    jobId: data.webPageId,
+    jobId: buildUrlStableJobId(data.url),
     data: jobData,
     jobOptions: { priority },
     claimKeyNamespace: PAGE_ANALYZE_CLAIM_KEY_NAMESPACE,

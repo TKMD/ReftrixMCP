@@ -85,8 +85,39 @@ import {
   schedulePhase0CleanupCron,
   type Phase0CleanupCronHandle,
 } from "../cron/phase0-cleanup-cron";
+// PR-C4 §3 D4 (INV-BACKFILL-RECOVERY-CRON-WIRED-008): periodic auto-recovery for
+// `failed_with_known_reason` orphan rows. Landed but previously unwired; wired
+// here in the same lifecycle as the other backfill crons.
+import {
+  scheduleBackfillRecoveryCron,
+  type BackfillRecoveryCronHandle,
+} from "../cron/backfill-recovery-cron";
 import { createScreenshotPersistenceService } from "../services/screenshot-persistence.service";
 import { createPhase0CleanupService } from "../services/phase0-cleanup.service";
+// Plan v4.5 PR1 Track P0 (P0.2 Wave 3 retro wiring + NEW-U-11 L1+L3 + Track 1
+// --force-cpu-provider CLI flag).
+import {
+  startCrashReportWatcher,
+  type CrashReportWatcherHandle,
+} from "../services/crash-report-watcher";
+import {
+  createStagingRoot,
+  resolveCrashDumpRoot,
+} from "../services/crash-dump-persistence.service";
+import {
+  scheduleWorkerStderrCleanupCron,
+  type WorkerStderrCleanupCronHandle,
+} from "../cron/worker-stderr-cleanup-cron";
+import { loadWorkerStderrConfigOrDefault } from "../config/worker-stderr-config";
+// U-V45-PR1-08 (M severity, IO Impl Decision V0 unblock):
+// `--force-cpu-provider` CLI flag activation emits `worker_cpu_provider_override`
+// audit_logs entry for production privilege-escalation tracking (CWE-778
+// sufficient logging) on top of the pre-existing `console.warn` route.
+import { getAuditLogService, truncateAuditTargetId } from "../services/audit-log.service";
+import {
+  AUDIT_ACTION_WORKER_CPU_PROVIDER_OVERRIDE,
+  AUDIT_ACTOR_WORKER_SUPERVISOR,
+} from "../audit/audit-actions";
 // v0.4.0 PR7d-3 (SEC L-1): sanitize error messages before logging.
 // v0.4.0 PR7d-3 (SEC L-1): 生 error.message は出力せず必ず sanitize する。
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
@@ -97,6 +128,10 @@ import { sanitizeErrorMessage } from "../utils/sanitize-error";
 // SEC-M1-02: enforce guard at the worker entry point right after loadEnvLocal()
 // so that even leaks via .env.local are caught fail-fast.
 import { assertNoTestOnlyEnvLeak } from "../config/test-env-guard";
+// PR-C4 §3 G (INV-BACKFILL-BUDGET-KILL-ORDER-012): boot-time guard that the
+// Phase 5 per-chunk RSS budget is strictly below the fork-child kill threshold
+// (fail-closed; throws on inversion). Same boot-time pattern as the env guard.
+import { assertBudgetBelowKillThreshold } from "../config/budget-guard";
 // NOTE: Startup embedding backfill was removed (caused 33GB RSS bloat blocking Worker init).
 // Missing embeddings are repaired via:
 //   1. Post-Embedding Backfill in page-analyze-worker.ts (per-job, after Phase 5)
@@ -140,6 +175,14 @@ let screenshotCleanupCron: ScreenshotCleanupCronHandle | null = null;
 let backfillReconciliationCron: BackfillReconciliationCronHandle | null = null;
 // PR-B (v0.4.0 PR7e P4): Phase 0 stale row cleanup cron handle
 let phase0CleanupCron: Phase0CleanupCronHandle | null = null;
+// PR-C4 §3 D4 (INV-BACKFILL-RECOVERY-CRON-WIRED-008): backfill recovery cron handle
+let backfillRecoveryCron: BackfillRecoveryCronHandle | null = null;
+// Plan v4.5 PR1 Track P0 (P0.2 Wave 3 retro wiring): crash report watcher
+// handle for parent process role. Child processes get their own watcher via
+// the same wiring path executed inside the fork child entry.
+let crashReportWatcher: CrashReportWatcherHandle | null = null;
+// Plan v4.5 PR1 NEW-U-11: stderr cleanup cron handle (L1 6h + L3 30s monitor).
+let workerStderrCleanupCron: WorkerStderrCleanupCronHandle | null = null;
 
 // ============================================================================
 // Initialization
@@ -708,6 +751,86 @@ async function startWorkers(mode: StartMode): Promise<void> {
         sanitizeErrorMessage(error)
       );
     }
+
+    // PR-C4 §3 D4 (INV-BACKFILL-RECOVERY-CRON-WIRED-008): periodic auto-recovery
+    // for `failed_with_known_reason` orphan rows. Previously landed but unwired
+    // (the `failed_with_known_reason` periodic recovery ran dark in production).
+    // Wired here in the same lifecycle as the reconciliation cron; gated by the
+    // `isRecoveryReconciliationEnabled()` feature flag inside `runOnce` and
+    // bounded by `BACKFILL_RECOVERY_MAX_AUTO_RETRIES=5` (SEC-PLAN-05).
+    try {
+      const recoveryQueue = createEmbeddingBackfillQueue();
+      const recoveryOpts: Parameters<typeof scheduleBackfillRecoveryCron>[0] = {
+        prisma: prisma as unknown as Parameters<typeof scheduleBackfillRecoveryCron>[0]["prisma"],
+        queue: recoveryQueue,
+        runOnStart: process.env.BACKFILL_RECOVERY_RUN_ON_START === "true",
+      };
+      const recoveryInterval = parseIntEnv(process.env.BACKFILL_RECOVERY_INTERVAL_MS);
+      if (recoveryInterval !== undefined) recoveryOpts.intervalMs = recoveryInterval;
+      const recoveryBatch = parseIntEnv(process.env.BACKFILL_RECOVERY_BATCH_LIMIT);
+      if (recoveryBatch !== undefined) recoveryOpts.batchLimit = recoveryBatch;
+      backfillRecoveryCron = scheduleBackfillRecoveryCron(recoveryOpts);
+      console.log("[WorkerStartup] Backfill recovery cron scheduled");
+    } catch (error) {
+      console.warn(
+        "[WorkerStartup] Failed to schedule backfill recovery cron (non-fatal):",
+        sanitizeErrorMessage(error)
+      );
+    }
+  }
+
+  // Plan v4.5 PR1 P0.2 (Wave 3 retro wiring per Plan v3 Wave 3 Task #41
+  // landed-but-unwired closure): start crash-report watcher in the parent
+  // process so SIGABRT/SIGSEGV/uncaughtException reports get sanitised and
+  // emitted as `worker_crash_report_emitted` audit_logs entries.
+  // INV-WIRING-COVERAGE-001 AST sweep requires `startCrashReportWatcher`
+  // callsite count > 0.
+  try {
+    const stagingRoot = await createStagingRoot();
+    const publicRoot = await resolveCrashDumpRoot();
+    // process.report.directory must be the staging dir so Node writes
+    // diagnostic reports atomically into the watcher's input scope.
+    process.report.directory = stagingRoot;
+    process.report.reportOnFatalError = true;
+    process.report.reportOnSignal = true;
+    process.report.signal = "SIGUSR2";
+    crashReportWatcher = startCrashReportWatcher({
+      stagingRoot,
+      publicRoot,
+      workerType: "supervisor",
+      role: "parent",
+    });
+    console.log(
+      `[WorkerStartup] Crash report watcher started (staging=${stagingRoot}, public=${publicRoot})`
+    );
+  } catch (error) {
+    console.warn(
+      "[WorkerStartup] Failed to start crash report watcher (non-fatal):",
+      sanitizeErrorMessage(error)
+    );
+  }
+
+  // Plan v4.5 PR1 NEW-U-11: stderr cleanup cron (L1 6h cleanup + L3 30s disk
+  // monitor). Owns the disk-pressure auto-failover that flips
+  // REFTRIX_WORKER_STDERR_REDIRECT_ENABLED=false when available < 1GB.
+  try {
+    const stderrConfig = loadWorkerStderrConfigOrDefault();
+    if (stderrConfig.redirectEnabled) {
+      workerStderrCleanupCron = scheduleWorkerStderrCleanupCron({
+        dir: stderrConfig.dir,
+        intervalMs: stderrConfig.cronIntervalMs,
+        retentionMs: stderrConfig.retentionDays * 24 * 60 * 60 * 1000,
+        runOnStart: false,
+      });
+      console.log(
+        `[WorkerStartup] Worker stderr cleanup cron scheduled (interval=${stderrConfig.cronIntervalMs}ms, retention=${stderrConfig.retentionDays}d)`
+      );
+    }
+  } catch (error) {
+    console.warn(
+      "[WorkerStartup] Failed to schedule worker stderr cleanup cron (non-fatal):",
+      sanitizeErrorMessage(error)
+    );
   }
 
   // Setup IPC shutdown handler (for WorkerSupervisor graceful shutdown)
@@ -766,6 +889,30 @@ async function shutdownWorkers(): Promise<void> {
     }
     backfillReconciliationCron = null;
   }
+  // Plan v4.5 PR1 NEW-U-11: stop worker stderr cleanup cron + crash watcher.
+  if (workerStderrCleanupCron) {
+    try {
+      workerStderrCleanupCron.stop();
+    } catch (error) {
+      console.warn(
+        "[WorkerStartup] Error stopping worker stderr cleanup cron:",
+        sanitizeErrorMessage(error)
+      );
+    }
+    workerStderrCleanupCron = null;
+  }
+  if (crashReportWatcher) {
+    try {
+      await crashReportWatcher.stop();
+    } catch (error) {
+      console.warn(
+        "[WorkerStartup] Error stopping crash report watcher:",
+        sanitizeErrorMessage(error)
+      );
+    }
+    crashReportWatcher = null;
+  }
+
   // PR-B (v0.4.0 PR7e P4): Stop Phase 0 cleanup cron alongside other cron handles.
   if (phase0CleanupCron) {
     try {
@@ -777,6 +924,20 @@ async function shutdownWorkers(): Promise<void> {
       );
     }
     phase0CleanupCron = null;
+  }
+
+  // PR-C4 §3 D4 (INV-BACKFILL-RECOVERY-CRON-WIRED-008): stop backfill recovery
+  // cron alongside the other cron handles (before Worker.close()).
+  if (backfillRecoveryCron) {
+    try {
+      backfillRecoveryCron.stop();
+    } catch (error) {
+      console.warn(
+        "[WorkerStartup] Error stopping backfill recovery cron:",
+        sanitizeErrorMessage(error)
+      );
+    }
+    backfillRecoveryCron = null;
   }
 
   // PR-D-6 Registry v4 §15.2 Patch Binding B (FIND-TPA-IMPL-02 +
@@ -1053,6 +1214,13 @@ async function main(): Promise<void> {
   // 親プロセスから継承された test-only env var を fail-fast で検出する。
   assertNoTestOnlyEnvLeak();
 
+  // PR-C4 §3 G (INV-BACKFILL-BUDGET-KILL-ORDER-012): verify the Phase 5 per-chunk
+  // RSS budget is strictly below the fork-child kill threshold. A silent
+  // misconfiguration (e.g. PER_CHUNK_RSS_BUDGET_MB raised above
+  // PHASE5_CHILD_RSS_KILL_DELTA_MB) would defeat the primary OOM-defense gate
+  // (CWE-770 adjacent), so we fail-closed at boot before any Worker spawn.
+  assertBudgetBelowKillThreshold();
+
   // Validate environment
   if (!process.env.NODE_ENV) {
     process.env.NODE_ENV = "development";
@@ -1074,6 +1242,50 @@ async function main(): Promise<void> {
     startMode = "page";
   } else if (args.includes("--backfill") || args.includes("-b")) {
     startMode = "embedding-backfill";
+  }
+
+  // Plan v4.5 PR1 Track 1 (H1 isolation test): `--force-cpu-provider` CLI flag
+  // overrides `ONNX_EXECUTION_PROVIDER=cpu` at runtime for production H1
+  // verification (1h burn-in to confirm/refute Worker Thread CUDA init false-
+  // positive race). Removal deadline T+10d 2026-05-28 (hard CI gate per
+  // INV-WORKER-CLI-FLAG-LIFECYCLE-001 mandate, Plan v4.5 §10 closure).
+  if (args.includes("--force-cpu-provider")) {
+    process.env.ONNX_EXECUTION_PROVIDER = "cpu";
+    console.warn(
+      "[WorkerStartup] --force-cpu-provider active: ONNX_EXECUTION_PROVIDER=cpu " +
+        "forced for Plan v4.5 Track 1 H1 isolation test. " +
+        "Removal deadline T+10d 2026-05-28 (INV-WORKER-CLI-FLAG-LIFECYCLE-001)."
+    );
+    // U-V45-PR1-08 closure (M severity, defense-in-depth observability):
+    // emit `worker_cpu_provider_override` audit_logs row so production
+    // privilege escalation is tracked via the GDPR Art.30 365d-retention
+    // audit channel (in addition to the pre-existing console.warn route).
+    // Graceful Degradation: AuditLogService.log() already swallows write
+    // failures internally; we additionally wrap in try/catch so a future
+    // refactor that changes that contract cannot brick worker startup.
+    void (async (): Promise<void> => {
+      try {
+        await getAuditLogService().log({
+          action: AUDIT_ACTION_WORKER_CPU_PROVIDER_OVERRIDE,
+          actor: AUDIT_ACTOR_WORKER_SUPERVISOR,
+          targetType: "worker",
+          targetId: truncateAuditTargetId(`pid:${process.pid}`),
+          details: {
+            reason: "h1_isolation_test_cli_flag",
+            removalDeadline: "2026-05-28",
+            planRef: "v4.5-track-1",
+          },
+          result: "success",
+        });
+      } catch (err) {
+        // Non-fatal: pre-existing console.warn already covers operator
+        // visibility. Log via console.error to avoid silent absorption.
+        console.error(
+          "[WorkerStartup] worker_cpu_provider_override audit emit failed (non-fatal)",
+          { error: sanitizeErrorMessage(err) }
+        );
+      }
+    })();
   }
 
   // PR-D-8 Phase 2 MF-06: dual-run guard now per-type. When startMode is

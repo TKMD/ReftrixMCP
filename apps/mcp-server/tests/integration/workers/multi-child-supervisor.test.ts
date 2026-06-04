@@ -78,11 +78,20 @@ vi.mock("node:child_process", () => ({
 // `probe_failed` → secondary spawn defer → fork 1 回のみとなり test 期待
 // (2 回) と乖離。本 mock により precondition を `vision_unloaded` 固定し、
 // supervisor の staggered spawn 全パスを Ollama 依存なしに exercise する。
-vi.mock("../../../src/services/vision/vision-unload-handshake", () => ({
-  verifyVisionUnloadPrecondition: vi
-    .fn()
-    .mockResolvedValue({ status: "vision_unloaded", sizeVramBytes: 0 }),
-}));
+// Override ONLY `verifyVisionUnloadPrecondition`; preserve the real SSOT
+// exports (e.g. VISION_RESIDUAL_BACKFILL_ENQUEUE_DELAY_MS /
+// VISION_UNLOAD_FINAL_TIMEOUT_MS) which the lifecycle module's deferred-spawn
+// retry constants derive from at module-load time (ADR-0011 Amendment 7 §A7.5).
+vi.mock("../../../src/services/vision/vision-unload-handshake", async (importOriginal) => {
+  const actual =
+    (await importOriginal()) as typeof import("../../../src/services/vision/vision-unload-handshake");
+  return {
+    ...actual,
+    verifyVisionUnloadPrecondition: vi
+      .fn()
+      .mockResolvedValue({ status: "vision_unloaded", sizeVramBytes: 0 }),
+  };
+});
 
 // ============================================================================
 // Mock ChildProcess factory (TPA-IMPL-V11-09 M deeper integration)
@@ -601,7 +610,7 @@ describe("WorkerSupervisor multi-child: real supervisor class integration (TPA-I
 
     // page child だけが exit (134 = OOM/SIGABRT)
     pageChild1.emit("exit", 134, null);
-    // restartDelayMs (3s default) を消化 → page を respawn。
+    // WORKER_RESTART_DELAY_MS (page workerType: 3s default) を消化 → page を respawn。
     await vi.advanceTimersByTimeAsync(5000);
     await Promise.resolve();
     await Promise.resolve();

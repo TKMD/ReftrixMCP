@@ -72,7 +72,7 @@ model BrandPalette {
   isDefault   Boolean     @default(false) @map("is_default")
 
   // Relations
-  tokens         ColorToken[]
+  tokens ColorToken[]
 
   // WebDesign WebUI Relations
   projectBrandSettings ProjectBrandSetting[]
@@ -151,6 +151,50 @@ enum EmbeddingBackfillStatus {
   skipped_memory_pressure
   skipped_fork_error
   skipped_screenshot_missing
+  failed_with_known_reason
+}
+
+/// FailedKnownReason - Plan v3 Track T4 (PR-V3-T4) 終端失敗分類列挙
+/// Worker Pre-Return Pause failure-path race closure 用 canonical 内部 enum。
+/// Naming convention (TPA L-01 IO Decision): `_2_5` underscore form (NOT
+/// `_2.5` dot form — Postgres enum literals 不可)。
+///
+/// FailedKnownReason - Plan v3 Track T4 (PR-V3-T4) terminal failure
+/// classification enum. Canonical internal enum for the Worker Pre-Return
+/// Pause failure-path race closure. Naming: `_2_5` underscore form.
+///
+/// SEC H-01: client-facing surfaces MUST sanitise via
+/// `sanitizeAnalysisErrorForClient()` to `analysis_pipeline_interrupted`.
+enum FailedKnownReason {
+  worker_restart_during_inflight_phase_0
+  worker_restart_during_inflight_phase_1
+  worker_restart_during_inflight_phase_2_5
+  worker_restart_during_inflight_phase_4
+  worker_restart_during_inflight_phase_5
+  worker_restart_during_inflight_phase_7_5
+}
+
+/// WorkerType - Plan v3 Track T4 worker_job_lifecycle table 用 enum
+/// (`worker-type` TS SSOT mirror; `page` / `embedding-backfill`)。
+///
+/// WorkerType - mirror of `apps/mcp-server/src/types/worker-type.ts` SSOT
+/// for the worker_job_lifecycle table.
+enum WorkerType {
+  page
+  embedding_backfill @map("embedding-backfill")
+}
+
+/// WorkerLifecycleEvent - Plan v3 Track T4 lifecycle event taxonomy.
+/// Spawn / release / restart / dispose_start / dispose_end (5 値)。
+///
+/// WorkerLifecycleEvent - lifecycle event enum (5 values: spawn / release /
+/// restart / dispose_start / dispose_end).
+enum WorkerLifecycleEvent {
+  spawn
+  release
+  restart
+  dispose_start
+  dispose_end
 }
 
 /// WebPage - 解析対象のWebページ基本情報
@@ -236,6 +280,41 @@ model WebPage {
   //   - skippedAt: recovery scheduling from skipped_*
   embeddingBackfillSkippedAt DateTime? @map("embedding_backfill_skipped_at") @db.Timestamptz
 
+  // Embedding backfill 既知失敗理由（Plan v3 T3-Backfill V1 axis B / v0.4.0 Wave 2）
+  // Embedding backfill known-failure reason (Plan v3 T3-Backfill V1 axis B / v0.4.0 Wave 2)
+  //
+  // failed_with_known_reason status と pair で使用される、人間可読 / machine-parseable な
+  // 失敗理由のスナップショット (例: "fork_failed", "screenshot_missing_after_retry")。
+  // recovery scheduler が部分インデックス (WHERE NOT NULL) で recovery 候補をスキャンする。
+  //
+  // Snapshot of human-readable / machine-parseable failure reason, paired with
+  // failed_with_known_reason status. The recovery scheduler scans recovery candidates
+  // via a partial index (WHERE NOT NULL).
+  embeddingBackfillFailureReason String? @map("embedding_backfill_failure_reason") @db.Text
+
+  // Embedding backfill 失敗確定時刻（Plan v3 T3-Backfill V1 axis B / v0.4.0 Wave 2）
+  // Embedding backfill failure-finalized timestamp (Plan v3 T3-Backfill V1 axis B / v0.4.0 Wave 2)
+  //
+  // status を failed_with_known_reason に遷移させた時刻。recovery scheduler の
+  // 経過時間判定および GDPR Art.30 audit 用に保持。
+  //
+  // Timestamp when status transitioned to failed_with_known_reason. Retained for the
+  // recovery scheduler's elapsed-time computation and GDPR Art.30 audit trail.
+  embeddingBackfillFailedAt DateTime? @map("embedding_backfill_failed_at") @db.Timestamptz
+
+  // Screenshot 削除繰延時刻（Plan v3 T3-Backfill V1 axis F / v0.4.0 Wave 2）
+  // Screenshot deletion deferral timestamp (Plan v3 T3-Backfill V1 axis F / v0.4.0 Wave 2)
+  //
+  // failed_with_known_reason へ遷移した際、screenshot 7d TTL 削除を single-deferral cap で
+  // 一度だけ繰延する (recovery 試行 window 確保)。cleanup cron が部分インデックスで
+  // 繰延対象をスキャンする。NULL = 繰延履歴なし (通常 path)。
+  //
+  // Defers the screenshot 7d TTL deletion exactly once (single-deferral cap) when
+  // transitioning to failed_with_known_reason, ensuring a recovery attempt window.
+  // The cleanup cron scans deferral targets via a partial index. NULL = no deferral
+  // history (normal path).
+  screenshotDeletionDeferredAt DateTime? @map("screenshot_deletion_deferred_at") @db.Timestamptz
+
   // 解析ステータス（後方互換性維持）
   analysisStatus  String    @default("pending") @map("analysis_status") // 'pending' | 'processing' | 'completed' | 'failed'
   analyzedAt      DateTime? @map("analyzed_at") @db.Timestamptz
@@ -249,6 +328,13 @@ model WebPage {
   analysisStartedAt   DateTime?           @map("analysis_started_at") @db.Timestamptz // 分析開始時刻
   analysisCompletedAt DateTime?           @map("analysis_completed_at") @db.Timestamptz // 分析完了時刻
 
+  // Plan v3 Track T4 (PR-V3-T4) — Worker Pre-Return Pause failure-path race
+  // closure. NULL until terminally classified; populated via either
+  // `markFailedAndAuditAtomic` (child-emit) or
+  // `WorkerSupervisorFailurePathService.backfillOrphanWebPageRow`
+  // (true orphan: SIGKILL / OOM / segfault).
+  failedWithKnownReason FailedKnownReason? @map("failed_with_known_reason")
+
   // メタデータ
   metadata Json @default("{}")
 
@@ -258,17 +344,17 @@ model WebPage {
   complexityMetrics Json? @map("complexity_metrics")
   /**
    * {
-   *   "responseTimeMs": number,         // HEAD/初期レスポンス時間
-   *   "htmlSizeBytes": number,          // HTMLサイズ
-   *   "scriptCount": number,            // <script>タグ数
-   *   "externalResourceCount": number,  // 外部リソース数
-   *   "hasWebGL": boolean,              // WebGL使用検出
-   *   "hasSPA": boolean,                // SPA検出（React/Vue/Angular等）
-   *   "hasHeavyFramework": boolean,     // Three.js等の重いフレームワーク
-   *   "calculatedTimeoutMs": number,    // 計算されたタイムアウト値
-   *   "complexityScore": number,        // 複雑度スコア (0-100)
-   *   "probedAt": string,               // ISO 8601
-   *   "probeVersion": string            // "0.1.0"
+   * "responseTimeMs": number,         // HEAD/初期レスポンス時間
+   * "htmlSizeBytes": number,          // HTMLサイズ
+   * "scriptCount": number,            // <script>タグ数
+   * "externalResourceCount": number,  // 外部リソース数
+   * "hasWebGL": boolean,              // WebGL使用検出
+   * "hasSPA": boolean,                // SPA検出（React/Vue/Angular等）
+   * "hasHeavyFramework": boolean,     // Three.js等の重いフレームワーク
+   * "calculatedTimeoutMs": number,    // 計算されたタイムアウト値
+   * "complexityScore": number,        // 複雑度スコア (0-100)
+   * "probedAt": string,               // ISO 8601
+   * "probeVersion": string            // "0.1.0"
    * }
    */
 
@@ -290,6 +376,7 @@ model WebPage {
   responsiveAnalyses     ResponsiveAnalysis[]
   componentParts         ComponentPart[]
   designSnapshots        DesignSnapshot[]
+  workerJobLifecycles    WorkerJobLifecycle[]
 
   @@index([projectId])
   @@index([projectId, analysisStatus])
@@ -396,11 +483,11 @@ model SectionPattern {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   // リレーション
-  webPage            WebPage            @relation(fields: [webPageId], references: [id], onDelete: Cascade)
-  embedding          SectionEmbedding?
-  qualityBenchmarks  QualityBenchmark[]
-  backgroundDesigns  BackgroundDesign[]
-  componentParts     ComponentPart[]
+  webPage           WebPage            @relation(fields: [webPageId], references: [id], onDelete: Cascade)
+  embedding         SectionEmbedding?
+  qualityBenchmarks QualityBenchmark[]
+  backgroundDesigns BackgroundDesign[]
+  componentParts    ComponentPart[]
 
   @@index([webPageId])
   @@index([sectionType])
@@ -428,6 +515,23 @@ model SectionEmbedding {
   // ビジョンベースEmbedding（v2予定, 768D）
   // HNSW indexed for semantic search
   visionEmbedding Unsupported("vector(768)")? @map("vision_embedding")
+
+  // Section visual terminal-skip マーカー（ADR-0018 Amendment / PR-BACKFILL-TERMINAL 系統B
+  // + PR-C4 PII 非対称 closure）。非NULL値（EMBEDDING_SECTION_VISUAL_SKIP_REASONS =
+  // {section_visual_uncroppable, section_visual_duplicate, section_visual_pii_excluded}）は
+  // section_visual pending クエリから当該行を除外する（sectionVisualPendingExclusionPredicate、
+  // part_visual との対称）。section_visual_pii_excluded は high-PII section の work 側意図的
+  // 非生成（GDPR Art.5(1)(c) data-minimisation）の GDPR Art.30 processing trail。CHECK 制約 +
+  // partial index は migration 20260524192012（初期2値）+ 20260530…（pii_excluded 追加）で付与。
+  //
+  // Section visual terminal-skip marker (ADR-0018 Amendment / System B + PR-C4 PII asymmetry
+  // closure). A non-NULL value (one of EMBEDDING_SECTION_VISUAL_SKIP_REASONS =
+  // {section_visual_uncroppable, section_visual_duplicate, section_visual_pii_excluded}) excludes
+  // the row from the section_visual pending query (symmetry with part_visual). section_visual_pii_excluded
+  // is the GDPR Art.30 processing trail for the work-side intentional non-generation of high-PII
+  // sections (GDPR Art.5(1)(c) data-minimisation). CHECK + partial index are added by migration
+  // 20260524192012 (initial 2 values) + 20260530… (adds pii_excluded).
+  visionSkipReason String? @map("vision_skip_reason")
 
   // 統合Embedding（v2予定, 768D）
   // HNSW indexed for semantic search
@@ -987,6 +1091,7 @@ model MotionAnalysisResult {
    * /**
    * /**
    * /**
+   * /**
    * /*
    * {
    * "changedPixels": 12500,
@@ -1000,6 +1105,7 @@ model MotionAnalysisResult {
   // === LayoutShift (resultType = 'layout_shift') ===
   // CLS影響スコア、影響領域、推定原因
   /**
+   * /**
    * /**
    * /**
    * /**
@@ -1020,6 +1126,7 @@ model MotionAnalysisResult {
   // === MotionVector (resultType = 'motion_vector') ===
   // 方向、速度、モーションタイプ
   /**
+   * /**
    * /**
    * /**
    * /**
@@ -1476,11 +1583,11 @@ model BackgroundDesign {
   sectionPatternId String? @map("section_pattern_id") @db.Uuid
 
   // 基本情報
-  name          String              @db.VarChar(200)
+  name          String               @db.VarChar(200)
   designType    BackgroundDesignType @map("design_type")
-  cssValue      String              @map("css_value") @db.Text
-  selector      String?             @db.VarChar(500)
-  positionIndex Int                 @default(0) @map("position_index")
+  cssValue      String               @map("css_value") @db.Text
+  selector      String?              @db.VarChar(500)
+  positionIndex Int                  @default(0) @map("position_index")
 
   // 色彩情報（JSONB）
   // { "dominantColors": ["#1a1a2e", "#16213e"], "colorCount": 3, "hasAlpha": true, "colorSpace": "srgb" }
@@ -1762,15 +1869,15 @@ model ComponentPart {
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
   // リレーション / Relations
-  webPage        WebPage         @relation(fields: [webPageId], references: [id], onDelete: Cascade)
-  sectionPattern SectionPattern  @relation(fields: [sectionPatternId], references: [id], onDelete: Cascade)
+  webPage        WebPage                 @relation(fields: [webPageId], references: [id], onDelete: Cascade)
+  sectionPattern SectionPattern          @relation(fields: [sectionPatternId], references: [id], onDelete: Cascade)
   embedding      ComponentPartEmbedding?
 
+  @@unique([sectionPatternId, visualSignature])
   @@index([webPageId])
   @@index([sectionPatternId])
   @@index([partType])
   @@index([webPageId, partType])
-  @@unique([sectionPatternId, visualSignature])
   @@index([piiRiskLevel])
   @@map("component_parts")
 }
@@ -1782,17 +1889,25 @@ model ComponentPart {
 /// GIN Index: idx_component_part_embeddings_search_vector
 /// Performance Target: Vector Search P95 < 100ms
 model ComponentPartEmbedding {
-  id                 String                    @id @default(dbgenerated("gen_uuidv7()")) @db.Uuid
-  componentPartId    String                    @unique @map("component_part_id") @db.Uuid
+  id                 String                      @id @default(dbgenerated("gen_uuidv7()")) @db.Uuid
+  componentPartId    String                      @unique @map("component_part_id") @db.Uuid
   visualEmbedding    Unsupported("vector(768)")? @map("visual_embedding")
   textEmbedding      Unsupported("vector(768)")? @map("text_embedding")
-  textRepresentation String?                   @map("text_representation")
-  searchVector       Unsupported("tsvector")?  @map("search_vector")
-  visualModelVersion String                    @map("visual_model_version") @db.VarChar(50)
-  textModelVersion   String                    @map("text_model_version") @db.VarChar(50)
-  embeddingTimestamp  DateTime                  @map("embedding_timestamp") @db.Timestamptz()
-  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt          DateTime                  @updatedAt @map("updated_at") @db.Timestamptz()
+  textRepresentation String?                     @map("text_representation")
+  searchVector       Unsupported("tsvector")?    @map("search_vector")
+  // ADR-0018 Amendment 7 §7.1 (Plan v2 PR-B, UB-9): terminal-skip per-row marker.
+  // Non-NULL value (one of EMBEDDING_PART_VISUAL_SKIP_REASONS: bbox_invalid /
+  // bbox_unresolvable) excludes the row from the part_visual pending query so the
+  // backfill processor stops re-fetching it (NF-TPA-01 infinite re-fetch closure).
+  // CHECK constraint enforced at the SQL layer (see migration); kept TEXT-typed
+  // here per the existing skipReason TEXT convention. Non-PII (GDPR Recital 26 /
+  // Art.4(1)); CASCADE-deleted with parent, no independent retention (ADR §7.5 req5).
+  visualSkipReason   String?                     @map("visual_skip_reason")
+  visualModelVersion String                      @map("visual_model_version") @db.VarChar(50)
+  textModelVersion   String                      @map("text_model_version") @db.VarChar(50)
+  embeddingTimestamp DateTime                    @map("embedding_timestamp") @db.Timestamptz()
+  createdAt          DateTime                    @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt          DateTime                    @updatedAt @map("updated_at") @db.Timestamptz()
 
   // リレーション / Relations
   componentPart ComponentPart @relation(fields: [componentPartId], references: [id], onDelete: Cascade)
@@ -1817,7 +1932,7 @@ model AuditLog {
   actor      String   @db.VarChar(100) // e.g., "mcp-client", "system", "worker"
   targetType String   @map("target_type") @db.VarChar(100) // e.g., "web_page", "preference_profile"
   targetId   String?  @map("target_id") @db.VarChar(50) // Truncated UUID (PII consideration)
-  details    Json?    // Additional context (sanitized, no secrets)
+  details    Json? // Additional context (sanitized, no secrets)
   ipAddress  String?  @map("ip_address") @db.VarChar(45) // IPv4/IPv6
   result     String   @db.VarChar(20) // "success" | "failure" | "denied"
 
@@ -1844,7 +1959,7 @@ model SearchLog {
   services    String[] // 使用された検索サービス / Search services used
   resultCount Int      @default(0) @map("result_count")
   topResultId String?  @map("top_result_id") @db.VarChar(50) // truncated UUID
-  filters     Json?    // 適用されたフィルタ / Applied filters (sanitized)
+  filters     Json? // 適用されたフィルタ / Applied filters (sanitized)
   latencyMs   Int?     @map("latency_ms") // 検索レイテンシ（ms）
   cacheHit    Boolean  @default(false) @map("cache_hit")
   profileId   String?  @map("profile_id") @db.VarChar(50) // truncateId() applied (PII consideration)
@@ -1869,12 +1984,12 @@ model DesignSnapshot {
   snapshotAt   DateTime @default(now()) @map("snapshot_at") @db.Timestamptz
   sectionCount Int      @map("section_count")
   overallScore Float?   @map("overall_score") // quality score at snapshot time
-  metadata     Json?    // 追加メタデータ（analysisVersion, phaseStatus等）
+  metadata     Json? // 追加メタデータ（analysisVersion, phaseStatus等）
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   // リレーション / Relations
-  webPage  WebPage                  @relation(fields: [webPageId], references: [id], onDelete: Cascade)
+  webPage  WebPage                 @relation(fields: [webPageId], references: [id], onDelete: Cascade)
   sections DesignSnapshotSection[]
 
   @@index([webPageId, snapshotAt(sort: Desc)])
@@ -1884,11 +1999,11 @@ model DesignSnapshot {
 /// DesignSnapshotSection - スナップショット内の個別セクションデータ（Embedding含む）
 /// Individual section data within a snapshot (including embeddings)
 model DesignSnapshotSection {
-  id              String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  snapshotId      String @map("snapshot_id") @db.Uuid
-  sectionType     String @map("section_type")
-  sectionName     String? @map("section_name")
-  positionIndex   Int    @map("position_index")
+  id              String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  snapshotId      String                      @map("snapshot_id") @db.Uuid
+  sectionType     String                      @map("section_type")
+  sectionName     String?                     @map("section_name")
+  positionIndex   Int                         @map("position_index")
   textEmbedding   Unsupported("vector(768)")? @map("text_embedding")
   visionEmbedding Unsupported("vector(768)")? @map("vision_embedding")
 
@@ -1899,4 +2014,45 @@ model DesignSnapshotSection {
 
   @@index([snapshotId])
   @@map("design_snapshot_sections")
+}
+
+/// WorkerJobLifecycle - Plan v3 Track T4 (PR-V3-T4) NEW table.
+/// Worker spawn / release / restart / dispose イベントを観測する supplementary
+/// observability table。Supervisor backfill の orphan 識別 join key を提供し、
+/// Linux PID reuse 偽陽性を `worker_pid + worker_spawn_time` 同時等値 join で
+/// 構造的に排除する (INV-WORKER-PID-IDENTITY-005 Sub-C cross-PID-reuse defense)。
+///
+/// WorkerJobLifecycle - Plan v3 Track T4 (PR-V3-T4) NEW table. Records
+/// Worker spawn / release / restart / dispose events. Provides the join key
+/// for supervisor backfill orphan identification, structurally rejecting
+/// Linux PID-reuse false positives via `worker_pid + worker_spawn_time`
+/// equality join (INV-WORKER-PID-IDENTITY-005 Sub-C).
+///
+/// **SEC H-02 / Conflict 4**: excluded from `data.export` allowlist
+/// (operational lifecycle data, not personal data per LCC M-01); GDPR Art.17
+/// `data.delete` cascades via `onDelete: Cascade` (INV-DATA-DELETE-002).
+///
+/// **Retention** (LCC H-01): 30 days. Cleanup cron
+/// (`apps/mcp-server/scripts/cleanup-orphaned-web-pages.ts`) deletes rows
+/// where `event_at < now() - INTERVAL '30 days'` AND paired `web_pages` row
+/// already terminally classified.
+model WorkerJobLifecycle {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  webPageId       String               @map("web_page_id") @db.Uuid
+  workerPid       Int                  @map("worker_pid")
+  workerSpawnTime DateTime             @map("worker_spawn_time") @db.Timestamptz
+  workerType      WorkerType           @map("worker_type")
+  eventType       WorkerLifecycleEvent @map("event_type")
+  eventAt         DateTime             @default(now()) @map("event_at") @db.Timestamptz
+  /// Observability link to ADR-0011 lock nonce (lock semantic stays
+  /// nonce-based; PID identity is supplementary observability only).
+  nonce           String               @db.Uuid
+
+  // リレーション / Relations
+  webPage WebPage @relation(fields: [webPageId], references: [id], onDelete: Cascade)
+
+  @@index([webPageId])
+  @@index([workerPid, workerSpawnTime]) // supervisor backfill Sub-C join optimisation
+  @@index([eventAt]) // cleanup cron retention scan optimisation
+  @@map("worker_job_lifecycle")
 }

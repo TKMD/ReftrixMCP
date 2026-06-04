@@ -44,7 +44,7 @@
  * @module services/worker-active-lock
  */
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type Redis from "ioredis";
 import { createRedisClient } from "../config/redis";
 import { logger } from "../utils/logger";
@@ -75,6 +75,131 @@ const LOCK_TTL_SECONDS = 60;
 
 /** Heartbeat interval in ms (half of TTL for safety). */
 export const LOCK_HEARTBEAT_INTERVAL_MS = 30_000;
+
+// ============================================================================
+// Plan v4.5 PR3 Track 2: Per-job sub-child lock — namespace + rate-limit
+// (SEC M-01 CWE-770 ≥500ms boundary, ADR-0011 Amendment 3 Redis TIME pin)
+// ============================================================================
+
+/**
+ * Per-job sub-child lock key prefix. Per-job lock keys are namespaced under the
+ * embedding-backfill per-type lock as
+ * `reftrix:worker:active:embedding-backfill:job:<jobId>` so the supervisor
+ * orphan-cleanup scan can enumerate them via a single `SCAN MATCH` pattern.
+ *
+ * Per-job sub-child lock の key prefix。`embedding-backfill` per-type lock 配下に
+ * namespace。
+ */
+export const PER_JOB_LOCK_KEY_NAMESPACE = `${LOCK_KEY_PREFIX}embedding-backfill:job:`;
+
+/**
+ * Rate-limit companion key for the per-job spawn ≥500ms interval (SEC M-01).
+ * Stores the last sub-child spawn timestamp (Redis server-side `TIME` ms).
+ *
+ * Per-job spawn ≥500ms 間隔 rate-limit の companion key (SEC M-01)。
+ */
+const PER_JOB_RATE_LIMIT_KEY = `${LOCK_KEY_PREFIX}embedding-backfill:rate`;
+
+/**
+ * Minimum interval between two sub-child spawns (ms). SEC M-01 / CWE-770
+ * boundary. The interval is measured against Redis server-side
+ * `redis.call('TIME')` (NOT caller-process `Date.now()` / `process.hrtime`)
+ * per ADR-0011 Amendment 3, so caller clock skew / NTP step / SIGSTOP cannot
+ * bypass the rate-limit.
+ *
+ * 2 spawn 間の最小間隔 (ms)。SEC M-01 / CWE-770 boundary。Redis server-side
+ * `TIME` を基準とし caller clock skew で bypass されない。
+ */
+export const PER_JOB_SPAWN_MIN_INTERVAL_MS = 500;
+
+/** Per-job lock TTL (ms). Independent of the per-type 60s TTL. */
+export const PER_JOB_LOCK_TTL_MS = 60_000;
+
+/**
+ * Lua script — release the per-job sub-child lock only if BOTH the stored
+ * `nonce` AND `bootEpoch` match the caller's. CWE-367 TOCTOU race closure
+ * (§4.2.2 OrphanCleanupContract): a supervisor restart with a fresh bootEpoch
+ * MUST NOT delete a live owner's lock (own-supervisor origin only).
+ *
+ * 自 nonce AND bootEpoch の双方一致時のみ per-job lock を削除する Lua
+ * (CWE-367 TOCTOU race closure, §4.2.2)。
+ *
+ * KEYS[1] = job_lock_key, ARGV[1] = nonce, ARGV[2] = bootEpoch
+ */
+const PER_JOB_RELEASE_LUA = `
+local stored = redis.call('GET', KEYS[1])
+if not stored then
+  return 0
+end
+local ok, payload = pcall(cjson.decode, stored)
+if not ok then
+  return 0
+end
+if payload.nonce == ARGV[1] and payload.bootEpoch == ARGV[2] then
+  return redis.call('DEL', KEYS[1])
+end
+return 0
+`;
+
+/**
+ * Lua script — atomic per-job lock acquire with server-side monotonic
+ * rate-limit. Pins the clock via `redis.call('TIME')` (ADR-0011 Amendment 3,
+ * CWE-770) so the ≥500ms spawn interval cannot be bypassed by caller clock
+ * manipulation. Returns a 3-element array `{status, reason, payload}`:
+ *   - {1, 'ok', <payload json>}        — acquired
+ *   - {0, 'rate_limited', <retryMs>}   — < min interval since last spawn
+ *   - {0, 'race_lost', <existing>}     — SET NX lost (another owner holds it)
+ *
+ * KEYS[1] = rate_limit_key, KEYS[2] = job_lock_key
+ * ARGV[1] = nonce, ARGV[2] = bootEpoch, ARGV[3] = ttlMs, ARGV[4] = minIntervalMs
+ *
+ * Per-job lock の atomic acquire + server-side monotonic rate-limit Lua。
+ */
+const PER_JOB_LOCK_LUA = `
+local rate_limit_key = KEYS[1]
+local job_lock_key   = KEYS[2]
+local nonce          = ARGV[1]
+local boot_epoch     = ARGV[2]
+local ttl_ms         = tonumber(ARGV[3])
+local min_interval_ms = tonumber(ARGV[4])
+
+local time_arr = redis.call('TIME')
+local now_ms = (tonumber(time_arr[1]) * 1000) + math.floor(tonumber(time_arr[2]) / 1000)
+
+local last_spawn_ms = tonumber(redis.call('GET', rate_limit_key) or '0')
+local elapsed = now_ms - last_spawn_ms
+if elapsed >= 0 and elapsed < min_interval_ms then
+  return {0, 'rate_limited', tostring(min_interval_ms - elapsed)}
+end
+
+local payload = cjson.encode({nonce = nonce, bootEpoch = boot_epoch, acquiredAtMs = now_ms})
+local ok = redis.call('SET', job_lock_key, payload, 'NX', 'PX', ttl_ms)
+if ok then
+  -- Redis 'PX' requires a strictly-positive expiry. With min_interval_ms = 0
+  -- (test injection / rate-limit disabled) the companion key expiry floors to
+  -- 1ms so 'SET ... PX 0' never errors and aborts the atomic acquire.
+  local rate_px = min_interval_ms * 2
+  if rate_px < 1 then rate_px = 1 end
+  redis.call('SET', rate_limit_key, tostring(now_ms), 'PX', rate_px)
+  return {1, 'ok', payload}
+end
+return {0, 'race_lost', redis.call('GET', job_lock_key)}
+`;
+
+/**
+ * Boot-time SHA1 derivation (SSOT, §4.4 Lua SCRIPT LOAD pinning). Derived via
+ * `createHash("sha1").update(script).digest("hex")` at module load — NOT a
+ * hardcoded literal — so coupling drift between the script body and its SHA is
+ * impossible (canonical pattern per Wave 5 LCC anchor `019df7ab-2f5a`).
+ * INV-WORKER-LUA-SHA-PIN-001 §5.5 AST sweep gates this contract.
+ *
+ * Lua script の boot-time SHA1 (§4.4)。hardcoded literal 禁止、module load 時に
+ * derive することで script body と SHA の coupling drift を構造的に排除する。
+ */
+export const PER_JOB_RELEASE_SHA: string = createHash("sha1")
+  .update(PER_JOB_RELEASE_LUA)
+  .digest("hex");
+export const PER_JOB_LOCK_SHA: string = createHash("sha1").update(PER_JOB_LOCK_LUA).digest("hex");
 
 /**
  * Lua script — release lock only if value matches our nonce.
@@ -145,6 +270,47 @@ export type CheckExistingLockResult =
   | { unavailable: false; exists: false }
   | { unavailable: false; exists: true; nonce: string }
   | { unavailable: true; error: string };
+
+/**
+ * Result of {@link WorkerActiveLockService.acquirePerJobSubChildLock} — a
+ * discriminated union distinguishing fail-open (`redis_unreachable`) from
+ * fail-closed (`rate_limited` / `race_lost`) semantics at the type level
+ * (Plan v4.5 PR3 V1 §4.2.1, SEC M-1 PR7d-3 pattern inheritance).
+ *
+ * | reason             | failOpen | action                                          |
+ * | ------------------ | -------- | ----------------------------------------------- |
+ * | (ok)               | n/a      | spawn sub-child                                 |
+ * | rate_limited       | false    | fail-closed: BullMQ retry (delayed retryAfterMs)|
+ * | race_lost          | false    | fail-closed: BullMQ retry (no spawn)            |
+ * | redis_unreachable  | true     | fail-open: proceed without lock (SEC-M-3)       |
+ *
+ * Callers MUST handle every case via an exhaustive `switch` (`never`-narrowing
+ * gives a compile-time exhaustiveness gate).
+ *
+ * {@link WorkerActiveLockService.acquirePerJobSubChildLock} の discriminated
+ * union (§4.2.1)。fail-open / fail-closed を型 level で区別する。
+ */
+export type PerJobAcquireLockResult =
+  | { ok: true; key: string; nonce: string; bootEpoch: string; sha: string; ttlMs: number }
+  | { ok: false; reason: "rate_limited"; failOpen: false; retryAfterMs: number }
+  | { ok: false; reason: "race_lost"; failOpen: false; existingPayload: string | null }
+  | { ok: false; reason: "redis_unreachable"; failOpen: true; error: string };
+
+/**
+ * One per-job lock entry observed during an orphan-cleanup scan. The decoded
+ * `nonce` + `bootEpoch` allow the supervisor to release ONLY its own orphaned
+ * locks (§4.2.2 OrphanCleanupContract, CWE-367 closure).
+ *
+ * Orphan-cleanup scan で観測される per-job lock 1 件 (§4.2.2)。
+ */
+export interface OrphanLockEntry {
+  /** Full Redis key (`reftrix:worker:active:embedding-backfill:job:<jobId>`). */
+  key: string;
+  /** Lock owner nonce decoded from the JSON payload (null if undecodable). */
+  nonce: string | null;
+  /** Lock owner bootEpoch decoded from the JSON payload (null if undecodable). */
+  bootEpoch: string | null;
+}
 
 // ============================================================================
 // Service
@@ -361,6 +527,266 @@ export class WorkerActiveLockService {
   }
 
   // ==========================================================================
+  // Per-job sub-child lock (Plan v4.5 PR3 Track 2)
+  // ==========================================================================
+
+  /**
+   * Boot-time pin both per-job Lua scripts via `SCRIPT LOAD`, then assert they
+   * are resident via `SCRIPT EXISTS`. Runtime acquire/release use `EVALSHA`
+   * only (CWE-829 / CWE-94 closure, §4.4). Throws if pinning fails so a
+   * misconfigured Redis surfaces at boot rather than on first job.
+   *
+   * 起動時に per-job Lua script を SCRIPT LOAD で pin し、SCRIPT EXISTS で
+   * 常駐確認する (§4.4)。runtime は EVALSHA のみ。pin 失敗時は throw。
+   *
+   * @throws Error when boot-time SCRIPT LOAD invariant is violated
+   */
+  async pinLuaScripts(): Promise<void> {
+    await this.redis.script("LOAD", PER_JOB_RELEASE_LUA);
+    await this.redis.script("LOAD", PER_JOB_LOCK_LUA);
+    const loaded = (await this.redis.script(
+      "EXISTS",
+      PER_JOB_RELEASE_SHA,
+      PER_JOB_LOCK_SHA
+    )) as number[];
+    if (!Array.isArray(loaded) || !loaded.every((x) => x === 1)) {
+      throw new Error("Lua script pinning failed (boot-time SCRIPT LOAD invariant violated)");
+    }
+  }
+
+  /**
+   * Atomically acquire a per-job sub-child spawn lock with a server-side
+   * monotonic ≥500ms rate-limit (SEC M-01 / CWE-770, ADR-0011 Amendment 3).
+   * Uses `EVALSHA` only; on `NOSCRIPT` re-pins exactly once
+   * (`worker_lua_script_reload` transparency), then surfaces persistent
+   * failures as `redis_unreachable` (fail-open).
+   *
+   * Per-job sub-child spawn lock を server-side monotonic ≥500ms rate-limit
+   * 付きで atomic 取得する (SEC M-01 / CWE-770)。EVALSHA のみ使用、NOSCRIPT 時は
+   * 1 回だけ re-pin。
+   *
+   * @param jobId    - BullMQ job id (namespaced into the per-job lock key)
+   * @param nonce    - Caller-unique boot token (non-empty)
+   * @param bootEpoch- Supervisor boot epoch (UUIDv7) for orphan double-verify
+   * @param opts     - Optional ttlMs / minIntervalMs overrides (test injection)
+   * @returns Discriminated union (ok / rate_limited / race_lost / redis_unreachable)
+   */
+  async acquirePerJobSubChildLock(
+    jobId: string,
+    nonce: string,
+    bootEpoch: string,
+    opts: { ttlMs?: number; minIntervalMs?: number } = {}
+  ): Promise<PerJobAcquireLockResult> {
+    validatePerJobLockInputs(jobId, nonce, bootEpoch);
+
+    // NaN/Infinity defense on numeric overrides (Standards §NaN/Infinity 防御).
+    const ttlMs = resolveFinite(opts.ttlMs, PER_JOB_LOCK_TTL_MS);
+    const minIntervalMs = resolveFinite(opts.minIntervalMs, PER_JOB_SPAWN_MIN_INTERVAL_MS);
+    const jobLockKey = `${PER_JOB_LOCK_KEY_NAMESPACE}${jobId}`;
+
+    try {
+      const raw = await this.evalShaPerJobLock(jobLockKey, nonce, bootEpoch, ttlMs, minIntervalMs);
+      return this.interpretPerJobLockResult(
+        raw,
+        jobLockKey,
+        nonce,
+        bootEpoch,
+        ttlMs,
+        minIntervalMs
+      );
+    } catch (error) {
+      const sanitized = sanitizeErrorMessage(error);
+      logger.warn("[WorkerActiveLock] acquirePerJobSubChildLock failed (redis unavailable)", {
+        error: sanitized,
+      });
+      return { ok: false, reason: "redis_unreachable", failOpen: true, error: sanitized };
+    }
+  }
+
+  /**
+   * Run the per-job lock Lua via `EVALSHA`. On `NOSCRIPT` (SHA cache evicted)
+   * re-pins exactly once then retries (§4.4 NOSCRIPT-recovery). Persistent
+   * NOSCRIPT propagates to the caller's catch (→ `redis_unreachable`).
+   *
+   * @internal
+   */
+  private async evalShaPerJobLock(
+    jobLockKey: string,
+    nonce: string,
+    bootEpoch: string,
+    ttlMs: number,
+    minIntervalMs: number
+  ): Promise<unknown> {
+    const args = [
+      PER_JOB_RATE_LIMIT_KEY,
+      jobLockKey,
+      nonce,
+      bootEpoch,
+      String(ttlMs),
+      String(minIntervalMs),
+    ];
+    try {
+      return await this.redis.evalsha(PER_JOB_LOCK_SHA, 2, ...args);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("NOSCRIPT")) {
+        // Transparent re-pin (observability via worker_lua_script_reload at the
+        // caller layer). Re-pin once, then retry; a second NOSCRIPT throws.
+        logger.warn("[WorkerActiveLock] Lua SHA cache evicted, re-pinning (NOSCRIPT recovery)");
+        await this.redis.script("LOAD", PER_JOB_LOCK_LUA);
+        return await this.redis.evalsha(PER_JOB_LOCK_SHA, 2, ...args);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Map the Lua `{status, reason, payload}` array to the discriminated union.
+   *
+   * @internal
+   */
+  private interpretPerJobLockResult(
+    raw: unknown,
+    jobLockKey: string,
+    nonce: string,
+    bootEpoch: string,
+    ttlMs: number,
+    minIntervalMs: number
+  ): PerJobAcquireLockResult {
+    if (!Array.isArray(raw) || raw.length < 2) {
+      // Defensive: unexpected shape treated as fail-open (do not block job).
+      return {
+        ok: false,
+        reason: "redis_unreachable",
+        failOpen: true,
+        error: "per-job lock returned unexpected shape",
+      };
+    }
+    const status = Number(raw[0]);
+    const reason = String(raw[1]);
+    if (status === 1) {
+      return { ok: true, key: jobLockKey, nonce, bootEpoch, sha: PER_JOB_LOCK_SHA, ttlMs };
+    }
+    if (reason === "rate_limited") {
+      const parsed = Number(raw[2]);
+      const retryAfterMs = Number.isFinite(parsed) ? parsed : minIntervalMs;
+      return { ok: false, reason: "rate_limited", failOpen: false, retryAfterMs };
+    }
+    // race_lost (or any other fail-closed status from the Lua).
+    return {
+      ok: false,
+      reason: "race_lost",
+      failOpen: false,
+      existingPayload: raw[2] !== undefined && raw[2] !== null ? String(raw[2]) : null,
+    };
+  }
+
+  /**
+   * Release a per-job sub-child lock — deletes ONLY if BOTH the stored nonce
+   * AND bootEpoch match the caller's (CWE-367 double-verify, §4.2.2). Uses
+   * `EVALSHA` with NOSCRIPT re-pin recovery.
+   *
+   * Per-job lock を release — nonce AND bootEpoch 双方一致時のみ削除 (§4.2.2)。
+   *
+   * @returns `true` if released, `false` if not owned / unreachable
+   */
+  async releasePerJobSubChildLock(
+    jobId: string,
+    nonce: string,
+    bootEpoch: string
+  ): Promise<boolean> {
+    const jobLockKey = `${PER_JOB_LOCK_KEY_NAMESPACE}${jobId}`;
+    try {
+      const result = await this.evalShaPerJobRelease(jobLockKey, nonce, bootEpoch);
+      return Number(result) === 1;
+    } catch (error) {
+      logger.warn("[WorkerActiveLock] releasePerJobSubChildLock failed (non-fatal)", {
+        error: sanitizeErrorMessage(error),
+      });
+      return false;
+    }
+  }
+
+  /** @internal `EVALSHA` per-job release with NOSCRIPT re-pin recovery. */
+  private async evalShaPerJobRelease(
+    jobLockKey: string,
+    nonce: string,
+    bootEpoch: string
+  ): Promise<unknown> {
+    try {
+      return await this.redis.evalsha(PER_JOB_RELEASE_SHA, 1, jobLockKey, nonce, bootEpoch);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("NOSCRIPT")) {
+        await this.redis.script("LOAD", PER_JOB_RELEASE_LUA);
+        return await this.redis.evalsha(PER_JOB_RELEASE_SHA, 1, jobLockKey, nonce, bootEpoch);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Scan all per-job sub-child locks under the namespace and decode each
+   * payload's `nonce` + `bootEpoch` so the supervisor can reconcile orphans
+   * against its own boot epoch (§4.2.2). Uses non-blocking `SCAN` (not `KEYS`)
+   * to avoid Redis main-thread stalls.
+   *
+   * Namespace 配下の全 per-job lock を SCAN で列挙し payload を decode する
+   * (§4.2.2 orphan cleanup)。`KEYS` ではなく `SCAN` で Redis stall を回避。
+   *
+   * @returns Decoded lock entries (empty array on Redis-unreachable, fail-open)
+   */
+  async scanOrphanPerJobLocks(): Promise<OrphanLockEntry[]> {
+    const matchPattern = `${PER_JOB_LOCK_KEY_NAMESPACE}*`;
+    const entries: OrphanLockEntry[] = [];
+    try {
+      let cursor = "0";
+      do {
+        const [nextCursor, keys] = (await this.redis.scan(
+          cursor,
+          "MATCH",
+          matchPattern,
+          "COUNT",
+          100
+        )) as [string, string[]];
+        cursor = nextCursor;
+        for (const key of keys) {
+          const value = await this.redis.get(key);
+          entries.push(this.decodeOrphanEntry(key, value));
+        }
+      } while (cursor !== "0");
+    } catch (error) {
+      logger.warn("[WorkerActiveLock] scanOrphanPerJobLocks failed (fail-open, returning none)", {
+        error: sanitizeErrorMessage(error),
+      });
+      return [];
+    }
+    return entries;
+  }
+
+  /** @internal Decode a per-job lock JSON payload into an OrphanLockEntry. */
+  private decodeOrphanEntry(key: string, value: string | null): OrphanLockEntry {
+    if (value === null) {
+      return { key, nonce: null, bootEpoch: null };
+    }
+    try {
+      const parsed: unknown = JSON.parse(value);
+      if (typeof parsed === "object" && parsed !== null) {
+        const obj = parsed as { nonce?: unknown; bootEpoch?: unknown };
+        return {
+          key,
+          nonce: typeof obj.nonce === "string" ? obj.nonce : null,
+          bootEpoch: typeof obj.bootEpoch === "string" ? obj.bootEpoch : null,
+        };
+      }
+    } catch {
+      // Undecodable payload — leave nonce/bootEpoch null (treated conservatively
+      // as NOT own-origin so it is never auto-deleted by mistake).
+    }
+    return { key, nonce: null, bootEpoch: null };
+  }
+
+  // ==========================================================================
   // Lifecycle
   // ==========================================================================
 
@@ -391,4 +817,33 @@ export class WorkerActiveLockService {
  */
 export function generateBootToken(): string {
   return randomUUID();
+}
+
+/**
+ * Validate the per-job lock string inputs (non-empty). Extracted so
+ * {@link WorkerActiveLockService.acquirePerJobSubChildLock} stays under the
+ * cyclomatic-complexity cap (TDA helper-extract).
+ *
+ * @internal
+ */
+function validatePerJobLockInputs(jobId: string, nonce: string, bootEpoch: string): void {
+  if (typeof nonce !== "string" || nonce.length === 0) {
+    throw new Error("acquirePerJobSubChildLock: nonce must be a non-empty string");
+  }
+  if (typeof bootEpoch !== "string" || bootEpoch.length === 0) {
+    throw new Error("acquirePerJobSubChildLock: bootEpoch must be a non-empty string");
+  }
+  if (typeof jobId !== "string" || jobId.length === 0) {
+    throw new Error("acquirePerJobSubChildLock: jobId must be a non-empty string");
+  }
+}
+
+/**
+ * Resolve a numeric override with NaN/Infinity defense, falling back to a
+ * default when the value is absent or non-finite (Standards §NaN/Infinity 防御).
+ *
+ * @internal
+ */
+function resolveFinite(value: number | undefined, fallback: number): number {
+  return value !== undefined && Number.isFinite(value) ? value : fallback;
 }

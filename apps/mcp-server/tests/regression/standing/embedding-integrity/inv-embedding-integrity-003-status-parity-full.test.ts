@@ -23,7 +23,7 @@
  *
  * Structure (16 tests):
  *   - Block A (4): AST-level precondition (superset of retired partial test)
- *   - Block B (4): 7-category × 15 skipReason mapping integrity
+ *   - Block B (4): 7-category × 18 skipReason mapping integrity
  *   - Block C (8): runtime parity check behavior
  *
  * @see ADR-0018 §Decision 1 INV-EMBEDDING-INTEGRITY-001 (semantic boundary)
@@ -53,13 +53,16 @@ import {
   type CategoryPendingSnapshot,
 } from "../../../../src/services/backfill-status.helper";
 import { EMBEDDING_BACKFILL_CATEGORIES } from "../../../../src/queues/embedding-backfill-queue";
+// ADR-0018 Amendment 7 §7.4 (UB-5): SSOT exclusion predicate for the part_visual
+// pending query — used by Block D production-SQL assertions (no numeric-mock reuse).
+import { partVisualPendingExclusionPredicate } from "../../../../src/workers/phases/types";
 
 // ============================================================================
 // Fixtures: skipReason → EmbeddingBackfillStatus exhaustive mapping
 // ============================================================================
 
 /**
- * Fixture-inline: 16 EmbeddingSkipReason → 3 EmbeddingBackfillStatus buckets.
+ * Fixture-inline: 18 EmbeddingSkipReason → 3 EmbeddingBackfillStatus buckets.
  * Inlined per FIND-PLAN-IO-12 (promote to shared file only when 2nd consumer
  * appears — Q3-2026 backlog).
  *
@@ -67,12 +70,20 @@ import { EMBEDDING_BACKFILL_CATEGORIES } from "../../../../src/queues/embedding-
  * `bbox_unresolvable` (Playwright-residual catch-all). Routes to
  * `skipped_fork_error` retry bucket per Supplement S3 mapping rationale (same
  * accuracy-preserving retry path as `bbox_invalid` JSDOM-origin catch-all).
+ *
+ * PR-V3-T1a §3.4.1 (Plan v3 V2 §3.1 T1.2, FIND-V3-IO-H-01 closure): added
+ * `text_child_memory_budget_exceeded_at_chunk_<n>` (C1 per-chunk RSS budget
+ * enforcement) → `skipped_memory_pressure` (memory-pressure signal, NOT a
+ * fork/IPC failure), and `partial_chunked_<n>_of_<total>` (C3 failure-path
+ * partial-flush prevention) → `skipped_fork_error` (third partTextPending
+ * source per ADR-0007, alongside threshold-driven and visual-screenshot-missing).
  */
 const SKIP_REASON_TO_BACKFILL_STATUS_MAPPING: Record<string, string> = {
-  // Memory pressure bucket (2)
+  // Memory pressure bucket (3)
   v8_heap_headroom_low: "skipped_memory_pressure",
   system_memavailable_low: "skipped_memory_pressure",
-  // Fork error retry bucket (13)
+  "text_child_memory_budget_exceeded_at_chunk_<n>": "skipped_memory_pressure",
+  // Fork error retry bucket (14)
   text_fork_failed: "skipped_fork_error",
   text_child_error: "skipped_fork_error",
   text_child_abnormal_exit: "skipped_fork_error",
@@ -86,8 +97,28 @@ const SKIP_REASON_TO_BACKFILL_STATUS_MAPPING: Record<string, string> = {
   parity_check_failed: "skipped_fork_error",
   bbox_invalid: "skipped_fork_error",
   bbox_unresolvable: "skipped_fork_error",
-  // Not-required bucket (1)
+  vision_residual_at_phase5_start: "skipped_fork_error",
+  vision_probe_failed_at_phase5_start: "skipped_fork_error",
+  "partial_chunked_<n>_of_<total>": "skipped_fork_error",
+  // Not-required bucket (6): no_embeddable_items + the 5 section_visual
+  // terminal-skip reasons (2 from PR-BT-2 + section_visual_pii_excluded from
+  // PR-C4 + section_visual_blank / section_visual_no_position from
+  // secvisual-blank-terminal). These are terminal-skips that let the page reach
+  // `completed` (they MUST NOT map to the skipped_fork_error retry bucket, which
+  // would re-create the false-failed pin — IO Plan Decision V2 BT-V2-CORR-01).
+  // PR-C4 (section_visual PII asymmetry closure): section_visual_pii_excluded
+  // is the work-side PII-exclusion terminal-skip marker. Maps to `not_required`
+  // (symmetric with the existing 2 section_visual terminal-skip reasons).
+  // secvisual-blank-terminal (Plan V1 §4): section_visual_blank /
+  // section_visual_no_position are degraded-coverage technical terminals (NON-PII;
+  // distinct from section_visual_pii_excluded, FIND-PLAN-L-07). Both map to
+  // `not_required` (page-completable).
   no_embeddable_items: "not_required",
+  section_visual_uncroppable: "not_required",
+  section_visual_duplicate: "not_required",
+  section_visual_pii_excluded: "not_required",
+  section_visual_blank: "not_required",
+  section_visual_no_position: "not_required",
 };
 
 // ============================================================================
@@ -201,12 +232,23 @@ describe("INV-EMBEDDING-INTEGRITY-003: status parity full landing (PR-D-4)", () 
       expect(switchLabels).toContain("bbox_invalid");
     });
 
-    it("INV-EMBEDDING-INTEGRITY-003: A4 — EMBEDDING_SKIP_REASONS total = 16 with tail-append of new values", () => {
+    it("INV-EMBEDDING-INTEGRITY-003: A4 — EMBEDDING_SKIP_REASONS total = 25 with tail-append of new values", () => {
       // Supersedes partial Test #4. Additive policy: existing values
-      // unchanged; parity_check_failed + bbox_invalid + bbox_unresolvable
-      // appended at tail per ADR-0018 §Decision 2 / §Decision 3 Amendment /
-      // §Decision 1 Supplement S3 (PR-D-9 Wave 4).
-      expect(ssotValues).toHaveLength(16);
+      // unchanged; parity_check_failed + bbox_invalid + bbox_unresolvable +
+      // vision_residual_at_phase5_start + vision_probe_failed_at_phase5_start +
+      // text_child_memory_budget_exceeded_at_chunk_<n> +
+      // partial_chunked_<n>_of_<total> + section_visual_uncroppable +
+      // section_visual_duplicate + section_visual_pii_excluded +
+      // section_visual_blank + section_visual_no_position appended at tail
+      // per ADR-0018 §Decision 2 / §Decision 3 Amendment / §Decision 1
+      // Supplement S3 (PR-D-9 Wave 4) / Plan v3 T3-Vision V1 §4.2
+      // (INV-VISION-PHASE5-GATE-001) / PR-V3-T1a §3.4.1 (Plan v3 V2 §3.1 T1.2,
+      // FIND-V3-IO-H-01 closure) / PR-BT-2 (ADR-0018 Amendment, System B
+      // section_visual terminal-skip) / PR-C4 (ADR-0018 Amendment, section_visual
+      // PII asymmetry closure: section_visual_pii_excluded, index 22) /
+      // secvisual-blank-terminal (Plan V1 §4: section_visual_blank index 23 +
+      // section_visual_no_position index 24).
+      expect(ssotValues).toHaveLength(25);
       // Spot-check a few existing values are preserved (SSOT-level guarantee)
       expect(ssotValues).toContain("v8_heap_headroom_low");
       expect(ssotValues).toContain("dispatch_phase_failed");
@@ -214,6 +256,15 @@ describe("INV-EMBEDDING-INTEGRITY-003: status parity full landing (PR-D-4)", () 
       expect(ssotValues).toContain("parity_check_failed");
       expect(ssotValues).toContain("bbox_invalid");
       expect(ssotValues).toContain("bbox_unresolvable");
+      expect(ssotValues).toContain("vision_residual_at_phase5_start");
+      expect(ssotValues).toContain("vision_probe_failed_at_phase5_start");
+      expect(ssotValues).toContain("text_child_memory_budget_exceeded_at_chunk_<n>");
+      expect(ssotValues).toContain("partial_chunked_<n>_of_<total>");
+      expect(ssotValues).toContain("section_visual_uncroppable");
+      expect(ssotValues).toContain("section_visual_duplicate");
+      expect(ssotValues).toContain("section_visual_pii_excluded");
+      expect(ssotValues).toContain("section_visual_blank");
+      expect(ssotValues).toContain("section_visual_no_position");
     });
   });
 
@@ -236,7 +287,7 @@ describe("INV-EMBEDDING-INTEGRITY-003: status parity full landing (PR-D-4)", () 
       expect(snapshotKeys).toHaveLength(7);
     });
 
-    it("INV-EMBEDDING-INTEGRITY-003: B6 — 15 skipReasons partition into 3 buckets (memory/retry/not_required)", () => {
+    it("INV-EMBEDDING-INTEGRITY-003: B6 — 25 skipReasons partition into 3 buckets (memory/retry/not_required)", () => {
       // Exhaustive partition coverage: every SSOT skipReason must map to
       // exactly one of 3 EmbeddingBackfillStatus buckets.
       const bucketCounts: Record<string, number> = {
@@ -253,15 +304,33 @@ describe("INV-EMBEDDING-INTEGRITY-003: status parity full landing (PR-D-4)", () 
       // Expected partition sizes per fixture and Plan §3.5.
       // PR-D-9 Wave 4: bbox_unresolvable adds 1 to skipped_fork_error bucket
       // (12 → 13) per ADR-0018 §Decision 1 Supplement S3 mapping.
-      expect(bucketCounts.skipped_memory_pressure).toBe(2);
-      expect(bucketCounts.skipped_fork_error).toBe(13);
-      expect(bucketCounts.not_required).toBe(1);
-      // Sum = 16 (INV-SCHEMA-ENUM-004 total enum value count post PR-D-9 Wave 4)
+      // Plan v3 T3-Vision V1: vision_residual_at_phase5_start +
+      // vision_probe_failed_at_phase5_start add 2 to skipped_fork_error bucket (13 → 15).
+      // PR-V3-T1a §3.4.1: text_child_memory_budget_exceeded_at_chunk_<n> adds
+      // 1 to skipped_memory_pressure bucket (2 → 3); partial_chunked_<n>_of_<total>
+      // adds 1 to skipped_fork_error bucket (15 → 16). Sum 18 → 20.
+      // PR-BT-2 (ADR-0018 Amendment, System B): section_visual_uncroppable +
+      // section_visual_duplicate add 2 to the not_required bucket (1 → 3) —
+      // terminal-skips are page-completable, NOT the skipped_fork_error retry
+      // bucket (IO Plan Decision V2 BT-V2-CORR-01). Sum 20 → 22.
+      // PR-C4 (ADR-0018 Amendment, section_visual PII asymmetry closure):
+      // section_visual_pii_excluded adds 1 to the not_required bucket (3 → 4) —
+      // a work-side PII-exclusion terminal-skip is page-completable per the
+      // skipReasonToBackfillStatus arm (section_visual_pii_excluded → not_required),
+      // NOT the skipped_fork_error retry bucket. Sum 22 → 23.
+      // secvisual-blank-terminal (Plan V1 §4): section_visual_blank +
+      // section_visual_no_position add 2 to the not_required bucket (4 → 6) —
+      // degraded-coverage technical terminals (NON-PII), page-completable, NOT the
+      // skipped_fork_error retry bucket. Sum 23 → 25.
+      expect(bucketCounts.skipped_memory_pressure).toBe(3);
+      expect(bucketCounts.skipped_fork_error).toBe(16);
+      expect(bucketCounts.not_required).toBe(6);
+      // Sum = 25 (INV-SCHEMA-ENUM-004 total enum value count post secvisual-blank-terminal)
       expect(
         bucketCounts.skipped_memory_pressure +
           bucketCounts.skipped_fork_error +
           bucketCounts.not_required
-      ).toBe(16);
+      ).toBe(25);
     });
 
     it("INV-EMBEDDING-INTEGRITY-003: B7 — parity_check_failed → skipped_fork_error AND NOT skipped_screenshot_missing (retry-bucket exclusion)", () => {
@@ -278,10 +347,16 @@ describe("INV-EMBEDDING-INTEGRITY-003: status parity full landing (PR-D-4)", () 
       expect(switchLabels).toContain("parity_check_failed");
     });
 
-    it("INV-EMBEDDING-INTEGRITY-003: B8 — exhaustive switch coverage for all 15 EmbeddingSkipReason values", () => {
+    it("INV-EMBEDDING-INTEGRITY-003: B8 — exhaustive switch coverage for all 25 EmbeddingSkipReason values", () => {
       // Every SSOT enum value must be a case label in skipReasonToBackfillStatus
       // (except the TypeScript exhaustiveness `default` clause). Catches the
       // classic "new enum value added but switch case forgotten" regression.
+      // Plan v3 T3-Vision V1 §4.2: extended from 16 to 18 values
+      // (vision_residual_at_phase5_start + vision_probe_failed_at_phase5_start).
+      // PR-BT-2 (ADR-0018 Amendment, System B): extended from 20 to 22 values
+      // (section_visual_uncroppable + section_visual_duplicate).
+      // PR-C4 (ADR-0018 Amendment, section_visual PII asymmetry closure):
+      // extended from 22 to 23 values (section_visual_pii_excluded).
       for (const reason of ssotValues) {
         expect(switchLabels).toContain(reason);
       }
@@ -588,6 +663,73 @@ describe("INV-EMBEDDING-INTEGRITY-003: status parity full landing (PR-D-4)", () 
       expect(responsiveCount).toHaveBeenCalledTimes(1);
       // Two raw queries: part_visual + section_visual.
       expect(rawQuery).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // ==========================================================================
+  // Block D — Production-SQL assertion for the part_visual exclusion predicate
+  // (ADR-0018 Amendment 7 §7.4 revision, UB-5). The numeric buildPrismaMock above
+  // cannot represent row-level state (a terminal-skip row with non-NULL
+  // visual_skip_reason being excluded from pending), so it would STALE-PASS even
+  // if the exclusion predicate were dropped. Block D closes that gap by asserting
+  // the production part_visual count SQL actually CONTAINS the SSOT exclusion
+  // predicate, AND that a bbox_invalid-marked row is excluded at the SQL level
+  // (captured-SQL semantic check, no numeric-mock reuse).
+  // ==========================================================================
+
+  describe("Block D: part_visual exclusion-predicate production-SQL assertion (Amendment 7 §7.4)", () => {
+    it("INV-EMBEDDING-INTEGRITY-003: D17 — production part_visual count SQL contains the SSOT exclusion predicate (visual_skip_reason IS NULL), not the legacy bare visual_embedding IS NULL", async () => {
+      // Capture the SQL string the production helper passes to $queryRawUnsafe.
+      let capturedPartVisualSql: string | null = null;
+      const capturingPrisma = {
+        componentPart: { count: vi.fn(async () => 0) },
+        motionPattern: { count: vi.fn(async () => 0) },
+        backgroundDesign: { count: vi.fn(async () => 0) },
+        jSAnimationPattern: { count: vi.fn(async () => 0) },
+        responsiveAnalysis: { count: vi.fn(async () => 0) },
+        $queryRawUnsafe: vi.fn(async (sql: string) => {
+          if (sql.includes("component_part_embeddings") && !sql.includes("section_embeddings")) {
+            capturedPartVisualSql = sql;
+          }
+          return [{ count: BigInt(0) }];
+        }),
+      } as unknown as PrismaClient;
+
+      await collectCategoryPendingSnapshot(FAKE_PAGE_ID, capturingPrisma);
+
+      expect(capturedPartVisualSql).not.toBeNull();
+      const sql = capturedPartVisualSql as unknown as string;
+      // The SSOT exclusion predicate's terminal conjunct MUST be present.
+      expect(sql).toContain("visual_skip_reason IS NULL");
+      // The legacy bare condition is still present (the embedding-NULL conjunct),
+      // but it MUST be ANDed with the skip_reason exclusion — assert the AND form.
+      expect(sql).toMatch(/visual_embedding IS NULL\s+AND\s+\S*visual_skip_reason IS NULL/);
+    });
+
+    it("INV-EMBEDDING-INTEGRITY-003: D18 — the production part_visual count SQL is built from the SSOT predicate fragment (string containment of the fragment output)", async () => {
+      // Cross-check: the SSOT predicate fragment output appears verbatim in the
+      // production SQL, so the count helper cannot drift from the 3-callsite SSOT.
+      let capturedPartVisualSql: string | null = null;
+      const capturingPrisma = {
+        componentPart: { count: vi.fn(async () => 0) },
+        motionPattern: { count: vi.fn(async () => 0) },
+        backgroundDesign: { count: vi.fn(async () => 0) },
+        jSAnimationPattern: { count: vi.fn(async () => 0) },
+        responsiveAnalysis: { count: vi.fn(async () => 0) },
+        $queryRawUnsafe: vi.fn(async (sql: string) => {
+          if (sql.includes("component_part_embeddings") && !sql.includes("section_embeddings")) {
+            capturedPartVisualSql = sql;
+          }
+          return [{ count: BigInt(0) }];
+        }),
+      } as unknown as PrismaClient;
+
+      await collectCategoryPendingSnapshot(FAKE_PAGE_ID, capturingPrisma);
+
+      const sql = capturedPartVisualSql as unknown as string;
+      // The cpe-aliased SSOT fragment must be a substring of the production SQL.
+      const fragment = partVisualPendingExclusionPredicate("cpe");
+      expect(sql).toContain(fragment);
     });
   });
 });

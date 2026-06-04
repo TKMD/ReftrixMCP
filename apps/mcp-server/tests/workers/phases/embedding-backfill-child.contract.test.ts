@@ -267,17 +267,27 @@ const { backfillMock } = vi.hoisted(() => {
 // resolves to the same source file as the bare-extension form — so both
 // registrations below point at the same underlying module, and the mock wins
 // regardless of which specifier the child uses.
-// v0.4.0 PR7e-β4 PR2d (HIGH-β): the child now dispatches via switch to one of
-// 7 per-category service wrappers. Existing T01-T07c tests use
-// `backfillJsAnimationsForPage` (= `backfillMock`); T15 fixtures spy each of
-// the 6 invokable per-category mocks (part_visual is intentionally omitted —
-// it throws via dispatch switch per LCC-M-2 and is pinned by T15b).
+// v0.4.0 PR7e-β4 PR2d (HIGH-β) + PR-BT-3: the child now dispatches via switch
+// to one of 7 per-category service wrappers. Of those 7 categories, BOTH visual
+// categories (part_visual per LCC-M-2, section_visual per PR-BT-3 / FIND
+// 019e5a11) throw via the dispatch switch and are pinned by T15b, leaving 5
+// invokable categories (part_text, js_animation, motion, background,
+// responsive). Existing T01-T07c tests cover `js_animation` via
+// `backfillJsAnimationsForPage` (= `backfillMock`); the T15 CATEGORY_FIXTURES
+// loop spies the remaining 4 invokable per-category mocks
+// (backfillSectionVisualsForPage is declared below for completeness but
+// section_visual now throws, so the T15b fixture — not CATEGORY_FIXTURES —
+// covers it).
 //
-// PR2d (HIGH-β): child は dispatch switch で 7 service wrapper のいずれかへ
-// routing するようになった。既存 T01-T07c は `backfillJsAnimationsForPage`
-// (= `backfillMock`) を使い、T15 fixture が 6 個の per-category mock を spy
-// する (part_visual は LCC-M-2 で dispatch switch が throw する仕様のため
-// 除外、T15b で別途 pin)。
+// PR2d (HIGH-β) + PR-BT-3: child は dispatch switch で 7 service wrapper の
+// いずれかへ routing する。7 category のうち両 visual category (part_visual は
+// LCC-M-2、section_visual は PR-BT-3 / FIND 019e5a11) が dispatch switch で
+// throw し T15b で pin、残り 5 個が invokable (part_text, js_animation, motion,
+// background, responsive)。既存 T01-T07c は `js_animation` を
+// `backfillJsAnimationsForPage` (= `backfillMock`) で網羅し、T15
+// CATEGORY_FIXTURES loop は残り 4 個の invokable per-category mock を spy する
+// (backfillSectionVisualsForPage は下記に宣言は残すが section_visual は throw
+// するため CATEGORY_FIXTURES ではなく T15b fixture が網羅)。
 const perCategoryMocks = vi.hoisted(() => {
   return {
     backfillPartTextForPage: vi.fn(),
@@ -301,22 +311,24 @@ vi.mock("../../../src/services/embedding-backfill.service.js", () => ({
 // ----------------------------------------------------------------------------
 // After PR2c the child runs `setEmbeddingServiceFactory` / `setPrismaClientFactory`
 // via dynamic import of `layout-embedding.service`, `@reftrixmcp/database`, and
-// `@reftrixmcp/ml`. These modules transitively pull in the real Prisma client,
-// ONNX Runtime session allocator, etc. — none of which are available (nor
-// desired) in an in-process contract test. Stub them so the contract test
-// exercises only the IPC / entry-point logic (T03 / T05 / T06 / T07* already
-// mock `embedding-backfill.service` which is what actually USES these
+// `@reftrixmcp/ml` (plus `frame-embedding.service` for the motion backfill DI fix —
+// see backfill-child-di.ts; 4 imports total). These modules transitively pull in
+// the real Prisma client, ONNX Runtime session allocator, etc. — none of which
+// are available (nor desired) in an in-process contract test. Stub them so the
+// contract test exercises only the IPC / entry-point logic (T03 / T05 / T06 / T07*
+// already mock `embedding-backfill.service` which is what actually USES these
 // factories, so recording-only stubs are sufficient).
 //
 // PR2c (TPA-H PR2b-β canary hotfix): child-side DI factory の dependencies。
 // PR2c 以降 child は `layout-embedding.service` / `@reftrixmcp/database` /
-// `@reftrixmcp/ml` を dynamic import して `setEmbeddingServiceFactory` /
-// `setPrismaClientFactory` を呼ぶ。contract test は IPC / entry-point 層のみを
-// 扱うため、これらの heavy module をスタブ化して実 Prisma connection や ONNX
-// Runtime session allocation を発生させない。`embedding-backfill.service` 自体
-// は既に mock 済なので、recording-only stub で contract test の各 T03/T05/T06/
-// T07* assertion は影響を受けない (factory は呼ばれるが、その下流の実
-// getEmbeddingService() は mock 経由で bypass される)。
+// `@reftrixmcp/ml` (+ motion backfill DI fix で追加された `frame-embedding.service`、
+// 計 4 import) を dynamic import して `setEmbeddingServiceFactory` /
+// `setPrismaClientFactory` / `setFramePrismaClientFactory` を呼ぶ。contract test は
+// IPC / entry-point 層のみを扱うため、これらの heavy module をスタブ化して実
+// Prisma connection や ONNX Runtime session allocation を発生させない。
+// `embedding-backfill.service` 自体は既に mock 済なので、recording-only stub で
+// contract test の各 T03/T05/T06/T07* assertion は影響を受けない (factory は
+// 呼ばれるが、その下流の実 getEmbeddingService() は mock 経由で bypass される)。
 const { layoutEmbeddingMockControls } = vi.hoisted(() => {
   return {
     layoutEmbeddingMockControls: {
@@ -346,14 +358,16 @@ vi.mock("@reftrixmcp/ml", () => {
 
 // v0.4.0 PR7e-β4 PR2d (HIGH-α): the child now invokes
 // `setupBackfillChildDI()` helper instead of an inline DI setup. The helper
-// itself calls the same 3 dynamic imports above; we stub it as a no-op so
-// the contract test exercises only the IPC / entry-point + dispatch switch
-// logic. T14 (PR2d) source-pattern grep continues to pin the helper presence.
+// itself calls the same 4 dynamic imports above (incl. `frame-embedding.service`
+// for the motion backfill DI fix); we stub it as a no-op so the contract test
+// exercises only the IPC / entry-point + dispatch switch logic. T14 (PR2d)
+// source-pattern grep continues to pin the helper presence.
 //
 // PR2d (HIGH-α): child は inline DI setup の代わりに `setupBackfillChildDI()`
-// helper を呼ぶ。helper を no-op に stub し、contract test は IPC / entry-
-// point + dispatch switch logic のみを扱う。T14 (PR2d) source-pattern grep が
-// helper presence を pin。
+// helper を呼ぶ。helper 自体は上記と同じ 4 dynamic import (motion backfill DI
+// fix で追加された `frame-embedding.service` を含む) を呼ぶ。helper を no-op に
+// stub し、contract test は IPC / entry-point + dispatch switch logic のみを
+// 扱う。T14 (PR2d) source-pattern grep が helper presence を pin。
 vi.mock("../../../src/workers/phases/shared/backfill-child-di", () => ({
   setupBackfillChildDI: vi.fn(async () => {}),
 }));
@@ -423,21 +437,31 @@ describe("embedding-backfill-child contract (PR7e-β4 PR2b-α)", { retry: 2 }, (
   });
 
   // --------------------------------------------------------------------------
-  // T00b (PR2c canary): confirm vi.mock routes the 3 DI-factory targets so the
-  // child's `await import(...)` chain resolves within the `dispatch()` flush
+  // T00b (PR2c canary): confirm vi.mock routes the heavy DI-factory targets so
+  // the child's `await import(...)` chain resolves within the `dispatch()` flush
   // budget. Acts as an early canary for PR2c — if any of these fail, T03 /
   // T05 / T06 / T07* failures are a resolver issue (not a logic bug).
+  // NOTE: production `setupBackfillChildDI()` now imports 4 modules (the motion
+  // backfill DI fix added `frame-embedding.service`); this canary warms the 3
+  // heaviest resolver targets below (layout-embedding.service.js / @reftrixmcp/
+  // database / @reftrixmcp/ml), which is sufficient to populate the module-graph
+  // cache — the `frame-embedding.service` resolution is exercised by the
+  // dedicated INV `backfill-child-di-frame-factory.test.ts`.
   //
   // Without this warm-up test, the vitest hoisted-mock resolver does not
-  // populate its module-graph cache for the 3 new specifiers until the first
+  // populate its module-graph cache for these specifiers until the first
   // real import fires inside `runBackfill`. In that scenario, T03 sees
   // `callCount=0` because the microtask budget is exhausted before the second
   // dynamic import (`layout-embedding.service.js`) can resolve through the
   // mock.
   //
-  // T00b (PR2c canary): DI-factory 3 target (layout-embedding.service.js /
+  // T00b (PR2c canary): heavy DI-factory target (layout-embedding.service.js /
   // @reftrixmcp/database / @reftrixmcp/ml) の vi.mock 解決を事前に warm-up する。
-  // 本 test を実行しないと、vitest hoisted-mock resolver の module graph
+  // production の `setupBackfillChildDI()` は motion backfill DI fix で追加された
+  // `frame-embedding.service` を含む計 4 module を import するが、本 canary は
+  // module-graph cache 充足に十分な heavy 3 target を warm-up する (`frame-
+  // embedding.service` の解決は専用 INV `backfill-child-di-frame-factory.test.ts`
+  // で検証)。本 test を実行しないと、vitest hoisted-mock resolver の module graph
   // cache が未充足で、child の `await import(...)` chain が dispatch flush
   // budget 内に解決しきれず T03/T05/T06/T07* が `callCount=0` で fail する。
   // PR2c 以降の regression canary。
@@ -675,11 +699,9 @@ describe("embedding-backfill-child contract (PR7e-β4 PR2b-α)", { retry: 2 }, (
       // T05 が file の first dispatch 位置に shifted し、PR2c までの 2
       // setImmediate では cold-start cost を吸収しきれない。
       for (let i = 0; i < 60; i += 1) {
-        // eslint-disable-next-line no-await-in-loop
         await Promise.resolve();
       }
       for (let i = 0; i < 8; i += 1) {
-        // eslint-disable-next-line no-await-in-loop
         await new Promise((r) => setImmediate(r));
       }
       const progressMsgs = harness.messages.filter((m) => m.kind === "backfill.progress");
@@ -745,14 +767,12 @@ describe("embedding-backfill-child contract (PR7e-β4 PR2b-α)", { retry: 2 }, (
       // 40 → 80 に引上げ。fake timer 下では macrotask が進まないため
       // microtask ループのみで全 chain を flush する必要がある。
       for (let i = 0; i < 80; i += 1) {
-        // eslint-disable-next-line no-await-in-loop
         await Promise.resolve();
       }
       // Advance fake clock by 30s — expect ≥ 1 heartbeat fired.
       vi.advanceTimersByTime(30_000);
       // Let scheduled callbacks flush to IPC.
       for (let i = 0; i < 10; i += 1) {
-        // eslint-disable-next-line no-await-in-loop
         await Promise.resolve();
       }
       let heartbeats = harness.messages.filter((m) => m.kind === "backfill.heartbeat");
@@ -761,7 +781,6 @@ describe("embedding-backfill-child contract (PR7e-β4 PR2b-α)", { retry: 2 }, (
       // Advance another 30s — expect cumulative ≥ 2.
       vi.advanceTimersByTime(30_000);
       for (let i = 0; i < 10; i += 1) {
-        // eslint-disable-next-line no-await-in-loop
         await Promise.resolve();
       }
       heartbeats = harness.messages.filter((m) => m.kind === "backfill.heartbeat");
@@ -804,11 +823,9 @@ describe("embedding-backfill-child contract (PR7e-β4 PR2b-α)", { retry: 2 }, (
       // PR2d (HIGH-α): helper + dispatch 動的 import の追加 microtask +
       // setImmediate 予算を確保する。
       for (let i = 0; i < 60; i += 1) {
-        // eslint-disable-next-line no-await-in-loop
         await Promise.resolve();
       }
       for (let i = 0; i < 8; i += 1) {
-        // eslint-disable-next-line no-await-in-loop
         await new Promise((r) => setImmediate(r));
       }
 
@@ -1059,14 +1076,14 @@ describe("embedding-backfill-child contract (PR7e-β4 PR2b-α)", { retry: 2 }, (
 
   // --------------------------------------------------------------------------
   // T15 (PR2d HIGH-β + HIGH-δ): parameterized contract verification across the
-  // 6 invokable backfill categories. Each fixture pins:
+  // 5 invokable backfill categories. Each fixture pins:
   //   (a) the dispatch switch routes `params.category` to the matching
   //       per-category service wrapper
   //   (b) `partsLimit` is propagated end-to-end (TPA-H-1 / ADR-0007 head-100)
   //   (c) `backfill.done` IPC carries observability fields per TPA-H-1
   //   (d) errors are sanitized before IPC emission (SEC-M-1 / CWE-209)
   //
-  // T15 (PR2d HIGH-β + HIGH-δ): 6 invokable backfill category への
+  // T15 (PR2d HIGH-β + HIGH-δ): 5 invokable backfill category への
   // parameterized contract 検証。各 fixture は以下を pin する:
   //   (a) dispatch switch が `params.category` を per-category service wrapper
   //       へ正しく routing する
@@ -1074,34 +1091,35 @@ describe("embedding-backfill-child contract (PR7e-β4 PR2b-α)", { retry: 2 }, (
   //   (c) `backfill.done` IPC の observability フィールド搬送
   //   (d) IPC 送信前の sanitize (SEC-M-1 / CWE-209)
   //
-  // Note: `part_visual` is intentionally excluded — the dispatch switch
-  // throws for it (LCC-M-2: requires `runVisualEmbeddingSubPhases` flow not
-  // yet wrapped in service layer; PR3b ships the wrapper). T15b pins the
-  // throw behavior separately.
+  // Note: BOTH visual categories (`part_visual` + `section_visual`) are
+  // intentionally excluded — the dispatch switch throws for them (LCC-M-2:
+  // they require the `runVisualEmbeddingSubPhases` DINOv2 + marker flow not
+  // yet wrapped in the service layer; PR3b ships the wrapper). `part_visual`
+  // throws per LCC-M-2; `section_visual` throws per PR-BT-3 (FIND 019e5a11) so
+  // the in-process DINOv2 + `writeSectionVisionSkipReason` marker path is
+  // reached. T15b pins both throw behaviours separately.
   //
-  // 注: `part_visual` は意図的に除外 — dispatch switch が throw する
-  // (LCC-M-2: `runVisualEmbeddingSubPhases` 経路の service wrapper 未実装、
-  // PR3b 対応)。T15b で throw 挙動を別途 pin。
+  // 注: 両 visual category (`part_visual` + `section_visual`) は意図的に除外 —
+  // dispatch switch が throw する (LCC-M-2: `runVisualEmbeddingSubPhases`
+  // DINOv2 + marker 経路の service wrapper 未実装、PR3b 対応)。`part_visual` は
+  // LCC-M-2、`section_visual` は PR-BT-3 (FIND 019e5a11) で throw し in-process
+  // DINOv2 + `writeSectionVisionSkipReason` marker path に到達させる。T15b で
+  // 両 throw 挙動を別途 pin。
   // --------------------------------------------------------------------------
   type CategoryFixture = {
-    category: "part_text" | "section_visual" | "motion" | "background" | "responsive";
+    category: "part_text" | "motion" | "background" | "responsive";
     serviceMock: keyof typeof perCategoryMocks;
     label: string;
   };
 
   const CATEGORY_FIXTURES: CategoryFixture[] = [
     { category: "part_text", serviceMock: "backfillPartTextForPage", label: "part_text" },
-    {
-      category: "section_visual",
-      serviceMock: "backfillSectionVisualsForPage",
-      label: "section_visual",
-    },
     { category: "motion", serviceMock: "backfillMotionsForPage", label: "motion" },
     { category: "background", serviceMock: "backfillBackgroundsForPage", label: "background" },
     { category: "responsive", serviceMock: "backfillResponsiveForPage", label: "responsive" },
   ];
 
-  describe("T15 (PR2d HIGH-β + HIGH-δ): parameterized 6-category dispatch contract", () => {
+  describe("T15 (PR2d HIGH-β + HIGH-δ): parameterized 5-category dispatch contract", () => {
     for (const fixture of CATEGORY_FIXTURES) {
       it(`T15.${fixture.label}: dispatch switch routes to ${fixture.serviceMock} with partsLimit + backfill.done observability`, async () => {
         // Per-fixture mock with distinct generated count for routing
@@ -1180,51 +1198,72 @@ describe("embedding-backfill-child contract (PR7e-β4 PR2b-α)", { retry: 2 }, (
     }
 
     // ------------------------------------------------------------------------
-    // T15b (LCC-M-2): part_visual fork dispatch deliberately throws so the
-    // orchestrator's catch-fallback routes to in-process. This pins the
-    // documented PR2d behavior until PR3b ships
-    // `backfillPartVisualsForPage(webPageId, options)`.
+    // T15b (LCC-M-2 + PR-BT-3): BOTH visual fork dispatches deliberately throw
+    // so the orchestrator's catch-fallback routes to in-process. `part_visual`
+    // throws per LCC-M-2 (until PR3b ships `backfillPartVisualsForPage`);
+    // `section_visual` throws per PR-BT-3 (FIND 019e5a11) so the in-process
+    // DINOv2 + `writeSectionVisionSkipReason` terminal-skip marker path is
+    // reached (a text-only success return left it production-inert). Both pin
+    // the documented throw → in-process fallback behaviour symmetrically.
     //
-    // T15b (LCC-M-2): part_visual は dispatch switch が意図的に throw し
-    // orchestrator の catch-fallback で in-process 経路に乗せる。PR3b で
-    // `backfillPartVisualsForPage` が新設されるまでの documented 挙動を pin。
+    // T15b (LCC-M-2 + PR-BT-3): 両 visual dispatch が意図的に throw し
+    // orchestrator の catch-fallback で in-process 経路に乗せる。`part_visual`
+    // は LCC-M-2 (PR3b で `backfillPartVisualsForPage` 新設まで)、`section_visual`
+    // は PR-BT-3 (FIND 019e5a11) で throw し in-process DINOv2 +
+    // `writeSectionVisionSkipReason` marker path に到達させる (text-only success
+    // 返却は production-inert だった)。両者を対称に pin。
     // ------------------------------------------------------------------------
-    it("T15b (LCC-M-2): part_visual dispatch throws so orchestrator falls back to in-process", async () => {
-      const harness = installProcessHarness();
-      try {
-        await import("../../../src/workers/phases/embedding-backfill-child");
-        await harness.dispatch({
-          type: "backfill.run",
-          kind: "backfill.run",
-          jobId: "job-part-visual",
-          webPageId: VALID_UUID,
-          category: "part_visual",
-          partsLimit: 100,
-          startedAt: VALID_ISO,
-        });
-        await new Promise((r) => setImmediate(r));
-        await new Promise((r) => setImmediate(r));
-        await new Promise((r) => setImmediate(r));
+    const VISUAL_THROW_FIXTURES = [
+      { category: "part_visual", jobId: "job-part-visual", origin: "LCC-M-2" },
+      {
+        category: "section_visual",
+        jobId: "job-section-visual",
+        origin: "PR-BT-3 (FIND 019e5a11)",
+      },
+    ] as const;
 
-        // backfill.error IPC is sent (the orchestrator translates this into
-        // the in-process fallback path documented in ADR-0015 Amendment 8
-        // LCC-M-2). The thrown message is sanitized via sanitizeErrorMessage
-        // in the runBackfill catch path (SEC-M-1 invariant).
-        // backfill.error IPC が送出される (orchestrator が ADR-0015 Amendment
-        // 8 LCC-M-2 の in-process fallback を起動する起点)。runBackfill catch
-        // path で sanitize 経由 (SEC-M-1 invariant)。
-        const errs = harness.messages.filter((m) => m.kind === "backfill.error");
-        expect(errs.length).toBeGreaterThanOrEqual(1);
-        const err = errs[0] as { message: string };
-        expect(typeof err.message).toBe("string");
-        expect(err.message.length).toBeGreaterThan(0);
-        // exit(1) follows the error.
-        // error 直後に exit(1)。
-        expect(harness.exits.some((e) => e.code === 1)).toBe(true);
-      } finally {
-        harness.restore();
-      }
-    });
+    for (const fixture of VISUAL_THROW_FIXTURES) {
+      it(`T15b (${fixture.origin}): ${fixture.category} dispatch throws so orchestrator falls back to in-process`, async () => {
+        const harness = installProcessHarness();
+        try {
+          await import("../../../src/workers/phases/embedding-backfill-child");
+          await harness.dispatch({
+            type: "backfill.run",
+            kind: "backfill.run",
+            jobId: fixture.jobId,
+            webPageId: VALID_UUID,
+            category: fixture.category,
+            partsLimit: 100,
+            startedAt: VALID_ISO,
+          });
+          await new Promise((r) => setImmediate(r));
+          await new Promise((r) => setImmediate(r));
+          await new Promise((r) => setImmediate(r));
+
+          // backfill.error IPC is sent (the orchestrator translates this into
+          // the in-process fallback path: ADR-0015 Amendment 8 LCC-M-2 for
+          // part_visual, PR-BT-3 for section_visual). The thrown message is
+          // sanitized via sanitizeErrorMessage in the runBackfill catch path
+          // (SEC-M-1 invariant). For section_visual the catch-fallback lands in
+          // SectionVisualProcessor.processInProcess where the PR-BT-2 marker lives.
+          // backfill.error IPC が送出される (orchestrator が part_visual は
+          // ADR-0015 Amendment 8 LCC-M-2、section_visual は PR-BT-3 の in-process
+          // fallback を起動する起点)。runBackfill catch path で sanitize 経由
+          // (SEC-M-1 invariant)。section_visual は SectionVisualProcessor
+          // .processInProcess (PR-BT-2 marker の在処) に fallback する。
+          const errs = harness.messages.filter((m) => m.kind === "backfill.error");
+          expect(errs.length).toBeGreaterThanOrEqual(1);
+          const err = errs[0] as { message: string };
+          expect(typeof err.message).toBe("string");
+          expect(err.message.length).toBeGreaterThan(0);
+          // exit(1) follows the error.
+          // error 直後に exit(1)。
+          expect(harness.exits.some((e) => e.code === 1)).toBe(true);
+        } finally {
+          harness.restore();
+        }
+      });
+    }
   });
 
   // --------------------------------------------------------------------------

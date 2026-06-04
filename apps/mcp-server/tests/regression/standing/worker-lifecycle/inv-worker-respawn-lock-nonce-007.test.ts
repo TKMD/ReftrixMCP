@@ -61,6 +61,19 @@ const SRC_WORKER_SUPERVISOR = path.resolve(
   REPO_ROOT_RELATIVE_FROM_TEST,
   "src/services/worker-supervisor.service.ts"
 );
+// CO-26 split: spawn / IPC / exit / initiated-restart logic moved to Module B.
+// Static-grep regression guards now check the lifecycle module.
+const SRC_WORKER_SUPERVISOR_LIFECYCLE = path.resolve(
+  __dirname,
+  REPO_ROOT_RELATIVE_FROM_TEST,
+  "src/services/worker-supervisor-lifecycle.service.ts"
+);
+// CO-26 split: Redis lock orchestration moved to Module C.
+const SRC_WORKER_SUPERVISOR_LOCK = path.resolve(
+  __dirname,
+  REPO_ROOT_RELATIVE_FROM_TEST,
+  "src/services/worker-supervisor-lock-orchestrator.service.ts"
+);
 const SRC_WORKER_SUPERVISOR_HELPERS = path.resolve(
   __dirname,
   REPO_ROOT_RELATIVE_FROM_TEST,
@@ -74,6 +87,22 @@ const SRC_BACKFILL_WORKER = path.resolve(
 
 function readSource(absPath: string): string {
   return fs.readFileSync(absPath, "utf-8");
+}
+
+/**
+ * CO-26 split helper — read combined source from Module A facade + Module B
+ * lifecycle + Module C lock-orchestrator. Used by static-grep regression guards
+ * to verify patterns regardless of which module currently owns them.
+ *
+ * CO-26 split helper — Module A/B/C 結合ソースを読む。Static-grep regression
+ * guard が module 移動後も機能するように。
+ */
+function readCombinedSupervisorSource(): string {
+  return [
+    readSource(SRC_WORKER_SUPERVISOR),
+    readSource(SRC_WORKER_SUPERVISOR_LIFECYCLE),
+    readSource(SRC_WORKER_SUPERVISOR_LOCK),
+  ].join("\n");
 }
 
 // ============================================================================
@@ -206,8 +235,27 @@ describe("INV-WORKER-RESPAWN-LOCK-NONCE-007", () => {
     // Static contract: handleWorkerExit pulls childState.lockNonce and forwards
     // to handlePlannedRestart / handleUnexpectedExit which both forward to
     // runSelfChainedRespawnAndSchedule(workerType, exitedNonce).
-    const supSrc = readSource(SRC_WORKER_SUPERVISOR);
-    expect(supSrc).toContain("const exitedNonce = childState?.lockNonce;");
+    // CO-26 split: spawn / IPC / exit / initiated-restart logic moved to Module B
+    // (worker-supervisor-lifecycle.service.ts). Combined source covers both Module A
+    // facade and Module B lifecycle for static-grep regression preservation.
+    //
+    // Plan v2 PR-C (handleWorkerExit CC closure, FIND-IMPL-TDA-PR3-CC-CARRYOVER):
+    // the inline `const exitedNonce = childState?.lockNonce;` was refactored into
+    // the `captureExitedChildSnapshot` helper, which returns `exitedNonce` derived
+    // from `childState?.lockNonce`; `handleWorkerExit` then forwards `snap.exitedNonce`
+    // to handlePlannedRestart / handleUnexpectedExit. The forwarding contract is
+    // UNCHANGED (verified against the post-refactor source below) — the nonce
+    // captured from the exited child's lockNonce still propagates all the way to
+    // executeSelfChainedRespawn. These pins assert all THREE links of the chain so
+    // a future regression that severs nonce forwarding (e.g. dropping the snapshot
+    // field or passing a fresh UUID) is caught at CI; they are NOT weakened.
+    const supSrc = readCombinedSupervisorSource();
+    // Link 1: the snapshot helper derives exitedNonce from the exited child's lockNonce.
+    expect(supSrc).toMatch(/exitedNonce:\s*childState\?\.lockNonce/);
+    // Link 2: handleWorkerExit forwards snap.exitedNonce into BOTH restart branches.
+    expect(supSrc).toContain("snap.exitedNonce");
+    // Link 3: both branches forward exitedNonce to runSelfChainedRespawnAndSchedule
+    //         and onward to executeSelfChainedRespawn (terminal forwarding point).
     expect(supSrc).toContain(
       "void this.runSelfChainedRespawnAndSchedule(workerType, exitedNonce);"
     );
@@ -248,12 +296,18 @@ describe("INV-WORKER-RESPAWN-LOCK-NONCE-007", () => {
   // ==========================================================================
 
   it("INV-WORKER-RESPAWN-LOCK-NONCE-007: case (4) static-source-grep regression guard — `lockNonce = randomUUID()` MUST NOT re-appear in worker-supervisor.service.ts", () => {
-    const supSrc = readSource(SRC_WORKER_SUPERVISOR);
+    // CO-26 split: spawn logic moved to Module B (lifecycle); check both modules.
+    const supSrc = readCombinedSupervisorSource();
     const matches = supSrc.match(/lockNonce\s*=\s*randomUUID\(\)/g) ?? [];
     expect(matches.length).toBe(0);
 
-    // Positive contract: spawnWorker uses `this.bootTokens[workerType]` for lockNonce.
-    expect(supSrc).toMatch(/const\s+lockNonce\s*=\s*this\.bootTokens\[workerType\]\s*;/);
+    // Positive contract: spawnWorker (now in Module B) initialises `lockNonce`
+    // from `bootToken`. Module B uses `const bootToken = this.supervisor.getBootTokenForType(workerType)`
+    // and `const lockNonce = bootToken;` (semantically equivalent to legacy
+    // `this.bootTokens[workerType]` direct access). Accept either pattern.
+    expect(supSrc).toMatch(
+      /(const\s+lockNonce\s*=\s*this\.bootTokens\[workerType\]\s*;|const\s+lockNonce\s*=\s*bootToken\s*;)/
+    );
   });
 
   // ==========================================================================
@@ -287,7 +341,8 @@ describe("INV-WORKER-RESPAWN-LOCK-NONCE-007", () => {
     //     bootToken — verified at the source-grep level: the
     //     `releaseRedisLockBestEffort(workerType)` signature is per-type
     //     and uses `this.bootTokens[workerType]` (not a cross-type token).
-    const supSrc = readSource(SRC_WORKER_SUPERVISOR);
+    // CO-26 split: lock orchestration moved to Module C; check combined source.
+    const supSrc = readCombinedSupervisorSource();
     expect(supSrc).toMatch(/releaseLock\(workerType,\s*this\.bootTokens\[workerType\]\)/);
     expect(supSrc).toMatch(/extendLock\(workerType,\s*this\.bootTokens\[workerType\]\)/);
     // Item 3 (CO-31) — `acquireRedisLockBestEffort` is now a thin caller that
@@ -333,7 +388,10 @@ describe("INV-WORKER-RESPAWN-LOCK-NONCE-007", () => {
   // ==========================================================================
 
   it("INV-WORKER-RESPAWN-LOCK-NONCE-007: case (7) NF-6 clearInterval on state='crashed' entry — both crash_max_attempts and foreign_lock paths invoke clearLockHeartbeatTimer (CWE-770)", () => {
-    const supSrc = readSource(SRC_WORKER_SUPERVISOR);
+    // CO-26 split: crashed-entry paths moved to Module B (lifecycle).
+    // Module B accesses Module C's lockHeartbeatTimers via Module A facade
+    // indirect path: `this.supervisor.getLockOrchestrator().getLockHeartbeatTimers()`.
+    const supSrc = readCombinedSupervisorSource();
     const helperSrc = readSource(SRC_WORKER_SUPERVISOR_HELPERS);
 
     // Helper exists with the per-type Map signature.
@@ -341,26 +399,33 @@ describe("INV-WORKER-RESPAWN-LOCK-NONCE-007", () => {
     expect(helperSrc).toContain("clearInterval(heartbeatTimer);");
     expect(helperSrc).toContain("lockHeartbeatTimers.delete(workerType);");
 
-    // The supervisor MUST import clearLockHeartbeatTimer.
+    // The lifecycle module (Module B) MUST import clearLockHeartbeatTimer.
+    // Either Module A or Module B may carry the import; combined source covers both.
     expect(supSrc).toMatch(
       /import\s*\{[\s\S]*?clearLockHeartbeatTimer[\s\S]*?\}\s*from\s*["']\.\/worker-supervisor-helpers["']/
     );
 
     // Both crash-entry paths MUST call the helper. Two invocations expected.
+    // CO-26 split: callsites now use indirect path
+    // `this.supervisor.getLockOrchestrator().getLockHeartbeatTimers()`.
+    // Accept both legacy `this.lockHeartbeatTimers` and new indirect-path forms.
     const helperCallMatches = supSrc.match(
-      /clearLockHeartbeatTimer\(workerType,\s*this\.lockHeartbeatTimers\)/g
+      /clearLockHeartbeatTimer\(\s*workerType,\s*(?:this\.lockHeartbeatTimers|this\.supervisor\.getLockOrchestrator\(\)\.getLockHeartbeatTimers\(\))/g
     );
     expect(helperCallMatches).not.toBeNull();
     expect(helperCallMatches!.length).toBeGreaterThanOrEqual(2);
 
     // Verify proximity to both crash branches.
-    // (a) crash_max_attempts: state.state="crashed" then helper call before audit emit.
+    // CO-26 split: crashed-entry paths moved to Module B; state mutation now
+    // goes through `this.supervisor.markWorkerCrashed(workerType)` instead of
+    // direct `state.state = "crashed";` mutation. Accept both patterns.
+    // (a) crash_max_attempts: markWorkerCrashed then helper call before audit emit.
     expect(supSrc).toMatch(
-      /state\.state\s*=\s*"crashed";\s*\n\s*clearLockHeartbeatTimer\(workerType,\s*this\.lockHeartbeatTimers\)[^\n]*\n\s*emitWorkerRestartAudit\(/
+      /(state\.state\s*=\s*"crashed"|this\.supervisor\.markWorkerCrashed\(workerType\))[\s\S]{0,200}clearLockHeartbeatTimer\(\s*workerType,[\s\S]{0,200}emitWorkerRestartAudit\(/
     );
-    // (b) foreign_lock case branch: state.state="crashed" then helper call before break.
+    // (b) foreign_lock case branch: markWorkerCrashed then helper call before break.
     expect(supSrc).toMatch(
-      /case\s*"foreign_lock":[\s\S]{0,400}state\.state\s*=\s*"crashed";\s*\n\s*clearLockHeartbeatTimer\(workerType,\s*this\.lockHeartbeatTimers\)[^\n]*\n\s*break;/
+      /case\s*"foreign_lock":[\s\S]{0,500}(state\.state\s*=\s*"crashed"|this\.supervisor\.markWorkerCrashed\(workerType\))[\s\S]{0,400}clearLockHeartbeatTimer\(\s*workerType,[\s\S]{0,200}break;/
     );
   });
 
@@ -370,20 +435,26 @@ describe("INV-WORKER-RESPAWN-LOCK-NONCE-007", () => {
   // ==========================================================================
 
   it("INV-WORKER-RESPAWN-LOCK-NONCE-007: case (8) AST/static-grep regression guard — `lockNonce = randomUUID()` 0 hits AND clearInterval helper call appears in both crash-entry paths", () => {
-    const supSrc = readSource(SRC_WORKER_SUPERVISOR);
+    // CO-26 split: combined Module A/B/C source for static-grep guards.
+    const supSrc = readCombinedSupervisorSource();
 
     // (a) lockNonce drift guard: `lockNonce = randomUUID()` 0 hits.
     expect((supSrc.match(/lockNonce\s*=\s*randomUUID\(\)/g) ?? []).length).toBe(0);
 
     // (b) Both crash-entry paths invoke clearLockHeartbeatTimer (NF-6 / CWE-770).
+    // CO-26 split: helper call now uses indirect path
+    // `this.supervisor.getLockOrchestrator().getLockHeartbeatTimers()`.
     const helperCalls = supSrc.match(
-      /clearLockHeartbeatTimer\(workerType,\s*this\.lockHeartbeatTimers\)/g
+      /clearLockHeartbeatTimer\(\s*workerType,\s*(?:this\.lockHeartbeatTimers|this\.supervisor\.getLockOrchestrator\(\)\.getLockHeartbeatTimers\(\))/g
     );
     expect(helperCalls).not.toBeNull();
     expect(helperCalls!.length).toBeGreaterThanOrEqual(2);
 
     // (c) handleUnexpectedExit `crash_max_attempts` branch landing.
-    expect(supSrc).toMatch(/if\s*\(state\.restartCount\s*>=\s*this\.config\.maxRestartAttempts\)/);
+    // CO-26 split: maxRestartAttempts now read via supervisor accessor in Module B.
+    expect(supSrc).toMatch(
+      /if\s*\(\s*(state\.restartCount\s*>=\s*this\.config\.maxRestartAttempts|restartCount\s*>=\s*maxRestartAttempts)\s*\)/
+    );
 
     // (d) runSelfChainedRespawnAndSchedule `foreign_lock` switch branch landing.
     expect(supSrc).toMatch(/case\s*"foreign_lock":/);

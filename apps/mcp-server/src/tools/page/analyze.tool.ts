@@ -470,16 +470,19 @@ export async function pageAnalyzeHandler(
       // PR-D-6 Phase 2: migrate legacy `addPageAnalyzeJob` → collision-guarded
       // SSOT helper. Returns `EnqueueResult` (5-variant discriminated union
       // post PR-D-7 Phase 2 Wave 2 Option Z-a); we branch on `outcome` for
-      // observability while preserving the existing user-facing response
-      // contract (jobId === webPageId).
-      // PR-D-6 Phase 2: legacy API → with-guard SSOT helper. `EnqueueResult`
-      // variants drive observability-only logging; user-facing contract stays
-      // anchored on `webPageId`.
+      // observability.
+      //
+      // ADR-0018 Amendment 11 (Strategy A): the BullMQ jobId is now the
+      // URL-stable UUIDv5 (`enqueueResult.jobId`), NOT `webPageId`. The async
+      // response surfaces `enqueueResult.jobId` so the client polls the actual
+      // BullMQ job (`getJobStatus` does `queue.getJob(jobId)`); `webPageId` is
+      // added additively for clients that still need the per-call web_pages id.
       const enqueueResult = await addPageAnalyzeJobWithGuard(queue, {
         webPageId,
         url: validated.url,
         options: jobOptions,
       });
+      const jobId = enqueueResult.jobId;
 
       // Always-on structured log: `outcome` surfaces enqueued_new /
       // reused_active / enqueued_retry / limbo_forced / enqueued_fail_open for
@@ -507,13 +510,14 @@ export async function pageAnalyzeHandler(
         : "";
       const asyncResponse: PageAnalyzeAsyncOutput = {
         async: true,
-        jobId: webPageId,
+        jobId,
+        webPageId,
         status: "queued",
-        message: `Job queued successfully.${autoAsyncNote} Use page.getJobStatus(job_id="${webPageId}") to check progress.`,
+        message: `Job queued successfully.${autoAsyncNote} Use page.getJobStatus(job_id="${jobId}") to check progress.`,
         polling: {
           intervalSeconds: 10, // Vision処理は長時間かかるため10秒間隔を推奨
           retentionHours: 24,
-          howToCheck: `Call page.getJobStatus with job_id="${webPageId}" to check job status and retrieve results.`,
+          howToCheck: `Call page.getJobStatus with job_id="${jobId}" to check job status and retrieve results.`,
         },
       };
 
@@ -698,6 +702,36 @@ export const pageAnalyzeToolDefinition = {
             default: true,
             description:
               "Use Vision API (Ollama + llama3.2-vision) to analyze screenshot for section detection. Delegates to layout.inspect screenshot mode. (default: true)",
+          },
+          // PR-L2 (CO-ASYNC-03): nested coercion parity — string→scalar coercion
+          // for the following nested scalars (constraints match input.schemas.ts).
+          perSectionVision: {
+            type: "boolean",
+            default: true,
+            description:
+              "Enable per-section Vision analysis for more accurate semantic search. Requires useVision=true. Increases processing time. (default: true) / セクション単位のVision解析を有効化（処理時間増加、デフォルト: true）",
+          },
+          visionBatchSize: {
+            type: "number",
+            minimum: 1,
+            maximum: 10,
+            default: 5,
+            description:
+              "Maximum concurrent Vision API calls when perSectionVision is enabled (default: 5) / perSectionVision有効時の最大並列Vision API呼び出し数（デフォルト: 5）",
+          },
+          scrollVision: {
+            type: "boolean",
+            default: true,
+            description:
+              "Scroll-position Smart Capture + Vision analysis at section boundaries (async mode only, default: true) / スクロール位置スマートキャプチャ + Vision解析（asyncモードのみ、デフォルト: true）",
+          },
+          scrollVisionMaxCaptures: {
+            type: "number",
+            minimum: 2,
+            maximum: 20,
+            default: 10,
+            description:
+              "Maximum number of scroll positions to capture (default: 10) / キャプチャするスクロール位置の最大数（デフォルト: 10）",
           },
         },
       },
@@ -899,6 +933,151 @@ export const pageAnalyzeToolDefinition = {
             description:
               "Motion detection timeout in milliseconds. MCP Protocol has a 60-second tool call limit. In async mode (page.analyze with async=true), this limit does not apply, allowing longer detection times for heavy WebGL/Three.js sites. (default: 180000 = 3 minutes, max: 600000 = 10 minutes)",
           },
+          // ===== PR-L2 (CO-ASYNC-03): nested coercion parity =====
+          // detect_webgl_animations + video_options / runtime_options /
+          // webgl_animation_options nested scalars. Constraints match
+          // input.schemas.ts (motionOptionsSchema). NOTE: frame_analysis_options
+          // and js_animation_options are ALREADY fully declared above and are
+          // intentionally left untouched.
+          detect_webgl_animations: {
+            type: "boolean",
+            default: true,
+            description:
+              "Enable WebGL/Canvas animation detection (Three.js etc.) via frame-based analysis (requires Playwright, default: true) / WebGL/Canvasアニメーション検出（Three.js等、Playwright必要、デフォルト: true）",
+          },
+          video_options: {
+            type: "object",
+            description:
+              "Video recording + frame analysis options (active when detection_mode='video') / 動画録画+フレーム解析オプション（detection_mode='video'時のみ有効）",
+            properties: {
+              timeout: {
+                type: "number",
+                minimum: 1000,
+                maximum: 120000,
+                default: 30000,
+                description:
+                  "Page load timeout in ms (default: 30000) / ページ読み込みタイムアウト",
+              },
+              record_duration: {
+                type: "number",
+                minimum: 1000,
+                maximum: 60000,
+                default: 10000,
+                description: "Recording duration in ms (default: 10000) / 録画時間",
+              },
+              viewport: {
+                type: "object",
+                description: "Viewport size / ビューポートサイズ",
+                properties: {
+                  width: { type: "number", minimum: 320, maximum: 4096 },
+                  height: { type: "number", minimum: 240, maximum: 4096 },
+                },
+              },
+              scroll_page: {
+                type: "boolean",
+                default: true,
+                description: "Perform scroll operations (default: true) / スクロール操作を行うか",
+              },
+              move_mouse: {
+                type: "boolean",
+                default: true,
+                description:
+                  "Perform mouse-move operations (default: true) / マウス移動操作を行うか",
+              },
+              wait_until: {
+                type: "string",
+                enum: ["load", "domcontentloaded", "networkidle"],
+                default: "domcontentloaded",
+                description:
+                  "Page load completion strategy (default: domcontentloaded) / ページロード完了待機戦略",
+              },
+              frame_analysis: {
+                type: "object",
+                description: "Frame analysis options / フレーム解析オプション",
+                properties: {
+                  fps: {
+                    type: "number",
+                    minimum: 1,
+                    maximum: 30,
+                    default: 15,
+                    description: "Frame rate (1-30fps, default: 15) / フレームレート",
+                  },
+                  change_threshold: {
+                    type: "number",
+                    minimum: 0,
+                    maximum: 1,
+                    default: 0.005,
+                    description: "Change detection threshold (0-1, default: 0.005) / 変化検出閾値",
+                  },
+                  min_motion_duration_ms: {
+                    type: "number",
+                    minimum: 0,
+                    maximum: 10000,
+                    default: 50,
+                    description:
+                      "Minimum motion duration in ms (default: 50) / 最小モーション継続時間",
+                  },
+                  gap_tolerance_ms: {
+                    type: "number",
+                    minimum: 0,
+                    maximum: 1000,
+                    default: 50,
+                    description: "Gap tolerance in ms (default: 50) / ギャップ許容時間",
+                  },
+                },
+              },
+            },
+          },
+          runtime_options: {
+            type: "object",
+            description:
+              "Runtime detection options (active when detection_mode='runtime' or 'hybrid') / ランタイム検出オプション（detection_mode='runtime'または'hybrid'時のみ有効）",
+            properties: {
+              wait_for_animations: {
+                type: "number",
+                minimum: 0,
+                maximum: 30000,
+                default: 5000,
+                description: "Animation wait time in ms (default: 5000) / アニメーション待機時間",
+              },
+            },
+          },
+          webgl_animation_options: {
+            type: "object",
+            description:
+              "WebGL animation detection options (active when detect_webgl_animations=true) / WebGLアニメーション検出オプション（detect_webgl_animations=true時のみ有効）",
+            properties: {
+              sample_frames: {
+                type: "number",
+                minimum: 5,
+                maximum: 100,
+                default: 50,
+                description: "Number of frames to sample (default: 50) / サンプリングフレーム数",
+              },
+              sample_interval_ms: {
+                type: "number",
+                minimum: 50,
+                maximum: 500,
+                default: 100,
+                description: "Frame interval in ms (default: 100) / フレーム間隔",
+              },
+              change_threshold: {
+                type: "number",
+                minimum: 0.001,
+                maximum: 0.5,
+                default: 0.005,
+                description:
+                  "Change detection threshold (0.001-0.5, default: 0.005) / 変化検出閾値",
+              },
+              timeout_ms: {
+                type: "number",
+                minimum: 5000,
+                maximum: 180000,
+                default: 120000,
+                description: "Detection timeout in ms (default: 120000) / 検出タイムアウト",
+              },
+            },
+          },
         },
       },
       qualityOptions: {
@@ -940,24 +1119,160 @@ export const pageAnalyzeToolDefinition = {
         default: true,
         description: "Return summary response (default: true). Set to false for full details.",
       },
+      async: {
+        type: "boolean",
+        description:
+          "Async mode (default: auto). true: enqueue a BullMQ job and return a jobId immediately (poll with page.getJobStatus). false: synchronous processing. When omitted, auto-enabled if Vision is on and Redis is available (Vision LLM exceeds the MCP timeout in CPU mode). Requires Redis when true.",
+      },
       timeout: {
         type: "number",
         minimum: 5000,
-        maximum: 300000,
-        default: 60000,
-        description: "Overall timeout in ms (default: 60000)",
+        maximum: 600000,
+        default: 600000,
+        description: "Overall timeout in ms (default: 600000)",
       },
       waitUntil: {
         type: "string",
         enum: ["load", "domcontentloaded", "networkidle"],
-        default: "load",
-        description: "Page load completion criteria (default: load)",
+        default: "networkidle",
+        description: "Page load completion criteria (default: networkidle)",
+      },
+      timeout_strategy: {
+        type: "string",
+        enum: ["strict", "progressive"],
+        default: "progressive",
+        description:
+          "Timeout strategy. strict: fail completely on timeout. progressive: return partial results on timeout (default).",
+      },
+      partial_results: {
+        type: "boolean",
+        default: true,
+        description:
+          "Allow partial results on timeout (default: true). When true, returns results from completed phases on timeout.",
+      },
+      layoutTimeout: {
+        type: "number",
+        minimum: 5000,
+        maximum: 300000,
+        default: 120000,
+        description: "Per-phase timeout for layout analysis in ms (default: 120000).",
+      },
+      motionTimeout: {
+        type: "number",
+        minimum: 5000,
+        maximum: 300000,
+        default: 300000,
+        description: "Per-phase timeout for motion detection in ms (default: 300000).",
+      },
+      qualityTimeout: {
+        type: "number",
+        minimum: 5000,
+        maximum: 60000,
+        default: 60000,
+        description: "Per-phase timeout for quality evaluation in ms (default: 60000).",
+      },
+      auto_retry: {
+        type: "boolean",
+        default: true,
+        description:
+          "Enable staged auto-retry on HTML fetch failure (default: true). Retries with progressively longer timeouts and relaxed waitUntil.",
+      },
+      max_retries: {
+        type: "number",
+        minimum: 1,
+        maximum: 3,
+        default: 3,
+        description: "Maximum retry attempts when auto_retry is true (default: 3).",
+      },
+      layout_first: {
+        type: "string",
+        enum: ["auto", "always", "never"],
+        default: "auto",
+        description:
+          "Layout-first mode for WebGL/Three.js sites (default: auto). auto: prioritise layout when WebGL is detected. always: always prioritise layout. never: legacy parallel processing.",
+      },
+      respect_robots_txt: {
+        type: "boolean",
+        description: "Respect robots.txt (RFC 9309). Set to false to ignore.",
       },
       auto_timeout: {
         type: "boolean",
         default: false,
         description:
           "Enable Pre-flight Probe for dynamic timeout calculation (v0.1.0). Analyzes page complexity (WebGL, SPA, heavy frameworks) before analysis and calculates optimal timeout. Results are included in preflightProbe response field.",
+      },
+      narrativeOptions: {
+        type: "object",
+        description:
+          "Narrative analysis options. Analyzes the page's worldview/atmosphere and layout structure. enabled=true to activate.",
+        properties: {
+          enabled: {
+            type: "boolean",
+            default: true,
+            description: "Enable narrative analysis (default: true)",
+          },
+          saveToDb: {
+            type: "boolean",
+            default: true,
+            description: "Save narrative analysis results to DB (default: true)",
+          },
+          includeVision: {
+            type: "boolean",
+            default: true,
+            description: "Use Vision LLM for higher-precision narrative analysis (default: true)",
+          },
+          visionTimeoutMs: {
+            type: "number",
+            minimum: 30000,
+            maximum: 600000,
+            default: 300000,
+            description: "Narrative Vision analysis timeout in ms (default: 300000).",
+          },
+          generateEmbedding: {
+            type: "boolean",
+            default: true,
+            description: "Generate embeddings as part of narrative analysis (default: true)",
+          },
+        },
+      },
+      visionOptions: {
+        type: "object",
+        description:
+          "Vision CPU completion-guarantee options (Phase 3). Controls Vision model (Ollama llama3.2-vision) inference timeout, image optimisation, CPU forcing, and graceful degradation.",
+        properties: {
+          visionTimeoutMs: {
+            type: "number",
+            minimum: 1000,
+            maximum: 1200000,
+            description:
+              "Vision analysis timeout in ms. Auto-calculated from hardware detection when omitted.",
+          },
+          visionImageMaxSize: {
+            type: "number",
+            minimum: 1024,
+            maximum: 10000000,
+            description:
+              "Maximum image size in bytes passed to Vision analysis. Larger images are auto-compressed.",
+          },
+          visionForceCpu: {
+            type: "boolean",
+            default: false,
+            description: "Force CPU mode even when a GPU is available (default: false).",
+          },
+          visionEnableProgress: {
+            type: "boolean",
+            default: false,
+            description:
+              "Enable progress reporting during long Vision processing (default: false).",
+          },
+          // PR-L2 (CO-ASYNC-03): nested coercion parity.
+          visionFallbackToHtmlOnly: {
+            type: "boolean",
+            default: true,
+            description:
+              "Continue with HTML-only analysis when Vision times out / fails (Graceful Degradation, default: true) / Vision失敗時にHTML解析のみで続行（Graceful Degradation、デフォルト: true）",
+          },
+        },
       },
       responsiveOptions: {
         type: "object",
@@ -1035,6 +1350,14 @@ export const pageAnalyzeToolDefinition = {
             default: true,
             description:
               "Detect layout structure changes (grid columns, flex direction, etc.) (default: true)",
+          },
+          // PR-L2 (CO-ASYNC-03): advertised/Zod parity completion (enum, not coerced).
+          breakpoint_resolution: {
+            type: "string",
+            enum: ["range", "precise"],
+            default: "range",
+            description:
+              "Breakpoint resolution: 'range' (CSS media query + VP diff estimate) or 'precise' (binary search, ±8px, 3-5x slower). (default: range) / ブレークポイント解像度（preciseは処理時間3-5倍）",
           },
         },
       },

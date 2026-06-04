@@ -30,8 +30,11 @@
 import type { Browser, BrowserContext, Page } from "playwright";
 import { chromium } from "playwright";
 import type { PrismaClient, Prisma } from "@prisma/client";
+import { ROBOTS_TXT } from "@reftrixmcp/core";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { logger, isDevelopment } from "../../utils/logger";
+import { sanitizeErrorMessage } from "../../utils/sanitize-error";
+import { getLazyScrollMaxIterations } from "../page-ingest-adapter";
 import { truncateId } from "./schemas";
 import { TAG_TO_PART_TYPE } from "./types";
 
@@ -43,8 +46,17 @@ const LOG_PREFIX = "[PartBboxPlaywright]";
 
 /**
  * デフォルトビューポートサイズ / Default viewport size
+ *
+ * PR-G1 RC1: 1440×900 → 1920×1080 に統一。Phase 0 ingest (`page-ingest-adapter`
+ * の `DEFAULT_VIEWPORT`) および Phase 5 part-crop の座標系と整合させ、scroll
+ * sweep の絶対 Y 測定値が screenshot crop と同じ座標系で解釈されるようにする。
+ *
+ * Unified to 1920×1080 (was 1440×900) to match the Phase 0 ingest viewport
+ * (`page-ingest-adapter` `DEFAULT_VIEWPORT`) and Phase 5 part-crop coordinate
+ * system, so the scroll-sweep absolute-Y measurements are interpreted in the
+ * same coordinate space as the screenshot crop.
  */
-const DEFAULT_VIEWPORT = { width: 1440, height: 900 };
+const DEFAULT_VIEWPORT = { width: 1920, height: 1080 };
 
 /**
  * ナビゲーションタイムアウト（ミリ秒） / Navigation timeout (milliseconds)
@@ -56,6 +68,24 @@ const NAVIGATION_TIMEOUT_MS = 30_000;
  * Additional wait after navigation (milliseconds)
  */
 const POST_NAVIGATION_WAIT_MS = 1_000;
+
+/**
+ * PR-G1 RC1 scroll sweep: rAF 2-frame 完了待ちのタイムアウトガード（ミリ秒）。
+ * Phase 0 lazy-scroll (`page-ingest-adapter` の `RAF_TIMEOUT_MS`) と同値。
+ *
+ * Scroll-sweep rAF 2-frame wait timeout guard (ms); same value as the Phase 0
+ * lazy-scroll `RAF_TIMEOUT_MS`.
+ */
+const SWEEP_RAF_TIMEOUT_MS = 2_000;
+
+/**
+ * PR-G1 RC1 scroll sweep: 1 スクロール step の最小ステップ幅(px)。
+ * viewportHeight が不正(NaN/0)な場合のフォールバックにも使う。
+ *
+ * Min scroll step (px) per sweep iteration; also used as the fallback when
+ * viewportHeight is invalid (NaN / 0).
+ */
+const SWEEP_MIN_STEP_PX = 500;
 
 // ============================================================================
 // PR-D-9 Wave 4 (C-06 / FIND-PLAN-SEC-02): BBOX_RESOLVE_RELOAD safety budget
@@ -170,6 +200,23 @@ export interface ResolvePartBoundingBoxesParams {
   viewportWidth?: number | undefined;
   /** ビューポート高さ / Viewport height */
   viewportHeight?: number | undefined;
+  /**
+   * PR-G1 RC1 (SEC-05): scroll sweep 中の lock 延長コールバック。
+   * 本サービスは BullMQ `Job` を保持しないため、caller (Phase 5 dispatch /
+   * Queue-based Backfill) が `extendJobLock` を bind して渡す。sweep ループの
+   * 各 iteration 境界で呼ばれ、長時間 sweep による lock 失効 (dual-run / stall)
+   * を防止する。省略時 (`undefined`) は no-op (既存 caller 非破壊)。
+   *
+   * Optional lock-extension callback invoked at each sweep iteration boundary.
+   * The service holds no BullMQ `Job`, so the caller (Phase 5 dispatch /
+   * Queue-based Backfill) binds `extendJobLock` and passes it here. Prevents
+   * lock expiry (dual-run / stall) during a long sweep. When omitted
+   * (`undefined`) it is a no-op (non-breaking for existing callers).
+   *
+   * 失敗は non-fatal — コールバック内で握り潰し、sweep を継続する。
+   * Failures are non-fatal — swallowed inside the callback; the sweep continues.
+   */
+  onLockExtend?: (() => Promise<void> | void) | undefined;
 }
 
 /**
@@ -371,8 +418,23 @@ export async function resolvePartBoundingBoxes(
 
     context = await browser.newContext({
       viewport,
-      userAgent:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.3.0",
+      // PR-C4 D2: honest declared-bot UA に統一 (SSOT `ROBOTS_TXT.USER_AGENT` 参照、
+      // hardcode 禁止)。Chrome-spoof UA を除去し ingest path (`ROBOTS_TXT.USER_AGENT`、
+      // 同一 host から 200 取得済) と内部一貫させる。これは bot-evasion ではなく
+      // Chrome-spoofing UA を透明な declared-bot (`+https://reftrix.dev/bot`) に置換する是正。
+      // robots.txt gating は Phase 0 ingest (`isUrlAllowedByRobotsTxt`,
+      // `REFTRIX_RESPECT_ROBOTS_TXT`) で実施済。本 path はその ingest 許可済 URL の
+      // 同一 host re-navigation であり、ここで robots.txt を再 check しない。
+      //
+      // PR-C4 D2: unified to the honest declared-bot UA (referencing the SSOT
+      // `ROBOTS_TXT.USER_AGENT`, no hardcode). Removes the Chrome-spoof UA for
+      // internal consistency with the ingest path (which already fetched 200 from
+      // the same host via `ROBOTS_TXT.USER_AGENT`). This is not bot-evasion but a
+      // correction replacing the Chrome-spoofing UA with a transparent declared-bot
+      // (`+https://reftrix.dev/bot`). robots.txt gating is performed in Phase 0
+      // ingest; this path is a same-host re-navigation of an ingest-permitted URL,
+      // so robots.txt is not re-checked here.
+      userAgent: ROBOTS_TXT.USER_AGENT,
       javaScriptEnabled: true,
       bypassCSP: false,
     });
@@ -388,7 +450,18 @@ export async function resolvePartBoundingBoxes(
     if (response) {
       const status = response.status();
       if (status >= 400) {
-        logger.warn(`${LOG_PREFIX} HTTP error during navigation`, { url, status });
+        // PR-C4 D2 / LCC-C2: honest ReftrixBot UA で HTTP >= 400 (403 逆転含む) の場合、
+        // Chrome-spoof UA への revert は行わない (misrepresentation 復活防止)。
+        // 当該パーツ群は skip (resolvedCount=0 / skippedCount=N) として扱う。
+        //
+        // PR-C4 D2 / LCC-C2: on HTTP >= 400 (incl. 403 reversal) with the honest
+        // ReftrixBot UA, do NOT revert to the Chrome-spoof UA (prevents
+        // re-introducing misrepresentation). These parts are treated as skipped.
+        logger.warn(`${LOG_PREFIX} HTTP error during navigation; skipping bbox resolution`, {
+          url,
+          status,
+          skippedCount: partsNeedingBbox.length,
+        });
         return { resolvedCount: 0, skippedCount: partsNeedingBbox.length };
       }
     }
@@ -396,76 +469,27 @@ export async function resolvePartBoundingBoxes(
     // ページ読み込み後の待機（lazy-load, アニメーション初期化） / Post-navigation wait
     await page.waitForTimeout(POST_NAVIGATION_WAIT_MS);
 
-    // 6. page.evaluate() で全パーツの bounding box を一括取得
-    //    Resolve all bounding boxes in a single page.evaluate() call
-    const resolvedBboxes = await page.evaluate(
-      (data: PartSelectorData[]): Array<BboxResult | null> => {
-        // マッチ済み要素を追跡（同一要素の重複マッチ防止）
-        // Track matched elements to prevent duplicate matching
-        const globalMatched = new Set<Element>();
-        const results: Array<BboxResult | null> = [];
-
-        for (const part of data) {
-          let found = false;
-
-          for (const selector of part.selectors) {
-            if (found) break;
-
-            let elements: NodeListOf<Element>;
-            try {
-              elements = document.querySelectorAll(selector);
-            } catch {
-              // 不正なセレクタはスキップ / Skip invalid selectors
-              continue;
-            }
-
-            // sectionStartY 付近の要素のみをフィルタし、sampleIndex でマッチ
-            // Filter elements near sectionStartY and match by sampleIndex
-            let matchIndex = 0;
-            for (const el of elements) {
-              if (globalMatched.has(el)) continue;
-
-              const rect = el.getBoundingClientRect();
-              if (rect.width <= 0 || rect.height <= 0) continue;
-
-              // 要素の絶対Y座標を計算 / Calculate absolute Y coordinate
-              const absoluteY = rect.top + window.scrollY;
-
-              // セクション範囲内かチェック（startY から ±500px の許容範囲）
-              // Check if within section range (±500px tolerance from startY)
-              const sectionTolerance = 500;
-              if (Math.abs(absoluteY - part.sectionStartY) > sectionTolerance + rect.height) {
-                continue;
-              }
-
-              // sampleIndex によるマッチング / Match by sampleIndex
-              if (matchIndex === part.sampleIndex) {
-                globalMatched.add(el);
-
-                // セクション相対座標に変換 / Convert to section-relative coordinates
-                results.push({
-                  id: part.id,
-                  x: Math.max(0, rect.left),
-                  y: Math.max(0, absoluteY - part.sectionStartY),
-                  width: rect.width,
-                  height: rect.height,
-                });
-                found = true;
-                break;
-              }
-              matchIndex++;
-            }
-          }
-
-          if (!found) {
-            results.push(null);
-          }
-        }
-
-        return results;
-      },
-      selectorData
-    );
+    // 6. PR-G1 RC1: full-page scroll sweep で全パーツの bounding box を解決。
+    //    旧実装は scrollY=0 固定で `page.evaluate` を 1 回だけ呼び、fold 下要素が
+    //    viewport 外で zero-size になり除外されていた (真因 RC1)。本実装は
+    //    viewportHeight step でページを sweep し、各 step で
+    //    `getBoundingClientRect() + window.scrollY` の絶対 Y を測定、要素が一度でも
+    //    non-zero size になればその測定値を確定する。`getLazyScrollMaxIterations()`
+    //    (SEC-02 SSOT) 上限 + rAF 2-frame wait + 2s timeout guard (Phase 0
+    //    lazy-scroll 同パターン)。SEC-05: 各 iteration 境界で onLockExtend。
+    //
+    //    PR-G1 RC1: full-page scroll sweep resolves all bounding boxes. The
+    //    legacy implementation called `page.evaluate` once at scrollY=0, so
+    //    fold-below elements were zero-size off-screen and excluded (RC1 root
+    //    cause). This sweeps the page by viewportHeight steps, measuring the
+    //    absolute Y (`getBoundingClientRect() + window.scrollY`) at each step,
+    //    and confirms the first non-zero-size measurement per part.
+    const resolvedBboxes = await runBboxScrollSweep({
+      page,
+      selectorData,
+      viewportHeight: viewport.height,
+      onLockExtend: params.onLockExtend,
+    });
 
     // 7. DB を一括更新 / Batch update DB
     const updates: Array<{
@@ -661,55 +685,15 @@ async function runBboxReloadPass(params: BboxReloadPassParams): Promise<BboxRelo
       break;
     }
 
-    // Re-resolve only the still-unresolved subset. Reuse the same page.evaluate
-    // logic shape as the 1st-pass call site (kept inline to avoid extracting a
-    // separate helper that would inflate file LoC beyond Plan §5.1.6 estimate).
+    // Re-resolve only the still-unresolved subset via the SSOT page.evaluate
+    // helper (TDA-01: 1st-pass / sweep / reload-pass share `runBboxPageEvaluate`,
+    // eliminating the near-identical inline duplicate that previously lived
+    // here). The reload pass re-measures at scrollY=0 after a fresh `page.reload`,
+    // which is sufficient for the `dom_disposed` catch-all (it is a last-resort
+    // recovery; the full sweep already ran in the 1st pass).
     let evalResult: Array<BboxResult | null>;
     try {
-      evalResult = await page.evaluate((data: PartSelectorData[]): Array<BboxResult | null> => {
-        const globalMatched = new Set<Element>();
-        const results: Array<BboxResult | null> = [];
-        for (const part of data) {
-          let found = false;
-          for (const selector of part.selectors) {
-            if (found) break;
-            let elements: NodeListOf<Element>;
-            try {
-              elements = document.querySelectorAll(selector);
-            } catch {
-              continue;
-            }
-            let matchIndex = 0;
-            for (const el of elements) {
-              if (globalMatched.has(el)) continue;
-              const rect = el.getBoundingClientRect();
-              if (rect.width <= 0 || rect.height <= 0) continue;
-              const absoluteY = rect.top + window.scrollY;
-              const sectionTolerance = 500;
-              if (Math.abs(absoluteY - part.sectionStartY) > sectionTolerance + rect.height) {
-                continue;
-              }
-              if (matchIndex === part.sampleIndex) {
-                globalMatched.add(el);
-                results.push({
-                  id: part.id,
-                  x: Math.max(0, rect.left),
-                  y: Math.max(0, absoluteY - part.sectionStartY),
-                  width: rect.width,
-                  height: rect.height,
-                });
-                found = true;
-                break;
-              }
-              matchIndex++;
-            }
-          }
-          if (!found) {
-            results.push(null);
-          }
-        }
-        return results;
-      }, remainingSelectors);
+      evalResult = await runBboxPageEvaluate(page, remainingSelectors);
     } catch (evalError) {
       // page.evaluate failure (e.g., page disposed mid-pass) is non-fatal.
       logger.warn(`${LOG_PREFIX} page.evaluate() failed during reload pass`, {
@@ -743,6 +727,313 @@ async function runBboxReloadPass(params: BboxReloadPassParams): Promise<BboxRelo
     (reloadCount >= budget.maxReloadsPerPage || reloadTotalTimeMs >= budget.totalTimeoutMs);
 
   return { recovered, reloadCount, reloadTotalTimeMs, budgetExhausted };
+}
+
+// ============================================================================
+// PR-G1 RC1: SSOT page.evaluate + full-page scroll sweep
+// ============================================================================
+
+/**
+ * SSOT page.evaluate helper (TDA-01).
+ *
+ * 1st-pass・reload-pass・scroll sweep の各 step が **本関数を共有** する。各
+ * `PartSelectorData` の selector 候補を順に試し、`getBoundingClientRect()` が
+ * non-zero size を返す最初の要素を sampleIndex でマッチさせ、セクション相対
+ * 座標 (`absoluteY = rect.top + window.scrollY`) を返す。マッチしない part は
+ * `null`。返り値は入力 `selectors` と同じ順序・長さ。
+ *
+ * Shared by the 1st-pass, the reload-pass, and every scroll-sweep step (TDA-01:
+ * eliminates the near-identical inline `page.evaluate` duplicate). Tries each
+ * `PartSelectorData`'s candidate selectors in order, matches the first
+ * non-zero-size element by sampleIndex, and returns section-relative coordinates
+ * (`absoluteY = rect.top + window.scrollY`). Unmatched parts return `null`. The
+ * result is index-aligned with the input `selectors`.
+ *
+ * **Browser-context purity**: the function body runs inside `page.evaluate` and
+ * MUST be self-contained (no closure over Node-side variables). Coordinate
+ * math, NaN guards, etc. are performed inside the browser context.
+ *
+ * @internal exported for unit tests via the public service surface
+ */
+async function runBboxPageEvaluate(
+  page: Page,
+  selectors: PartSelectorData[]
+): Promise<Array<BboxResult | null>> {
+  return page.evaluate((data: PartSelectorData[]): Array<BboxResult | null> => {
+    // マッチ済み要素を追跡（同一要素の重複マッチ防止）
+    // Track matched elements to prevent duplicate matching.
+    const globalMatched = new Set<Element>();
+    const results: Array<BboxResult | null> = [];
+
+    for (const part of data) {
+      let found = false;
+
+      for (const selector of part.selectors) {
+        if (found) break;
+
+        let elements: NodeListOf<Element>;
+        try {
+          elements = document.querySelectorAll(selector);
+        } catch {
+          // 不正なセレクタはスキップ / Skip invalid selectors.
+          continue;
+        }
+
+        // sectionStartY 付近の要素のみをフィルタし、sampleIndex でマッチ
+        // Filter elements near sectionStartY and match by sampleIndex.
+        let matchIndex = 0;
+        for (const el of elements) {
+          if (globalMatched.has(el)) continue;
+
+          const rect = el.getBoundingClientRect();
+          if (rect.width <= 0 || rect.height <= 0) continue;
+
+          // 要素の絶対Y座標を計算 / Calculate absolute Y coordinate.
+          const absoluteY = rect.top + window.scrollY;
+
+          // セクション範囲内かチェック（startY から ±500px の許容範囲）
+          // Check if within section range (±500px tolerance from startY).
+          const sectionTolerance = 500;
+          if (Math.abs(absoluteY - part.sectionStartY) > sectionTolerance + rect.height) {
+            continue;
+          }
+
+          // sampleIndex によるマッチング / Match by sampleIndex.
+          if (matchIndex === part.sampleIndex) {
+            globalMatched.add(el);
+            results.push({
+              id: part.id,
+              x: Math.max(0, rect.left),
+              y: Math.max(0, absoluteY - part.sectionStartY),
+              width: rect.width,
+              height: rect.height,
+            });
+            found = true;
+            break;
+          }
+          matchIndex++;
+        }
+      }
+
+      if (!found) {
+        results.push(null);
+      }
+    }
+
+    return results;
+  }, selectors);
+}
+
+/** PR-G1 RC1 scroll sweep の入力パラメータ / Scroll-sweep input parameters. */
+interface BboxScrollSweepParams {
+  page: Page;
+  selectorData: PartSelectorData[];
+  /** ビューポート高さ (1 step のスクロール幅) / Viewport height (scroll step). */
+  viewportHeight: number;
+  /** SEC-05: lock 延長コールバック / Lock-extension callback. */
+  onLockExtend?: (() => Promise<void> | void) | undefined;
+}
+
+/**
+ * sweep の step 幅を finite 検証付きで決定する (SEC-01)。
+ * `viewportHeight` が NaN / Infinity / <=0 の場合は `SWEEP_MIN_STEP_PX` に
+ * フォールバックする (0 step による無限ループを防止)。
+ *
+ * Computes the sweep step size with a finite guard (SEC-01). Falls back to
+ * `SWEEP_MIN_STEP_PX` when `viewportHeight` is NaN / Infinity / <= 0 (prevents
+ * a 0-step infinite loop).
+ *
+ * @internal exported for unit tests
+ */
+export function computeSweepStepPx(viewportHeight: number): number {
+  if (!Number.isFinite(viewportHeight) || viewportHeight <= 0) {
+    return SWEEP_MIN_STEP_PX;
+  }
+  return Math.max(SWEEP_MIN_STEP_PX, Math.floor(viewportHeight));
+}
+
+/**
+ * scroll sweep の 1 step を実行する: `window.scrollTo(0, y)` → rAF 2-frame wait
+ * (2s timeout guard)。Phase 0 lazy-scroll と同パターン。失敗は non-fatal。
+ *
+ * Executes one sweep step: `window.scrollTo(0, y)` → rAF 2-frame wait (2s
+ * timeout guard). Same pattern as the Phase 0 lazy-scroll. Failures are
+ * non-fatal.
+ */
+async function performSweepStepScroll(page: Page, y: number): Promise<void> {
+  await page.evaluate((sy: number) => window.scrollTo(0, sy), y);
+  await Promise.race([
+    page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        })
+    ),
+    page.waitForTimeout(SWEEP_RAF_TIMEOUT_MS),
+  ]).catch(() => {
+    /* non-fatal: rAF timeout / disposed page mid-step */
+  });
+}
+
+/**
+ * PR-G1 RC1: full-page scroll sweep で全パーツの bounding box を解決する
+ * (TDA-02、単一責務 helper、CC<10)。
+ *
+ * 旧実装は scrollY=0 固定で 1 回だけ `page.evaluate` を呼び、fold 下要素は
+ * viewport 外で zero-size になり除外されていた (真因 RC1)。本 sweep は:
+ *
+ *   1. `getLazyScrollMaxIterations()` (SEC-02 SSOT) を上限に viewportHeight step
+ *      でページを sweep する。
+ *   2. 各 step で `window.scrollTo` + rAF 2-frame wait 後、未解決 part のみを
+ *      `runBboxPageEvaluate` で再測定する。
+ *   3. non-zero size の測定値を確定マップに記録し、以降の step では再測定しない。
+ *   4. 各 iteration 境界で `onLockExtend` を呼ぶ (SEC-05、lock 失効防止)。
+ *   5. 終了後 scrollY=0 に戻し、入力順に `Array<BboxResult | null>` を返す
+ *      (旧 1st-pass と同じ契約、下流コード非破壊)。
+ *
+ * The legacy implementation called `page.evaluate` once at scrollY=0, so
+ * fold-below elements were zero-size off-screen and excluded (RC1). This sweeps
+ * the page by viewportHeight steps (capped by `getLazyScrollMaxIterations()`),
+ * re-measuring only still-unresolved parts at each step, confirming the first
+ * non-zero-size measurement, extending the job lock per iteration (SEC-05), and
+ * returning an input-order-aligned `Array<BboxResult | null>` (same contract as
+ * the legacy 1st-pass).
+ *
+ * @internal exported indirectly via `resolvePartBoundingBoxes`
+ */
+async function runBboxScrollSweep(
+  params: BboxScrollSweepParams
+): Promise<Array<BboxResult | null>> {
+  const { page, selectorData, viewportHeight, onLockExtend } = params;
+  const confirmed = new Map<string, BboxResult>();
+  const stepPx = computeSweepStepPx(viewportHeight);
+  const maxIterations = getLazyScrollMaxIterations();
+
+  let iteration = 0;
+  let y = 0;
+  let lastScrollHeight = 0;
+
+  while (iteration < maxIterations) {
+    await performSweepStepScroll(page, y);
+    await extendLockSafely(onLockExtend);
+
+    // 未解決 part のみ再測定 (確定済みは skip) / Re-measure only unresolved parts.
+    const pending = selectorData.filter((p) => !confirmed.has(p.id));
+    if (pending.length > 0) {
+      let stepResults: Array<BboxResult | null>;
+      try {
+        stepResults = await runBboxPageEvaluate(page, pending);
+      } catch (sweepEvalError) {
+        // SEC-03: 全環境 warn + partId truncation + sanitizeErrorMessage 経由。
+        // page.evaluate failure (disposed page mid-sweep) is non-fatal — keep
+        // whatever was already confirmed and stop sweeping.
+        logger.warn(`${LOG_PREFIX} page.evaluate() failed during scroll sweep (non-fatal)`, {
+          firstPendingPartId: pending[0] ? truncateId(pending[0].id) : "(none)",
+          iteration,
+          error: sanitizeErrorMessage(sweepEvalError),
+        });
+        break;
+      }
+      mergeSweepStepResults(pending, stepResults, confirmed);
+    }
+
+    // ページ最下部に到達 (scrollHeight 不変 + viewport 末尾) / Reached page bottom.
+    const scrollHeight = await readScrollHeight(page);
+    const allConfirmed = confirmed.size >= selectorData.length;
+    if (allConfirmed || (y + stepPx >= scrollHeight && scrollHeight === lastScrollHeight)) {
+      break;
+    }
+    lastScrollHeight = scrollHeight;
+    y += stepPx;
+    iteration++;
+  }
+
+  // 先頭に戻す / Scroll back to top (best-effort).
+  await page
+    .evaluate(() => window.scrollTo(0, 0))
+    .catch(() => {
+      /* non-fatal */
+    });
+
+  // 入力順に整列して返す / Return aligned with input order.
+  return selectorData.map((p) => confirmed.get(p.id) ?? null);
+}
+
+/**
+ * sweep step の non-null 測定値を確定マップへマージする (NaN/Infinity guard 付き)。
+ * SEC-01: `width`/`height` が finite かつ > 0 の測定値のみを確定する。
+ * `confirmed` に既に存在する part は上書きしない (最初の non-zero 測定を採用)。
+ *
+ * Merges a sweep step's non-null measurements into the confirmed map with a
+ * NaN/Infinity guard (SEC-01): only finite, positive-size measurements are
+ * confirmed. Parts already in `confirmed` are not overwritten (first
+ * non-zero measurement wins).
+ */
+function mergeSweepStepResults(
+  pending: PartSelectorData[],
+  stepResults: Array<BboxResult | null>,
+  confirmed: Map<string, BboxResult>
+): void {
+  for (let i = 0; i < stepResults.length; i++) {
+    const bbox = stepResults[i];
+    const part = pending[i];
+    if (part === undefined || bbox === null || bbox === undefined) continue;
+    if (confirmed.has(bbox.id)) continue;
+    if (!isFiniteNonZeroBbox(bbox)) continue;
+    confirmed.set(bbox.id, bbox);
+  }
+}
+
+/**
+ * SEC-01 NaN/Infinity guard: bbox の x/y/width/height がすべて finite かつ
+ * width/height が > 0 であることを検証する。`typeof === "number"` 素通りの
+ * `NaN`/`Infinity` を弾く (`NaN <= 0 === false` gap)。下流の pgvector / Sharp
+ * crop へ汚染値が流れることを防止する。
+ *
+ * SEC-01 NaN/Infinity guard: verifies bbox x/y/width/height are all finite and
+ * width/height are positive. Rejects `NaN`/`Infinity` that `typeof === "number"`
+ * lets through (the `NaN <= 0 === false` gap), preventing tainted values from
+ * reaching the pgvector / Sharp crop downstream.
+ */
+function isFiniteNonZeroBbox(bbox: BboxResult): boolean {
+  return (
+    Number.isFinite(bbox.width) &&
+    Number.isFinite(bbox.height) &&
+    Number.isFinite(bbox.x) &&
+    Number.isFinite(bbox.y) &&
+    bbox.width > 0 &&
+    bbox.height > 0
+  );
+}
+
+/**
+ * `document.documentElement.scrollHeight` を読み取る (失敗時 0)。
+ * Reads `document.documentElement.scrollHeight` (0 on failure).
+ */
+async function readScrollHeight(page: Page): Promise<number> {
+  try {
+    const h = await page.evaluate(() => document.documentElement.scrollHeight);
+    return Number.isFinite(h) && h > 0 ? h : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * SEC-05: lock 延長コールバックを安全に呼ぶ (失敗は non-fatal、握り潰す)。
+ * Safely invokes the lock-extension callback (failures are non-fatal, swallowed).
+ */
+async function extendLockSafely(
+  onLockExtend?: (() => Promise<void> | void) | undefined
+): Promise<void> {
+  if (!onLockExtend) return;
+  try {
+    await onLockExtend();
+  } catch (lockError) {
+    logger.warn(`${LOG_PREFIX} scroll-sweep lock extension failed (non-fatal)`, {
+      error: sanitizeErrorMessage(lockError),
+    });
+  }
 }
 
 // ============================================================================

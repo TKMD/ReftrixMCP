@@ -543,6 +543,15 @@ class ScreenshotPersistenceService implements IScreenshotPersistenceService {
     }
   }
 
+  /**
+   * Orchestrator: TTL-driven cleanup of expired Phase 5 screenshots.
+   * オーケストレーター: TTL に基づく Phase 5 screenshot の期限切れ削除。
+   *
+   * v0.4.0 Wave 4 V3 TDA carryover (TDA-V3-M-OBS-01 M): SRP refactor —
+   * cyclomatic complexity reduced from ~14 to ≤5 via helper extraction.
+   * Behaviour preserved (43/43 service tests + INV-DATA-DELETE-002 standing
+   * regression remain green).
+   */
   async cleanupExpired(olderThanMs: number, options?: CleanupExpiredOptions): Promise<number> {
     if (!Number.isFinite(olderThanMs) || olderThanMs < 0) {
       throw new Error("[ScreenshotPersistence] olderThanMs must be a non-negative finite number");
@@ -552,114 +561,204 @@ class ScreenshotPersistenceService implements IScreenshotPersistenceService {
     // `durationMs` in the audit log.
     // v0.4.0 PR7d-3 (LCC MEDIUM-2): 処理時間を audit_logs に記録するため開始時刻を記録。
     const startedAtMs = Date.now();
-
-    // バッチサイズ上限の解決（NaN/負数/過大値を防御）
-    // Resolve batch size cap (defend against NaN/negative/oversized values)
-    const rawBatch = options?.maxBatchSize;
-    let maxBatchSize = DEFAULT_CLEANUP_BATCH_SIZE;
-    if (typeof rawBatch === "number" && Number.isFinite(rawBatch) && rawBatch > 0) {
-      maxBatchSize = Math.min(Math.floor(rawBatch), ABSOLUTE_CLEANUP_BATCH_SIZE);
-    }
-
+    const maxBatchSize = resolveCleanupBatchSize(options);
     const phase5Dir = await resolvePhase5Dir();
-    let entries: string[];
-    try {
-      entries = await fs.readdir(phase5Dir);
-    } catch (err) {
-      const code = (err as NodeJS.ErrnoException).code;
-      if (code === "ENOENT") {
-        return 0;
-      }
-      logger.warn("[ScreenshotPersistence] Failed to read phase5 directory", {
-        phase5Dir,
-        error: sanitizeErrorMessage(err),
-      });
-      return 0;
-    }
+    const entries = await readPhase5Entries(phase5Dir);
+    if (entries.length === 0) return 0;
 
     const cutoffMs = Date.now() - olderThanMs;
-    const deletedPaths: string[] = [];
+    const deletedPaths = await deleteExpiredFilesBatch(phase5Dir, entries, cutoffMs, maxBatchSize);
 
-    for (const name of entries) {
-      if (deletedPaths.length >= maxBatchSize) break;
-
-      // `.png` 以外（`.tmp-*` 等）はスキップ
-      // Skip non-.png files (e.g., dangling .tmp-*)
-      if (!name.endsWith(".png")) continue;
-
-      const absPath = path.resolve(phase5Dir, name);
-      if (!absPath.startsWith(phase5Dir + path.sep) && absPath !== phase5Dir) {
-        continue;
-      }
-
-      try {
-        const stats = await fs.stat(absPath);
-        if (!stats.isFile()) continue;
-        if (stats.mtimeMs > cutoffMs) continue;
-        await fs.unlink(absPath);
-        deletedPaths.push(absPath);
-      } catch (err) {
-        logger.warn("[ScreenshotPersistence] Failed to process entry (non-fatal)", {
-          entry: name,
-          error: sanitizeErrorMessage(err),
-        });
-      }
-    }
-
-    // 削除したファイルに対応する DB 行を NULL 化（まとめて updateMany）
-    // Null out DB rows that referenced the deleted files (bulk updateMany)
-    if (deletedPaths.length > 0) {
-      try {
-        await this.prisma.webPage.updateMany({
-          where: { screenshotStoragePath: { in: deletedPaths } },
-          data: { screenshotStoragePath: null },
-        });
-      } catch (dbError) {
-        logger.warn(
-          "[ScreenshotPersistence] Failed to null DB paths for cleaned files (non-fatal)",
-          { deletedCount: deletedPaths.length, error: sanitizeErrorMessage(dbError) }
-        );
-      }
-    }
-
-    if (isDevelopment() && deletedPaths.length > 0) {
-      logger.debug("[ScreenshotPersistence] Cleanup completed", {
-        deletedCount: deletedPaths.length,
-        olderThanMs,
-        maxBatchSize,
-      });
-    }
-
-    // v0.4.0 PR7d-3 (LCC MEDIUM-2): record the TTL cron deletion as an audit
-    // log entry so the automated erasure path is captured as a GDPR Art.30
-    // "Records of processing activities" entry. We skip recording zero-delete
-    // runs to avoid flooding the audit_logs table with no-op batch cron hits.
-    //
-    // v0.4.0 PR7d-3 (LCC MEDIUM-2): TTL cron による削除を監査ログに記録する。
-    // 0件削除はノイズになるため記録しない。
-    if (deletedPaths.length > 0) {
-      try {
-        await getAuditLogService().log({
-          action: "screenshot_ttl_cleanup",
-          actor: "system:screenshot-cleanup-cron",
-          // batch operation — no single target record; omit targetId.
-          // バッチ処理のため単一レコード対象ではない。
-          targetType: "web_page_screenshot",
-          details: {
-            deletedCount: deletedPaths.length,
-            batchSize: maxBatchSize,
-            olderThanMs,
-            durationMs: Date.now() - startedAtMs,
-          },
-          result: "success",
-        });
-      } catch {
-        // Audit log failure must never block the cleanup result.
-        // 監査ログ失敗は cleanup 結果返却を妨げない。
-      }
-    }
+    await this.nullOutDbPathsForDeleted(deletedPaths);
+    logCleanupDebugIfDev(deletedPaths.length, olderThanMs, maxBatchSize);
+    await emitCleanupAuditLogIfDeleted(
+      deletedPaths.length,
+      maxBatchSize,
+      olderThanMs,
+      Date.now() - startedAtMs
+    );
 
     return deletedPaths.length;
+  }
+
+  /**
+   * Helper: null out web_pages.screenshot_storage_path for files that were
+   * successfully deleted from disk. Failure is logged but never propagated —
+   * the cleanup result must remain authoritative for the caller (TTL cron).
+   *
+   * ヘルパー: 削除済みファイルに対応する DB 行の screenshot_storage_path を
+   * NULL 化する。失敗は warn ログのみで上位へ伝播しない。
+   */
+  private async nullOutDbPathsForDeleted(deletedPaths: string[]): Promise<void> {
+    if (deletedPaths.length === 0) return;
+    try {
+      await this.prisma.webPage.updateMany({
+        where: { screenshotStoragePath: { in: deletedPaths } },
+        data: { screenshotStoragePath: null },
+      });
+    } catch (dbError) {
+      logger.warn("[ScreenshotPersistence] Failed to null DB paths for cleaned files (non-fatal)", {
+        deletedCount: deletedPaths.length,
+        error: sanitizeErrorMessage(dbError),
+      });
+    }
+  }
+}
+
+// =====================================================
+// cleanupExpired helpers (TDA-V3-M-OBS-01 SRP refactor)
+// cleanupExpired ヘルパー群 (SRP リファクタ)
+// =====================================================
+
+/**
+ * Resolve `maxBatchSize` from `CleanupExpiredOptions`, defending against
+ * NaN / negative / oversized values. Returns the clamped batch size.
+ *
+ * `CleanupExpiredOptions` から `maxBatchSize` を解決する。NaN / 負数 / 過大値
+ * を防御し、絶対上限で clamp した値を返す。
+ */
+function resolveCleanupBatchSize(options?: CleanupExpiredOptions): number {
+  const rawBatch = options?.maxBatchSize;
+  if (typeof rawBatch === "number" && Number.isFinite(rawBatch) && rawBatch > 0) {
+    return Math.min(Math.floor(rawBatch), ABSOLUTE_CLEANUP_BATCH_SIZE);
+  }
+  return DEFAULT_CLEANUP_BATCH_SIZE;
+}
+
+/**
+ * Read the Phase 5 directory, tolerating ENOENT (directory not yet created)
+ * and logging other readdir errors as non-fatal warnings.
+ *
+ * Phase 5 ディレクトリを読み取る。ENOENT (未作成) は許容、その他の readdir
+ * エラーは non-fatal warn ログを残して空配列を返す。
+ */
+async function readPhase5Entries(phase5Dir: string): Promise<string[]> {
+  try {
+    return await fs.readdir(phase5Dir);
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") return [];
+    logger.warn("[ScreenshotPersistence] Failed to read phase5 directory", {
+      phase5Dir,
+      error: sanitizeErrorMessage(err),
+    });
+    return [];
+  }
+}
+
+/**
+ * Iterate Phase 5 directory entries and delete expired `.png` files up to
+ * `maxBatchSize`. Path traversal defense (startsWith check) is preserved.
+ *
+ * Phase 5 ディレクトリのエントリを走査し `.png` の期限切れファイルを
+ * `maxBatchSize` 件まで削除する。Path traversal 防御 (startsWith 検証) は保持。
+ */
+async function deleteExpiredFilesBatch(
+  phase5Dir: string,
+  entries: string[],
+  cutoffMs: number,
+  maxBatchSize: number
+): Promise<string[]> {
+  const deletedPaths: string[] = [];
+  for (const name of entries) {
+    if (deletedPaths.length >= maxBatchSize) break;
+    if (!name.endsWith(".png")) continue;
+
+    const absPath = path.resolve(phase5Dir, name);
+    if (!isInsidePhase5Dir(absPath, phase5Dir)) continue;
+
+    const deleted = await tryDeleteExpiredFile(absPath, name, cutoffMs);
+    if (deleted) deletedPaths.push(absPath);
+  }
+  return deletedPaths;
+}
+
+/**
+ * Path-traversal guard: candidate must reside under `phase5Dir`.
+ * パストラバーサル防御: candidate は phase5Dir 配下でなければならない。
+ */
+function isInsidePhase5Dir(candidate: string, phase5Dir: string): boolean {
+  return candidate.startsWith(phase5Dir + path.sep) || candidate === phase5Dir;
+}
+
+/**
+ * Stat + unlink a single candidate. Returns true if the file was deleted.
+ * stat/unlink エラーは non-fatal warn ログのみで吸収する。
+ */
+async function tryDeleteExpiredFile(
+  absPath: string,
+  entryName: string,
+  cutoffMs: number
+): Promise<boolean> {
+  try {
+    const stats = await fs.stat(absPath);
+    if (!stats.isFile()) return false;
+    if (stats.mtimeMs > cutoffMs) return false;
+    await fs.unlink(absPath);
+    return true;
+  } catch (err) {
+    logger.warn("[ScreenshotPersistence] Failed to process entry (non-fatal)", {
+      entry: entryName,
+      error: sanitizeErrorMessage(err),
+    });
+    return false;
+  }
+}
+
+/**
+ * Dev-only debug log emission. Behaviour-preserving wrapper around the
+ * legacy `if (isDevelopment() && deletedCount > 0)` guard.
+ *
+ * 開発環境限定の debug ログ。従来の `if (isDevelopment() && deletedCount > 0)`
+ * ガードを behaviour-preserving に隔離。
+ */
+function logCleanupDebugIfDev(
+  deletedCount: number,
+  olderThanMs: number,
+  maxBatchSize: number
+): void {
+  if (!isDevelopment() || deletedCount === 0) return;
+  logger.debug("[ScreenshotPersistence] Cleanup completed", {
+    deletedCount,
+    olderThanMs,
+    maxBatchSize,
+  });
+}
+
+/**
+ * v0.4.0 PR7d-3 (LCC MEDIUM-2): emit a GDPR Art.30 audit_logs entry for
+ * non-zero deletion runs. Audit failure must never block the cleanup result
+ * (caught + swallowed) — preserves the original try/catch contract.
+ *
+ * v0.4.0 PR7d-3 (LCC MEDIUM-2): 削除件数 0 件超の実行ごとに GDPR Art.30
+ * audit_logs エントリを発行する。Audit 失敗は cleanup 結果返却を妨げない
+ * (catch + 吸収)。
+ */
+async function emitCleanupAuditLogIfDeleted(
+  deletedCount: number,
+  maxBatchSize: number,
+  olderThanMs: number,
+  durationMs: number
+): Promise<void> {
+  if (deletedCount === 0) return;
+  try {
+    await getAuditLogService().log({
+      action: "screenshot_ttl_cleanup",
+      actor: "system:screenshot-cleanup-cron",
+      // batch operation — no single target record; omit targetId.
+      // バッチ処理のため単一レコード対象ではない。
+      targetType: "web_page_screenshot",
+      details: {
+        deletedCount,
+        batchSize: maxBatchSize,
+        olderThanMs,
+        durationMs,
+      },
+      result: "success",
+    });
+  } catch {
+    // Audit log failure must never block the cleanup result.
+    // 監査ログ失敗は cleanup 結果返却を妨げない。
   }
 }
 

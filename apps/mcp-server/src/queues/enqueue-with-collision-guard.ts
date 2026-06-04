@@ -44,6 +44,33 @@ import { randomUUID } from "node:crypto";
 import type { Job, JobsOptions, Queue, RedisClient } from "bullmq";
 import { logger } from "../utils/logger";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
+import { truncateId } from "../utils/truncate-id";
+
+// ============================================================================
+// SSOT — BullMQ key-missing transient discrimination (CO-SAMEURL-02 D1)
+// ============================================================================
+
+/**
+ * SSOT regex for the BullMQ "Missing key for job …" transient that can surface
+ * inside the fail-open `queue.add` under a same-URL race (a loser racing ahead
+ * to `handleFailOpen` re-adds the same jobId while the incumbent's BullMQ keys
+ * are mid-lifecycle). This is a **transient** — same-URL dedup correctness is
+ * still upheld by BullMQ jobId uniqueness (≤1 surviving job), so D1 only makes
+ * the transient observable; it never changes the returned outcome.
+ *
+ * `^Missing key for job ` anchor + lazy `[\s\S]*?` (multi-line-safe, NOT `.*`)
+ * to avoid over-matching unrelated / security-relevant errors (F-PLAN-L-01).
+ *
+ * CO-SAMEURL-02 D1 用の BullMQ "Missing key for job …" transient 判別 SSOT
+ * regex。same-URL race の fail-open `queue.add` 内で発生しうる transient で、
+ * dedup の正しさ (≤1 surviving job) は BullMQ jobId uniqueness で担保済。D1 は
+ * transient を observable にするのみで returned outcome は不変。`^` anchor +
+ * lazy `[\s\S]*?` で over-match (security-relevant error 誤分類) を防止する。
+ *
+ * @see  §Sub-item 4 / §UB-6
+ */
+export const BULLMQ_KEY_MISSING_TRANSIENT_RE =
+  /^Missing key for job [\s\S]*?(?:updateProgress|moveToActive|lock)/i;
 
 // ============================================================================
 // Types — Public API
@@ -472,10 +499,29 @@ async function handleFailOpen<TData, TResult>(
   try {
     await queue.add(queueName, data, { ...jobOptions, jobId });
   } catch (addErr) {
-    logger.warn("[EnqueueWithCollisionGuard] fail-open queue.add also failed", {
-      queueName,
-      error: sanitizeErrorMessage(addErr),
-    });
+    // CO-SAMEURL-02 D1: discriminate the BullMQ key-missing transient (raised
+    // under a same-URL race when a loser re-adds the same jobId mid-lifecycle)
+    // from a generic fail-open add failure. Pure observability — the returned
+    // outcome is `enqueued_fail_open` in BOTH branches (dedup logic unchanged;
+    // this never flips fail-open → fail-closed). PII guard: jobId truncated
+    // (CWE-209) + sanitized error message (no raw URL / full UUID).
+    const rawMessage = addErr instanceof Error ? addErr.message : String(addErr);
+    if (BULLMQ_KEY_MISSING_TRANSIENT_RE.test(rawMessage)) {
+      logger.warn(
+        "[EnqueueWithCollisionGuard] fail-open queue.add hit BullMQ key-missing transient (dedup intact via jobId uniqueness)",
+        {
+          queueName,
+          jobId: truncateId(jobId, 8),
+          error: sanitizeErrorMessage(addErr),
+        }
+      );
+    } else {
+      logger.warn("[EnqueueWithCollisionGuard] fail-open queue.add also failed", {
+        queueName,
+        jobId: truncateId(jobId, 8),
+        error: sanitizeErrorMessage(addErr),
+      });
+    }
   }
   return { outcome: "enqueued_fail_open", jobId, collision: null };
 }

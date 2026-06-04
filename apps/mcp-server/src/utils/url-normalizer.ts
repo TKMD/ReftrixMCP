@@ -2,43 +2,68 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * URL Normalization Utility
+ * URL Normalization Utility (SSOT)
  *
- * DB保存前にURLを正規化し、末尾スラッシュ等による重複を防止する。
+ * DB保存・queue jobId 双方の URL 正規化を単一の SSOT (`normalizeUrlCore`) に集約する。
+ * これにより queue 層 (`buildUrlStableJobId`) と DB 層 (`web_pages.url` upsert) が
+ * 「同一 URL」と見なす集合がコードレベルで恒久一致し、coupling drift を構造排除する。
  *
- * 正規化ルール:
- * 1. 末尾スラッシュを除去（ルートドメインの場合も除去: https://example.com/ → https://example.com）
- * 2. ホスト名を小文字に
- * 3. デフォルトポートを除去
- * 4. フラグメント（#hash）を除去
- * 5. 連続スラッシュを単一スラッシュに
- * 6. クエリパラメータをアルファベット順にソート
+ * Unifies URL normalization for both DB storage and queue jobId into a single
+ * SSOT (`normalizeUrlCore`), so the sets the queue layer (`buildUrlStableJobId`)
+ * and the DB layer (`web_pages.url` upsert) treat as "the same URL" stay
+ * permanently aligned at the code level, structurally eliminating coupling drift.
+ *
+ * 正規化ルール (success path 7 ステップ):
+ * 1. ホスト名を小文字に
+ * 2. デフォルトポートを除去 (443 for https / 80 for http)
+ * 3. フラグメント（#hash）を除去
+ * 4. 連続スラッシュを単一スラッシュに
+ * 5. クエリパラメータをアルファベット順にソート
+ * 6. ルートパス "/" を空文字列に
+ * 7. 末尾スラッシュを除去
  *
  * @module utils/url-normalizer
  */
 
 /**
- * URLをDB保存用に正規化する
+ * URL 正規化の SSOT (Single Source of Truth)。
  *
- * 既存の normalizeUrlForValidation と同じロジックだが、
- * DB保存専用のエントリポイントとして明確化。
+ * queue jobId (`buildUrlStableJobId` → uuidv5 namespace key) と DB 保存
+ * (`web_pages.url` の `where` / `create.url`) の双方がこの core を経由する。
+ * `normalizeUrlForStorage` / `normalizeUrlForValidation` はいずれも本関数への
+ * 薄い wrapper であり、7 ステップの正規化ロジックは **本関数 1 箇所にのみ存在** する。
  *
- * @param url - 正規化するURL
- * @returns 正規化されたURL文字列
+ * **no-throw degraded-return 契約 (CWE-209 surface 非増)**:
+ * `new URL(...)` が throw する parse-failure input (例: `"not a url"` / `"http://"` /
+ * 制御文字を含む文字列) に対しては **例外を throw せず**、`trimmed.toLowerCase()` を
+ * degraded result として返す。これにより parse-failure の生エラーが上位に漏れず、
+ * 既存の防御 (error message を通じた情報露出の抑止) を維持する。
+ *
+ * **catch canonical = `trimmed.toLowerCase()`** (PR-L3 / ADR-0018 Amendment で固定):
+ * URL の host は本来 case-insensitive (RFC 3986 §3.2.2) であるため、parse-failure
+ * input でも lowercase を適用する方が「同一 URL を同一に解決する」SSOT の趣旨に整合する。
+ *
+ * This is the Single Source of Truth for URL normalization. Both the queue
+ * jobId (`buildUrlStableJobId`) and DB storage (`web_pages.url`) route through
+ * this core; the 7-step logic lives in **exactly one place** here. On
+ * parse-failure it does **not** throw — it returns `trimmed.toLowerCase()` as a
+ * degraded result (preserving the existing CWE-209 defense). The catch canonical
+ * is `trimmed.toLowerCase()` (pinned in PR-L3 / ADR-0018 Amendment) because URL
+ * hosts are case-insensitive (RFC 3986 §3.2.2).
+ *
+ * @param url - 正規化するURL / URL to normalize
+ * @returns 正規化されたURL文字列 (parse-failure 時は `trimmed.toLowerCase()`) / normalized URL string (or `trimmed.toLowerCase()` on parse-failure)
  *
  * @example
  * ```typescript
- * normalizeUrlForStorage('https://example.com/')
- * // => 'https://example.com'
- *
- * normalizeUrlForStorage('https://example.com/path/')
- * // => 'https://example.com/path'
- *
- * normalizeUrlForStorage('https://Example.COM/Path?b=2&a=1#hash')
+ * normalizeUrlCore('https://Example.COM/Path?b=2&a=1#hash')
  * // => 'https://example.com/Path?a=1&b=2'
+ *
+ * normalizeUrlCore('HTTP://')   // parse-failure
+ * // => 'http://'
  * ```
  */
-export function normalizeUrlForStorage(url: string): string {
+export function normalizeUrlCore(url: string): string {
   const trimmed = url.trim();
 
   try {
@@ -67,6 +92,7 @@ export function normalizeUrlForStorage(url: string): string {
       const params = urlObj.searchParams;
       const entries = Array.from(params.entries());
 
+      // パラメータ名でソート、同じ名前の場合は値でソート
       entries.sort((a, b) => {
         const keyCompare = a[0].localeCompare(b[0]);
         if (keyCompare !== 0) return keyCompare;
@@ -80,18 +106,17 @@ export function normalizeUrlForStorage(url: string): string {
       sortedQuery = sortedParams.toString();
     }
 
-    // 6. 末尾スラッシュを除去（全てのケース）
+    // 6. ルートパス "/" を空文字列に
     let normalizedPath = urlObj.pathname;
-    // ルートパス "/" → 空文字列
     if (normalizedPath === "/") {
       normalizedPath = "";
     }
-    // パスがある場合は末尾スラッシュを除去
+    // 7. 末尾スラッシュを除去（パスがある場合のみ）
     if (normalizedPath.length > 1) {
       normalizedPath = normalizedPath.replace(/\/+$/, "");
     }
 
-    // 7. 結果を手動で構築（URL objectのhrefを使わない）
+    // 結果を手動で構築（URL objectのhrefを使わない）
     let result = `${urlObj.protocol}//${urlObj.hostname}`;
 
     // ポートを追加（非デフォルトポートのみ）
@@ -109,7 +134,33 @@ export function normalizeUrlForStorage(url: string): string {
 
     return result;
   } catch {
-    // URL解析に失敗した場合はトリミングして返す
-    return trimmed;
+    // parse-failure: throw せず degraded result を返す (catch canonical = lowercase)
+    return trimmed.toLowerCase();
   }
+}
+
+/**
+ * URLをDB保存用に正規化する (SSOT `normalizeUrlCore` への薄い wrapper)。
+ *
+ * `web_pages.url` の upsert `where` / `create.url` に用いる正規化済 URL を返す。
+ * 実体は {@link normalizeUrlCore} であり、queue jobId と同一の正規化規約を共有する。
+ *
+ * Thin wrapper over the SSOT {@link normalizeUrlCore}; returns the normalized URL
+ * used in the `web_pages.url` upsert `where` / `create.url`, sharing the exact
+ * normalization contract with the queue jobId.
+ *
+ * @param url - 正規化するURL / URL to normalize
+ * @returns 正規化されたURL文字列 / normalized URL string
+ *
+ * @example
+ * ```typescript
+ * normalizeUrlForStorage('https://example.com/')
+ * // => 'https://example.com'
+ *
+ * normalizeUrlForStorage('https://Example.COM/Path?b=2&a=1#hash')
+ * // => 'https://example.com/Path?a=1&b=2'
+ * ```
+ */
+export function normalizeUrlForStorage(url: string): string {
+  return normalizeUrlCore(url);
 }

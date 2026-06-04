@@ -13,6 +13,11 @@
  */
 
 import { logger, isDevelopment } from "./logger";
+// PR-L3: URL 正規化 SSOT。queue jobId / DB 保存と同一の正規化規約を validation でも共有する。
+// 依存方向は url-validator.ts → url-normalizer.ts (循環なし)。
+// URL normalization SSOT; validation shares the exact normalization contract with
+// the queue jobId / DB storage. Dependency direction: url-validator.ts → url-normalizer.ts (no cycle).
+import { normalizeUrlCore } from "./url-normalizer";
 
 // =============================================
 // 型定義
@@ -362,85 +367,21 @@ export function isBlockedIpRange(ip: string): boolean {
 }
 
 /**
- * URLを検証用に正規化
+ * URLを検証用に正規化 (SSOT `normalizeUrlCore` への薄い wrapper)。
  *
- * @param url - 正規化するURL
- * @returns 正規化されたURL文字列
+ * queue jobId (`buildUrlStableJobId` → uuidv5 namespace key) に用いる正規化済 URL を返す。
+ * 実体は {@link normalizeUrlCore} であり、DB 保存 (`normalizeUrlForStorage`) と同一の
+ * 正規化規約を共有する (PR-L3 SSOT unify、success path + catch path 双方一致)。
+ *
+ * Thin wrapper over the SSOT {@link normalizeUrlCore}; returns the normalized URL
+ * used for the queue jobId, sharing the exact normalization contract with DB
+ * storage (`normalizeUrlForStorage`) on both the success and catch paths (PR-L3).
+ *
+ * @param url - 正規化するURL / URL to normalize
+ * @returns 正規化されたURL文字列 / normalized URL string
  */
 export function normalizeUrlForValidation(url: string): string {
-  const trimmed = url.trim();
-
-  try {
-    const urlObj = new URL(trimmed);
-
-    // 1. ホスト名を小文字に正規化
-    urlObj.hostname = urlObj.hostname.toLowerCase();
-
-    // 2. デフォルトポートを除去 (443 for https, 80 for http)
-    if (
-      (urlObj.protocol === "https:" && urlObj.port === "443") ||
-      (urlObj.protocol === "http:" && urlObj.port === "80")
-    ) {
-      urlObj.port = "";
-    }
-
-    // 3. フラグメント（#hash）を除去
-    urlObj.hash = "";
-
-    // 4. パス正規化: 連続スラッシュを単一スラッシュに
-    urlObj.pathname = urlObj.pathname.replace(/\/+/g, "/");
-
-    // 5. クエリパラメータをアルファベット順にソート
-    let sortedQuery = "";
-    if (urlObj.search) {
-      const params = urlObj.searchParams;
-      const entries = Array.from(params.entries());
-
-      // パラメータ名でソート、同じ名前の場合は値でソート
-      entries.sort((a, b) => {
-        const keyCompare = a[0].localeCompare(b[0]);
-        if (keyCompare !== 0) return keyCompare;
-        return a[1].localeCompare(b[1]);
-      });
-
-      const sortedParams = new URLSearchParams();
-      for (const [key, value] of entries) {
-        sortedParams.append(key, value);
-      }
-      sortedQuery = sortedParams.toString();
-    }
-
-    // 6. パスを正規化（ルートパス "/" のみの場合は空に）
-    let normalizedPath = urlObj.pathname;
-    if (normalizedPath === "/") {
-      normalizedPath = "";
-    }
-    // 末尾スラッシュを除去（パスがある場合のみ）
-    if (normalizedPath.length > 1) {
-      normalizedPath = normalizedPath.replace(/\/+$/, "");
-    }
-
-    // 7. 結果を手動で構築（URL objectのhrefを使わない）
-    let result = `${urlObj.protocol}//${urlObj.hostname}`;
-
-    // ポートを追加（非デフォルトポートのみ）
-    if (urlObj.port) {
-      result += `:${urlObj.port}`;
-    }
-
-    // パスを追加
-    result += normalizedPath;
-
-    // クエリを追加
-    if (sortedQuery) {
-      result += `?${sortedQuery}`;
-    }
-
-    return result;
-  } catch {
-    // URL解析に失敗した場合はそのまま返す
-    return trimmed.toLowerCase();
-  }
+  return normalizeUrlCore(url);
 }
 
 // =============================================

@@ -53,8 +53,8 @@ const EMBEDDING_PHASE_SLICE = 75000;
 /** Section Visual Embedding ブロックのスライスサイズ（processEmbeddingPhase内のセクション+サブ関数collectAndCapture分） */
 const SECTION_VISUAL_SLICE = 35000;
 
-/** processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック） */
-const SINGLE_SECTION_SLICE = 10000;
+/** processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック。secvisual blank/no-position terminal exit 2件追加で実関数長 ~10992 文字に拡大、result.generated++ は rel offset 10587） */
+const SINGLE_SECTION_SLICE = 12000;
 
 // ==========================================================================
 // SectionScreenshotFallbackService モックテスト用
@@ -303,11 +303,21 @@ describe("PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection", () =
       // DUPLICATE_THRESHOLD is passed as params.duplicateThreshold
       expect(chunkBody).toContain("duplicateThreshold");
 
-      // isDuplicateVector が true の場合に return でDB保存スキップ（サブ関数のため continue → return）
+      // isDuplicateVector が true の場合に return でDB保存スキップ（サブ関数のため continue → return）。
+      // PR-BT-2 (系統B 案X): dedup exit に section_visual_duplicate marker write
+      // (`fallbackEnabled === false` 条件付き) + bilingual comment が挿入されたため、
+      // `if (isDuplicateVector)` ブロックから `return` までの距離が拡大 (~1885 chars)。
+      // slice 窓を 2500 に拡大し、marker write 後も dedup-skip が DB 保存せず return
+      // することを引き続き pin する (behavior 不変、コメント挿入による距離拡大に追従)。
       const dupCheckPos = chunkBody.indexOf("if (isDuplicateVector)");
       expect(dupCheckPos).toBeGreaterThan(-1);
-      const afterDupCheck = chunkBody.slice(dupCheckPos, dupCheckPos + 1000);
+      const afterDupCheck = chunkBody.slice(dupCheckPos, dupCheckPos + 2500);
       expect(afterDupCheck).toContain("return");
+      // PR-BT-2: the dedup exit also writes the section_visual_duplicate terminal
+      // marker (Option X) before returning — pin its presence in the dedup block.
+      expect(afterDupCheck).toContain(
+        'writeSectionVisionSkipReason(p, "section_visual_duplicate")'
+      );
     });
 
     it("コサイン類似度 < DUPLICATE_THRESHOLD で正常保存", () => {

@@ -1,6 +1,6 @@
 # page.analyze 詳細ガイド / page.analyze Deep Dive - Web分析フローとデータ構造 / Web Analysis Flow and Data Structure
 
-**Version**: 0.5.1 | **Last Updated**: 2026-04-29
+**Version**: 0.6.0 | **Last Updated**: 2026-04-29
 
 このドキュメントでは、`page.analyze` MCPツールがWebページを分析する際の詳細なフロー、分析内容、およびデータベースに保存されるデータ構造を、実際の分析例（https://www.spaceandtime.io/）を用いて解説します。
 

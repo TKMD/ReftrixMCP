@@ -56,6 +56,18 @@ export {
   safeImportOnnx,
 } from "./onnx-availability.js";
 
+// ONNX execution provider detection (CUDA EP `.so` availability gate)
+// Exported so the Phase 5 fork-child VRAM probe can gate CUDA selection on the
+// CUDA EP shared-library availability (FIND-IMPL-PR1-H-NEW-01), not just on
+// free VRAM. `verifyCudaAvailability` is a pure filesystem check (no GPU/native
+// init), safe to call from the fork-child leaf path.
+export {
+  detectExecutionProvider,
+  verifyCudaAvailability,
+  isLdLibraryPathSetAtOsLevel,
+} from "./onnx-provider-detect.js";
+export type { ExecutionProvider } from "./onnx-provider-detect.js";
+
 // ML Worker Thread resource limits (PR7e-β1)
 export {
   loadMLWorkerResourceLimits,

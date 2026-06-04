@@ -5,20 +5,32 @@
  * audit.query MCPツール — 監査ログ検索
  *
  * GDPR Art.30 処理活動記録の検索・閲覧ツール。
- * PII配慮: targetIdはtruncate済み、details内機密情報除去済み。
+ * PII配慮 (多層防御 / Defense-in-depth):
+ *   1. ingest-time: AuditLogService.log() で targetId truncate / sanitizeDetails() による機密キー除去
+ *   2. query-time (本 module, LCC M-02): handler 境界で details.metadata 内 PII (child_pid 等) を
+ *      SSOT-derived truncation で redact
  *
  * audit.query MCP tool — Audit log query
  * GDPR Art.30 processing activities records search tool.
- * PII consideration: targetId truncated, details sanitized.
+ * PII consideration (Defense-in-depth):
+ *   1. ingest-time: AuditLogService.log() truncates targetId and sanitizes sensitive keys
+ *   2. query-time (this module, LCC M-02): handler-boundary redaction of PII fields
+ *      (e.g. child_pid) inside details.metadata via SSOT-derived truncation
+ *
+ * Cross-ref: `.claude/rules/security.md` "Canonical CWE-209 PII Protection Pattern (LCC-endorsed)"
  *
  * @module tools/audit/query.tool
  */
 
 import { z, ZodError } from "zod";
 import { createDIFactory } from "../../utils/di-factory";
-import { sanitizeErrorMessage } from "../../utils/sanitize-error";
+import { sanitizeAnalysisErrorForClient, sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { logger, isDevelopment } from "../../utils/logger";
-import type { AuditLogService, AuditLogRecord } from "../../services/audit-log.service";
+import {
+  AUDIT_LOG_CONSTANTS,
+  type AuditLogService,
+  type AuditLogRecord,
+} from "../../services/audit-log.service";
 
 // =====================================================
 // エラーコード / Error Codes
@@ -128,10 +140,179 @@ export const resetAuditQueryServiceFactory = auditLogServiceDI.reset;
 // =====================================================
 
 /**
+ * details.metadata 内の PII フィールド検出パターン
+ * PII field detection regex within details.metadata
+ *
+ * 対象 / Target: child_pid / workerPid / pid (case-insensitive)
+ * SSOT: AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH (canonical CWE-209 PII Protection Pattern)
+ *
+ * Cross-ref: `.claude/rules/security.md` "Canonical CWE-209 PII Protection Pattern (LCC-endorsed)"
+ * — Wave 5 endorsement; SSOT-derived (NOT hardcoded literal).
+ */
+const METADATA_PII_FIELD_REGEX = /^(child_pid|workerPid|pid)$/i;
+
+/**
+ * details.metadata 内の PII (process identifiers) を SSOT-derived truncation で redact する。
+ * Defense-in-depth runtime redaction at the audit.query handler boundary
+ * (in addition to ingest-time `sanitizeDetails()` in `audit-log.service.ts`).
+ *
+ * Redacts PII (process identifiers) inside `details.metadata` via SSOT-derived truncation.
+ *
+ * - 1-level nesting only (intentional: keep contract simple, extend if patterns emerge).
+ *   1段階のネストのみ対応 (意図的: 契約をシンプルに保ち、新パターン出現時に拡張)。
+ * - SSOT: AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH (no hardcoded literal).
+ *   SSOT 由来の truncation length を使用 (ハードコード禁止)。
+ * - Idempotent: already-truncated values pass through unchanged when length ≤ SSOT length.
+ *   冪等: 既に truncate 済みの値は SSOT 長以下ならそのまま返る。
+ *
+ * @param details - DB から読み取った details payload / details payload from DB
+ * @returns Redacted details payload (deep-cloned at metadata level) / 浅いクローンで redact 済み details
+ */
+function redactDetailsMetadata(
+  details: Record<string, unknown> | null | undefined
+): Record<string, unknown> | null {
+  if (details === null || details === undefined) {
+    return null;
+  }
+
+  const metadata = details.metadata;
+  // metadata が object でない (string / number / array / null / undefined) なら redaction 対象外
+  // Skip redaction if metadata is not a plain object
+  if (
+    metadata === null ||
+    metadata === undefined ||
+    typeof metadata !== "object" ||
+    Array.isArray(metadata)
+  ) {
+    return details;
+  }
+
+  const sourceMetadata = metadata as Record<string, unknown>;
+  const redactedMetadata: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(sourceMetadata)) {
+    if (METADATA_PII_FIELD_REGEX.test(key) && typeof value === "string") {
+      // SSOT-derived truncation (canonical CWE-209 PII Protection Pattern)
+      // SSOT 由来の truncation (canonical CWE-209 PII 保護パターン)
+      if (value.length <= AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) {
+        redactedMetadata[key] = value;
+      } else {
+        redactedMetadata[key] =
+          value.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...";
+      }
+    } else {
+      redactedMetadata[key] = value;
+    }
+  }
+
+  return {
+    ...details,
+    metadata: redactedMetadata,
+  };
+}
+
+/**
+ * details 内 (top-level + nested metadata) の `failed_known_reason` フィールドを
+ * client-safe な generic literal に sanitize する (Plan v3 Track T4 SEC H-01)。
+ *
+ * Sanitises `failed_known_reason` field in `details` (top-level + nested
+ * `details.metadata`) to client-safe generic literal — Plan v3 Track T4 SEC H-01.
+ *
+ * **Two-tier surface contract** (from `sanitizeAnalysisErrorForClient` JSDoc):
+ * - **DB internal canonical** (preserved): `worker_restart_during_inflight_phase_<N>`
+ *   stored verbatim in `audit_logs.details.failed_known_reason` for operator
+ *   dashboards and supervisor backfill `findOrphanWebPageIds` matching.
+ * - **Client-facing generic** (this layer): `analysis_pipeline_interrupted`
+ *   surfaced through `audit.query` MCP tool to prevent CWE-209 information
+ *   exposure of internal phase taxonomy.
+ *
+ * Defense-in-depth at the audit.query handler boundary (independent of
+ * ingest-time write side). The DB raw audit trail remains for forensics;
+ * the client-facing surface is sanitised. This complements
+ * `redactDetailsMetadata` (which targets PII process identifiers) — these are
+ * orthogonal concerns and run sequentially.
+ *
+ * @param details - Details payload (potentially redacted by upstream layer)
+ * @returns Details payload with `failed_known_reason` 1:1-mapped at top-level
+ *   AND nested under `details.metadata` (covers both audit_logs emit shapes:
+ *   T4 `WorkerRestartInflightAuditMetadata` puts it at top-level; legacy
+ *   shapes may nest it under metadata).
+ *
+ * @see PR-V3-T4 design.md §6.3 (SEC H-01 sanitisation contract)
+ * @see `.claude/rules/security.md` "Canonical CWE-209 PII Protection Pattern (LCC-endorsed)"
+ */
+function sanitizeFailedKnownReasonInDetails(
+  details: Record<string, unknown> | null | undefined
+): Record<string, unknown> | null {
+  if (details === null || details === undefined) {
+    return null;
+  }
+
+  // Sanitize top-level details.failed_known_reason
+  // (T4 WorkerRestartInflightAuditMetadata shape stores it at top-level of details)
+  let result: Record<string, unknown> = details;
+  const topLevel = details.failed_known_reason;
+  if (typeof topLevel === "string") {
+    const sanitised = sanitizeAnalysisErrorForClient(topLevel);
+    if (sanitised !== topLevel) {
+      result = { ...result, failed_known_reason: sanitised };
+    }
+  }
+
+  // Sanitize nested details.metadata.failed_known_reason
+  // (defensive coverage for any legacy / future audit_log emit shape)
+  const metadata = result.metadata;
+  if (
+    metadata !== null &&
+    metadata !== undefined &&
+    typeof metadata === "object" &&
+    !Array.isArray(metadata)
+  ) {
+    const sourceMetadata = metadata as Record<string, unknown>;
+    const nestedReason = sourceMetadata.failed_known_reason;
+    if (typeof nestedReason === "string") {
+      const sanitised = sanitizeAnalysisErrorForClient(nestedReason);
+      if (sanitised !== nestedReason) {
+        result = {
+          ...result,
+          metadata: {
+            ...sourceMetadata,
+            failed_known_reason: sanitised,
+          },
+        };
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
  * DB AuditLogRecord → MCP出力形式に変換
  * Convert DB AuditLogRecord to MCP output format
+ *
+ * Defense-in-depth (3-layer): applies the following sanitization layers
+ * sequentially at the handler boundary:
+ *   1. `redactDetailsMetadata()` — PII process identifiers (LCC M-02, Z-b)
+ *   2. `sanitizeFailedKnownReasonInDetails()` — `failed_known_reason` enum
+ *      CWE-209 information exposure (Plan v3 T4 SEC H-01, Z-a Wave 2)
+ * In addition to ingest-time `sanitizeDetails()` (audit-log.service.ts) — all
+ * layers are independent and any future PII / enum leakage path is closed by
+ * any of them.
+ *
+ * 多層防御 (3-layer): handler 境界で
+ *   1. `redactDetailsMetadata()` (PII プロセス識別子, LCC M-02)
+ *   2. `sanitizeFailedKnownReasonInDetails()` (`failed_known_reason` enum
+ *      CWE-209 情報露出, Plan v3 T4 SEC H-01)
+ * を順次適用。ingest 時の `sanitizeDetails()` と独立しており、
+ * いずれの経路で PII / enum 値が入り込んでも閉じられる。
  */
 function toOutputEntry(record: AuditLogRecord): AuditLogOutputEntry {
+  // Layer 1: PII process-identifier redaction (LCC M-02)
+  const piiRedacted = redactDetailsMetadata(record.details);
+  // Layer 2: failed_known_reason CWE-209 sanitisation (SEC H-01)
+  const fullySanitised = sanitizeFailedKnownReasonInDetails(piiRedacted);
+
   return {
     id: record.id,
     timestamp:
@@ -140,7 +321,7 @@ function toOutputEntry(record: AuditLogRecord): AuditLogOutputEntry {
     actor: record.actor,
     target_type: record.targetType,
     target_id: record.targetId,
-    details: record.details,
+    details: fullySanitised,
     result: record.result,
   };
 }

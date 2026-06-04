@@ -54,6 +54,62 @@ const OLLAMA_DEFAULT_URL = "http://localhost:11434";
  */
 const VISION_MODEL_NAME_PREFIX = "llama3.2-vision";
 
+/**
+ * Vision residual backfill enqueue delay (Plan v3 T3-Vision V1 §C-1 SSOT triple).
+ *
+ * `vision_residual` 検出時、`embedding-backfill` を即座に enqueue するのではなく
+ * 30s 遅延させて Ollama Vision の自然な unload を待つ (CPU cycle 節約)。
+ * `BackfillRecoveryReconciliationService` がこの delay を BullMQ
+ * `delay` option として渡す。
+ *
+ * Delay before enqueuing `embedding-backfill` retry after detecting
+ * `vision_residual` — waits 30s for Ollama Vision to unload naturally
+ * (saves CPU cycles vs. immediate retry).
+ *
+ * Exported as `VISION_RESIDUAL_BACKFILL_ENQUEUE_DELAY_MS`
+ * (FIND-WAVE4-TDA-V2-H-01 export contract).
+ *
+ * @see Plan v3 T3-Vision V1 §C-1 SSOT triple
+ * @see ADR-0030 §Dependency Upgrade Gate
+ */
+export const VISION_RESIDUAL_BACKFILL_ENQUEUE_DELAY_MS = 30_000;
+
+/**
+ * Vision residual terminal bound (Plan v3 T3-Vision V1 §C-1 SSOT triple).
+ *
+ * `vision_residual` 状態の最大滞留時間 (5min)。この閾値を超えると
+ * `BackfillRecoveryReconciliationService` が `failureReason` を
+ * `vision_unload_timeout` に transition させる (axis A 5min terminal bound)。
+ *
+ * Maximum dwell time in `vision_residual` state (5min). Beyond this bound,
+ * the recovery service transitions `failureReason` →
+ * `vision_unload_timeout` (axis A terminal bound).
+ *
+ * Exported as `VISION_RESIDUAL_TERMINAL_BOUND_MS` (FIND-WAVE4-TDA-V2-H-01
+ * export contract).
+ *
+ * @see Plan v3 T3-Vision V1 §C-1 SSOT triple
+ */
+export const VISION_RESIDUAL_TERMINAL_BOUND_MS = 5 * 60 * 1_000;
+
+/**
+ * Vision unload final timeout (Plan v3 T3-Vision V1 §C-1 SSOT triple).
+ *
+ * `embedding-backfill` recovery loop の最終タイムアウト (10min)。この閾値を
+ * 超えると row を terminal `failed` に escalate して recovery loop を
+ * 停止する (axis C 10min final timeout)。
+ *
+ * Final timeout for the `embedding-backfill` recovery loop (10min). Beyond
+ * this bound, the row is escalated to terminal `failed` and the recovery
+ * loop stops for this row (axis C final timeout).
+ *
+ * Exported as `VISION_UNLOAD_FINAL_TIMEOUT_MS` (FIND-WAVE4-TDA-V2-H-01
+ * export contract).
+ *
+ * @see Plan v3 T3-Vision V1 §C-1 SSOT triple
+ */
+export const VISION_UNLOAD_FINAL_TIMEOUT_MS = 10 * 60 * 1_000;
+
 // ============================================================================
 // Types
 // ============================================================================

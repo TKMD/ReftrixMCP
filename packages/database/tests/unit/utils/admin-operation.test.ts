@@ -16,12 +16,18 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // PrismaClientのモック
+// 注: vitest 4.x では `new` で呼ばれる mock 実装はコンストラクタ可能でなければならない。
+// arrow function は [[Construct]] を持たないため `function` で定義する (semantics は不変)。
+// Note: in vitest 4.x, a mock implementation invoked with `new` must be constructable.
+// Arrow functions lack [[Construct]], so use a `function` declaration (semantics unchanged).
 const mockExecuteRaw = vi.fn();
-const mockPrismaClient = vi.fn(() => ({
-  $executeRaw: mockExecuteRaw,
-  $connect: vi.fn(),
-  $disconnect: vi.fn(),
-}));
+const mockPrismaClient = vi.fn(function () {
+  return {
+    $executeRaw: mockExecuteRaw,
+    $connect: vi.fn(),
+    $disconnect: vi.fn(),
+  };
+});
 
 vi.mock("@prisma/client", () => ({
   PrismaClient: mockPrismaClient,

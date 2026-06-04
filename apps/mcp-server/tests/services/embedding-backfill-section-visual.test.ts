@@ -82,7 +82,22 @@ vi.mock("../../src/services/embedding-backfill.service", () => ({
 }));
 
 // ============================================================================
-// Stub runVisualEmbeddingSubPhases (DINOv2 loop)
+// Stub phase-5-embedding exports consumed by the backfill processor.
+// PR-C4/CO-5 リファクタ追従: the SectionVisualProcessor now imports three symbols
+// from `phase-5-embedding` — `runVisualEmbeddingSubPhases` (DINOv2 loop),
+// `markResidualBboxUnresolvableParts` (part_visual Layer-1 terminal marker), and
+// `emitSectionVisualPiiExcludedMarkersForPage` (PR-C4 high-PII section terminal
+// marker emitted on the pendingCount===0 branch). Since `vi.mock` replaces the
+// whole ESM module, the mock MUST expose every symbol the SUT imports, otherwise
+// touching an un-stubbed export throws "No <name> export is defined on the mock".
+// The pendingCount===0 skip behaviour itself is unchanged in production — only
+// the mock contract had drifted (stale test, not a behavioral regression).
+//
+// PR-C4/CO-5 refactor follow-through: SectionVisualProcessor imports three symbols
+// from `phase-5-embedding`. Because `vi.mock` replaces the entire ESM module, the
+// mock must provide all three; the new `emitSectionVisualPiiExcludedMarkersForPage`
+// is invoked on the pendingCount===0 branch (PR-C4 PII terminal-marker emit), while
+// the DINOv2 path (`runVisualEmbeddingSubPhases`) remains correctly skipped.
 // ============================================================================
 vi.mock("../../src/workers/phases/phase-5-embedding", () => ({
   runVisualEmbeddingSubPhases: vi.fn(async () => ({
@@ -91,6 +106,8 @@ vi.mock("../../src/workers/phases/phase-5-embedding", () => ({
     partVisualSkippedBboxInvalid: 0,
     embeddingFailedChunks: 0,
   })),
+  markResidualBboxUnresolvableParts: vi.fn(async () => 0),
+  emitSectionVisualPiiExcludedMarkersForPage: vi.fn(async () => undefined),
 }));
 
 // Import AFTER mocks so the Processor module picks up stubbed modules.
@@ -192,14 +209,26 @@ describe("SectionVisualProcessor DINOv2 integration (v0.4.0 PR7b)", () => {
       expect(fnSlice).toContain("Promise<{ pendingCount: number }>");
     });
 
-    it("should JOIN section_patterns and filter text_embedding IS NOT NULL AND vision_embedding IS NULL", () => {
+    it("should JOIN section_patterns and use the SSOT sectionVisualPendingExclusionPredicate (PR-BT-2: terminal-skip exclusion, no inline WHERE)", () => {
+      // PR-BT-2 (系統B): the section_visual pending query now references the SSOT
+      // exclusion predicate (`sectionVisualPendingExclusionPredicate`) instead of
+      // an inline `text_embedding IS NOT NULL AND vision_embedding IS NULL` WHERE,
+      // so terminal-skip rows (vision_skip_reason non-NULL) are excluded from
+      // pending (symmetry with part_visual). The text_embedding / vision_embedding
+      // conjuncts are now encoded inside the predicate fragment (asserted by the
+      // predicate's own unit test + INV-007 Block E + the section-visual standing).
       const fnIdx = serviceSource.indexOf(
         "export async function countSectionVisualBackfillTargets"
       );
       const fnSlice = serviceSource.slice(fnIdx, fnIdx + 1500);
       expect(fnSlice).toContain("JOIN section_patterns sp ON se.section_pattern_id = sp.id");
-      expect(fnSlice).toContain("se.text_embedding IS NOT NULL");
-      expect(fnSlice).toContain("se.vision_embedding IS NULL");
+      expect(
+        fnSlice,
+        "countSectionVisualBackfillTargets MUST reference the SSOT sectionVisualPendingExclusionPredicate (no inline pending WHERE)"
+      ).toContain('sectionVisualPendingExclusionPredicate("se")');
+      // The inline bare pending WHERE must NOT remain (it is now produced by the
+      // SSOT helper, which also adds the vision_skip_reason IS NULL exclusion).
+      expect(fnSlice).not.toContain("se.text_embedding IS NOT NULL\n");
     });
 
     it("should validate pendingCount via Number.isFinite (NaN defense)", () => {

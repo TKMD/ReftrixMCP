@@ -65,8 +65,15 @@ export const AUDIT_LOG_CONSTANTS = {
 /**
  * details内で除去する機密キー（再帰的に除去）
  * Sensitive keys to remove from details (recursively)
+ *
+ * Exported as `AUDIT_SENSITIVE_KEYS` (FIND-WAVE4-TDA-V2-H-01 export contract):
+ * downstream consumers (e.g. `crash-report-sanitizer.ts`) reuse this Set as
+ * the canonical SSOT for audit-log key redaction to avoid drift between
+ * `audit-log.service` and sibling sanitizer modules.
+ *
+ * Exported as `AUDIT_SENSITIVE_KEYS` (FIND-WAVE4-TDA-V2-H-01 export contract).
  */
-const SENSITIVE_KEYS = new Set([
+export const AUDIT_SENSITIVE_KEYS = new Set([
   "password",
   "secret",
   "token",
@@ -188,8 +195,25 @@ export interface AuditLogPrismaClient {
 /**
  * IDをPII配慮でtruncateする
  * Truncate ID for PII consideration
+ *
+ * Exported as `truncateAuditTargetId` (FIND-WAVE4-TDA-V2-H-01 export contract):
+ * downstream consumers (e.g. `crash-dump-cleanup-cron.ts`, `crash-report-sanitizer.ts`)
+ * call this helper to apply the same PII truncation length contract (8 chars)
+ * defined by `AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH`.
+ *
+ * Renamed from `truncateTargetId` (FIND-WAVE4-TDA-V2-H-01 export contract).
  */
-function truncateTargetId(id: string | undefined | null): string | null {
+/**
+ * Function overload signatures for `truncateAuditTargetId`.
+ *
+ * - **Non-null variant**: `truncateAuditTargetId(id: string): string` — guarantees non-null return for non-null input (Wave 5 canonical CWE-209 pattern).
+ * - **Nullable variant**: `truncateAuditTargetId(id: string | undefined | null): string | null` — handles missing/empty IDs (FIND-WAVE4-TDA-V2-H-01).
+ *
+ * Single implementation: returns `null` for nullish input, otherwise applies `AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH` SSOT truncation.
+ */
+export function truncateAuditTargetId(id: string): string;
+export function truncateAuditTargetId(id: string | undefined | null): string | null;
+export function truncateAuditTargetId(id: string | undefined | null): string | null {
   if (!id) return null;
   if (id.length <= AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) return id;
   return id.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...";
@@ -208,7 +232,7 @@ function sanitizeDetails(
 
   for (const [key, value] of Object.entries(obj)) {
     // 機密キーはスキップ
-    if (SENSITIVE_KEYS.has(key)) {
+    if (AUDIT_SENSITIVE_KEYS.has(key)) {
       continue;
     }
 
@@ -272,7 +296,7 @@ export class AuditLogService {
           action: entry.action,
           actor: entry.actor,
           targetType: entry.targetType,
-          targetId: truncateTargetId(entry.targetId),
+          targetId: truncateAuditTargetId(entry.targetId),
           details: sanitizeDetails(entry.details),
           ipAddress: entry.ipAddress ?? null,
           result: entry.result,

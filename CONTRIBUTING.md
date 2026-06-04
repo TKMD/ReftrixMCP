@@ -439,12 +439,13 @@ PRタイトルは **Squash時の最終コミットメッセージのsubject部�
 
 ```bash
 # 必須コマンド（すべてパスすること）
-pnpm lint && pnpm typecheck && pnpm test
+pnpm docs:generate && pnpm lint && pnpm typecheck && pnpm verify:listener-sync && pnpm test && pnpm docs:impact && pnpm docs:verify
 ```
 
 - [ ] すべてのテストがパス
 - [ ] ESLintエラー: 0件
 - [ ] TypeScriptエラー: 0件
+- [ ] `pnpm verify:listener-sync` がパス（Plan v4.2 SEC M-NEW-3 / INV-WORKER-NO-RESUME-001 enforce、`worker.once('completed', ...)` listener が同期実行のみであることを AST 解析で検証）
 - [ ] テストカバレッジ: 80%以上
 - [ ] 差分が800行以下（または分割済み）
 - [ ] CLA に同意済み（初回のみ）
@@ -1014,12 +1015,13 @@ PR titles are used as the **subject line of the final squash commit message**:
 
 ```bash
 # Required commands (all must pass)
-pnpm lint && pnpm typecheck && pnpm test
+pnpm docs:generate && pnpm lint && pnpm typecheck && pnpm verify:listener-sync && pnpm test && pnpm docs:impact && pnpm docs:verify
 ```
 
 - [ ] All tests pass
 - [ ] ESLint errors: 0
 - [ ] TypeScript errors: 0
+- [ ] `pnpm verify:listener-sync` passes (Plan v4.2 SEC M-NEW-3 / INV-WORKER-NO-RESUME-001 enforce; AST gate verifying `worker.once('completed', ...)` listeners are synchronous-only)
 - [ ] Test coverage: 80%+
 - [ ] Diff under 800 lines (or already split)
 - [ ] CLA agreed (first time only)

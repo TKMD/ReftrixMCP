@@ -51,6 +51,12 @@ import {
 // sanitize Prisma error messages before surfacing to errors[] (reaches
 // BullMQ UI / page.analyze summary / MCP client responses).
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
+// ADR-0018 Amendment 7 §7.1 (Plan v2 PR-B, UB-3): single SSOT exclusion
+// predicate for the part_visual pending query (NF-TPA-01).
+import {
+  partVisualPendingExclusionPredicate,
+  sectionVisualPendingExclusionPredicate,
+} from "../workers/phases/types";
 
 // =====================================================
 // Constants
@@ -1389,12 +1395,14 @@ export async function backfillPartTextForPage(
 export async function countPartVisualBackfillTargets(
   webPageId: string
 ): Promise<{ pendingCount: number }> {
+  // ADR-0018 Amendment 7 §7.1 (UB-3, NF-TPA-01): SSOT exclusion predicate so
+  // terminal-skip parts (visual_skip_reason non-NULL) are NOT counted as pending.
   const rows = await prisma.$queryRawUnsafe<Array<{ count: string }>>(
     `SELECT COUNT(*) as count FROM component_parts cp
      JOIN component_part_embeddings cpe ON cp.id = cpe.component_part_id
      WHERE cp.web_page_id = $1::uuid
        AND cp.pii_risk_level != 'high'
-       AND cpe.visual_embedding IS NULL`,
+       AND ${partVisualPendingExclusionPredicate("cpe")}`,
     webPageId
   );
   const countStr = rows[0]?.count ?? "0";
@@ -1409,15 +1417,23 @@ export async function countPartVisualBackfillTargets(
  * v0.4.0 PR7b: `section_embeddings.text_embedding IS NOT NULL AND vision_embedding IS NULL`
  * の section を対象とする。Phase 5 の section visual embedding ループと同じ条件
  * （`runVisualEmbeddingSubPhases` 内 `sectionsNeedingVisual` クエリ）に揃える。
- * PII フィルタ（piiRiskLevel='high' を含む section の除外）は DINOv2 ループ側で
- * 既に行われるため、ここでは pendingCount のみ集計する。
+ * PR-C4: PII フィルタ（piiRiskLevel='high' を含む section の除外）は
+ * `sectionVisualPendingExclusionPredicate` の PII NOT EXISTS で **この pending 判定
+ * 自体に**適用される（work 側 DINOv2 ループの除外と対称化、part_visual と同 rigor）。
+ * 以前は work 側ループのみが PII 除外し pending 側は非対称だったため high-PII
+ * section が永久 pending = page completed 未到達の真因だった。
  *
  * v0.4.0 PR7b: Targets sections where
  * `section_embeddings.text_embedding IS NOT NULL AND vision_embedding IS NULL`,
  * matching the same condition used by the Phase 5 visual embedding loop
- * (`sectionsNeedingVisual` inside `runVisualEmbeddingSubPhases`). PII filtering
- * (excluding sections containing piiRiskLevel='high' parts) is already applied
- * inside the DINOv2 loop, so this helper only returns the raw pendingCount.
+ * (`sectionsNeedingVisual` inside `runVisualEmbeddingSubPhases`). PR-C4: PII
+ * filtering (excluding sections containing piiRiskLevel='high' parts) is now
+ * applied to **this pending count itself** via the
+ * `sectionVisualPendingExclusionPredicate` PII NOT EXISTS (symmetric with the
+ * work-side DINOv2 loop exclusion, same rigor as part_visual). Previously only
+ * the work-side loop excluded high-PII sections while the pending side did not —
+ * the asymmetry that left high-PII sections permanently pending (page never
+ * reaching `completed`).
  *
  * @param webPageId - 対象ページの UUID / Target page UUID
  * @returns `pendingCount` が 0 でない場合のみ実際のバックフィルが必要
@@ -1425,12 +1441,15 @@ export async function countPartVisualBackfillTargets(
 export async function countSectionVisualBackfillTargets(
   webPageId: string
 ): Promise<{ pendingCount: number }> {
+  // terminal-skip 行 (vision_skip_reason 非NULL) は SSOT exclusion predicate で
+  // pending から除外する (PR-BT-2、part_visual と対称、inline WHERE 禁止)。
+  // Terminal-skip rows (vision_skip_reason non-NULL) are excluded via the SSOT
+  // exclusion predicate (PR-BT-2, symmetry with part_visual).
   const rows = await prisma.$queryRawUnsafe<Array<{ count: string }>>(
     `SELECT COUNT(*) as count FROM section_embeddings se
      JOIN section_patterns sp ON se.section_pattern_id = sp.id
      WHERE sp.web_page_id = $1::uuid
-       AND se.text_embedding IS NOT NULL
-       AND se.vision_embedding IS NULL`,
+       AND ${sectionVisualPendingExclusionPredicate("se")}`,
     webPageId
   );
   const countStr = rows[0]?.count ?? "0";

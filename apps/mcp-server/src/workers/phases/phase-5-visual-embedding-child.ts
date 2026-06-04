@@ -47,6 +47,7 @@ import {
 } from "./phase-5-child-ipc";
 import { type EmbeddingPhaseResult, initMemoryConstants } from "./types";
 import { runVisualEmbeddingSubPhases } from "./phase-5-embedding";
+import { wireChildExecutionProvider } from "./phase-5-gpu-probe";
 
 import type { EmbeddingPhasePrismaClient } from "./phase-5-embedding";
 
@@ -68,6 +69,13 @@ process.on("message", async (raw: unknown) => {
   // Initialize memory constants for chunk sizing
   initMemoryConstants();
 
+  // PR-1 GPU-COORD (ADR-0038 §1.1/§1.6, FIND-PLAN-H-01): child-local VRAM probe
+  // pre-flight. Sets ONNX_EXECUTION_PROVIDER child-locally BEFORE the DINOv2
+  // in-process init reads it via detectExecutionProvider, so the probe result
+  // actually drives the CUDA-vs-CPU selection (zero new IPC types; the parent
+  // already emitted any degraded audit). Uses the DINOv2 VRAM threshold.
+  await wireChildExecutionProvider("visual");
+
   // Sharp memory control (same as legacy path)
   sharp.cache(false);
   sharp.concurrency(1);
@@ -83,6 +91,7 @@ process.on("message", async (raw: unknown) => {
     partEmbeddingsGenerated: 0,
     partVisualEmbeddingsGenerated: 0,
     partVisualSkippedBboxInvalid: 0,
+    partVisualSkippedBboxUnresolvable: 0,
     sectionVisualEmbeddingsGenerated: 0,
     embeddingFailedChunks: 0,
     completed: false,
@@ -100,6 +109,7 @@ process.on("message", async (raw: unknown) => {
         sectionVisualEmbeddingsGenerated: 0,
         partVisualEmbeddingsGenerated: 0,
         partVisualSkippedBboxInvalid: 0,
+        partVisualSkippedBboxUnresolvable: 0,
         embeddingFailedChunks: 0,
       });
       return;
@@ -120,6 +130,10 @@ process.on("message", async (raw: unknown) => {
       viewportHeight: msg.viewportHeight,
       fallbackEnabled: msg.fallbackEnabled,
       dinov2ModelPath: msg.dinov2ModelPath,
+      // PR-BT-5 (M-1-RSS, ADR-0039 Decision 1): per-sub-phase fork filter. When
+      // set, only this single visual sub-phase runs then the child exit(0)s.
+      // Undefined grandfathers to running both section_visual + part_visual.
+      subPhase: msg.subPhase,
       prisma: prisma as unknown as EmbeddingPhasePrismaClient,
       onLockExtend: (label: string) => {
         sendToParent({ type: "lock-request", label });
@@ -132,6 +146,7 @@ process.on("message", async (raw: unknown) => {
     result.sectionVisualEmbeddingsGenerated = subResult.sectionVisualEmbeddingsGenerated;
     result.partVisualEmbeddingsGenerated = subResult.partVisualEmbeddingsGenerated;
     result.partVisualSkippedBboxInvalid = subResult.partVisualSkippedBboxInvalid;
+    result.partVisualSkippedBboxUnresolvable = subResult.partVisualSkippedBboxUnresolvable;
     result.embeddingFailedChunks = subResult.embeddingFailedChunks;
     result.completed = true;
 
@@ -141,6 +156,7 @@ process.on("message", async (raw: unknown) => {
       sectionVisualEmbeddingsGenerated: result.sectionVisualEmbeddingsGenerated,
       partVisualEmbeddingsGenerated: result.partVisualEmbeddingsGenerated,
       partVisualSkippedBboxInvalid: result.partVisualSkippedBboxInvalid,
+      partVisualSkippedBboxUnresolvable: result.partVisualSkippedBboxUnresolvable,
       embeddingFailedChunks: result.embeddingFailedChunks,
     });
   } catch (error) {

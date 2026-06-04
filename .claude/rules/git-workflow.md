@@ -148,6 +148,8 @@ PR title is used as the **final squash commit message subject**:
 
 **例外 / Exceptions**: 自動生成ファイル、ロックファイル、大規模リファクタリング（事前承認済み） / Auto-generated files, lock files, large refactoring (pre-approved)
 
+**Plan v2 PR-Bα series LoC variance band gate / Plan v2 PR-Bα シリーズ LoC 偏差バンドゲート**: PR-Bα-2 (N≥2) では [ADR-0026](../specs/adr/ADR-0026-loc-tolerance-principle.md) の 4-band ladder (Green ±10% / Yellow / Red ±20% / Hard fail) で actual feat-only LoC vs predicted LoC を gate する。governance-only PR は本 ADR §Decision 2 Red-band sign-off 経路で 800-line hard cap exception と直交契約。 / For PR-Bα-2 onward, the 4-band ladder gate from ADR-0026 governs actual feat-only LoC vs predicted LoC; governance-only PRs are orthogonal to the 800-line hard cap via Decision 2 Red-band sign-off.
+
 ### PR作成前チェックリスト / Pre-PR Checklist
 
 ```bash

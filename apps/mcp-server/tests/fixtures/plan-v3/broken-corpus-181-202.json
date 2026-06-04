@@ -1,0 +1,29 @@
+{
+  "$schema": "broken-corpus-fixture/v1",
+  "description": "PR-V3-T1a §3.3.3 broken-corpus 181/202 Phase 5 skipped baseline fixture (Plan v3 V2 §1.2 Metric 5, A-9 wording amendment §89). Used as the canonical baseline by INV-PHASE5-RSS-BUDGET-001 / INV-COVERAGE-DRIFT-METHODOLOGY-001 staging A/B test protocols and by Phase 2 implementation cross-checks.",
+  "_meta": {
+    "createdBy": "PR-V3-T1a Phase 2 Step 5",
+    "createdAt": "2026-05-04",
+    "purpose": "Marker fixture so docs:verify cross-references resolve. The canonical 379-URL Phase 5 skipped baseline lives in the staging A/B test infrastructure (out of scope for this fixture). Tests that require the full corpus inject their own URL set.",
+    "see": [
+      ".claude/specs/plans/pr-v3-t1a-design.md §3.3.3",
+      ".claude/specs/plans/pr-v3-t1a-finding-registry-v1.md",
+      "Plan v3 V2 §1.2 Metric 5 (A-9 wording amendment §89)"
+    ]
+  },
+  "baseline": {
+    "totalUrls": 379,
+    "phase5SkippedCount": 358,
+    "phase5CompletedCount": 21,
+    "completionRate": 0.0554,
+    "embeddingQualityCoverageBaseline": {
+      "textCoveragePercent": 92.0,
+      "visionCoveragePercent": 69.5
+    }
+  },
+  "target": {
+    "phase5CompletionRateTarget": 0.8,
+    "embeddingQualityCoverageDriftGatePp": 5,
+    "rssChildPeakTargetMb": 2048
+  }
+}

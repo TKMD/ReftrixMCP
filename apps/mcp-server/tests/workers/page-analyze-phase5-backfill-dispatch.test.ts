@@ -7,9 +7,19 @@
  * Verifies the Queue-based Backfill dispatch logic embedded in page-analyze-worker.ts:
  *   - 100-Part threshold is applied only to Part text / visual (not Section / Motion / etc.)
  *   - partsLimit is plumbed through EmbeddingPhaseParams → fork orchestrator → children
- *   - Backfill jobs are enqueued after Phase 5 for pages exceeding the threshold
+ *   - Backfill part_* jobs are enqueued after Phase 5 for pages exceeding the threshold
  *   - embeddingBackfillStatus transitions to 'queued' when jobs are enqueued
- *   - Pages with ≤ 100 Parts do NOT trigger enqueue
+ *
+ * PR-BACKFILL-TERMINAL (系統A / System A): the dispatch now ALSO enqueues the 4
+ * screenshot-free, gate-less categories (motion/background/js_animation/responsive)
+ * unconditionally on every completed page, derived from the
+ * `EMBEDDING_BACKFILL_CATEGORIES` SSOT (drift-proof). The part threshold gate and
+ * the section_visual condition are PRESERVED inside the pure
+ * `resolveBackfillDispatchCategories` helper. Consequently, pages with ≤ 100
+ * Parts NO LONGER skip enqueue entirely — they still enqueue the gate-less
+ * categories (closing the happy-path enqueue gap that mis-pinned pages to
+ * `failed`). The behavioral contract is pinned by
+ * INV-BACKFILL-TERMINAL-COMPLETED-007 (large-page standing).
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
@@ -85,12 +95,16 @@ describe("Phase 5 Backfill Dispatch (v0.4.0 PR4)", () => {
     });
 
     it("should declare partsLimit in IPC Zod schemas for both init-text and init-visual", () => {
-      // Must appear in both schemas
+      // Must appear in both schemas.
+      // PR-1 GPU-COORD (T1-wins): schemas are now `z.object({...}).strict()`
+      // (FIND-PLAN-M-02 SEC H-2 parity), which Prettier renders multi-line as
+      // `z\n  .object({...})\n  .strict();`. The regex tolerates both the legacy
+      // `z.object({...});` form and the new `.strict()` form.
       const parentInitTextMatch = ipcSource.match(
-        /parentInitTextSchema = z\.object\(\{[\s\S]*?\}\);/
+        /parentInitTextSchema = z[\s\S]*?\.object\(\{[\s\S]*?\}\)[\s\S]*?;/
       );
       const parentInitVisualMatch = ipcSource.match(
-        /parentInitVisualSchema = z\.object\(\{[\s\S]*?\}\);/
+        /parentInitVisualSchema = z[\s\S]*?\.object\(\{[\s\S]*?\}\)[\s\S]*?;/
       );
       expect(parentInitTextMatch).not.toBeNull();
       expect(parentInitVisualMatch).not.toBeNull();
@@ -99,9 +113,17 @@ describe("Phase 5 Backfill Dispatch (v0.4.0 PR4)", () => {
     });
 
     it("should propagate partsLimit from orchestrator to text/visual init messages", () => {
-      // Orchestrator must destructure partsLimit and forward it conditionally
+      // Orchestrator must destructure partsLimit and forward it conditionally.
+      // PR-BT-5 (ADR-0039): the per-sub-phase fork helpers
+      // (runTextSubPhaseFork / runVisualSubPhaseFork) forward partsLimit into the
+      // init message via the conditional spread `args.partsLimit !== undefined
+      // ? { partsLimit: args.partsLimit } : {}` (same conditional-forward
+      // contract, now through the helper args). `partsLimit` is also threaded as
+      // a top-level dispatch arg.
       expect(orchestratorSource).toContain("partsLimit,");
-      expect(orchestratorSource).toContain("partsLimit !== undefined ? { partsLimit } : {}");
+      expect(orchestratorSource).toContain(
+        "args.partsLimit !== undefined ? { partsLimit: args.partsLimit } : {}"
+      );
     });
 
     it("should propagate partsLimit in the text child script", () => {
@@ -168,28 +190,52 @@ describe("Phase 5 Backfill Dispatch (v0.4.0 PR4)", () => {
       expect(workerSource).toContain("async function dispatchBackfillJobsForPage");
     });
 
-    it("should guard parts enqueue on partsSavedCount > threshold (PR7e-α bug⑥)", () => {
-      // v0.4.0 PR7e-α (バグ⑥): 旧来の `partsSavedCount <= PART_SYNC_THRESHOLD`
-      // 早期 return は、section_visual dispatch も同時にブロックしていたため、
-      // shouldEnqueueParts / shouldEnqueueSectionVisual の独立条件に改修された。
+    it("should guard parts enqueue via the SSOT-derived resolver (PART_SYNC_THRESHOLD gate PRESERVED, PR-BACKFILL-TERMINAL 系統A)", () => {
+      // v0.4.0 PR7e-α (バグ⑥): part / section_visual を独立条件化。
+      // PR-BACKFILL-TERMINAL (系統A): gate ロジックを pure helper
+      // `resolveBackfillDispatchCategories` に移し、dispatch は `dispatchSet.has(...)`
+      // で `shouldEnqueueParts` を導出する。part の threshold gate は resolver 内で
+      // PRESERVE される (FIND-BT-M-03)。behavioral contract は INV-BACKFILL-
+      // TERMINAL-COMPLETED-007 Block A が resolver 出力で pin。
       //
-      // v0.4.0 PR7e-α (bug ⑥): the legacy early-return on
-      // `partsSavedCount <= PART_SYNC_THRESHOLD` also blocked section_visual
-      // dispatch. Replaced by independent `shouldEnqueueParts` /
-      // `shouldEnqueueSectionVisual` conditions.
-      expect(workerSource).toMatch(
-        /shouldEnqueueParts\s*=\s*partsSavedCount\s*>\s*PART_SYNC_THRESHOLD/
-      );
+      // v0.4.0 PR7e-α (bug ⑥): independent part / section_visual conditions.
+      // PR-BACKFILL-TERMINAL (System A): the gate logic moved into the pure
+      // helper `resolveBackfillDispatchCategories`; the dispatch derives
+      // `shouldEnqueueParts` from `dispatchSet.has(...)`. The PART_SYNC_THRESHOLD
+      // gate is PRESERVED inside the resolver (FIND-BT-M-03). The behavioral
+      // contract is pinned by INV-BACKFILL-TERMINAL-COMPLETED-007 Block A.
+      expect(workerSource).toMatch(/partsSavedCount\s*>\s*PART_SYNC_THRESHOLD/);
+      expect(workerSource).toMatch(/shouldEnqueueParts\s*=\s*dispatchSet\.has\("part_text"\)/);
       expect(workerSource).toMatch(/if\s*\(shouldEnqueueParts\)/);
     });
 
-    it("should dispatch section_visual when sectionsSavedCount > 0 AND screenshot exists (PR7e-α bug⑥)", () => {
-      // v0.4.0 PR7e-α (バグ⑥): section_visual 独立 dispatch。
-      // v0.4.0 PR7e-α (bug ⑥): section_visual independent dispatch.
+    it("should dispatch section_visual via the SSOT-derived resolver (sections>0 && screenshot condition PRESERVED, PR-BACKFILL-TERMINAL 系統A)", () => {
+      // PR-BACKFILL-TERMINAL (系統A): section_visual condition は resolver 内で
+      // PRESERVE (`sectionsSavedCount > 0 && hasScreenshot`)。dispatch は
+      // `dispatchSet.has("section_visual")` で導出。
+      //
+      // PR-BACKFILL-TERMINAL (System A): the section_visual condition is
+      // PRESERVED inside the resolver; the dispatch derives it via
+      // `dispatchSet.has("section_visual")`.
+      expect(workerSource).toMatch(/sectionsSavedCount\s*>\s*0\s*&&\s*hasScreenshot/);
       expect(workerSource).toMatch(
-        /shouldEnqueueSectionVisual\s*=\s*sectionsSavedCount\s*>\s*0\s*&&\s*screenshotStoragePath\s*!==\s*undefined/
+        /shouldEnqueueSectionVisual\s*=\s*dispatchSet\.has\("section_visual"\)/
       );
       expect(workerSource).toMatch(/category:\s*"section_visual"/);
+    });
+
+    it("should enqueue the 4 gate-less categories unconditionally via SSOT-derived set (PR-BACKFILL-TERMINAL 系統A root cause fix)", () => {
+      // PR-BACKFILL-TERMINAL (系統A): motion/bg/js/responsive を SSOT 由来の
+      // `BACKFILL_DISPATCH_GATELESS_CATEGORIES` から無条件 enqueue する。これが
+      // happy-path enqueue gap (root cause) の closure。
+      //
+      // PR-BACKFILL-TERMINAL (System A): unconditionally enqueue the 4 gate-less
+      // categories from the SSOT-derived `BACKFILL_DISPATCH_GATELESS_CATEGORIES`.
+      expect(workerSource).toContain("BACKFILL_DISPATCH_GATELESS_CATEGORIES");
+      expect(workerSource).toMatch(
+        /EMBEDDING_BACKFILL_CATEGORIES\.filter\(\(c\)\s*=>\s*!BACKFILL_DISPATCH_GATED_CATEGORIES\.has\(c\)\)/
+      );
+      expect(workerSource).toContain("Failed to enqueue gate-less backfill (non-fatal)");
     });
 
     it("should log dispatched categories unconditionally (PR7e-α min-observability)", () => {

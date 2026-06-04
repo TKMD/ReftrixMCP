@@ -69,8 +69,19 @@ describe("Phase 5: Fork Orchestrator", () => {
       expect(orchestratorSource).toMatch(/baseEnv\.DINOV2_WORKER_THREAD\s*=\s*["']false["']/);
     });
 
-    it("ONNX_EXECUTION_PROVIDER=cpu が強制されること（β2-P1） / should force ONNX_EXECUTION_PROVIDER=cpu (β2-P1)", () => {
-      expect(orchestratorSource).toMatch(/baseEnv\.ONNX_EXECUTION_PROVIDER\s*=\s*["']cpu["']/);
+    it("ONNX_EXECUTION_PROVIDER が GPU-COORD probe で駆動されること（PR-1, ADR-0038） / should be driven by the GPU-COORD probe (PR-1, ADR-0038 FIND-PLAN-H-01)", () => {
+      // PR-1 GPU-COORD (T1-wins): the pre-PR-1 hardcoded `cpu` (β2-P1) is replaced
+      // by the probe-resolved provider. buildChildEnv now takes `resolvedProvider`
+      // and assigns it. The probe's "cpu" branch (below-threshold / contention /
+      // PHASE5_FORK_GPU_PROBE_ENABLED=false rollback) preserves the legacy CPU
+      // safety, so the CUDA-unavailable host still resolves to CPU.
+      expect(orchestratorSource).toMatch(/baseEnv\.ONNX_EXECUTION_PROVIDER\s*=\s*resolvedProvider/);
+      // The hardcoded `= "cpu"` assignment MUST be gone (inert-change / fake-success guard).
+      expect(orchestratorSource).not.toMatch(/baseEnv\.ONNX_EXECUTION_PROVIDER\s*=\s*["']cpu["']/);
+      // buildChildEnv signature accepts the probe-resolved provider.
+      expect(orchestratorSource).toMatch(
+        /function buildChildEnv\(resolvedProvider:\s*ChildExecutionProvider\)/
+      );
     });
 
     it("MALLOC_ARENA_MAX=2 が設定されること（OOM-1） / should set MALLOC_ARENA_MAX=2 (OOM-1)", () => {
@@ -160,10 +171,13 @@ describe("Phase 5: Fork Orchestrator", () => {
     it("visual child 用 JSON.stringify 後に params.layoutResultForNarrative が null に設定されること / should null-out layoutResultForNarrative", () => {
       const orchestratorSource = fs.readFileSync(ORCHESTRATOR_SRC, "utf-8");
 
-      // OOM-FIX: Release original object reference after JSON serialization
+      // OOM-FIX: Release original object reference after JSON serialization.
+      // PR-BT-5 (ADR-0039): retained in the per-sub-phase visual block (the
+      // visual layout JSON is stringified once, then the object reference is
+      // released before the visual sub-phase fork loop).
       expect(orchestratorSource).toMatch(/params.*layoutResultForNarrative\s*=\s*null/);
-      // Comment documents the intentional null-out
-      expect(orchestratorSource).toContain("Release original object reference");
+      // Comment documents the intentional null-out (wording updated in PR-BT-5).
+      expect(orchestratorSource).toContain("release the original object reference");
     });
   });
 
@@ -443,6 +457,9 @@ describe("Phase 5: Fork Orchestrator", () => {
         partVisualEmbeddingsGenerated: 3,
         // PR-D-2: additively added; Zod schema defaults to 0 when absent
         partVisualSkippedBboxInvalid: 0,
+        // ADR-0018 Amendment 7 §7.6 exit #2 (Plan v2 PR-B): additively added;
+        // Zod schema defaults to 0 when absent (symmetric with bbox_invalid)
+        partVisualSkippedBboxUnresolvable: 0,
         embeddingFailedChunks: 0,
       };
       const result = validateChildMessage(msg);
@@ -555,16 +572,21 @@ describe("Phase 5: Fork Orchestrator", () => {
   // K. Visual child スキップ条件
   // ==========================================================================
   describe("K. Visual child スキップ条件 / visual child skip conditions", () => {
-    it("screenshotPngPath と (hasSections || hasParts) がチェックされること", () => {
+    it("visual sub-phase forks が screenshot 存在でゲートされ、section/part 存在は descriptor shouldRun が担う (PR-BT-5 ADR-0039)", () => {
       const orchestratorSource = fs.readFileSync(ORCHESTRATOR_SRC, "utf-8");
 
-      // Visual child fork is conditional on screenshot and (sections or parts)
+      // PR-BT-5 (ADR-0039): the orchestrator gates the visual sub-phase fork
+      // loop on screenshot presence (`if (hasScreenshot)`); the per-sub-phase
+      // section/part data-presence decision is now owned by the visual
+      // descriptors' `shouldRun` (buildVisualSubPhaseDescriptors), NOT by an
+      // inline `hasSections || hasParts` gate. So `hasScreenshot` + the descriptor
+      // builder must be present; the old combined `if (hasScreenshot && (...))`
+      // gate is replaced.
       expect(orchestratorSource).toContain("hasScreenshot");
-      expect(orchestratorSource).toContain("hasSections");
+      expect(orchestratorSource).toMatch(/if\s*\(hasScreenshot\)/);
+      expect(orchestratorSource).toContain("buildVisualSubPhaseDescriptors");
+      // `hasParts` is still computed (gates resolvePartBboxFn before part_visual).
       expect(orchestratorSource).toContain("hasParts");
-      expect(orchestratorSource).toMatch(
-        /if\s*\(hasScreenshot\s*&&\s*\(hasSections\s*\|\|\s*hasParts\)\)/
-      );
     });
   });
 
@@ -610,22 +632,31 @@ describe("Phase 5: Fork Orchestrator", () => {
   // N. OOM-FIX-2: JSON string 参照解放
   // ==========================================================================
   describe("N. OOM-FIX-2: JSON string 参照解放 / JSON string release pattern", () => {
-    it("text child 用 JSON 文字列が IPC 送信後に null に設定されること / should null-out JSON strings after text IPC", () => {
+    // PR-BT-5 (ADR-0039): the text IPC payloads are serialized ONCE and reused
+    // across the (up to 7) text sub-phase forks, then released together after
+    // the loop via `textPayloads = null` (the old per-string `let ... = null`
+    // pattern is replaced by a single payload-bundle release — same OOM-FIX-2
+    // intent, relocated to after the dispatch loop).
+    it("text sub-phase payloads が dispatch loop 完了後に null に解放されること (PR-BT-5 OOM-FIX-2)", () => {
       const orchestratorSource = fs.readFileSync(ORCHESTRATOR_SRC, "utf-8");
 
-      // OOM-FIX-2: Release JSON strings immediately
-      expect(orchestratorSource).toContain("layoutResultJson = null");
-      expect(orchestratorSource).toContain("motionResultJson = null");
-      expect(orchestratorSource).toContain("jsAnimationsJson = null");
-      expect(orchestratorSource).toContain("scrollVisionResultJson = null");
+      // The serialized payloads are built into a `textPayloads` bundle and
+      // released after the loop.
+      expect(orchestratorSource).toContain("textPayloads = null");
+      // OOM-FIX-2 intent documented.
+      expect(orchestratorSource).toContain("Release the text payloads after all text forks");
+      // The 4 large JSON payloads are still serialized (held in the bundle).
+      expect(orchestratorSource).toContain("layoutResultJson");
+      expect(orchestratorSource).toContain("motionResultJson");
+      expect(orchestratorSource).toContain("jsAnimationsJson");
+      expect(orchestratorSource).toContain("scrollVisionResultJson");
     });
 
-    it("textInitMsg が text child 完了後に null に設定されること / should null-out textInitMsg after text child completes", () => {
+    it("text payloads bundle が GC を伴って解放されること / payloads released with GC after fork loop", () => {
       const orchestratorSource = fs.readFileSync(ORCHESTRATOR_SRC, "utf-8");
 
-      expect(orchestratorSource).toContain("textInitMsg = null");
-      // Comment: Release textInitMsg after text child completes
-      expect(orchestratorSource).toContain("Release textInitMsg after text child completes");
+      // `textPayloads = null` followed by an optional GC (OOM-FIX-2 semantics).
+      expect(orchestratorSource).toMatch(/textPayloads\s*=\s*null;[\s\S]{0,200}globalThis\.gc/);
     });
   });
 
@@ -858,15 +889,20 @@ describe("Phase 5: Fork Orchestrator", () => {
       );
     });
 
-    it("Text child fork 例外時に skipReason='text_fork_failed' を設定すること / sets text_fork_failed on fork exception", () => {
+    // PR-BT-5 (ADR-0039): the per-sub-phase fork helpers
+    // (runTextSubPhaseFork / runVisualSubPhaseFork) use a unified `forkError`
+    // catch variable. The skipReason contract (text_fork_failed /
+    // visual_fork_failed on fork exception) is PRESERVED — only the catch var
+    // name changed (textError/visualError → forkError).
+    it("Text sub-phase fork 例外時に skipReason='text_fork_failed' を設定すること / sets text_fork_failed on fork exception", () => {
       expect(orchestratorSource).toMatch(
-        /catch\s*\(textError\)[\s\S]{0,500}setSkipReasonIfUnset\(\s*result,\s*["']text_fork_failed["']/
+        /catch\s*\(forkError\)[\s\S]{0,500}setSkipReasonIfUnset\(\s*result,\s*["']text_fork_failed["']/
       );
     });
 
-    it("Visual child fork 例外時に skipReason='visual_fork_failed' を設定すること / sets visual_fork_failed on fork exception", () => {
+    it("Visual sub-phase fork 例外時に skipReason='visual_fork_failed' を設定すること / sets visual_fork_failed on fork exception", () => {
       expect(orchestratorSource).toMatch(
-        /catch\s*\(visualError\)[\s\S]{0,500}setSkipReasonIfUnset\(\s*result,\s*["']visual_fork_failed["']/
+        /catch\s*\(forkError\)[\s\S]{0,500}setSkipReasonIfUnset\(\s*result,\s*["']visual_fork_failed["']/
       );
     });
 

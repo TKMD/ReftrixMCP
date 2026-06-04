@@ -23,6 +23,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { createHash } from "node:crypto";
 
 import {
   GdprDeletionService,
@@ -32,6 +33,9 @@ import {
   resetGdprDeletionService,
   type GdprPrismaClient,
 } from "../../src/services/gdpr-deletion.service";
+// CO-5 Wave 5 canonical: SSOT-derive expected literal from
+// AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH (CO-5 UC-2 / UC-3 / UC-4)
+import { AUDIT_LOG_CONSTANTS } from "../../src/services/audit-log.service";
 
 // =====================================================
 // logger モック / Logger mock
@@ -265,8 +269,15 @@ describe("GdprDeletionService", () => {
       expect(updateCall).toBeDefined();
       expect(updateCall![0]).toContain('UPDATE search_logs SET "profile_id" = NULL');
       expect(updateCall![0]).toContain("LIKE");
-      // truncateId: 先頭8文字 + "%" / First 8 chars + "%"
-      expect(updateCall![1]).toBe(MOCK_PROFILE_ID.slice(0, 8) + "%");
+      // CO-5 UC-3 Option α: SSOT-derive from AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH
+      // (Wave 5 canonical contract: NO hardcoded literal "abcd1234%" / "slice(0, 8)+%")
+      // CO-5 UC-3 Option α: SSOT-derived prefix length (NOT hardcoded `8`)
+      expect(updateCall![1]).toBe(
+        MOCK_PROFILE_ID.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "%"
+      );
+      // SQL LIKE wildcard semantic preserved: suffix is "%" (NOT "...")
+      expect(updateCall![1]).toMatch(/%$/);
+      expect(updateCall![1]).not.toMatch(/\.\.\.$/);
     });
 
     it("存在しないプロファイルIDで NotFound エラーを投げる / should throw for non-existent profile", async () => {
@@ -586,6 +597,199 @@ describe("GdprDeletionService", () => {
       await expect(service.deletePage(MOCK_PAGE_ID, "test")).rejects.toThrow(
         "Database connection lost"
       );
+    });
+  });
+
+  // =====================================================
+  // 10. CO-5 UC-2: A path Short-ID Length-Invariant Guard
+  //     (SEC-CO5-02 closure, defense-in-depth against Zod relaxation)
+  // =====================================================
+
+  describe("[CO-5 UC-2] A path SQL LIKE length-invariant guard", () => {
+    /**
+     * UC-2 (SEC-CO5-02): Plan §3.2 採用形 `truncateProfileIdForSqlLike` は
+     * profileId.length < TARGET_ID_TRUNCATE_LENGTH 時に throw する length-invariant
+     * guard を持つ。Zod UUID 契約 (`data.tool.ts`) で runtime exploit 不可だが
+     * Zod 緩和時の silent over-deletion regression を防ぐ defense-in-depth。
+     *
+     * UC-2 (SEC-CO5-02): The Plan §3.2 form `truncateProfileIdForSqlLike` carries
+     * a length-invariant guard that throws when profileId.length is shorter than
+     * TARGET_ID_TRUNCATE_LENGTH. Zod UUID validation in `data.tool.ts` makes
+     * runtime exploitation impossible under the current contract, but this guard
+     * provides defense-in-depth against silent over-deletion regression should
+     * Zod be relaxed in the future.
+     */
+    it("validateUuid rejects short ID (Zod UUID contract enforced — guard cold path)", async () => {
+      // Direct service call with too-short id is rejected by validateUuid first
+      // (UUID_REGEX requires 36 chars). This documents the layered defense:
+      // 1st layer = validateUuid; 2nd layer = truncateProfileIdForSqlLike length guard.
+      await expect(service.deleteProfile("short", "test reason")).rejects.toThrow(
+        "Invalid UUID format"
+      );
+    });
+
+    it("guard surface compiles to length=AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH (SSOT verification)", () => {
+      // SSOT contract verification: the length used by truncateProfileIdForSqlLike
+      // is derived from AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH (current = 8).
+      // If this value changes, BOTH gdpr-deletion (guard + SQL LIKE prefix) AND
+      // search-log (truncateId stored value) shift in lockstep — preventing
+      // cross-SSOT length asymmetry (LCC-CO5-01 closure).
+      expect(AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH).toBeGreaterThanOrEqual(8);
+      expect(typeof AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH).toBe("number");
+    });
+  });
+
+  // =====================================================
+  // 11. CO-5 UC-4: 8-Char Prefix Collision Audit Trail
+  //     (LCC-CO5-02 closure, GDPR Art.30 verification trail)
+  // =====================================================
+
+  describe("[CO-5 UC-4] GDPR Art.30 post-deletion verification trail", () => {
+    /**
+     * UC-4 (LCC-CO5-02): A path SQL LIKE `slice(0, 8) + "%"` は UUID 最初 8 文字
+     * prefix match (4.3×10^9 通り)。birthday paradox: N=10K で ~1.2% collision、
+     * `deleteAllUserData` 時 over-deletion 構造的可能性。GDPR Art.30 post-deletion
+     * verification trail として `searchLogsAnonymized` count + profileId SHA-256 hash
+     * を result + audit_logs.details に記録する。
+     *
+     * UC-4 (LCC-CO5-02): A path SQL LIKE `slice(0, 8) + "%"` matches first 8 chars
+     * of UUID (~4.3 × 10^9 prefixes). Birthday paradox: ~1.2% collision at N=10K.
+     * Records `searchLogsAnonymized` count + profileId SHA-256 hash in the result
+     * + audit_logs.details for GDPR Art.30 post-deletion verification trail.
+     */
+    it("deleteProfile result includes profile_id_hash (SHA-256 of profileId)", async () => {
+      const queryMock = vi.fn().mockResolvedValueOnce([{ id: MOCK_PROFILE_ID }]);
+      const executeMock = vi
+        .fn()
+        .mockResolvedValueOnce(2) // preference_signals
+        .mockResolvedValueOnce(7) // search_logs anonymized
+        .mockResolvedValueOnce(1); // preference_profiles
+
+      const txMockPrisma: GdprPrismaClient = {
+        $queryRawUnsafe: queryMock,
+        $executeRawUnsafe: executeMock,
+        $transaction: vi.fn(),
+      };
+      mockPrisma.$transaction = vi
+        .fn()
+        .mockImplementation(async (fn: (tx: GdprPrismaClient) => Promise<unknown>) =>
+          fn(txMockPrisma)
+        );
+
+      const result = await service.deleteProfile(MOCK_PROFILE_ID, "GDPR Art.17 erasure");
+
+      // Hash is deterministic SHA-256 of full profileId
+      const expectedHash = createHash("sha256").update(MOCK_PROFILE_ID, "utf8").digest("hex");
+      expect(result.profile_id_hash).toBe(expectedHash);
+      // Hash length is 64 hex chars (256 bits)
+      expect(result.profile_id_hash).toHaveLength(64);
+      // Hash does NOT contain raw profileId (PII not exposed)
+      expect(result.profile_id_hash).not.toContain(MOCK_PROFILE_ID);
+      // search_logs_anonymized propagated
+      expect(result.deleted_records.search_logs_anonymized).toBe(7);
+    });
+
+    it("deleteAllUserData result includes search_logs_anonymized + profile_id_hash when profile deleted", async () => {
+      const queryMock = vi
+        .fn()
+        .mockResolvedValueOnce([{ id: MOCK_PAGE_ID }]) // page existence
+        .mockResolvedValueOnce([{ id: MOCK_PROFILE_ID }]); // profile existence
+
+      const executeMock = vi.fn().mockResolvedValue(3); // catch-all (search_logs anonymize will return 3)
+
+      const txMockPrisma: GdprPrismaClient = {
+        $queryRawUnsafe: queryMock,
+        $executeRawUnsafe: executeMock,
+        $transaction: vi.fn(),
+      };
+      mockPrisma.$transaction = vi
+        .fn()
+        .mockImplementation(async (fn: (tx: GdprPrismaClient) => Promise<unknown>) =>
+          fn(txMockPrisma)
+        );
+
+      const result = await service.deleteAllUserData(
+        [MOCK_PAGE_ID],
+        MOCK_PROFILE_ID,
+        "Full account deletion"
+      );
+
+      // search_logs_anonymized field present (UC-4)
+      expect(result).toHaveProperty("search_logs_anonymized");
+      expect(typeof result.search_logs_anonymized).toBe("number");
+      // profile_id_hash field present (UC-4 / LCC-CO5-02)
+      expect(result).toHaveProperty("profile_id_hash");
+      const expectedHash = createHash("sha256").update(MOCK_PROFILE_ID, "utf8").digest("hex");
+      expect(result.profile_id_hash).toBe(expectedHash);
+      expect(result.profile_id_hash).toHaveLength(64);
+    });
+
+    it("deleteAllUserData omits profile_id_hash when no profile was deleted", async () => {
+      // profileId given but profile does not exist → profileDeleted=false → no hash
+      const queryMock = vi
+        .fn()
+        .mockResolvedValueOnce([{ id: MOCK_PAGE_ID }]) // page existence
+        .mockResolvedValueOnce([]); // profile NOT existing
+
+      const executeMock = vi.fn().mockResolvedValue(1);
+
+      const txMockPrisma: GdprPrismaClient = {
+        $queryRawUnsafe: queryMock,
+        $executeRawUnsafe: executeMock,
+        $transaction: vi.fn(),
+      };
+      mockPrisma.$transaction = vi
+        .fn()
+        .mockImplementation(async (fn: (tx: GdprPrismaClient) => Promise<unknown>) =>
+          fn(txMockPrisma)
+        );
+
+      const result = await service.deleteAllUserData(
+        [MOCK_PAGE_ID],
+        MOCK_PROFILE_ID,
+        "Page-only deletion"
+      );
+
+      expect(result.profile_deleted).toBe(false);
+      // No hash when no profile was deleted
+      expect(result.profile_id_hash).toBeUndefined();
+      // search_logs_anonymized still set (default 0 since no profile path executed)
+      expect(result.search_logs_anonymized).toBe(0);
+    });
+  });
+
+  // =====================================================
+  // 12. CO-5 SEC-CO5-03: SQL LIKE Meta-char Defense-in-Depth
+  // =====================================================
+
+  describe("[CO-5 SEC-CO5-03] SQL LIKE meta-char defense-in-depth", () => {
+    /**
+     * SEC-CO5-03 (L): Plan §5.1 A path test に SQL LIKE meta-char (%, _, \) Zod
+     * rejection assertion を追加。Zod UUID 契約 (`data.tool.ts` z.string().uuid())
+     * への暗黙依存を explicit 化。
+     *
+     * SEC-CO5-03 (L): Adds explicit Zod UUID rejection assertion for SQL LIKE
+     * meta-chars (%, _, \) to make the implicit dependency on the data.tool.ts
+     * Zod UUID contract explicit at the service-layer boundary.
+     */
+    it("rejects profileId with SQL LIKE wildcard (%) via UUID validation", async () => {
+      // Malicious profileId with % wildcard would, if allowed, broaden the LIKE
+      // pattern. validateUuid (UUID_REGEX) is the first line of defense.
+      await expect(
+        service.deleteProfile("abcdefgh%; DROP TABLE search_logs; --", "test")
+      ).rejects.toThrow("Invalid UUID format");
+    });
+
+    it("rejects profileId with SQL LIKE underscore (_) via UUID validation", async () => {
+      await expect(
+        service.deleteProfile("abcdefg_-1234-5678-9abc-def012345678", "test")
+      ).rejects.toThrow("Invalid UUID format");
+    });
+
+    it("rejects profileId with SQL LIKE backslash escape via UUID validation", async () => {
+      await expect(
+        service.deleteProfile("abcdefg\\-1234-5678-9abc-def012345678", "test")
+      ).rejects.toThrow("Invalid UUID format");
     });
   });
 });

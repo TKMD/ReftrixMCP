@@ -31,18 +31,29 @@
  * @module workers/embedding-backfill-worker
  */
 
-import { Worker, type Job } from "bullmq";
+import { Worker, type Job, type Queue } from "bullmq";
 import { prisma } from "@reftrixmcp/database";
 import { embeddingService as mlEmbeddingService } from "@reftrixmcp/ml";
 import {
   EMBEDDING_BACKFILL_CATEGORIES,
   EMBEDDING_BACKFILL_QUEUE_NAME,
   EmbeddingBackfillJobDataSchema,
+  addEmbeddingBackfillJobWithGuard,
+  createEmbeddingBackfillQueue,
   type EmbeddingBackfillJobData,
   type EmbeddingBackfillJobResult,
   type EmbeddingBackfillCategory,
+  type EmbeddingBackfillFailureReason,
 } from "../queues/embedding-backfill-queue";
-import { getAuditLogService } from "../services/audit-log.service";
+// PR-BT-4 H-1 (ADR-0018 Amendment 10 Decision 10.1 + 10.4): analysis-status
+// guard pure decision leaf helper. The DB-mutating CAS transitions live in this
+// file (they need Prisma + Queue); the *decision* is the complexity-gated leaf.
+import {
+  decideAnalysisGuard,
+  BACKFILL_ANALYSIS_GUARD_DELAY_MS,
+} from "./phases/backfill-analysis-guard";
+import { BACKFILL_RECOVERY_MAX_AUTO_RETRIES } from "../services/backfill-recovery-reconciliation.service";
+import { AUDIT_LOG_CONSTANTS, getAuditLogService } from "../services/audit-log.service";
 import { pickKnownKeys, detectCategoryDrift } from "../utils/pick-known-keys";
 import {
   getBackfillProcessor,
@@ -73,7 +84,10 @@ import {
 // "PrismaClient not initialized" for every row.
 import { setFramePrismaClientFactory } from "../services/motion/frame-embedding.service";
 import { validateScreenshotPath } from "../services/screenshot-persistence.service";
-import { applyPostJobMemoryGate } from "./shared/post-job-lifecycle";
+import {
+  applyPostJobMemoryGate,
+  registerCompletedListenerAndExit,
+} from "./shared/post-job-lifecycle";
 import type { EmbeddingPhasePrismaClient } from "./phases/phase-5-embedding";
 
 // ============================================================================
@@ -161,6 +175,22 @@ setFramePrismaClientFactory(() => prisma as never);
  */
 const _preReturnPauseEnabled = safeParseInt(process.env.WORKER_MAX_JOBS_BEFORE_RESTART, 1) > 0;
 
+/**
+ * Plan v1.1 candidate B / ADR-0034 Amendment 5: the module-level
+ * `_workerInstanceRef` was used solely by the removed
+ * `applyPostJobLifecycleGate(worker, ...)` callsite (success path
+ * Pre-Return Pause). Stage 2 `worker.pause(true)` is formally removed
+ * (ADR-0034 Amendment 5 §Decision 2-4), so the ref is no longer needed
+ * and has been removed from the module.
+ *
+ * Plan v1.1 candidate B / ADR-0034 Amendment 5: the module-level
+ * `_workerInstanceRef` was used solely by the removed
+ * `applyPostJobLifecycleGate(worker, ...)` callsite (success path
+ * Pre-Return Pause). Stage 2 `worker.pause(true)` is formally removed
+ * (Amendment 5 §Decision 2-4); the ref is no longer needed and has been
+ * removed from this module.
+ */
+
 // ============================================================================
 // Processor
 // ============================================================================
@@ -204,7 +234,7 @@ async function resolveScreenshotPath(
       return validated;
     }
     logger.warn("[EmbeddingBackfillWorker] Rejected unsafe screenshot path from job hint", {
-      webPageId: webPageId.slice(0, 8) + "...",
+      webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
     });
   }
 
@@ -221,13 +251,13 @@ async function resolveScreenshotPath(
         return validated;
       }
       logger.warn("[EmbeddingBackfillWorker] Rejected unsafe screenshot path from DB", {
-        webPageId: webPageId.slice(0, 8) + "...",
+        webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
       });
     }
   } catch (error) {
     logger.warn("[EmbeddingBackfillWorker] Failed to fetch screenshot path from DB", {
       error: sanitizeErrorMessage(error),
-      webPageId: webPageId.slice(0, 8) + "...",
+      webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
     });
   }
   return null;
@@ -283,10 +313,282 @@ async function updateEmbeddingBackfillStatus(
   } catch (error) {
     logger.warn("[EmbeddingBackfillWorker] Failed to update embeddingBackfillStatus", {
       error: sanitizeErrorMessage(error),
-      webPageId: webPageId.slice(0, 8) + "...",
+      webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
       status,
     });
   }
+}
+
+/**
+ * defect B fix (10-site CPU 検証で発見): job 例外時の terminal failure 遷移を
+ * **plain `failed` ではなく** `failed_with_known_reason` + `failure_reason` +
+ * `failed_at` に統一する helper。
+ *
+ * **root cause**: 旧 `finalizeBackfillJob` failure path は
+ * `updateEmbeddingBackfillStatus(webPageId, "failed")` で plain `failed` のみを
+ * 書き込み、`failure_reason` / `failed_at` を NULL のまま残していた。その結果:
+ *   (1) `failure_reason=null` / `failed_at=null` の不整合 (observability 欠落)。
+ *   (2) plain `failed` は recovery service (`runRecoveryCycle` →
+ *       `fetchFailedWithKnownReasonRows`) の scan 対象外のため、後から DI 修正
+ *       (e.g. motion) で再処理して DB が完全になっても **自動復帰しない**。
+ *
+ * `failed_with_known_reason` + `stall_timeout` reason に遷移させることで、
+ * `BackfillRecoveryReconciliationService` が `auto_recoverable` policy で scan →
+ * `re_enqueued` → 全 7 カテゴリ再投入 → DB 完全なら最終的に `completed` 到達、
+ * という既存 Plan v3 T3-Backfill recovery 経路に正しく乗せる。
+ *
+ * **reason 選択根拠**: BullMQ job processor 内の例外は transient な処理失敗
+ * (一時的な DI / ネットワーク / OOM 等) を表すため、`auto_recoverable` バケット
+ * の `stall_timeout` を汎用 reason として採用する
+ * (`classifyFailureReasonPolicy` で auto_recoverable、lifecycle-origin として
+ * 単純 re-enqueue される)。
+ *
+ * defect B fix: unifies the job-exception terminal failure transition to
+ * `failed_with_known_reason` + `failure_reason='stall_timeout'` + `failed_at`,
+ * instead of plain `failed`. This (1) fills failure metadata (closing the
+ * `failure_reason`/`failed_at` NULL observability gap) and (2) routes the row
+ * into the recovery service's scan window so it can auto-recover (re_enqueue →
+ * all 7 categories → terminal `completed`) once the DB becomes complete.
+ */
+async function markBackfillFailedWithKnownReason(
+  webPageId: string,
+  failureReason: EmbeddingBackfillFailureReason
+): Promise<void> {
+  try {
+    await prisma.webPage.update({
+      where: { id: webPageId },
+      data: {
+        embeddingBackfillStatus: "failed_with_known_reason",
+        embeddingBackfillFailureReason: failureReason,
+        embeddingBackfillFailedAt: new Date(),
+      },
+    });
+  } catch (error) {
+    logger.warn("[EmbeddingBackfillWorker] Failed to mark failed_with_known_reason", {
+      error: sanitizeErrorMessage(error),
+      webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
+      failureReason,
+    });
+  }
+}
+
+// ============================================================================
+// PR-BT-4 H-1 — analysis-status guard CAS transitions
+// (ADR-0018 Amendment 10 Decision 10.1 + 10.4)
+// ============================================================================
+
+/**
+ * Minimal Prisma surface required by the analysis-status guard transitions.
+ * Lets tests inject a mock without the full `PrismaClient` type (mirrors the
+ * recovery service's `runRecoveryCycle` Prisma typing).
+ */
+export interface AnalysisGuardPrisma {
+  webPage: {
+    findUnique: (args: { where: { id: string }; select?: Record<string, boolean> }) => Promise<{
+      analysisStatus: string;
+      embeddingBackfillRetryCount: number;
+      screenshotStoragePath: string | null;
+    } | null>;
+    updateMany: (args: {
+      where: { id: string; embeddingBackfillStatus?: { in?: string[] } | string };
+      data: Record<string, unknown>;
+    }) => Promise<{ count: number }>;
+  };
+}
+
+/**
+ * Result of a single analysis-guard re-enqueue transition.
+ *
+ * - `re_enqueued`        — CAS won; retryCount incremented; job re-added.
+ * - `concurrent_skipped` — CAS lost (another actor already transitioned the
+ *                          row out of the `in_progress`/`queued` window).
+ */
+export type AnalysisGuardReEnqueueResult = { kind: "re_enqueued" } | { kind: "concurrent_skipped" };
+
+/**
+ * Lazily-cached Queue for the guard re-enqueue path (matches the
+ * page-analyze-worker `_backfillQueue` lazy-init pattern). A re-enqueued job is
+ * the SAME single category — the guard fires per-job, and each per-category job
+ * re-adds itself (idempotent via the jobId collision guard).
+ */
+let _guardReEnqueueQueue: Queue<EmbeddingBackfillJobData, EmbeddingBackfillJobResult> | null = null;
+
+function getGuardReEnqueueQueue(): Queue<EmbeddingBackfillJobData, EmbeddingBackfillJobResult> {
+  if (_guardReEnqueueQueue === null) {
+    _guardReEnqueueQueue = createEmbeddingBackfillQueue();
+  }
+  return _guardReEnqueueQueue;
+}
+
+/**
+ * SEC-V1-01 winning contract — same-shape CAS re-enqueue for the
+ * analysis-status guard (H-1). Mirrors `transitionToReEnqueued` from the
+ * recovery service BUT with a DISTINCT CAS gate:
+ * `embeddingBackfillStatus IN ('in_progress','queued')` (the guard fires while
+ * the row is in_progress, NOT `failed_with_known_reason`). The recovery-service
+ * helper literally cannot be called for this path because its CAS where-clause
+ * gates `failed_with_known_reason → queued`.
+ *
+ * Transitions `in_progress`/`queued` → `queued` + `embeddingBackfillRetryCount`
+ * CAS-increment, then re-adds the SAME single-category job with a bounded delay
+ * (`BACKFILL_ANALYSIS_GUARD_DELAY_MS`). NOT BullMQ retry (`moveToDelayed` /
+ * `attempts: ≥2`) — `INV-RETRY-AMPLIFICATION-001` keeps `attempts: 1`.
+ *
+ * @returns `re_enqueued` when the CAS won, `concurrent_skipped` otherwise.
+ */
+export async function transitionAnalysisGuardReEnqueue(args: {
+  prisma: AnalysisGuardPrisma;
+  queue: Queue<EmbeddingBackfillJobData, EmbeddingBackfillJobResult>;
+  webPageId: string;
+  category: EmbeddingBackfillCategory;
+  retryCount: number;
+  screenshotStoragePath: string | null;
+}): Promise<AnalysisGuardReEnqueueResult> {
+  const { prisma: db, queue, webPageId, category, retryCount, screenshotStoragePath } = args;
+
+  // CAS gate: only transition while the row is still in the active window
+  // (in_progress / queued). Distinct from the recovery service's
+  // `failed_with_known_reason` gate (SEC-V1-01).
+  const updated = await db.webPage.updateMany({
+    where: { id: webPageId, embeddingBackfillStatus: { in: ["in_progress", "queued"] } },
+    data: {
+      embeddingBackfillStatus: "queued",
+      embeddingBackfillRetryCount: { increment: 1 },
+    },
+  });
+  if (updated.count === 0) {
+    return { kind: "concurrent_skipped" };
+  }
+
+  // Re-add the SAME single-category job with bounded delay. Idempotent via the
+  // jobId collision guard. requiresBboxResolution mirrors the skip-recovery
+  // enqueue contract for part_visual.
+  const jobData: Omit<EmbeddingBackfillJobData, "createdAt"> =
+    category === "part_visual" && screenshotStoragePath
+      ? { webPageId, category, screenshotStoragePath, requiresBboxResolution: true }
+      : screenshotStoragePath
+        ? { webPageId, category, screenshotStoragePath }
+        : { webPageId, category };
+
+  await addEmbeddingBackfillJobWithGuard(queue, jobData, {
+    priority: 10,
+    delay: BACKFILL_ANALYSIS_GUARD_DELAY_MS,
+  });
+
+  logger.info(
+    "[EmbeddingBackfillWorker] Analysis-status guard re-enqueued (page still analyzing)",
+    {
+      webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
+      category,
+      retryCount: retryCount + 1,
+    }
+  );
+  return { kind: "re_enqueued" };
+}
+
+/**
+ * Deadlock guard (Decision 10.4) — terminal `failed` when the retryCount cap is
+ * reached while `analysisStatus` is permanently stuck (e.g. `markAnalysisCompleted`
+ * non-fatal failure leaving `processing`). CAS-guarded on the active window so a
+ * concurrent transition is a no-op. Finite-terminating; never an infinite loop.
+ */
+export async function transitionAnalysisGuardTerminalFailed(args: {
+  prisma: AnalysisGuardPrisma;
+  webPageId: string;
+}): Promise<void> {
+  const { prisma: db, webPageId } = args;
+  const updated = await db.webPage.updateMany({
+    where: { id: webPageId, embeddingBackfillStatus: { in: ["in_progress", "queued"] } },
+    data: { embeddingBackfillStatus: "failed" },
+  });
+  if (updated.count > 0) {
+    logger.warn(
+      "[EmbeddingBackfillWorker] Analysis-status guard deadlock cap reached → terminal failed",
+      {
+        webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
+        retryCap: BACKFILL_RECOVERY_MAX_AUTO_RETRIES,
+      }
+    );
+  }
+}
+
+/**
+ * Evaluate the analysis-status guard for a backfill job receipt (H-1).
+ *
+ * Reads `analysisStatus` + `embeddingBackfillRetryCount`, delegates the decision
+ * to the complexity-gated leaf helper `decideAnalysisGuard`, then performs the
+ * matching CAS transition. Returns `true` when the worker should PROCEED to
+ * process part categories, `false` when it must skip (re-enqueued or terminated).
+ *
+ * **fail-open** (C-vertex / Decision 10.1): a DB error reading the status returns
+ * `true` (proceed) — the guard only shortens the race window; H-2/H-3 are the
+ * final terminal-reach guarantee, so a guard read failure must not block completion.
+ */
+async function evaluateAnalysisGuard(
+  job: Job<EmbeddingBackfillJobData, EmbeddingBackfillJobResult>
+): Promise<boolean> {
+  const { webPageId, category } = job.data;
+
+  let row: {
+    analysisStatus: string;
+    embeddingBackfillRetryCount: number;
+    screenshotStoragePath: string | null;
+  } | null;
+  try {
+    row = await prisma.webPage.findUnique({
+      where: { id: webPageId },
+      select: {
+        analysisStatus: true,
+        embeddingBackfillRetryCount: true,
+        screenshotStoragePath: true,
+      },
+    });
+  } catch (error) {
+    // fail-open: never block completion on a guard read failure.
+    logger.warn(
+      "[EmbeddingBackfillWorker] Analysis-status guard read failed — fail-open (proceed)",
+      {
+        error: sanitizeErrorMessage(error),
+        webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
+        category,
+      }
+    );
+    return true;
+  }
+
+  // Missing row → proceed (Zod re-validation / downstream processor handles it).
+  if (row === null) {
+    return true;
+  }
+
+  const outcome = decideAnalysisGuard(
+    row.analysisStatus,
+    row.embeddingBackfillRetryCount,
+    BACKFILL_RECOVERY_MAX_AUTO_RETRIES
+  );
+
+  if (outcome.kind === "proceed") {
+    return true;
+  }
+
+  if (outcome.kind === "terminal_failed") {
+    await transitionAnalysisGuardTerminalFailed({
+      prisma: prisma as unknown as AnalysisGuardPrisma,
+      webPageId,
+    });
+    return false;
+  }
+
+  // re_enqueue
+  await transitionAnalysisGuardReEnqueue({
+    prisma: prisma as unknown as AnalysisGuardPrisma,
+    queue: getGuardReEnqueueQueue(),
+    webPageId,
+    category,
+    retryCount: row.embeddingBackfillRetryCount,
+    screenshotStoragePath: row.screenshotStoragePath,
+  });
+  return false;
 }
 
 /**
@@ -342,7 +644,7 @@ async function resolveScreenshotForProcessor(
   const resolved = await resolveScreenshotPath(webPageId, hint);
   if (!resolved && category === "part_visual") {
     logger.warn("[EmbeddingBackfillWorker] No persisted screenshot; skipping part_visual", {
-      webPageId: webPageId.slice(0, 8) + "...",
+      webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
     });
   }
   return resolved ?? undefined;
@@ -433,7 +735,7 @@ async function emitParityCheckFailedIfEnabled(
     // (primary emit failure rate) として log-based metric 監視可能にする。
     logger.warn("[EmbeddingBackfillWorker] [SLO_MARKER] audit_log_emit_failed", {
       action: "embedding_parity_check_failed",
-      webPageId: webPageId.slice(0, 8) + "...",
+      webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
       error: sanitizeErrorMessage(error),
       timestamp,
     });
@@ -441,7 +743,7 @@ async function emitParityCheckFailedIfEnabled(
 
   // (iv) Dual-emit — observability / alert routing.
   logger.warn("[EmbeddingBackfillWorker] parity_check_failed emitted", {
-    webPageId: webPageId.slice(0, 8) + "...",
+    webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
     category: filteredCategory,
     unexpectedKeys,
     pendingSnapshot: filteredCategory,
@@ -486,13 +788,13 @@ async function emitCategoryDriftSentinel(
     // FIND-TPA-PLAN-03 (M): SLO_MARKER tag for L1.5 tier monitoring.
     logger.warn("[EmbeddingBackfillWorker] [SLO_MARKER] audit_log_emit_failed", {
       action: "embedding_parity_schema_drift",
-      webPageId: webPageId.slice(0, 8) + "...",
+      webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
       error: sanitizeErrorMessage(error),
       timestamp,
     });
   }
   logger.error("[EmbeddingBackfillWorker] CRITICAL: category schema drift detected", {
-    webPageId: webPageId.slice(0, 8) + "...",
+    webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
     missing: drift.missing,
     unexpected: drift.unexpected,
   });
@@ -614,6 +916,23 @@ async function initiateBackfillJob(
 }> {
   const { webPageId, category } = job.data;
 
+  // PR-BT-4 H-1 (ADR-0018 Amendment 10 Decision 10.1 + 10.4): analysis-status
+  // guard. The backfill worker is forked separately from page-analyze and can
+  // run BEFORE page.analyze finalizes `analysisStatus='completed'`. Processing a
+  // part category before the owning page is terminal causes the part-visual loop
+  // to snapshot before concurrently-created parts exist, leaving them unmarked
+  // (permanent pending → reconciliation force-`failed`). When the page is still
+  // analyzing we bounded-re-enqueue via the retryCount-reuse mechanism (NOT
+  // BullMQ retry) and skip processing; the retryCount cap is the deadlock guard.
+  const shouldProceed = await evaluateAnalysisGuard(job);
+  if (!shouldProceed) {
+    // Re-enqueued (retryCount-bounded) or terminal-failed (cap reached). Do NOT
+    // process the category and do NOT write a terminal `completed`/`in_progress`
+    // — `transitionAnalysisGuard*` already set the row status (queued / failed).
+    await job.updateProgress(PROGRESS_COMPLETE);
+    return { generated: 0, failed: 0, finalStatus: "in_progress" };
+  }
+
   // ジョブ開始直後に in_progress へ遷移（status 観測性）
   // Transition to in_progress immediately for observability
   await updateEmbeddingBackfillStatus(webPageId, "in_progress");
@@ -722,27 +1041,53 @@ async function finalizeBackfillJob(
     // `attempts=3` times. attemptsMade is 1-origin; opts.attempts is the cap.
     const isFinalAttempt = job.attemptsMade >= (job.opts.attempts ?? 1);
     if (isFinalAttempt) {
-      await updateEmbeddingBackfillStatus(webPageId, "failed");
+      // defect B fix (10-site CPU 検証で発見): plain `failed` ではなく
+      // `failed_with_known_reason` + `failure_reason='stall_timeout'` + `failed_at`
+      // に遷移させ、(1) failure metadata NULL の不整合を解消し、(2) recovery service
+      // の scan window に乗せて DB 完全時に自動復帰可能にする
+      // (`markBackfillFailedWithKnownReason` の JSDoc 参照)。
+      // defect B fix: route to `failed_with_known_reason` + metadata instead of
+      // plain `failed` so the row is auto-recoverable once the DB becomes complete.
+      await markBackfillFailedWithKnownReason(webPageId, "stall_timeout");
     }
   }
 
-  // Memory-Gated Exit (post-job) (v0.4.0 PR7e-β2 hotfix)
+  // Post-job Memory Gate (unified success + failure path, Plan v1.1 candidate B)
   // ---------------------------------------------------------------------
-  // RSS 閾値超過時は process.exit(0) → WorkerSupervisor 再起動。未満時は no-op で
-  // BullMQ mainLoop が自然に次ジョブを fetch する。pause/resume は BullMQ 5.66.5
-  // Worker.resume() の silent no-op race を避けるため削除済み（ADR-0009 参照）。
-  // `moveToCompleted` Lua による fetchNext=false 保証と併用するため、本ヘルパーは
-  // concurrency に対して中立。
+  // Plan v1.1 candidate B / ADR-0034 Amendment 5: Stage 2 `worker.pause(true)`
+  // formal removal。success path / failure path 双方で `applyPostJobMemoryGate`
+  // のみを呼び、`worker.pause` callsite は production code 全域で 0 件
+  // (INV-WORKER-NO-PAUSE-001、AST gate `verify-no-worker-pause.mjs` で enforce、
+  // exempt scope = BullMQ `pause:` event handler L1388 + test files)。
   //
-  // Exits on RSS threshold breach so WorkerSupervisor restarts, otherwise no-op —
-  // the BullMQ mainLoop fetches the next job naturally. pause/resume were removed
-  // to avoid the BullMQ 5.66.5 `Worker.resume()` silent no-op race (see ADR-0009).
+  // 計画的再起動 (`WORKER_MAX_JOBS_BEFORE_RESTART=1`) は constructor 段階で
+  // pre-register された `worker.once('completed', listener)` (callback-based
+  // exit、ADR-0034 §Decision 1) のみで担保される: processor return →
+  // moveToCompleted Lua → emit('completed') → listener fire → process.exit(0)。
   //
-  // Note: failure path (error !== null) も同じ gate を適用する。
-  //       BullMQ リトライ (attempts=3) と独立した memory gate なので両 path 共通。
-  // Note: the failure path (error !== null) also applies the same gate.
-  //       It is independent of BullMQ retry semantics (attempts=3) and shared by both paths.
+  // H2 (moveToCompleted paused 評価 race) + H3 (event-loop starvation 下の
+  // emit 遅延、BullMQ #359 indirect evidence) は本 candidate B で構造的消滅。
+  // H1 (dispose ceiling 5s microtask race、ADR-0035 §Decision 1) は本 PR
+  // scope 外、`registerCompletedListenerAndExit` 内で active 維持 (直交)。
+  //
+  // Plan v1.1 candidate B / ADR-0034 Amendment 5: Stage 2 `worker.pause(true)`
+  // is formally removed. Both success and failure paths now call only
+  // `applyPostJobMemoryGate`. `worker.pause` callsites in production code are
+  // 0 (INV-WORKER-NO-PAUSE-001 enforced by AST gate `verify-no-worker-pause.mjs`;
+  // exempt scope = BullMQ `pause:` event handler L1388 + test files). Planned
+  // restart (`WORKER_MAX_JOBS_BEFORE_RESTART=1`) is now exclusively driven by
+  // the constructor-pre-registered `worker.once('completed', listener)`
+  // (callback-based exit, ADR-0034 §Decision 1). H2 + H3 races are
+  // structurally eliminated; H1 (dispose ceiling 5s, ADR-0035 §Decision 1)
+  // remains active inside `registerCompletedListenerAndExit` (orthogonal).
   await applyPostJobMemoryGate(_preReturnPauseEnabled, "[EmbeddingBackfillWorker]");
+
+  // Plan v4.2 callback-based exit: BullMQ native flow に制御を返し
+  // worker.once('completed') listener が process.exit(0) を発火する
+  // (ADR-0034 §Decision 1 Stage 5-8、Amendment 5 で Stage 2 pause 廃止後の
+  // 7-stage に縮退)。
+  // Plan v4.2 callback-based exit: yield control back to BullMQ native flow;
+  // the worker.once('completed') listener fires process.exit(0).
 }
 
 /**
@@ -780,14 +1125,18 @@ async function processBackfillJob(
   if (isDevelopment()) {
     logger.info("[EmbeddingBackfillWorker] Processing job", {
       jobId: job.id,
-      webPageId: webPageId.slice(0, 8) + "...",
+      webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
       category,
     });
   }
 
   await job.updateProgress(PROGRESS_START);
+  // Wave 5 LCC canonical CWE-209 PII protection pattern (FIND-IMPL-LCC-PATCH-W5-02
+  // anchor 019df7ab-2f5a): derive truncation length from
+  // `AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH` SSOT rather than a hardcoded
+  // `slice(0, 8)` literal. CO-21 carryover closure (Wave 4 V4).
   await job.log(
-    `[EmbeddingBackfill] Started category=${category}, webPageId=${webPageId.slice(0, 8)}...`
+    `[EmbeddingBackfill] Started category=${category}, webPageId=${webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH)}...`
   );
 
   let generatedCount = 0;
@@ -814,7 +1163,7 @@ async function processBackfillJob(
     errorMsg = sanitizeErrorMessage(error);
     logger.error("[EmbeddingBackfillWorker] Job failed", {
       jobId: job.id,
-      webPageId: webPageId.slice(0, 8) + "...",
+      webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
       category,
       error: errorMsg,
     });
@@ -901,12 +1250,18 @@ export function createEmbeddingBackfillWorker(
     }
   );
 
+  // Plan v1.1 candidate B / ADR-0034 Amendment 5: the success path no longer
+  // needs a module-level worker ref because `applyPostJobLifecycleGate` is a
+  // no-op stub and the canonical post-job gate (`applyPostJobMemoryGate`) is
+  // worker-instance-free. The module-level `_workerInstanceRef` has been
+  // removed.
+
   // Event handlers for monitoring
   worker.on("completed", (job, result) => {
     if (verbose) {
       logger.info("[EmbeddingBackfillWorker] Job completed", {
         jobId: job.id,
-        webPageId: result.webPageId.slice(0, 8) + "...",
+        webPageId: result.webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
         category: result.category,
         generatedCount: result.generatedCount,
       });
@@ -929,12 +1284,49 @@ export function createEmbeddingBackfillWorker(
     }
   });
 
+  // Plan v4.2 PR-A: callback-based exit responsibility 集約 (TPA-V42-M-03 Option A
+  // single-shot)。Worker constructor 内、既存 worker.on('completed', ...) IPC send
+  // handler の **後** に register することで、Node.js EventEmitter の register 順
+  // listener invoke 規約により IPC send → process.exit(0) の順序が deterministic
+  // となる (parent への job-completed 通知が exit より先に flush される)。
+  //
+  // Plan v4.2 PR-L closure (TDA-V42-L-02): boilerplate を
+  // `registerCompletedListenerAndExit` helper に集約。Helper 内 listener body は
+  // SEC M-NEW-1 mandate (synchronous-only) を継承し、AST gate
+  // `scripts/verify-completed-listener-sync.mjs` が helper file を含む
+  // TARGETS list で synchronous-only を CI で enforce する。
+  //
+  // Cross-ref: ADR-0034 §Decision 1 Step C, Plan v4.2 §3.2 Step 4 + PR-L
+  // closure (TDA-V42-L-02 helper extraction, SEC-V42-L-NEW-4 mandate).
+  //
+  // Plan v4.2 PR-A + PR-L (TDA-V42-L-02): callback-based exit listener is
+  // registered via the shared helper `registerCompletedListenerAndExit`,
+  // which retains SEC M-NEW-1 synchronous-only listener body contract.
+  //
+  // Plan v4.3 PR-M-B (FIND-PLAN-V43-H-01 closure / ADR-0035 §Decision 1):
+  // bind `disposeFn` so the helper races dispose teardown against the
+  // EMBEDDING_DISPOSE_CEILING_MS ceiling before forcing `process.exit(0)`,
+  // restoring ADR-0019 close-before-dispose ordering on the planned-restart
+  // path. The `disposeEmbeddingPipeline()` invocation is idempotent under
+  // concurrent calls (PR-M-B `inFlightDispose` mutex) so racing with the
+  // shutdown `close()` handler (line ~1056 below) executes the underlying
+  // ONNX `service.dispose()` exactly once.
+  //
+  // Plan v4.3 PR-M-B (FIND-PLAN-V43-H-01 closure / ADR-0035 §Decision 1):
+  // binds `disposeFn` to race ONNX teardown against the dispose ceiling on
+  // the planned-restart path; underlying `disposeEmbeddingPipeline()` is
+  // idempotent via the PR-M-B `inFlightDispose` mutex.
+  registerCompletedListenerAndExit(worker, "embedding-backfill", {
+    disposeFn: () => sharedLayoutEmbeddingService.disposeEmbeddingPipeline(),
+  });
+
   worker.on("failed", (job, error) => {
     // PR7c F3: CWE-209 統一 — sanitizeErrorMessage で PII/内部構造漏洩を防御
     // PR7c F3: CWE-209 unification — sanitizeErrorMessage prevents PII / internal structure leakage
     logger.error("[EmbeddingBackfillWorker] Job failed event", {
       jobId: job?.id,
-      webPageId: job?.data.webPageId?.slice(0, 8) + "...",
+      webPageId:
+        job?.data.webPageId?.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
       error: sanitizeErrorMessage(error),
     });
   });
