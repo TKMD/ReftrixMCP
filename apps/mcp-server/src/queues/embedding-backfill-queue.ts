@@ -821,7 +821,12 @@ function truncateOrigJobId(origJobId: string): string {
     throw new Error("truncateOrigJobId: origJobId must be a non-empty string");
   }
   const sepIndex = origJobId.indexOf("__");
-  if (sepIndex <= 0 || sepIndex === origJobId.length - 2) {
+  // `sepIndex <= 0` short-circuits the not-found (-1) and leading-separator (0)
+  // cases. `sepIndex >= length - 2` rejects a trailing/empty-category separator;
+  // since `indexOf("__")` can return at most `length - 2` for a found separator,
+  // `>=` is equivalent to `===` here (observable behavior unchanged) while
+  // satisfying CodeQL js/incorrect-suffix-check (length-based comparison).
+  if (sepIndex <= 0 || sepIndex >= origJobId.length - 2) {
     throw new Error("truncateOrigJobId: invalid '<webPageId>__<category>' form");
   }
   const webPageId = origJobId.slice(0, sepIndex);

@@ -618,9 +618,15 @@ describe("INV-WORKER-LOCK-003: BullMQ jobId collision guard (RC-A)", () => {
       expect(truncatedRetry).toBe(`abcdef01...__part_text__retry_${retryUuid}`);
       expect(truncatedRetry).toMatch(RETRY_JOBID_TRUNCATED_REGEX);
 
-      // Invalid: missing `__` separator.
+      // Invalid: missing `__` separator (indexOf returns -1, sepIndex<=0 catch).
       expect(() => truncateOrigJobId("no-separator-here")).toThrow(/invalid/i);
       expect(() => truncateOrigJobId("")).toThrow();
+      // Invalid: leading separator → empty webPageId (sepIndex===0, sepIndex<=0 catch).
+      expect(() => truncateOrigJobId("__part_text")).toThrow(/invalid/i);
+      // Invalid: trailing separator → empty category (sepIndex===length-2 catch).
+      // Pins behavior-invariance for the `>=` CodeQL hardening: an empty
+      // category MUST stay rejected when the suffix check is `>=` (not just `===`).
+      expect(() => truncateOrigJobId("webPageId__")).toThrow(/invalid/i);
       // Invalid: retry form missing 36-char uuid suffix.
       expect(() => truncateRetryJobId(`${validOrigJobId}__retry_shortuuid`)).toThrow(/invalid/i);
     });
