@@ -92,6 +92,7 @@ describe("INV-SCHEMA-ENUM-004-B: EmbeddingBackfillStatus 4-way sync", () => {
       diff.onlyInA,
       `TypeScript literal union \`EmbeddingBackfillStatusValue\` in ` +
         `page-analyze-worker.ts is missing Prisma enum values: ${JSON.stringify(diff.onlyInA)}. ` +
+        `The union must be updated whenever the Prisma enum changes (project docs § Source of Truth).`
     ).toEqual([]);
     expect(
       diff.onlyInB,

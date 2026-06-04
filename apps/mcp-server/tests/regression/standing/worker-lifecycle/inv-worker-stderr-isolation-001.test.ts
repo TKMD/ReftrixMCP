@@ -58,9 +58,9 @@ describe("INV-WORKER-STDERR-ISOLATION-001: stderr PII + Δ10 + 7d retention", ()
     });
 
     it("redacts absolute POSIX paths to [REDACTED-PATH]", () => {
-      const raw = "Failed to read  during startup";
+      const raw = "Failed to read <redacted-path> during startup";
       const sanitised = sanitizeStderrChunk(raw);
-      expect(sanitised).not.toContain("
+      expect(sanitised).not.toContain("<redacted-path>");
       expect(sanitised).toContain("[REDACTED-PATH]");
       // Surrounding diagnostic text must remain observable.
       expect(sanitised).toContain("Failed to read");

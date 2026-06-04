@@ -182,7 +182,7 @@ describe("WorkerSupervisor sanitize SSOT (PR-D-8 Phase 2 MF-09 / SEC-IMPL-05)", 
     // to "An internal error occurred".
     // sanitize 後は汎用 internal error message。raw path は含まれない。
     expect(errorField).toBe("An internal error occurred");
-    expect(errorField).not.toContain("
+    expect(errorField).not.toContain("<redacted-path>");
     expect(errorField).not.toContain("secret/path");
     expect(errorField).not.toContain("InternalServerError");
   });
