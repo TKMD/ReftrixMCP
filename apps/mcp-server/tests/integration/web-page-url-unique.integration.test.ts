@@ -177,8 +177,17 @@ describe("INV-WEBPAGE-URL-UNIQUE-DB-002: web_pages.url UNIQUE (web_pages_url_key
       caught = error;
     }
 
-    expect(caught).toBeInstanceOf(Prisma.PrismaClientKnownRequestError);
+    // NOTE: `toBeInstanceOf(Prisma.PrismaClientKnownRequestError)` is intentionally
+    // NOT used. Prisma's known-error class can fail `instanceof` across module
+    // boundaries — the error thrown by the live `@prisma/client` runtime and the
+    // `Prisma.*` symbol imported via `@reftrixmcp/database` may resolve to different
+    // module instances in the OSS bundle, making `instanceof` brittle (observed:
+    // OSS CI `test:integration` RED while local short-circuited without DATABASE_URL).
+    // Duck-type on the structural `name` + `code` shape instead, which is
+    // module-resolution-robust and still pins the exact P2002 contract.
+    expect(caught).toBeDefined();
     const known = caught as Prisma.PrismaClientKnownRequestError;
+    expect(known.name).toBe("PrismaClientKnownRequestError");
     expect(known.code).toBe("P2002");
     // **Real-DB truth vs DB-mock sibling — verified discrepancy**: the live
     // Prisma client reports `meta.target = ["url"]` (the violated *field*),
