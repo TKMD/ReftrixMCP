@@ -37,7 +37,13 @@ import * as path from "node:path";
 /** processEmbeddingPhase 全体のスライスサイズ（~73K文字、acquireSectionCropBuffer抽出+動的Fallback追加分を含む） */
 const EMBEDDING_PHASE_SLICE = 75000;
 /** Section Visual Embedding ブロックのスライスサイズ（抽出関数を含むフルスキャン用） */
-const SECTION_VISUAL_SLICE = 70000;
+// Slice window from `processSectionVisualEmbeddingLoop` start large enough to
+// reach the orchestrator finally's `dinov2Service.dispose()` (the 2nd of the 2
+// disposes this file asserts). Bumped 70000 -> 80000 in ADR-0018 Amendment 13:
+// the truncated-screenshot run-level `maxSectionExtentY` pre-pass added at the
+// top of `processSectionVisualEmbeddingLoop` shifted the orchestrator finally a
+// few hundred chars past the old 70000 cap (the 2nd dispose sits at ~71291).
+const SECTION_VISUAL_SLICE = 80000;
 /** processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック。secvisual blank/no-position terminal exit 2件追加で実関数長 ~10992 文字に拡大、result.generated++ は rel offset 10587） */
 const SINGLE_SECTION_SLICE = 12000;
 

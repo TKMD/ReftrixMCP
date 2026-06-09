@@ -32,8 +32,8 @@ import * as path from "node:path";
 
 /** processEmbeddingPhase 全体のスライスサイズ（~73K文字、acquireSectionCropBuffer抽出+動的Fallback追加分を含む） */
 const EMBEDDING_PHASE_SLICE = 75000;
-/** Section Visual Embedding ブロックのスライスサイズ（processEmbeddingPhase内、PII+セクション取得まで） */
-const SECTION_VISUAL_SLICE = 70000;
+/** Section Visual Embedding ブロックのスライスサイズ（processEmbeddingPhase内、PII+セクション取得まで。PR-B で backfill section fallback の robots.txt 再評価 + SSRF threading + Disallow terminal 収束ブロックを追加し +~4K 文字拡大） */
+const SECTION_VISUAL_SLICE = 80000;
 /** processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック。secvisual blank/no-position terminal exit 2件追加で実関数長 ~10992 文字に拡大、result.generated++ は rel offset 10587） */
 const SINGLE_SECTION_SLICE = 12000;
 
@@ -191,9 +191,14 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
       // to accommodate the new partVisualSkippedBboxUnresolvable field + its JSDoc
       // (exit #2 bbox_unresolvable terminal marker counter), which is declared
       // immediately before sectionVisualEmbeddingsGenerated.
+      //
+      // ADR-0018 Amendment 13 (truncated-screenshot data-loss fix): widened slice
+      // 2400 → 3200 bytes to accommodate the new partVisualSkippedScreenshotTruncated
+      // field + its JSDoc, also declared immediately before
+      // sectionVisualEmbeddingsGenerated.
       const resultSection = workerSource.slice(
         workerSource.indexOf("interface EmbeddingPhaseResult"),
-        workerSource.indexOf("interface EmbeddingPhaseResult") + 2400
+        workerSource.indexOf("interface EmbeddingPhaseResult") + 3200
       );
       expect(resultSection).toContain("sectionVisualEmbeddingsGenerated: number");
     });

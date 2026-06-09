@@ -21,12 +21,16 @@
 
 import { isDevelopment, logger } from "../utils/logger";
 import { createHash } from "crypto";
+import * as os from "os";
+import * as path from "path";
 import {
   type PersistentCache,
   createPersistentCache,
   type PersistentCacheStats,
 } from "./persistent-cache";
+import { sweepDeadWorkerDirs } from "./cache-orphan-sweep";
 import type { SectionInfo, LayoutInspectData, VisionFeatures } from "../tools/layout/inspect";
+import type { WorkerType } from "../types/worker-type";
 
 // =====================================================
 // 定数
@@ -109,13 +113,115 @@ export interface EmbeddingCacheConfig {
   ttlMs: number;
 }
 
+/** Embedding キャッシュ root のデフォルト値（env 未設定時、§2.4.1 で default 不変）。 */
+const DEFAULT_EMBEDDING_CACHE_ROOT = "/tmp/reftrix-embedding-cache";
+
 /** デフォルトのEmbeddingキャッシュ設定 */
 const DEFAULT_EMBEDDING_CACHE_CONFIG: EmbeddingCacheConfig = {
   enabled: true,
-  dbPath: "/tmp/reftrix-embedding-cache",
+  dbPath: DEFAULT_EMBEDDING_CACHE_ROOT,
   maxSize: 10000,
   ttlMs: 24 * 60 * 60 * 1000, // 24時間
 };
+
+/**
+ * Embedding cache の root path を env から解決する（Plan v2 §2.4.1 / U-13(a)）。
+ *
+ * `REFTRIX_EMBEDDING_CACHE_ROOT` が解決する path が `os.tmpdir()` 配下 (allowlist)
+ * **外** の場合は default **reject (fail-closed)** とする。fallback (default root への
+ * degrade + warn) は明示 opt-in (`REFTRIX_EMBEDDING_CACHE_ROOT_ALLOW_FALLBACK=true`)
+ * のみで許可する。allowlist 外を許すと sweep unlink path が想定外 dir を走査・削除
+ * しうる (CWE-22 path traversal + 誤削除 surface) ため default reject が SEC mandate。
+ *
+ * Resolves the embedding cache root from env. A root outside `os.tmpdir()` is
+ * rejected (fail-closed) by default; fallback to the default root is opt-in only.
+ *
+ * @returns 検証済み root path
+ * @throws allowlist 外 root を fallback opt-in なしで指定した場合
+ */
+function resolveEmbeddingCacheRoot(): string {
+  const envRoot = process.env.REFTRIX_EMBEDDING_CACHE_ROOT;
+  if (envRoot === undefined || envRoot === "") {
+    return DEFAULT_EMBEDDING_CACHE_ROOT;
+  }
+
+  // null byte / path traversal の最低限の reject (persistent-cache.validateDbPath と二重防御)
+  if (envRoot.includes("\0") || envRoot.includes("..")) {
+    throw new Error("REFTRIX_EMBEDDING_CACHE_ROOT must not contain null bytes or '..'");
+  }
+
+  const resolved = path.resolve(envRoot);
+  const osTmp = path.resolve(os.tmpdir());
+  const underOsTmp = resolved === osTmp || resolved.startsWith(osTmp + path.sep);
+
+  if (underOsTmp) {
+    return resolved;
+  }
+
+  // allowlist 外: default reject (fail-closed)、fallback は明示 opt-in のみ
+  const allowFallback = process.env.REFTRIX_EMBEDDING_CACHE_ROOT_ALLOW_FALLBACK === "true";
+  if (allowFallback) {
+    logger.warn(
+      "[LayoutEmbedding] REFTRIX_EMBEDDING_CACHE_ROOT outside os.tmpdir() allowlist; falling back to default root (opt-in)",
+      { defaultRoot: DEFAULT_EMBEDDING_CACHE_ROOT }
+    );
+    return DEFAULT_EMBEDDING_CACHE_ROOT;
+  }
+  throw new Error(
+    "REFTRIX_EMBEDDING_CACHE_ROOT must resolve under os.tmpdir() (set REFTRIX_EMBEDDING_CACHE_ROOT_ALLOW_FALLBACK=true to degrade to the default root)"
+  );
+}
+
+/**
+ * 現プロセスの workerType を解決する（Plan v2 §2.5.1 責務分担表）。
+ *
+ * worker child は WorkerSupervisor が注入する `REFTRIX_WORKER_CHILD_TYPE`
+ * (`"page" | "embedding-backfill"`) から、MCP server 本体 (非 worker) は固定値
+ * `"mcp-server"` から解決する (§2.5.2 worker/server 方針分岐)。
+ *
+ * @returns workerType ラベル (dbPath segment に使用)
+ */
+function resolveWorkerTypeLabel(): string {
+  const childType = process.env.REFTRIX_WORKER_CHILD_TYPE;
+  if (childType === "page" || childType === "embedding-backfill") {
+    return childType satisfies WorkerType;
+  }
+  // 非 worker (MCP server 本体) = 固定 dbPath (§2.5.2、再起動毎リセットしない)
+  return "mcp-server";
+}
+
+/**
+ * per-worker dbPath cache config を解決する（Plan v2 §2.5.1 / U-9 配線契約）。
+ *
+ * worker (`maxJobsBeforeRestart=1` で churn 高) は `<root>/<workerType>-<pid>/` の
+ * per-pid dbPath を使い、sweep が自 dbPath に閉じ誤削除 race を構造解消する。
+ * MCP server 本体 (長命) は `<root>/mcp-server/` 固定 dbPath で cache 永続性を保つ。
+ *
+ * Resolves a per-worker dbPath cache config: workers get `<root>/<type>-<pid>/`,
+ * the MCP server gets a fixed `<root>/mcp-server/`.
+ *
+ * @returns lazy-init に注入する Partial config (dbPath suffix を含む)
+ */
+export function resolvePerWorkerCacheConfig(): Partial<EmbeddingCacheConfig> {
+  const root = resolveEmbeddingCacheRoot();
+  const workerType = resolveWorkerTypeLabel();
+  const dbPath =
+    workerType === "mcp-server"
+      ? path.join(root, "mcp-server")
+      : path.join(root, `${workerType}-${process.pid}`);
+
+  // worker は close 時 flush skip (ephemeral)、server は flush 維持。これは
+  // PersistentCacheOptions.skipFlushOnClose で制御するため config に含めず、
+  // initializeEmbeddingCache 側で workerType に応じて分岐する (下記参照)。
+  return { dbPath };
+}
+
+/**
+ * 現プロセスが worker (ephemeral cache) か否かを判定する（§2.6.1 close flush 非対称）。
+ */
+function isWorkerProcess(): boolean {
+  return resolveWorkerTypeLabel() !== "mcp-server";
+}
 
 /**
  * Embeddingキャッシュエントリ（ディスク永続化用）
@@ -673,11 +779,37 @@ let embeddingCacheConfig: EmbeddingCacheConfig = { ...DEFAULT_EMBEDDING_CACHE_CO
 export function initializeEmbeddingCache(config?: Partial<EmbeddingCacheConfig>): void {
   embeddingCacheConfig = { ...DEFAULT_EMBEDDING_CACHE_CONFIG, ...config };
 
+  // Plan v2 §2.4 / U-3: `EMBEDDING_CACHE_ENABLED` additive flag (default true)。
+  // operator が明示的に "false" を指定した場合のみ cache off (default 不変)。
+  // config.enabled が明示指定されていればそちらを優先 (test / 内部呼び出し用)。
+  if (config?.enabled === undefined && process.env.EMBEDDING_CACHE_ENABLED === "false") {
+    embeddingCacheConfig.enabled = false;
+  }
+
   if (!embeddingCacheConfig.enabled) {
+    // INV-EMBEDDING-CACHE-DISABLED-004: cache off で PersistentCache を作らない
+    // (= dbPath にファイル一切非生成)。
     if (isDevelopment()) {
       logger.info("[LayoutEmbedding] Embedding cache disabled");
     }
     return;
+  }
+
+  // Plan v2 §2.5.5 / U-14(a): 起動時に死 pid の per-worker dbPath dir 全体を回収
+  // (本体 cache.json の per-pid 累積を bound)。fail-open (起動 critical path 非ブロック)。
+  try {
+    const root = resolveEmbeddingCacheRoot();
+    const removed = sweepDeadWorkerDirs(root, process.pid);
+    if (removed > 0) {
+      logger.info("[LayoutEmbedding] Recovered dead-worker cache dirs at startup", {
+        root,
+        removed,
+      });
+    }
+  } catch (e) {
+    logger.warn("[LayoutEmbedding] Dead-worker dir sweep failed (non-fatal)", {
+      error: (e as Error).message,
+    });
   }
 
   embeddingCache = createPersistentCache<EmbeddingCacheEntry>({
@@ -685,6 +817,9 @@ export function initializeEmbeddingCache(config?: Partial<EmbeddingCacheConfig>)
     maxSize: embeddingCacheConfig.maxSize,
     defaultTtlMs: embeddingCacheConfig.ttlMs,
     enableLogging: isDevelopment(),
+    // §2.6.1 close flush 非対称: worker は ephemeral (close で flush skip)、
+    // MCP server 本体は flush 維持。
+    skipFlushOnClose: isWorkerProcess(),
   });
 
   if (isDevelopment()) {
@@ -692,6 +827,7 @@ export function initializeEmbeddingCache(config?: Partial<EmbeddingCacheConfig>)
       dbPath: embeddingCacheConfig.dbPath,
       maxSize: embeddingCacheConfig.maxSize,
       ttlMs: embeddingCacheConfig.ttlMs,
+      skipFlushOnClose: isWorkerProcess(),
     });
   }
 }
@@ -770,9 +906,13 @@ export class LayoutEmbeddingService {
       cacheEnabled: options?.cacheEnabled ?? true,
     };
 
-    // 初回インスタンス作成時にキャッシュを初期化
+    // 初回インスタンス作成時にキャッシュを初期化。
+    // Plan v2 §2.5.1 / U-9 (H-01 降格条件): per-worker dbPath を配線し、全 worker
+    // 共有 dbPath による sweep 誤削除 race を構造解消する。引数なし呼び (旧実装)
+    // は全 worker が共有 dbPath `/tmp/reftrix-embedding-cache` を使い、sweep が他
+    // live worker の in-flight temp を unlink 候補に含めてしまう = 誤削除 race。
     if (this.options.cacheEnabled && !embeddingCache) {
-      initializeEmbeddingCache();
+      initializeEmbeddingCache(resolvePerWorkerCacheConfig());
     }
 
     if (isDevelopment()) {

@@ -671,6 +671,36 @@ async function runForkOrFallback(
   }
 }
 
+/**
+ * PR-B (Plan §7.2 / §7.5): backfill section fallback re-capture URL を DB
+ * (`web_pages.url`) から取得する。`url: ""` を `runVisualEmbeddingSubPhases` に渡すと
+ * `captureSectionScreenshots` の SSRF 検証 (`validateExternalUrl("")`) で fallback が
+ * 不能になるため、section_visual processor は本 helper で実 URL を解決する。
+ * 失敗 (DB error / URL 未記録) 時は空文字を返し、fallback は事実上 inert になる
+ * (Graceful Degradation — bounded budget で後続 terminal 収束)。
+ *
+ * PR-B (Plan §7.2 / §7.5): fetch the section-fallback re-capture URL from the DB
+ * (`web_pages.url`). Passing `url: ""` would make `captureSectionScreenshots` SSRF-reject
+ * and render the fallback inert, so the section_visual processor resolves the real URL via
+ * this helper. On failure (DB error / no URL recorded) returns "" (fallback inert,
+ * Graceful Degradation; the bounded budget converges to a terminal later).
+ */
+async function fetchWebPageUrlForFallback(webPageId: string): Promise<string> {
+  try {
+    const row = await sharedPrismaClient.webPage.findUnique({
+      where: { id: webPageId },
+      select: { url: true },
+    });
+    return row?.url ?? "";
+  } catch (dbError) {
+    logger.warn("[SectionVisualProcessor] Failed to fetch URL for section fallback", {
+      error: sanitizeErrorMessage(dbError),
+      webPageId: webPageId.slice(0, AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH) + "...",
+    });
+    return "";
+  }
+}
+
 // =====================================================
 // Processors — per-category implementations
 // =====================================================
@@ -777,15 +807,35 @@ class PartVisualProcessor implements BackfillCategoryProcessor {
       };
     }
 
+    // PR-B (Plan §7.2 / §7.5 / FIND-RE-LCC-01): backfill 経路で section fallback を
+    // 有効化する。off-screen part は truncated-origin として `screenshot_truncated`
+    // bounded-retryable に分類され、実 generation 手段は section 単位の Playwright
+    // re-capture (part は所属 section の再capture で croppable になる) + bounded budget
+    // 収束に束ねられる。再capture URL を DB から取得 (`url: ""` だと SSRF 検証で fallback
+    // 不能) し、robots.txt 再評価を有効化する (FIND-RE-LCC-01: backfill は非同期別オペで
+    // Phase 0 robots 検証が stale)。
+    //
+    // PR-B (Plan §7.2 / §7.5 / FIND-RE-LCC-01): enable the section fallback on the backfill
+    // path. Fetch the re-capture URL from the DB (`url: ""` would fail SSRF validation and
+    // make the fallback inert) and enable robots.txt re-evaluation.
+    const pageUrlForFallback = (await this.fetchPageUrlForBboxResolve(ctx.webPageId)) ?? "";
     const dinov2ModelPath = resolveDinov2ModelPath();
     const subResult = await runVisualEmbeddingSubPhases({
       webPageId: ctx.webPageId,
-      url: "",
+      url: pageUrlForFallback,
       screenshotPngPath: ctx.screenshotStoragePath,
       sectionIdMapping: new Map<string, string>(),
       partsSavedCount: pendingCount,
       layoutResultJson: null,
-      fallbackEnabled: false,
+      fallbackEnabled: true,
+      recheckRobotsTxt: true,
+      // backfill job data は respectRobotsTxt override を持たないため undefined を渡し、
+      // env flag `REFTRIX_RESPECT_ROBOTS_TXT` (既定有効) に従う。backfill はデフォルトで
+      // robots.txt を尊重する (FIND-RE-LCC-01 compliance default)。
+      // The backfill job data carries no respectRobotsTxt override, so pass undefined and
+      // follow the env flag `REFTRIX_RESPECT_ROBOTS_TXT` (default enabled) — backfill
+      // respects robots.txt by default.
+      respectRobotsTxt: undefined,
       dinov2ModelPath,
       prisma: ctx.prisma,
       onLockExtend: (_label: string) => {
@@ -1166,18 +1216,36 @@ class SectionVisualProcessor implements BackfillCategoryProcessor {
     const sentinelMap = new Map<string, string>([
       ["__backfill_sentinel__", "__backfill_sentinel__"],
     ]);
+    // PR-B (Plan §7.2 / §7.5 / FIND-RE-LCC-01): backfill 経路で Section Screenshot Fallback
+    // (Playwright 個別 re-capture) を有効化する。truncated screenshot サイトの off-screen
+    // section を Playwright で per-section 再capture → DINOv2 で実 visual embedding を生成する
+    // (`screenshot_truncated` retryable 分類の genuine 再生成手段、2A' 単独着地禁止充足)。
+    // 再capture URL を DB から取得 (`url: ""` だと SSRF 検証で fallback 不能) し、robots.txt
+    // 再評価を有効化する (backfill は元 ingest から数日後の非同期別オペで Phase 0 robots
+    // 検証が stale)。
+    //
+    // PR-B (Plan §7.2 / §7.5 / FIND-RE-LCC-01): enable the Section Screenshot Fallback
+    // (Playwright per-section re-capture) on the backfill path so off-screen sections of a
+    // truncated-screenshot site are re-captured → DINOv2 generates the actual visual
+    // embedding (the genuine regeneration means for the `screenshot_truncated` retryable
+    // classification, satisfying the 2A' standalone-landing prohibition). Fetch the URL from
+    // the DB (`url: ""` would SSRF-reject) and enable robots.txt re-evaluation (backfill is an
+    // async separate op days after ingest, so Phase 0's robots check is stale).
+    const pageUrlForFallback = await fetchWebPageUrlForFallback(ctx.webPageId);
     const subResult = await runVisualEmbeddingSubPhases({
       webPageId: ctx.webPageId,
-      url: "",
+      url: pageUrlForFallback,
       screenshotPngPath: ctx.screenshotStoragePath,
       sectionIdMapping: sentinelMap,
       partsSavedCount: 0,
       layoutResultJson: null,
-      // backfill 経路では Section Screenshot Fallback（Playwright 個別キャプチャ）を
-      // 起動しない。永続化済み fullPage screenshot のみを使う。
-      // Disable Section Screenshot Fallback (Playwright per-section capture) in
-      // the backfill path; rely on the persisted fullPage screenshot only.
-      fallbackEnabled: false,
+      fallbackEnabled: true,
+      recheckRobotsTxt: true,
+      // backfill job data は respectRobotsTxt override を持たないため undefined を渡し、
+      // env flag `REFTRIX_RESPECT_ROBOTS_TXT` (既定有効) に従う (FIND-RE-LCC-01 default)。
+      // The backfill job data carries no respectRobotsTxt override; pass undefined and follow
+      // env flag `REFTRIX_RESPECT_ROBOTS_TXT` (default enabled).
+      respectRobotsTxt: undefined,
       dinov2ModelPath,
       prisma: ctx.prisma,
       onLockExtend: (_label: string) => {

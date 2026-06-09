@@ -64,8 +64,19 @@ const PHASE5_SUBDIR = "phase5";
  *
  * RFC 4122 準拠: version nibble は 4 (v4) または 7 (v7)、variant nibble は 8/9/a/b。
  * RFC 4122 compliant: version nibble must be 4 (v4) or 7 (v7), variant nibble 8/9/a/b.
+ *
+ * SSOT (Single Source of Truth): `web_pages.id` (UUID v4/v7) を検証する全 callsite が
+ * この canonical 定数を import して derive すること（bare literal の重複定義を禁止）。
+ * 現在の consumer: scripts/repair-truncated-screenshot-terminals.ts（SEC-IMPL-PRA-L-01
+ * defense-in-depth、`--web-page-id` arg 検証）。
+ *
+ * SSOT: every callsite validating a `web_pages.id` (UUID v4/v7) MUST import and derive
+ * from this canonical constant (no duplicated bare literals). Current consumer:
+ * scripts/repair-truncated-screenshot-terminals.ts (SEC-IMPL-PRA-L-01 defense-in-depth,
+ * `--web-page-id` arg validation).
  */
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[47][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[47][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** ファイルパーミッション（オーナー読み書きのみ） */
 /** File permission (owner read-write only) */

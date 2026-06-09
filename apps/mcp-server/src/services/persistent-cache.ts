@@ -29,6 +29,8 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import { Logger } from "../utils/logger";
+import { CACHE_TEMP_PREFIX } from "./cache-temp-const";
+import { sweepOrphanTempFiles, type SweepClock, type IsProcessAliveFn } from "./cache-orphan-sweep";
 
 const logger = new Logger("PersistentCache");
 
@@ -61,6 +63,46 @@ export interface PersistentCacheOptions {
   maxKeyLength?: number;
   /** 最大値サイズ（バイト、デフォルト: 10MB） */
   maxValueSize?: number;
+  /**
+   * close() 時の flush を skip するか（Plan v2 §2.6.1 close flush 非対称）。
+   *
+   * worker (churn 高、`maxJobsBeforeRestart=1`) は `ephemeral: true` 相当として
+   * close() で `saveToDisk()` を呼ばず、close 毎の 70MB 級 temp 生成を除去する。
+   * MCP server 本体 (長命) は default false で flush を維持し cache 永続性を保つ。
+   * `saveDebounceTimer` の clearTimeout は本フラグと無関係に **両経路で実行**。
+   *
+   * When true, close() skips `saveToDisk()` (worker ephemeral). Default false
+   * (MCP server keeps the final flush). The debounce timer is always cleared.
+   */
+  skipFlushOnClose?: boolean;
+  /**
+   * 起動時 orphan sweep を有効にするか（Plan v2 §2.5、デフォルト: true）。
+   *
+   * 自 dbPath 内の死 pid orphan temp を起動時 1 回 sweep する。test では
+   * `false` にして決定論的に制御する。
+   *
+   * When true (default), runs a one-shot orphan temp sweep of this dbPath at
+   * startup. Tests may set false for determinism and call sweep helpers directly.
+   */
+  sweepOnInit?: boolean;
+  /** DI seam: sweep 用 clock（test 決定論化、Plan §3.6）。 */
+  sweepClock?: SweepClock;
+  /** DI seam: sweep 用 pid 生存判定（test 決定論化、EPERM mapping 含む）。 */
+  sweepIsProcessAlive?: IsProcessAliveFn;
+  /** DI seam: sweep 用 mtime grace window（ms）。 */
+  sweepGraceMs?: number;
+  /**
+   * DI seam: `fs.rename` の差し替え（Plan v2 §3.3 / U-10 / TPA-08 fault-inject）。
+   *
+   * INV-CACHE-WRITE-FAILURE-CLEANUP-003 が rename 失敗を決定論的に注入するための
+   * seam。`vi.spyOn(fs,...)` の namespace spy を回避する (testing-requirements.md §7)。
+   * 未指定時は `fs.rename` を使用 (production 挙動不変)。
+   *
+   * DI seam to substitute `fs.rename` for the write-failure-cleanup INV
+   * (deterministic fault injection, avoiding namespace spies). Defaults to
+   * `fs.rename` (production behaviour unchanged).
+   */
+  renameImpl?: (oldPath: string, newPath: string) => Promise<void>;
 }
 
 /**
@@ -122,6 +164,12 @@ export class PersistentCache<T> {
   private readonly enableLogging: boolean;
   private readonly maxKeyLength: number;
   private readonly maxValueSize: number;
+  private readonly skipFlushOnClose: boolean;
+  private readonly sweepOnInit: boolean;
+  private readonly sweepClock: SweepClock | undefined;
+  private readonly sweepIsProcessAlive: IsProcessAliveFn | undefined;
+  private readonly sweepGraceMs: number | undefined;
+  private readonly renameImpl: (oldPath: string, newPath: string) => Promise<void>;
 
   // インメモリキャッシュ
   private entries: Map<string, PersistentCacheEntry<T>> = new Map();
@@ -148,6 +196,12 @@ export class PersistentCache<T> {
     this.enableLogging = options.enableLogging ?? true;
     this.maxKeyLength = options.maxKeyLength ?? DEFAULT_MAX_KEY_LENGTH;
     this.maxValueSize = options.maxValueSize ?? DEFAULT_MAX_VALUE_SIZE;
+    this.skipFlushOnClose = options.skipFlushOnClose ?? false;
+    this.sweepOnInit = options.sweepOnInit ?? true;
+    this.sweepClock = options.sweepClock;
+    this.sweepIsProcessAlive = options.sweepIsProcessAlive;
+    this.sweepGraceMs = options.sweepGraceMs;
+    this.renameImpl = options.renameImpl ?? fs.rename;
 
     this.log("debug", "PersistentCache created", {
       dbPath: this.dbPath,
@@ -167,13 +221,22 @@ export class PersistentCache<T> {
       throw new Error("dbPath must be a non-empty string");
     }
 
+    // null byte reject (CWE-22 防御の最低限)
+    if (dbPath.includes("\0")) {
+      throw new Error("dbPath must not contain null bytes");
+    }
+
+    // パストラバーサル検出: 元のパスに .. が含まれる場合は reject (fail-closed)。
+    // Plan v2 §2.4.1 / U-13: 旧実装は warn のみだったが、sweep の unlink が想定外
+    // dir を走査・削除しうる surface を構造的に塞ぐため reject へ格上げ。
+    // Plan v2 §2.4.1 / U-13: hardened from warn to reject (fail-closed) — the
+    // startup sweep unlink path could otherwise traverse/delete an unexpected dir.
+    if (dbPath.includes("..")) {
+      throw new Error("dbPath must not contain path traversal sequences ('..')");
+    }
+
     // パスを正規化
     const resolved = path.resolve(dbPath);
-
-    // パストラバーサル検出: 元のパスに .. が含まれている場合は警告
-    if (dbPath.includes("..")) {
-      this.log("warn", "dbPath contains path traversal sequences", { dbPath, resolved });
-    }
 
     return resolved;
   }
@@ -223,6 +286,29 @@ export class PersistentCache<T> {
     try {
       // ディレクトリが存在しない場合は作成
       await fs.mkdir(path.dirname(this.getStoragePath()), { recursive: true });
+
+      // Plan v2 §2.5: 起動時 orphan temp sweep (fail-open、起動 critical path 非ブロック)。
+      // 自 dbPath 内の死 pid orphan temp を 1 回 sweep し、temp leak → disk full を
+      // 根治する。sweep 失敗は warn のみで初期化を継続 (SEC-M-03 fail-open)。
+      // Plan v2 §2.5: one-shot startup orphan sweep (fail-open, non-blocking).
+      if (this.sweepOnInit) {
+        try {
+          const removed = sweepOrphanTempFiles(
+            this.dbPath,
+            process.pid,
+            this.sweepClock,
+            this.sweepIsProcessAlive,
+            this.sweepGraceMs
+          );
+          if (removed > 0) {
+            this.log("info", "Startup orphan temp sweep", { dbPath: this.dbPath, removed });
+          }
+        } catch (sweepErr) {
+          this.log("warn", "Startup orphan temp sweep failed (non-fatal)", {
+            error: (sweepErr as Error).message,
+          });
+        }
+      }
 
       // 既存データの読み込みを試行
       await this.loadFromDisk();
@@ -451,18 +537,33 @@ export class PersistentCache<T> {
   async close(): Promise<void> {
     if (this.isClosed) return;
 
-    // 最終保存
-    try {
-      await this.saveToDisk();
-    } catch {
-      // クローズ時のエラーは無視
+    // Plan v2 §2.6.1 / §1.5: dangling debounce timer を **両経路で** clearTimeout。
+    // close 後の debounce 発火による closed-instance temp leak を防止する。
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+      this.saveDebounceTimer = null;
+    }
+
+    // Plan v2 §2.6.1 close flush 非対称:
+    //   worker (skipFlushOnClose=true): saveToDisk() を skip し close 毎の 70MB temp 生成を除去。
+    //   MCP server (skipFlushOnClose=false): 最終 flush で cache 永続性を保つ。
+    if (!this.skipFlushOnClose) {
+      try {
+        await this.saveToDisk();
+      } catch (e) {
+        // SEC-L-02 / security.md §isDevelopment ガード禁止: 空 catch で silent 吸収せず
+        // 全環境で logger.warn 出力 (close 時の flush 失敗は non-fatal)。
+        this.log("warn", "Final flush on close failed (non-fatal)", {
+          error: (e as Error).message,
+        });
+      }
     }
 
     this.isClosed = true;
     this.entries.clear();
     this.accessOrder = [];
 
-    this.log("debug", "Closed");
+    this.log("debug", "Closed", { skipFlushOnClose: this.skipFlushOnClose });
   }
 
   /**
@@ -609,6 +710,13 @@ export class PersistentCache<T> {
   /**
    * ディスクからデータを読み込み
    */
+  // Pre-existing CC=15 (prototype-pollution-defended load path). This function
+  // predates the embedding-cache temp-leak fix scoped `complexity:["error",10]`
+  // override (Plan v2 §2.7 / U-7) — the override exists to gate the NEW sweep/
+  // write/close code path. Refactoring this load path is out of this PR's scope;
+  // tracked under the FIND-TDA-07 Q3-2026 monorepo complexity successor issue
+  // (same disposition as the embedding-backfill-queue.ts inline disables).
+  // eslint-disable-next-line complexity
   private async loadFromDisk(): Promise<void> {
     const filePath = this.getStoragePath();
 
@@ -673,15 +781,21 @@ export class PersistentCache<T> {
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt < this.writeRetries; attempt++) {
+      // アトミック書き込み（一時ファイル経由）
+      // PID + timestamp でtmpファイルを分離し、複数プロセス間の競合を防止。
+      // temp 名 prefix は SSOT (`CACHE_TEMP_PREFIX`) から derive (二重管理排除)。
+      // filePath = `<dbPath>/cache.json`、CACHE_TEMP_PREFIX = `cache.json.tmp.` のため
+      // tempPath basename = `cache.json.tmp.<pid>.<ts>`。
+      const dir = path.dirname(filePath);
+      const tempPath = path.join(dir, `${CACHE_TEMP_PREFIX}${process.pid}.${Date.now()}`);
+      let renamed = false;
       try {
         // ディレクトリが存在することを確認
-        await fs.mkdir(path.dirname(filePath), { recursive: true });
+        await fs.mkdir(dir, { recursive: true });
 
-        // アトミック書き込み（一時ファイル経由）
-        // PID + timestamp でtmpファイルを分離し、複数プロセス間の競合を防止
-        const tempPath = `${filePath}.tmp.${process.pid}.${Date.now()}`;
         await fs.writeFile(tempPath, content, "utf8");
-        await fs.rename(tempPath, filePath);
+        await this.renameImpl(tempPath, filePath);
+        renamed = true;
 
         this.log("debug", "Saved to disk", { size: this.entries.size });
         return;
@@ -692,6 +806,17 @@ export class PersistentCache<T> {
         // 最後の試行でなければ少し待機
         if (attempt < this.writeRetries - 1) {
           await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
+        }
+      } finally {
+        // Plan v2 §2.10 / U-10: rename 未完 (writeFile 後 rename 失敗 or 例外) の
+        // temp を回収。orphan を残さない。unlink 失敗は non-fatal だが silent 吸収せず
+        // logger.warn (起動時 sweep が backstop、SEC-L-02 isDevelopment ガード禁止)。
+        if (!renamed) {
+          await fs.unlink(tempPath).catch((e) =>
+            this.log("warn", "temp unlink after failed rename failed (non-fatal)", {
+              error: (e as Error).message,
+            })
+          );
         }
       }
     }

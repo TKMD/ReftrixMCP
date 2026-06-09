@@ -92,6 +92,7 @@ process.on("message", async (raw: unknown) => {
     partVisualEmbeddingsGenerated: 0,
     partVisualSkippedBboxInvalid: 0,
     partVisualSkippedBboxUnresolvable: 0,
+    partVisualSkippedScreenshotTruncated: 0,
     sectionVisualEmbeddingsGenerated: 0,
     embeddingFailedChunks: 0,
     completed: false,
@@ -110,6 +111,7 @@ process.on("message", async (raw: unknown) => {
         partVisualEmbeddingsGenerated: 0,
         partVisualSkippedBboxInvalid: 0,
         partVisualSkippedBboxUnresolvable: 0,
+        partVisualSkippedScreenshotTruncated: 0,
         embeddingFailedChunks: 0,
       });
       return;
@@ -147,6 +149,9 @@ process.on("message", async (raw: unknown) => {
     result.partVisualEmbeddingsGenerated = subResult.partVisualEmbeddingsGenerated;
     result.partVisualSkippedBboxInvalid = subResult.partVisualSkippedBboxInvalid;
     result.partVisualSkippedBboxUnresolvable = subResult.partVisualSkippedBboxUnresolvable;
+    // ADR-0018 Amendment 13 (truncated-screenshot data-loss fix): propagate the
+    // screenshot_truncated counter from sub-phase → child result → IPC.
+    result.partVisualSkippedScreenshotTruncated = subResult.partVisualSkippedScreenshotTruncated;
     result.embeddingFailedChunks = subResult.embeddingFailedChunks;
     result.completed = true;
 
@@ -157,6 +162,7 @@ process.on("message", async (raw: unknown) => {
       partVisualEmbeddingsGenerated: result.partVisualEmbeddingsGenerated,
       partVisualSkippedBboxInvalid: result.partVisualSkippedBboxInvalid,
       partVisualSkippedBboxUnresolvable: result.partVisualSkippedBboxUnresolvable,
+      partVisualSkippedScreenshotTruncated: result.partVisualSkippedScreenshotTruncated,
       embeddingFailedChunks: result.embeddingFailedChunks,
     });
   } catch (error) {

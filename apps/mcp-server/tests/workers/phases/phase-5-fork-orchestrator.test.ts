@@ -460,6 +460,9 @@ describe("Phase 5: Fork Orchestrator", () => {
         // ADR-0018 Amendment 7 §7.6 exit #2 (Plan v2 PR-B): additively added;
         // Zod schema defaults to 0 when absent (symmetric with bbox_invalid)
         partVisualSkippedBboxUnresolvable: 0,
+        // ADR-0018 Amendment 13 (truncated-screenshot data-loss fix): additively
+        // added; Zod schema defaults to 0 when absent (symmetric with the others).
+        partVisualSkippedScreenshotTruncated: 0,
         embeddingFailedChunks: 0,
       };
       const result = validateChildMessage(msg);

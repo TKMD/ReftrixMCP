@@ -883,6 +883,9 @@ function mergeVisualSubPhaseResult(result: EmbeddingPhaseResult, msg: ChildToPar
   result.partVisualEmbeddingsGenerated += msg.partVisualEmbeddingsGenerated;
   result.partVisualSkippedBboxInvalid += msg.partVisualSkippedBboxInvalid;
   result.partVisualSkippedBboxUnresolvable += msg.partVisualSkippedBboxUnresolvable;
+  // ADR-0018 Amendment 13 (truncated-screenshot data-loss fix): merge the
+  // screenshot_truncated counter from the visual child IPC into the parent result.
+  result.partVisualSkippedScreenshotTruncated += msg.partVisualSkippedScreenshotTruncated;
   result.embeddingFailedChunks += msg.embeddingFailedChunks;
 }
 
@@ -1076,6 +1079,7 @@ export async function runPhase5ViaFork(
     partVisualEmbeddingsGenerated: 0,
     partVisualSkippedBboxInvalid: 0,
     partVisualSkippedBboxUnresolvable: 0,
+    partVisualSkippedScreenshotTruncated: 0,
     sectionVisualEmbeddingsGenerated: 0,
     embeddingFailedChunks: 0,
     completed: false,

@@ -13,6 +13,10 @@
  */
 
 import { logger, isDevelopment } from "../../utils/logger";
+// ADR-0018 Amendment 13 (truncated-screenshot data-loss fix, Plan §5.10c):
+// leaf module so cyclomatic complexity is machine-enforced via the scoped
+// eslint `complexity` override.
+import { isScreenshotTruncated } from "./screenshot-truncation";
 import sharp from "sharp";
 import path from "path";
 import * as os from "node:os";
@@ -69,8 +73,8 @@ import {
   truncateSkipDetail,
   partVisualPendingExclusionPredicate,
   sectionVisualPendingExclusionPredicate,
-  type PartVisualTerminalSkipReason,
-  type SectionVisualTerminalSkipReason,
+  type PartVisualWritableSkipReason,
+  type SectionVisualWritableSkipReason,
 } from "./types";
 // PR-BT-5 chunk-fork contingency: canonical chunked text-embedding loop driver
 // (C1 per-chunk RSS budget break) consumed by all text sub-phases.
@@ -981,7 +985,10 @@ async function writePartVisualTerminalSkipMarker(
   // still passes its `ctx` (which structurally satisfies `{ prisma }`).
   ctx: { prisma: Pick<EmbeddingPhasePrismaClient, "$executeRawUnsafe"> },
   embeddingId: string,
-  reason: PartVisualTerminalSkipReason
+  // ADR-0018 Amendment 13: widened to the writable set (terminal subset ∪
+  // {screenshot_truncated}) so the bounded-retryable non-terminal marker can be
+  // written. The DB CHECK constraint admits exactly this set.
+  reason: PartVisualWritableSkipReason
 ): Promise<void> {
   try {
     await ctx.prisma.$executeRawUnsafe(
@@ -1104,6 +1111,10 @@ async function processPartVisualEmbeddingLoop(
   imgWidth: number,
   imgHeight: number,
   dinov2Service: InstanceType<typeof DINOv2Service>,
+  // ADR-0018 Amendment 13 §5.9 flag-gating: gates the truncated-screenshot
+  // retryable reclassification. When `false`, an off-screen-due-to-truncation
+  // part stays terminal (`bbox_unresolvable`) = status-quo.
+  fallbackEnabled: boolean,
   options?: { limit?: number | undefined }
 ): Promise<void> {
   // v0.4.0 PR4: limit 検証（NaN/Infinity 防御）
@@ -1218,6 +1229,34 @@ async function processPartVisualEmbeddingLoop(
     sectionStartYMap.set(s.id, position?.startY ?? 0);
   }
 
+  // ADR-0018 Amendment 13 §5.1 (truncated-screenshot data-loss fix): compute the
+  // run-level truncation decision ONCE (not per-part). `maxPartExtentY` is the
+  // maximum `round(absoluteY) + round(height)` across the parts needing visual
+  // embeddings (same formula as the crop loop's `absoluteBbox.y`/`.height`).
+  // `isTruncatedRun` is then a deterministic run-level flag used by the 2-branch
+  // crop guard (exit #2a / clamp-後 row #2) so a part is routed to the
+  // bounded-retryable `screenshot_truncated` reason ONLY when the screenshot is
+  // truncated AND the section-fallback flag is ON (Plan §5.9 flag-gating).
+  let maxPartExtentY = 0;
+  for (const part of partsNeedingVisual) {
+    const pbbox = part.boundingBox as Record<string, number> | null;
+    if (
+      !pbbox ||
+      typeof pbbox.y !== "number" ||
+      typeof pbbox.height !== "number" ||
+      !Number.isFinite(pbbox.y) ||
+      !Number.isFinite(pbbox.height)
+    ) {
+      continue;
+    }
+    const startY = sectionStartYMap.get(part.sectionPatternId) ?? 0;
+    const extentY = Math.round((pbbox.y ?? 0) + startY) + Math.round(pbbox.height);
+    if (Number.isFinite(extentY) && extentY > maxPartExtentY) {
+      maxPartExtentY = extentY;
+    }
+  }
+  const isTruncatedRun = isScreenshotTruncated(imgHeight, maxPartExtentY);
+
   let visualChunkSize = DINOV2_CHUNK_SIZE;
 
   if (visualChunkSize <= 0) {
@@ -1323,8 +1362,20 @@ async function processPartVisualEmbeddingLoop(
         // horizontal case) still has croppable pixels inside the viewport and
         // MUST keep flowing through the clamp below — it is NOT marked here.
         if (top >= imgHeight || left >= imgWidth) {
-          ctx.result.partVisualSkippedBboxUnresolvable++;
-          await writePartVisualTerminalSkipMarker(ctx, part.embeddingId, "bbox_unresolvable");
+          // ADR-0018 Amendment 13 §8.2 (truncated-screenshot data-loss fix,
+          // FIND-RE-TPA-M-01): the off-screen exit #2a is now truncation-gated +
+          // flag-gated. A part off-screen ONLY because the persisted screenshot is
+          // truncated (`isTruncatedRun`) AND the section-fallback flag is ON
+          // (`fallbackEnabled`, Plan §5.9) is bounded-retryable
+          // (`screenshot_truncated`, non-terminal); otherwise it stays terminal
+          // (`bbox_unresolvable`) = genuinely off-screen / flag-OFF status-quo.
+          if (isTruncatedRun && fallbackEnabled) {
+            ctx.result.partVisualSkippedScreenshotTruncated++;
+            await writePartVisualTerminalSkipMarker(ctx, part.embeddingId, "screenshot_truncated");
+          } else {
+            ctx.result.partVisualSkippedBboxUnresolvable++;
+            await writePartVisualTerminalSkipMarker(ctx, part.embeddingId, "bbox_unresolvable");
+          }
           continue;
         }
 
@@ -1332,13 +1383,23 @@ async function processPartVisualEmbeddingLoop(
         const cropHeight = Math.min(Math.round(absoluteBbox.height), Math.max(1, imgHeight - top));
 
         if (cropWidth <= 0 || cropHeight <= 0) {
-          // ADR-0018 Amendment 7 §7.6 exit #2 (UB-8, terminal): off-screen clamp
-          // yields a zero-size crop (M3 = off-screen non-zero bbox); retry is
-          // pointless after reload-budget exhaustion. Replaces the legacy silent
-          // bare `continue` with an observable counter + per-row terminal marker
-          // (bbox_unresolvable) so the part is excluded from the pending query.
-          ctx.result.partVisualSkippedBboxUnresolvable++;
-          await writePartVisualTerminalSkipMarker(ctx, part.embeddingId, "bbox_unresolvable");
+          // ADR-0018 Amendment 13 §8.2 (truncated-screenshot data-loss fix,
+          // FIND-RE-TPA-M-01): the clamp-後 row #2 guard is ALSO truncation-gated +
+          // flag-gated. A part with `top < imgHeight` but `top + height > imgHeight`
+          // passes exit #2a, then clamps to a zero-size crop on a truncated
+          // screenshot — previously falling here to terminal `bbox_unresolvable`
+          // (partial data-loss). The 2-branch is symmetric with exit #2a above.
+          //
+          // ADR-0018 Amendment 7 §7.6 exit #2 (UB-8): the NON-truncated / flag-OFF
+          // branch keeps the legacy observable counter + terminal `bbox_unresolvable`
+          // marker so the part is excluded from the pending query (status-quo).
+          if (isTruncatedRun && fallbackEnabled) {
+            ctx.result.partVisualSkippedScreenshotTruncated++;
+            await writePartVisualTerminalSkipMarker(ctx, part.embeddingId, "screenshot_truncated");
+          } else {
+            ctx.result.partVisualSkippedBboxUnresolvable++;
+            await writePartVisualTerminalSkipMarker(ctx, part.embeddingId, "bbox_unresolvable");
+          }
           continue;
         }
 
@@ -1475,6 +1536,14 @@ interface SectionVisualEmbeddingLoopParams {
   prisma: EmbeddingPhasePrismaClient;
   /** RAW スクリーンショットメタデータ（Phase 5 RAW decode 最適化用、null の場合は従来パス） */
   rawScreenshotMeta?: RawScreenshotMetadata | null | undefined;
+  /**
+   * PR-B (Plan §7.5 / FIND-RE-LCC-01): backfill 再capture 直前の robots.txt 再評価フラグ。
+   * Phase 5 proper (contemporaneous) は false (省略)、backfill は true。
+   * PR-B (Plan §7.5 / FIND-RE-LCC-01): re-check robots.txt before backfill re-capture.
+   */
+  recheckRobotsTxt?: boolean | undefined;
+  /** PR-B: robots.txt 尊重オーバーライド (recheckRobotsTxt 時のみ参照)。 */
+  respectRobotsTxt?: boolean | undefined;
 }
 
 /**
@@ -1499,8 +1568,19 @@ async function collectFallbackScreenshots(
   url: string,
   job: EmbeddingPhaseParams["job"],
   params: EmbeddingPhaseParams,
-  fallbackTimeoutMs: number
-): Promise<{ screenshots: Map<string, Buffer>; capturedCount: number }> {
+  fallbackTimeoutMs: number,
+  // PR-B (Plan §7.5): backfill 文脈で navigation 直前に robots.txt を再評価する。
+  // PR-B (Plan §7.5): re-evaluate robots.txt just before navigation in the backfill context.
+  recheckRobotsTxt: boolean,
+  respectRobotsTxt: boolean | undefined
+): Promise<{
+  screenshots: Map<string, Buffer>;
+  capturedCount: number;
+  // PR-B (Plan §7.5 / FIND-RE-LCC-01): robots.txt Disallow で再capture 不能と確定した
+  // off-screen section の section_pattern_id 集合 (呼び出し側が terminal 収束)。
+  // section_pattern_ids the caller converges to `screenshot_truncated_expired`.
+  robotsDisallowedSectionPatternIds: string[];
+}> {
   const fallbackSections: Array<{ id: string; startY: number; height: number }> = [];
   for (const section of sectionsFiltered) {
     const sectionPos = sectionPositionMap.get(section.section_pattern_id);
@@ -1517,11 +1597,13 @@ async function collectFallbackScreenshots(
 
   const screenshots = new Map<string, Buffer>();
   let capturedCount = 0;
+  const robotsDisallowedSectionPatternIds: string[] = [];
 
   if (fallbackSections.length > 0 && fallbackEnabled) {
     if (isDevelopment()) {
       logger.info("[PageAnalyzeWorker] Batch capturing fallback section screenshots", {
         fallbackSectionCount: fallbackSections.length,
+        recheckRobotsTxt,
       });
     }
 
@@ -1535,7 +1617,20 @@ async function collectFallbackScreenshots(
         timeoutMs: fallbackTimeoutMs,
         sharedBrowser: params.sharedBrowser,
         checkMemoryPressure,
+        recheckRobotsTxt,
+        respectRobotsTxt,
       });
+
+      // PR-B (Plan §7.5 / FIND-RE-LCC-01): robots.txt Disallow で capture を起動しなかった
+      // 場合、この run の全 off-screen fallback section を terminal 収束対象として返す。
+      // SSRF block / HTTP error / 空結果は `robotsDisallowed: false` ゆえ bounded budget の
+      // 後続 retry に委ねる。 / On robots.txt Disallow, return all off-screen fallback sections
+      // for terminal convergence (SSRF/HTTP/empty stay false → bounded-budget retry).
+      if (fallbackResult.robotsDisallowed) {
+        for (const fb of fallbackSections) {
+          robotsDisallowedSectionPatternIds.push(fb.id);
+        }
+      }
 
       for (const fbResult of fallbackResult.results) {
         if (fbResult.screenshotBuffer && !fbResult.skipped) {
@@ -1553,7 +1648,7 @@ async function collectFallbackScreenshots(
     }
   }
 
-  return { screenshots, capturedCount };
+  return { screenshots, capturedCount, robotsDisallowedSectionPatternIds };
 }
 
 /**
@@ -1581,10 +1676,30 @@ async function processSectionVisualEmbeddingLoop(
     dinov2Service,
     prisma,
     rawScreenshotMeta,
+    recheckRobotsTxt = false,
+    respectRobotsTxt,
   } = loopParams;
 
   const SECTION_FALLBACK_TIMEOUT_MS = 300_000; // 300s cumulative timeout
   let generatedCount = 0;
+
+  // ADR-0018 Amendment 13 §5.7 / OQ-2 (truncated-screenshot data-loss fix,
+  // part/section symmetry): run-level truncation decision for the section path.
+  // `maxSectionExtentY` is the maximum `startY + height` across the sections
+  // needing visual embeddings (from `sectionPositionMap`). `isTruncatedRun` then
+  // gates the `section_visual_uncroppable` exit toward the bounded-retryable
+  // `screenshot_truncated` reason (only when `fallbackEnabled` is ON, Plan §5.9).
+  let maxSectionExtentY = 0;
+  for (const s of sectionsFiltered) {
+    const pos = sectionPositionMap.get(s.section_pattern_id);
+    if (!pos) continue;
+    if (!Number.isFinite(pos.startY) || !Number.isFinite(pos.height)) continue;
+    const extentY = pos.startY + pos.height;
+    if (Number.isFinite(extentY) && extentY > maxSectionExtentY) {
+      maxSectionExtentY = extentY;
+    }
+  }
+  const isTruncatedRun = isScreenshotTruncated(imgHeight, maxSectionExtentY);
 
   // 診断カウンター
   let diagInRangeCount = 0;
@@ -1606,18 +1721,61 @@ async function processSectionVisualEmbeddingLoop(
   }
 
   // フォールバック対象セクションの事前バッチ収集とキャプチャ
-  const { screenshots: fallbackScreenshots, capturedCount: initialFallbackCaptured } =
-    await collectFallbackScreenshots(
-      sectionsFiltered,
-      sectionPositionMap,
-      imgHeight,
-      fallbackEnabled,
-      url,
-      job,
-      params,
-      SECTION_FALLBACK_TIMEOUT_MS
-    );
+  const {
+    screenshots: fallbackScreenshots,
+    capturedCount: initialFallbackCaptured,
+    robotsDisallowedSectionPatternIds,
+  } = await collectFallbackScreenshots(
+    sectionsFiltered,
+    sectionPositionMap,
+    imgHeight,
+    fallbackEnabled,
+    url,
+    job,
+    params,
+    SECTION_FALLBACK_TIMEOUT_MS,
+    recheckRobotsTxt,
+    respectRobotsTxt
+  );
   let sectionFallbackCapturedCount = initialFallbackCaptured;
+
+  // PR-B (Plan §7.5 / FIND-RE-LCC-01 / INV-BACKFILL-SECTION-FALLBACK-ROBOTS):
+  // robots.txt Disallow で再capture 不能と確定した off-screen section を
+  // `screenshot_truncated_expired` terminal へ fail-loud 収束 (再capture/budget を消費せず
+  // 即 terminal 化、Disallow site への retry 浪費を排除)。robots 再評価は backfill flag-ON
+  // path のみ起動ゆえ Phase 5 proper は非影響。 / Converge off-screen sections that robots.txt
+  // Disallow confirms un-re-capturable to the `screenshot_truncated_expired` terminal
+  // fail-loud (gated on the backfill flag-ON path; Phase 5 proper unaffected).
+  if (robotsDisallowedSectionPatternIds.length > 0) {
+    const disallowedSet = new Set(robotsDisallowedSectionPatternIds);
+    for (const section of sectionsFiltered) {
+      if (!disallowedSet.has(section.section_pattern_id)) continue;
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE section_embeddings
+             SET vision_skip_reason = $1
+           WHERE id = $2::uuid AND vision_skip_reason IS NULL`,
+          "screenshot_truncated_expired",
+          section.id
+        );
+      } catch (markerError) {
+        // Non-fatal: marker 欠落は当該 1 row のみ legacy re-fetch に degrade (Graceful Degradation)。
+        logger.warn(
+          "[PageAnalyzeWorker] Failed to write robots-disallowed section terminal marker (non-fatal)",
+          {
+            sectionId: truncateAuditTargetId(section.section_pattern_id),
+            error: markerError instanceof Error ? markerError.message : String(markerError),
+          }
+        );
+      }
+    }
+    logger.warn(
+      "[PageAnalyzeWorker] robots.txt Disallow on backfill re-capture; converged sections to screenshot_truncated_expired",
+      {
+        sectionCount: robotsDisallowedSectionPatternIds.length,
+      }
+    );
+  }
 
   // Type-aware 重複ベクトル検出用のスライディングウィンドウ
   const parsedThreshold = parseFloat(process.env["DUPLICATE_VECTOR_THRESHOLD"] ?? "0.995");
@@ -1719,6 +1877,7 @@ async function processSectionVisualEmbeddingLoop(
         imgHeight,
         fallbackScreenshots,
         fallbackEnabled,
+        isTruncatedRun,
         dinov2Service,
         prisma,
         recentSectionVisualEmbeddings,
@@ -1799,6 +1958,8 @@ async function processSectionVisualEmbeddingLoop(
       duplicateThreshold: DUPLICATE_THRESHOLD,
       maxRecentEmbeddings: MAX_RECENT_EMBEDDINGS,
       fallbackTimeoutMs: SECTION_FALLBACK_TIMEOUT_MS,
+      recheckRobotsTxt,
+      respectRobotsTxt,
     });
 
     // 3. DINOv2 post-fallback re-init
@@ -1869,6 +2030,14 @@ interface SingleSectionVisualParams {
   imgHeight: number;
   fallbackScreenshots: Map<string, Buffer>;
   fallbackEnabled: boolean;
+  /**
+   * ADR-0018 Amendment 13 §5.7 (truncated-screenshot data-loss fix, part/section
+   * symmetry): run-level flag that the persisted screenshot is truncated relative
+   * to the section content extent. When `true` AND `fallbackEnabled` is ON, the
+   * `section_visual_uncroppable` exit is routed to the bounded-retryable
+   * `screenshot_truncated` reason instead of the terminal (Plan §5.9 flag-gating).
+   */
+  isTruncatedRun: boolean;
   dinov2Service: InstanceType<typeof DINOv2Service>;
   prisma: EmbeddingPhasePrismaClient;
   recentSectionVisualEmbeddings: Array<{ embedding: number[]; sectionType: string }>;
@@ -1930,7 +2099,11 @@ interface SingleSectionVisualResult {
  */
 async function writeSectionVisionSkipReason(
   p: SingleSectionVisualParams,
-  reason: SectionVisualTerminalSkipReason
+  // ADR-0018 Amendment 13: widened to the writable set (terminal subset ∪
+  // {screenshot_truncated}) so the bounded-retryable non-terminal marker can be
+  // written on the section path (symmetry with part). The DB CHECK constraint
+  // admits exactly this set.
+  reason: SectionVisualWritableSkipReason
 ): Promise<void> {
   try {
     await p.prisma.$executeRawUnsafe(
@@ -2312,6 +2485,15 @@ async function processSingleSectionVisualEmbedding(
       // (`isOutOfRange === false`) and the main path (`fallbackEnabled === true`)
       // write NO marker (recoverable; INV-007 Block D orthogonality).
       if (isOutOfRange && p.fallbackEnabled === false) {
+        // PR-B (TPA-IMPL-L-01 dead-branch closure): in flag-OFF mode the persisted
+        // fullPage screenshot is the only crop source (no Playwright re-capture), so an
+        // off-screen section is structurally uncroppable = terminal. The prior nested
+        // `if (p.isTruncatedRun && p.fallbackEnabled)` branch was dead (gated by
+        // `fallbackEnabled === false`, so `p.fallbackEnabled` was always false here) and
+        // is removed (no flag-OFF behaviour change). The section truncated retryable +
+        // genuine re-capture now lives on the flag-ON path (`collectFallbackScreenshots`
+        // re-captures off-screen sections; robots-disallowed ones converge to
+        // `screenshot_truncated_expired` above).
         await writeSectionVisionSkipReason(p, "section_visual_uncroppable");
       }
       if (isDevelopment()) {
@@ -2392,11 +2574,20 @@ async function processSingleSectionVisualEmbedding(
       p.recentSectionVisualEmbeddings.shift();
     }
 
-    // Update vision_embedding in DB via raw SQL
+    // Update vision_embedding in DB via raw SQL.
+    // ADR-0018 Amendment 13 follow-up (cosmetic metadata-cleanliness L): clear any
+    // stale `vision_skip_reason` in the SAME UPDATE. When the backfill path
+    // genuinely regenerates visual (e.g. a `screenshot_truncated` row recovered via
+    // Playwright re-capture), the prior skip marker is stale and would otherwise
+    // leave a contradictory row (vision_embedding IS NOT NULL AND
+    // vision_skip_reason non-NULL). Functionally harmless (pending predicate gates
+    // on vision_embedding IS NULL; search filters on IS NOT NULL only) but
+    // metadata-inaccurate — GDPR Art.5(1)(d) accuracy.
     const visualVectorString = `[${visualEmbedding.join(",")}]`;
     await p.prisma.$executeRawUnsafe(
       `UPDATE section_embeddings
-       SET vision_embedding = $1::vector(768)
+       SET vision_embedding = $1::vector(768),
+           vision_skip_reason = NULL
        WHERE id = $2::uuid`,
       visualVectorString,
       p.section.id
@@ -2454,6 +2645,10 @@ interface DynamicFallbackBatchParams {
   duplicateThreshold: number;
   maxRecentEmbeddings: number;
   fallbackTimeoutMs: number;
+  /** PR-B (Plan §7.5 / FIND-RE-LCC-01): 動的Fallback再capture 直前の robots.txt 再評価。 */
+  recheckRobotsTxt?: boolean | undefined;
+  /** PR-B: robots.txt 尊重オーバーライド (recheckRobotsTxt 時のみ参照)。 */
+  respectRobotsTxt?: boolean | undefined;
 }
 
 /**
@@ -2508,7 +2703,40 @@ async function processDynamicFallbackBatch(
       timeoutMs: p.fallbackTimeoutMs,
       sharedBrowser: p.params.sharedBrowser,
       checkMemoryPressure,
+      recheckRobotsTxt: p.recheckRobotsTxt,
+      respectRobotsTxt: p.respectRobotsTxt,
     });
+
+    // PR-B (Plan §7.5 / FIND-RE-LCC-01): 動的Fallback でも robots.txt Disallow なら
+    // 再capture 不能 → `screenshot_truncated_expired` terminal へ fail-loud 収束 (off-screen
+    // path と対称)。 / On the dynamic-fallback path too, robots.txt Disallow converges sections
+    // to `screenshot_truncated_expired` (symmetric with the off-screen path).
+    if (dynamicFallbackResult.robotsDisallowed) {
+      for (const ds of dynamicBatch) {
+        try {
+          await p.prisma.$executeRawUnsafe(
+            `UPDATE section_embeddings
+               SET vision_skip_reason = $1
+             WHERE id = $2::uuid AND vision_skip_reason IS NULL`,
+            "screenshot_truncated_expired",
+            ds.sectionEmbeddingId
+          );
+        } catch (markerError) {
+          logger.warn(
+            "[PageAnalyzeWorker] Failed to write robots-disallowed dynamic-fallback terminal marker (non-fatal)",
+            {
+              sectionId: truncateAuditTargetId(ds.sectionPatternId),
+              error: markerError instanceof Error ? markerError.message : String(markerError),
+            }
+          );
+        }
+      }
+      logger.warn(
+        "[PageAnalyzeWorker] robots.txt Disallow on dynamic fallback; converged sections to screenshot_truncated_expired",
+        { sectionCount: dynamicBatch.length }
+      );
+      return result;
+    }
 
     result.capturedCount = dynamicFallbackResult.capturedCount;
 
@@ -2563,10 +2791,14 @@ async function processDynamicFallbackBatch(
           p.recentSectionVisualEmbeddings.shift();
         }
 
+        // ADR-0018 Amendment 13 follow-up: clear any stale `vision_skip_reason`
+        // in the same UPDATE (symmetry with the standard write above) so a
+        // dynamically re-captured section does not retain a contradictory marker.
         const visualVectorString = `[${visualEmbedding.join(",")}]`;
         await p.prisma.$executeRawUnsafe(
           `UPDATE section_embeddings
-           SET vision_embedding = $1::vector(768)
+           SET vision_embedding = $1::vector(768),
+               vision_skip_reason = NULL
            WHERE id = $2::uuid`,
           visualVectorString,
           matchingSection.sectionEmbeddingId
@@ -2703,6 +2935,7 @@ export async function runTextEmbeddingSubPhases(
     partVisualEmbeddingsGenerated: 0,
     partVisualSkippedBboxInvalid: 0,
     partVisualSkippedBboxUnresolvable: 0,
+    partVisualSkippedScreenshotTruncated: 0,
     sectionVisualEmbeddingsGenerated: 0,
     embeddingFailedChunks: 0,
     completed: false,
@@ -2863,6 +3096,18 @@ export interface VisualEmbeddingSubPhaseParams {
   viewportWidth?: number | undefined;
   viewportHeight?: number | undefined;
   fallbackEnabled: boolean;
+  /**
+   * PR-B (Plan §7.5 / FIND-RE-LCC-01): backfill section fallback re-capture 直前に
+   * robots.txt を再評価するか。backfill processor は `true`、Phase 5 proper (fork child)
+   * は省略 (既定 false) で contemporaneous 前提を保持。
+   *
+   * PR-B (Plan §7.5 / FIND-RE-LCC-01): whether to re-evaluate robots.txt just before the
+   * backfill section-fallback re-capture. Backfill processors pass `true`; Phase 5 proper
+   * omits it (default false) to preserve the contemporaneous assumption.
+   */
+  recheckRobotsTxt?: boolean | undefined;
+  /** PR-B: robots.txt 尊重オーバーライド (recheckRobotsTxt 時のみ参照、undefined で env flag)。 */
+  respectRobotsTxt?: boolean | undefined;
   dinov2ModelPath: string;
   prisma: EmbeddingPhasePrismaClient;
   onLockExtend: (label: string) => void;
@@ -2902,6 +3147,13 @@ export interface VisualEmbeddingSubPhaseResult {
    * partVisualSkippedBboxInvalid).
    */
   partVisualSkippedBboxUnresolvable: number;
+  /**
+   * ADR-0018 Amendment 13 (truncated-screenshot data-loss fix, Plan §5.1 / §8.2):
+   * count of parts routed to the bounded-retryable `screenshot_truncated` reason
+   * (off-screen ONLY due to a truncated screenshot, flag-gated). Propagated from
+   * fork child → parent via IPC (symmetric with partVisualSkippedBboxUnresolvable).
+   */
+  partVisualSkippedScreenshotTruncated: number;
   embeddingFailedChunks: number;
 }
 
@@ -2920,6 +3172,7 @@ export async function runVisualEmbeddingSubPhases(
     partVisualEmbeddingsGenerated: 0,
     partVisualSkippedBboxInvalid: 0,
     partVisualSkippedBboxUnresolvable: 0,
+    partVisualSkippedScreenshotTruncated: 0,
     embeddingFailedChunks: 0,
   };
 
@@ -3132,6 +3385,8 @@ export async function runVisualEmbeddingSubPhases(
             dinov2Service,
             prisma: vParams.prisma,
             rawScreenshotMeta,
+            recheckRobotsTxt: vParams.recheckRobotsTxt,
+            respectRobotsTxt: vParams.respectRobotsTxt,
           });
 
           screenshotBuffer = sectionVisualLoop.screenshotBuffer;
@@ -3161,6 +3416,7 @@ export async function runVisualEmbeddingSubPhases(
           partVisualEmbeddingsGenerated: 0,
           partVisualSkippedBboxInvalid: 0,
           partVisualSkippedBboxUnresolvable: 0,
+          partVisualSkippedScreenshotTruncated: 0,
           sectionVisualEmbeddingsGenerated: 0,
           embeddingFailedChunks: 0,
           completed: false,
@@ -3193,6 +3449,11 @@ export async function runVisualEmbeddingSubPhases(
           imgWidth,
           imgHeight,
           dinov2Service,
+          // ADR-0018 Amendment 13 §5.9 flag-gating: `fallbackEnabled` gates the
+          // truncated-screenshot retryable reclassification. PR-A keeps this
+          // `false` at both backfill callsites (status-quo fallback), so no new
+          // `screenshot_truncated` is generated until PR-B flips it ON.
+          vParams.fallbackEnabled,
           // v0.4.0 PR4: partsLimit を DINOv2 ループへ伝搬
           // v0.4.0 PR4: propagate partsLimit to the DINOv2 loop
           { limit: vParams.partsLimit }
@@ -3205,6 +3466,9 @@ export async function runVisualEmbeddingSubPhases(
         // ADR-0018 Amendment 7 §7.6 exit #2: propagate bbox_unresolvable counter to parent
         vResult.partVisualSkippedBboxUnresolvable =
           partResultHolder.partVisualSkippedBboxUnresolvable;
+        // ADR-0018 Amendment 13 §8.2: propagate screenshot_truncated counter to parent
+        vResult.partVisualSkippedScreenshotTruncated =
+          partResultHolder.partVisualSkippedScreenshotTruncated;
       } catch (partVisErr) {
         vResult.embeddingFailedChunks++;
         logger.warn("[Phase5-VisualChild] Part DINOv2 visual embedding failed (non-fatal)", {

@@ -98,6 +98,21 @@ vi.mock("playwright", () => ({
 import { chromium } from "playwright";
 const mockChromiumLaunch = vi.mocked(chromium.launch);
 
+// @reftrixmcp/core モック (robots.txt 再評価分岐 LCC-IMPL-B-L-01 検証用)
+// 他の core export (ROBOTS_TXT.USER_AGENT 等) は importActual で保持。
+// @reftrixmcp/core mock (for the LCC-IMPL-B-L-01 robots.txt re-evaluation branch).
+// Other core exports (e.g. ROBOTS_TXT.USER_AGENT) are preserved via importActual.
+vi.mock("@reftrixmcp/core", async (importActual) => {
+  const actual = await importActual<typeof import("@reftrixmcp/core")>();
+  return {
+    ...actual,
+    isUrlAllowedByRobotsTxt: vi.fn(),
+  };
+});
+
+import { isUrlAllowedByRobotsTxt } from "@reftrixmcp/core";
+const mockIsUrlAllowedByRobotsTxt = vi.mocked(isUrlAllowedByRobotsTxt);
+
 // ============================================================================
 // Import module under test (after mock setup)
 // テスト対象のインポート（モック設定後）
@@ -370,6 +385,158 @@ describe("SectionScreenshotFallbackService", () => {
       expect(result.results).toHaveLength(0);
       expect(result.capturedCount).toBe(0);
       expect(mockChromiumLaunch).not.toHaveBeenCalled();
+    });
+  });
+
+  // ==========================================================================
+  // 3b. robots.txt 再評価分岐 (LCC-IMPL-B-L-01)
+  //     genuine Disallow (reason==="disallowed") のみ terminal、
+  //     transient fetch_error は capture 続行 (非 terminal)。
+  //     LCC-IMPL-B-L-01: only genuine Disallow terminalizes; a transient
+  //     fetch_error proceeds with the capture (non-terminal).
+  // ==========================================================================
+  describe("robots.txt 再評価分岐 / robots.txt re-evaluation branch (LCC-IMPL-B-L-01)", () => {
+    it('genuine Disallow (reason="disallowed") の場合のみ robotsDisallowed:true で terminal 化し capture を起動しない', async () => {
+      // Arrange: robots が genuine Disallow を value で返す
+      mockIsUrlAllowedByRobotsTxt.mockResolvedValue({
+        allowed: false,
+        domain: "https://example.com",
+        cached: false,
+        reason: "disallowed",
+      });
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: 600 }];
+
+      // Act
+      const result = await captureSectionScreenshots({
+        url: MOCK_URL,
+        sections,
+        recheckRobotsTxt: true,
+      });
+
+      // Assert: terminal (robotsDisallowed:true)、capture 未起動
+      expect(result.robotsDisallowed).toBe(true);
+      expect(result.results).toHaveLength(0);
+      expect(result.capturedCount).toBe(0);
+      expect(mockChromiumLaunch).not.toHaveBeenCalled();
+      expect(mockIsUrlAllowedByRobotsTxt).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining("Disallow"),
+        expect.objectContaining({ reason: "disallowed" })
+      );
+    });
+
+    it('transient fetch_error (reason="fetch_error", value-return) の場合は terminal 化せず capture を続行する', async () => {
+      // Arrange: robots が fetch_error を **値** で返す (throw ではない)
+      // = isUrlAllowedByRobotsTxt の実契約 (robots-txt.service.ts:438-444)。
+      mockIsUrlAllowedByRobotsTxt.mockResolvedValue({
+        allowed: false,
+        domain: "https://example.com",
+        cached: false,
+        reason: "fetch_error",
+      });
+      const newPage = createMockPage({
+        screenshot: vi.fn().mockResolvedValue(createMockScreenshotBuffer()),
+      });
+      const newContext = createMockContext(newPage);
+      const newBrowser = createMockBrowser(newContext);
+      mockChromiumLaunch.mockResolvedValue(newBrowser);
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: 600 }];
+
+      // Act
+      const result = await captureSectionScreenshots({
+        url: MOCK_URL,
+        sections,
+        recheckRobotsTxt: true,
+      });
+
+      // Assert: NON-terminal (robotsDisallowed:false)、capture 続行 (browser launch + 1件捕捉)
+      expect(result.robotsDisallowed).toBe(false);
+      expect(mockChromiumLaunch).toHaveBeenCalledTimes(1);
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0].screenshotBuffer).not.toBeNull();
+      expect(result.capturedCount).toBe(1);
+      // fetch_error は proceed ログを出す (terminal Disallow ログではない)
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining("fetch_error"),
+        expect.objectContaining({ reason: "fetch_error" })
+      );
+    });
+
+    it('robots が allowed (reason="allowed") の場合は capture を続行する', async () => {
+      // Arrange
+      mockIsUrlAllowedByRobotsTxt.mockResolvedValue({
+        allowed: true,
+        domain: "https://example.com",
+        cached: false,
+        reason: "allowed",
+      });
+      const newPage = createMockPage({
+        screenshot: vi.fn().mockResolvedValue(createMockScreenshotBuffer()),
+      });
+      const newBrowser = createMockBrowser(createMockContext(newPage));
+      mockChromiumLaunch.mockResolvedValue(newBrowser);
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: 600 }];
+
+      // Act
+      const result = await captureSectionScreenshots({
+        url: MOCK_URL,
+        sections,
+        recheckRobotsTxt: true,
+      });
+
+      // Assert: 続行 (非 terminal)
+      expect(result.robotsDisallowed).toBe(false);
+      expect(mockChromiumLaunch).toHaveBeenCalledTimes(1);
+      expect(result.capturedCount).toBe(1);
+    });
+
+    it("recheckRobotsTxt 未指定 (既定 false) の場合は robots 再評価をスキップする", async () => {
+      // Arrange
+      const newPage = createMockPage({
+        screenshot: vi.fn().mockResolvedValue(createMockScreenshotBuffer()),
+      });
+      const newBrowser = createMockBrowser(createMockContext(newPage));
+      mockChromiumLaunch.mockResolvedValue(newBrowser);
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: 600 }];
+
+      // Act
+      const result = await captureSectionScreenshots({
+        url: MOCK_URL,
+        sections,
+        // recheckRobotsTxt 未指定
+      });
+
+      // Assert: robots 未評価、capture 続行
+      expect(mockIsUrlAllowedByRobotsTxt).not.toHaveBeenCalled();
+      expect(result.robotsDisallowed).toBe(false);
+      expect(result.capturedCount).toBe(1);
+    });
+
+    it("isUrlAllowedByRobotsTxt が genuine exception を throw した場合は capture を続行する (catch fallback)", async () => {
+      // Arrange: 値 return ではなく **例外** (programming error / URL parse 失敗等)
+      mockIsUrlAllowedByRobotsTxt.mockRejectedValue(new Error("unexpected robots failure"));
+      const newPage = createMockPage({
+        screenshot: vi.fn().mockResolvedValue(createMockScreenshotBuffer()),
+      });
+      const newBrowser = createMockBrowser(createMockContext(newPage));
+      mockChromiumLaunch.mockResolvedValue(newBrowser);
+      const sections = [{ id: MOCK_SECTION_ID_1, startY: 2000, height: 600 }];
+
+      // Act
+      const result = await captureSectionScreenshots({
+        url: MOCK_URL,
+        sections,
+        recheckRobotsTxt: true,
+      });
+
+      // Assert: catch fallback で続行 (非 terminal)
+      expect(result.robotsDisallowed).toBe(false);
+      expect(mockChromiumLaunch).toHaveBeenCalledTimes(1);
+      expect(result.capturedCount).toBe(1);
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining("threw"),
+        expect.objectContaining({ error: expect.stringContaining("unexpected robots failure") })
+      );
     });
   });
 

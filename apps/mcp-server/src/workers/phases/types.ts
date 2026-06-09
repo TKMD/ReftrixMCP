@@ -787,6 +787,47 @@ export const EMBEDDING_SKIP_REASONS = [
   // backfill path. The crop region cannot be determined, so the embedding is
   // structurally impossible = terminal.
   "section_visual_no_position",
+  // ==========================================================================
+  // ADR-0018 Amendment 13 (visual-backfill truncated-screenshot data-loss fix,
+  // Plan §5.1 / §5.6 / §8.2): the following 2 values handle the case where a
+  // part/section is off-screen ONLY because the persisted fullPage screenshot
+  // was truncated to viewport-only (1920x1080) on a WebGL site — recoverable
+  // data-loss, NOT a genuinely structural off-screen condition.
+  //
+  // Both are NON-PII degraded-coverage technical metadata (GDPR Recital 26 /
+  // Art.4(1): they identify no natural person), CASCADE-deleted with the parent
+  // `web_pages` row, with no independent retention (Art.17 unaffected). They are
+  // recorded in `component_part_embeddings.visual_skip_reason` /
+  // `section_embeddings.vision_skip_reason`, which carry a DB CHECK constraint —
+  // the additive CHECK migration (Plan §5.6) admits both values.
+  //
+  // ADR-0018 Amendment 13 (truncated-screenshot data-loss fix, Plan §5.1/§5.6/§8.2):
+  // 2 values for the off-screen-due-to-truncation case (recoverable data-loss,
+  // not genuinely structural off-screen). Both are NON-PII technical metadata.
+  // ==========================================================================
+  //
+  // screenshot_truncated (non-terminal, bounded-retryable): a part/section
+  // off-screen because the persisted screenshot is truncated relative to the
+  // content extent (`isScreenshotTruncated()`, Plan §5.1) AND the section-fallback
+  // flag is ON (Plan §5.9 flag-gating). The `partVisualPendingExclusionPredicate`
+  // / `sectionVisualPendingExclusionPredicate` 3-way predicate (Plan §5.4 / §5.8)
+  // keeps this row PENDING (it is NOT in the terminal subset), so it is retried via
+  // the `skipped_fork_error` retry bucket (Plan §5.4 mapper) until the PR-B section
+  // fallback re-capture supplies a real generation source. It is a skip reason, NOT
+  // a failure reason, so it is NOT added to `EMBEDDING_BACKFILL_FAILURE_REASONS`.
+  // GDPR Art.5(1)(d) accuracy: records "visual not yet generated, bounded-retry in
+  // progress" truthfully.
+  "screenshot_truncated",
+  // screenshot_truncated_expired (terminal): a `screenshot_truncated` row whose
+  // `embedding_backfill_retry_count` has exceeded `SCREENSHOT_TRUNCATED_RETRY_CAP`
+  // (=`SKIP_RECOVERY_RETRY_CAP`=5, Plan §5.10a) and is converged fail-loud by the
+  // reconciliation cron (Plan §5.5 per-row reason branch) to a terminal so the page
+  // can reach `completed`. `skipReasonToBackfillStatus()` maps it to `not_required`
+  // (NOT `failed` — it would re-create the false-failed pin this fix removes).
+  // Added to the terminal subset (`PART_VISUAL_TERMINAL_REASON_CANDIDATES` /
+  // `SECTION_VISUAL_TERMINAL_REASON_CANDIDATES`). GDPR Art.5(1)(d) accuracy:
+  // records "generation impossible after bounded retry" truthfully.
+  "screenshot_truncated_expired",
 ] as const;
 
 /**
@@ -826,7 +867,15 @@ export type EmbeddingSkipReason = (typeof EMBEDDING_SKIP_REASONS)[number];
  * against the failure mode where a reason is removed from the SSOT but the
  * derived subset silently retains a stale value.
  */
-const PART_VISUAL_TERMINAL_REASON_CANDIDATES = ["bbox_invalid", "bbox_unresolvable"] as const;
+const PART_VISUAL_TERMINAL_REASON_CANDIDATES = [
+  "bbox_invalid",
+  "bbox_unresolvable",
+  // ADR-0018 Amendment 13 (truncated-screenshot data-loss fix): the EXPIRED
+  // terminal of the bounded-retry budget. `screenshot_truncated` itself is
+  // NON-terminal (it stays pending and is retried) and is deliberately NOT in
+  // this candidate list — only `screenshot_truncated_expired` is terminal.
+  "screenshot_truncated_expired",
+] as const;
 
 /**
  * `EMBEDDING_PART_VISUAL_SKIP_REASONS` — SSOT-derived terminal subset of
@@ -847,6 +896,25 @@ export const EMBEDDING_PART_VISUAL_SKIP_REASONS = PART_VISUAL_TERMINAL_REASON_CA
 export type PartVisualTerminalSkipReason = (typeof EMBEDDING_PART_VISUAL_SKIP_REASONS)[number];
 
 /**
+ * ADR-0018 Amendment 13 (truncated-screenshot data-loss fix, Plan §5.6 (ii)):
+ * the full set of skip reasons WRITABLE into
+ * `component_part_embeddings.visual_skip_reason` = the terminal subset ∪
+ * `{screenshot_truncated}` (the non-terminal bounded-retryable reason). The DB
+ * CHECK constraint (Plan §5.6 additive migration) admits exactly this set, and
+ * `INV-SCHEMA-ENUM-004` asserts `CHECK == this set` (SSOT-derived, hardcode
+ * literal forbidden). `screenshot_truncated` is writable but NOT terminal, so it
+ * is excluded from {@link EMBEDDING_PART_VISUAL_SKIP_REASONS}.
+ */
+export const EMBEDDING_PART_VISUAL_WRITABLE_SKIP_REASONS = [
+  ...EMBEDDING_PART_VISUAL_SKIP_REASONS,
+  "screenshot_truncated",
+] as const;
+
+/** Writable (terminal ∪ non-terminal) Part visual skip reason type. */
+export type PartVisualWritableSkipReason =
+  (typeof EMBEDDING_PART_VISUAL_WRITABLE_SKIP_REASONS)[number];
+
+/**
  * Single SSOT exclusion predicate fragment for the part_visual pending query
  * (UB-3, NF-TPA-01, ADR-0018 Amendment 7 §7.1).
  *
@@ -855,20 +923,34 @@ export type PartVisualTerminalSkipReason = (typeof EMBEDDING_PART_VISUAL_SKIP_RE
  * lets the processor re-fetch terminal-skip parts forever is impossible by
  * construction (pinned by INV-PART-VISUAL-SKIP-TERMINAL-001).
  *
- * Semantic:
+ * Semantic (ADR-0018 Amendment 13 §8.9, Plan §5.4 / §5.8 — 3-way reclassification):
  * ```
- * cpe.visual_embedding IS NULL          -- not yet generated
- * AND cpe.visual_skip_reason IS NULL    -- not terminally skipped (per-row marker)
+ * cpe.visual_embedding IS NULL                 -- not yet generated
+ * AND (
+ *   cpe.visual_skip_reason IS NULL             -- (i) real-leak (unmarked)
+ *   OR cpe.visual_skip_reason NOT IN (<terminal subset>)  -- (iii) non-terminal non-NULL = screenshot_truncated
+ * )
  * ```
  *
- * A row whose `visual_skip_reason` is non-NULL (one of
- * {@link EMBEDDING_PART_VISUAL_SKIP_REASONS}) is excluded from pending so the
- * processor stops retrying it (terminal). A row with both columns NULL remains
- * pending (real-leak / retry target — INV-(b) orthogonality per ADR §7.5).
+ * **3-way classification (Amendment 13 §8.9, replaces the prior 2-way `IS NULL`)**:
+ *   - (i)  `visual_skip_reason IS NULL`        → real-leak / retry target (PENDING)
+ *   - (ii) `visual_skip_reason` IN terminal subset
+ *          ({@link EMBEDDING_PART_VISUAL_SKIP_REASONS}: `bbox_invalid` /
+ *          `bbox_unresolvable` / `screenshot_truncated_expired`) → terminal (EXCLUDED)
+ *   - (iii) non-terminal non-NULL (`screenshot_truncated`) → bounded-retryable (PENDING)
  *
- * The fragment is parameter-free static SQL (no interpolation, no SQL-injection
- * surface). The caller is responsible for the table alias `cpe` matching its
- * JOIN context.
+ * Before Amendment 13 this predicate excluded ALL non-NULL `visual_skip_reason`
+ * (2-way `IS NULL`). The 3-way form keeps the non-terminal `screenshot_truncated`
+ * row pending so it is retried, while still excluding the terminal subset. The
+ * real-leak detection is preserved: `INV-PART-VISUAL-REAL-LEAK-VS-NONTERMINAL-
+ * BOUNDARY` purifies real-leak count to "pending AND visual_skip_reason IS NULL"
+ * (= (i) only), so (iii) does NOT inflate real-leak (Plan §5.8 INV-(b)).
+ *
+ * The fragment is parameter-free static SQL: the `NOT IN` list is built from the
+ * SSOT-derived {@link EMBEDDING_PART_VISUAL_SKIP_REASONS} enum-bound literals
+ * (never runtime user input), so there is no SQL-injection surface and no
+ * enum-drift surface (the list tracks the SSOT via `.filter()`). The caller is
+ * responsible for the table alias `cpe` matching its JOIN context.
  *
  * @param alias Table alias for `component_part_embeddings` (default `"cpe"`).
  *   Restricted to a SQL-identifier-safe form by the caller; callers pass a
@@ -877,8 +959,17 @@ export type PartVisualTerminalSkipReason = (typeof EMBEDDING_PART_VISUAL_SKIP_RE
  */
 export function partVisualPendingExclusionPredicate(alias: string = "cpe"): string {
   // Static fragment; `alias` is always a compile-time literal at every callsite
-  // (`cpe`). No runtime user input flows here (no SQL-injection surface).
-  return `${alias}.visual_embedding IS NULL AND ${alias}.visual_skip_reason IS NULL`;
+  // (`cpe`). No runtime user input flows here (no SQL-injection surface). The
+  // `NOT IN` list derives from the SSOT-derived terminal subset (enum-bound
+  // literals only — no interpolated runtime value, no enum-drift surface).
+  const terminalList = EMBEDDING_PART_VISUAL_SKIP_REASONS.map((r) => `'${r}'`).join(", ");
+  return (
+    `${alias}.visual_embedding IS NULL ` +
+    `AND (` +
+    `${alias}.visual_skip_reason IS NULL ` +
+    `OR ${alias}.visual_skip_reason NOT IN (${terminalList})` +
+    `)`
+  );
 }
 
 // ============================================================================
@@ -923,6 +1014,11 @@ export function partVisualPendingExclusionPredicate(alias: string = "cpe"): stri
 const SECTION_VISUAL_TERMINAL_REASON_CANDIDATES = [
   "section_visual_uncroppable",
   "section_visual_duplicate",
+  // ADR-0018 Amendment 13 (truncated-screenshot data-loss fix): the EXPIRED
+  // terminal of the bounded-retry budget (symmetry with part_visual's
+  // `PART_VISUAL_TERMINAL_REASON_CANDIDATES`). `screenshot_truncated` itself is
+  // NON-terminal (stays pending, retried) and is deliberately NOT in this list.
+  "screenshot_truncated_expired",
   // PR-C4 (ADR-0018 Amendment, section_visual PII asymmetry closure): work-side
   // PII-exclusion terminal marker (GDPR Art.30 processing trail). Added so
   // `SectionVisualTerminalSkipReason` accepts this value and the 4-site lockstep
@@ -960,6 +1056,22 @@ export const EMBEDDING_SECTION_VISUAL_SKIP_REASONS =
  */
 export type SectionVisualTerminalSkipReason =
   (typeof EMBEDDING_SECTION_VISUAL_SKIP_REASONS)[number];
+
+/**
+ * ADR-0018 Amendment 13 (truncated-screenshot data-loss fix, Plan §5.6 (ii) /
+ * §5.7 part/section symmetry): the full set of skip reasons WRITABLE into
+ * `section_embeddings.vision_skip_reason` = the terminal subset ∪
+ * `{screenshot_truncated}`. The DB CHECK constraint admits exactly this set;
+ * `INV-SCHEMA-ENUM-004` asserts `CHECK == this set` (SSOT-derived).
+ */
+export const EMBEDDING_SECTION_VISUAL_WRITABLE_SKIP_REASONS = [
+  ...EMBEDDING_SECTION_VISUAL_SKIP_REASONS,
+  "screenshot_truncated",
+] as const;
+
+/** Writable (terminal ∪ non-terminal) section visual skip reason type. */
+export type SectionVisualWritableSkipReason =
+  (typeof EMBEDDING_SECTION_VISUAL_WRITABLE_SKIP_REASONS)[number];
 
 /**
  * Single SSOT exclusion predicate fragment for the section_visual pending query
@@ -1045,10 +1157,21 @@ export function sectionVisualPendingExclusionPredicate(alias: string = "se"): st
   // literal nor runtime user input (no enum-drift / SQL-injection surface).
   // PR-C4: the NOT EXISTS subquery anchors on `<alias>.section_pattern_id`
   // (correlated subquery), restoring part_visual ↔ section_visual PII symmetry.
+  // ADR-0018 Amendment 13 §8.9 (Plan §5.4 / §5.8 — 3-way reclassification):
+  // `vision_skip_reason IS NULL` (2-way) → 3-way "terminal subset NOT IN" so the
+  // non-terminal `screenshot_truncated` row stays pending and is retried, while
+  // the terminal subset is excluded. The PII NOT EXISTS clause is UNCHANGED
+  // (high-PII sections remain excluded — H-02 orthogonality, Plan §5.3). The
+  // `NOT IN` list derives from the SSOT-derived terminal subset (enum-bound
+  // literals only — no interpolated runtime value, no enum-drift surface).
+  const terminalList = EMBEDDING_SECTION_VISUAL_SKIP_REASONS.map((r) => `'${r}'`).join(", ");
   return (
     `${alias}.text_embedding IS NOT NULL ` +
     `AND ${alias}.vision_embedding IS NULL ` +
-    `AND ${alias}.vision_skip_reason IS NULL ` +
+    `AND (` +
+    `${alias}.vision_skip_reason IS NULL ` +
+    `OR ${alias}.vision_skip_reason NOT IN (${terminalList})` +
+    `) ` +
     `AND NOT EXISTS (` +
     `SELECT 1 FROM component_parts cp ` +
     `WHERE cp.section_pattern_id = ${alias}.section_pattern_id ` +
@@ -1138,6 +1261,17 @@ export interface EmbeddingPhaseResult {
    * per-row `bbox_unresolvable` terminal marker.
    */
   partVisualSkippedBboxUnresolvable: number;
+  /**
+   * ADR-0018 Amendment 13 (truncated-screenshot data-loss fix, Plan §5.1 / §8.2):
+   * count of parts routed to the bounded-retryable `screenshot_truncated` reason
+   * because they are off-screen ONLY due to a truncated screenshot
+   * (`isScreenshotTruncated()` AND the section-fallback flag is ON, Plan §5.9).
+   * Observable counter for the 2-branch crop guard (exit #2a / clamp-後 row #2).
+   *
+   * Count of parts routed to `screenshot_truncated` (bounded-retryable) because
+   * they are off-screen only due to a truncated screenshot (flag-gated).
+   */
+  partVisualSkippedScreenshotTruncated: number;
   /** Section visual embedding 生成数（DINOv2） */
   sectionVisualEmbeddingsGenerated: number;
   /** Embedding生成に失敗したチャンク数 */

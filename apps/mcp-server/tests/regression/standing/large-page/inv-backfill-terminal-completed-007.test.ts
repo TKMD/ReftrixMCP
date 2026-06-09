@@ -578,15 +578,34 @@ describe("INV-BACKFILL-TERMINAL-COMPLETED-007: happy-path backfill enqueue compl
         src.includes('writeSectionVisionSkipReason(p, "section_visual_uncroppable")'),
         "the no_crop_buffer exit MUST write the section_visual_uncroppable terminal marker"
       ).toBe(true);
-      // The guard expression must require BOTH conjuncts (isOutOfRange AND
+      // The OUTER guard expression must require BOTH conjuncts (isOutOfRange AND
       // fallbackEnabled===false). A regression that drops the fallbackEnabled
       // conjunct would mis-terminal-mark main-path sections.
+      //
+      // PR-B (TPA-IMPL-L-01 dead-branch closure): the uncroppable write sits directly
+      // inside the OUTER `if (isOutOfRange && p.fallbackEnabled === false)` guard. PR-A
+      // had a nested `if (p.isTruncatedRun && p.fallbackEnabled) { screenshot_truncated }
+      // else { section_visual_uncroppable }` whose `if` was structurally dead (the outer
+      // guard already pins `fallbackEnabled === false`). PR-B removed the dead nested
+      // branch (no flag-OFF behaviour change) and routed the section truncated retryable +
+      // genuine re-capture to the flag-ON path (`collectFallbackScreenshots` +
+      // robots-disallow convergence to `screenshot_truncated_expired`). Assert the OUTER
+      // guard converges to the unconditional uncroppable write.
       expect(
-        /if\s*\(\s*isOutOfRange\s*&&\s*p\.fallbackEnabled === false\s*\)\s*\{\s*await writeSectionVisionSkipReason\(p,\s*"section_visual_uncroppable"\)/.test(
+        /if\s*\(\s*isOutOfRange\s*&&\s*p\.fallbackEnabled === false\s*\)\s*\{[\s\S]*?await writeSectionVisionSkipReason\(p,\s*"section_visual_uncroppable"\)/.test(
           src
         ),
-        "the section_visual_uncroppable marker write MUST be guarded by `isOutOfRange && p.fallbackEnabled === false` (Phase 5 proper / transient non-contamination, INV-(b) orthogonality)"
+        "the section_visual_uncroppable marker write MUST be inside the `isOutOfRange && p.fallbackEnabled === false` OUTER guard (Phase 5 proper / transient non-contamination, INV-(b) orthogonality)"
       ).toBe(true);
+      // PR-B (TPA-IMPL-L-01): the in-loop `screenshot_truncated` section write is REMOVED
+      // (it was the dead nested branch). The section path now relies on the flag-ON
+      // re-capture (`collectFallbackScreenshots`) for genuine generation and converges
+      // un-re-capturable (robots-disallow) sections to `screenshot_truncated_expired` via an
+      // inline CAS UPDATE, NOT via an in-loop `writeSectionVisionSkipReason(p, "screenshot_truncated")`.
+      expect(
+        src.includes('writeSectionVisionSkipReason(p, "screenshot_truncated")'),
+        "PR-B removes the dead in-loop screenshot_truncated section write (TPA-IMPL-L-01 closure)"
+      ).toBe(false);
     });
 
     it("INV-BACKFILL-TERMINAL-COMPLETED-007: Block D — dedup exit writes section_visual_duplicate ONLY when fallbackEnabled===false (main-path non-contamination, FIND-BT-H-02-RESIDUAL Option X)", () => {
@@ -605,22 +624,26 @@ describe("INV-BACKFILL-TERMINAL-COMPLETED-007: happy-path backfill enqueue compl
       ).toBe(true);
     });
 
-    it("INV-BACKFILL-TERMINAL-COMPLETED-007: Block D — exactly 4 in-loop section terminal-skip marker call-sites (no over-termination of transient/main-path exits)", () => {
+    it("INV-BACKFILL-TERMINAL-COMPLETED-007: Block D — exactly 4 in-loop section terminal marker call-sites (PR-B removed the dead screenshot_truncated nested branch; no over-termination)", () => {
       const src = readPhase5();
-      // Exactly 4 in-loop marker call-sites in processSingleSectionVisualEmbedding
-      // (each `writeSectionVisionSkipReason(p, ...)`):
+      // PR-B (TPA-IMPL-L-01 dead-branch closure): exactly 4 in-loop marker call-sites in
+      // processSingleSectionVisualEmbedding (each `writeSectionVisionSkipReason(p, ...)`):
       //   #1 no_crop_buffer exit (isOutOfRange) → section_visual_uncroppable
       //   #2 dedup exit                         → section_visual_duplicate
       //   #3 isBlank exit                       → section_visual_blank (secvisual-blank-terminal)
       //   #4 no-position exit                   → section_visual_no_position (secvisual-blank-terminal)
-      // A 5th would mean the transient decode catch, or the success path, was
-      // wrongly marked. NOTE: section_visual_pii_excluded is written OUTSIDE this
-      // function (work-side bulk helper writeSectionVisualPiiExcludedMarkers), so it
-      // does NOT use `writeSectionVisionSkipReason(p, ...)` and is not counted here.
+      // PR-A had a 5th (the dead nested `screenshot_truncated` write inside the
+      // `fallbackEnabled === false` guard); PR-B removed it. The section truncated retryable
+      // + genuine re-capture now lives on the flag-ON path, and robots-disallow convergence
+      // writes `screenshot_truncated_expired` via an inline CAS UPDATE (NOT
+      // `writeSectionVisionSkipReason`), so it is not counted here. A 5th in-loop
+      // `writeSectionVisionSkipReason(p,...)` would indicate over-termination /
+      // re-introduction of the dead branch. NOTE: section_visual_pii_excluded is written
+      // OUTSIDE this function (work-side bulk helper) and is not counted.
       const markerCallCount = (src.match(/writeSectionVisionSkipReason\(p,/g) ?? []).length;
       expect(
         markerCallCount,
-        "exactly 4 in-loop section_visual terminal-skip marker call-sites expected (uncroppable + duplicate + blank + no_position); a 5th indicates over-termination"
+        "exactly 4 in-loop section_visual terminal marker call-sites expected (uncroppable + duplicate + blank + no_position); a 5th indicates over-termination or re-introduction of the dead screenshot_truncated branch"
       ).toBe(4);
     });
 
@@ -636,7 +659,11 @@ describe("INV-BACKFILL-TERMINAL-COMPLETED-007: happy-path backfill enqueue compl
       // 3-value set to the 5-value set; the SSOT .filter() derivation guarantees
       // these are exactly the EMBEDDING_SKIP_REASONS members prefixed
       // `section_visual_`.
+      // ADR-0018 Amendment 13: terminal subset gains `screenshot_truncated_expired`
+      // (terminal) but NOT `screenshot_truncated` (writable but non-terminal /
+      // stays pending). 5 -> 6 values.
       expect([...EMBEDDING_SECTION_VISUAL_SKIP_REASONS].sort()).toEqual([
+        "screenshot_truncated_expired",
         "section_visual_blank",
         "section_visual_duplicate",
         "section_visual_no_position",

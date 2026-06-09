@@ -223,9 +223,11 @@ describe("INV-SECTION-VISUAL-PII-EXCLUDED-TERMINAL-011: section_visual PII-exclu
       "section_visual_pii_excluded"
     );
     expect(EMBEDDING_SKIP_REASONS as readonly string[]).toContain("section_visual_pii_excluded");
-    // The full SSOT-derived terminal subset is now the 5-value set (secvisual-blank-terminal
-    // Plan V1 §4 added section_visual_blank + section_visual_no_position additively).
+    // The full SSOT-derived terminal subset is now the 6-value set (ADR-0018
+    // Amendment 13 added `screenshot_truncated_expired` additively to the prior 5;
+    // `screenshot_truncated` is writable but NON-terminal so it is NOT here).
     expect([...EMBEDDING_SECTION_VISUAL_SKIP_REASONS].sort()).toEqual([
+      "screenshot_truncated_expired",
       "section_visual_blank",
       "section_visual_duplicate",
       "section_visual_no_position",

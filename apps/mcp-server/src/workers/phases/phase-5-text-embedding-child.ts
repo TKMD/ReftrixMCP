@@ -208,6 +208,7 @@ process.on("message", async (raw: unknown) => {
     partVisualEmbeddingsGenerated: 0,
     partVisualSkippedBboxInvalid: 0,
     partVisualSkippedBboxUnresolvable: 0,
+    partVisualSkippedScreenshotTruncated: 0,
     sectionVisualEmbeddingsGenerated: 0,
     embeddingFailedChunks: 0,
     completed: false,

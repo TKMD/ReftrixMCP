@@ -138,7 +138,12 @@ describe("INV-PART-VISUAL-SKIP-TERMINAL-001: part_visual terminal-skip SSOT excl
     // real-leak (both NULL) is pending; terminal-skip (skip_reason non-NULL) is excluded.
     expect(fragment).toContain("cpe.visual_embedding IS NULL");
     expect(fragment).toContain("cpe.visual_skip_reason IS NULL");
-    expect(fragment).toMatch(/visual_embedding IS NULL\s+AND\s+cpe\.visual_skip_reason IS NULL/);
+    // ADR-0018 Amendment 13 (3-way): real-leak (IS NULL) stays pending alongside
+    // the non-terminal `screenshot_truncated` (NOT IN terminal subset); the
+    // terminal subset is excluded. The base conjunct (`visual_embedding IS NULL`)
+    // is AND-ed with the 3-way disjunction.
+    expect(fragment).toMatch(/visual_embedding IS NULL\s+AND\s+\(/);
+    expect(fragment).toMatch(/visual_skip_reason\s+NOT IN/i);
     // Default alias is `cpe`; the bare-table alias variant is used by Phase 5.
     expect(partVisualPendingExclusionPredicate("component_part_embeddings")).toContain(
       "component_part_embeddings.visual_skip_reason IS NULL"
@@ -152,55 +157,68 @@ describe("INV-PART-VISUAL-SKIP-TERMINAL-001: part_visual terminal-skip SSOT excl
   // (c) F3 clear — terminal exits write marker, transient exit does not
   // ==========================================================================
 
-  it("INV-PART-VISUAL-SKIP-TERMINAL-001: (c) the 3 main-path terminal silent-skip exits + 1 residual-path reuse write a per-row marker; the transient DINOv2-catch exit does NOT (ADR §7.6, PR-F; PR-BT-4 4th callsite)", () => {
+  it("INV-PART-VISUAL-SKIP-TERMINAL-001: (c) terminal silent-skip exits + truncation-gated 2-branch + residual-path reuse write a per-row marker; the transient DINOv2-catch exit does NOT (ADR §7.6, PR-F; PR-BT-4; Amendment 13 §8.2)", () => {
     const phase5 = readSrc("workers/phases/phase-5-embedding.ts");
-    // exit #1 bbox_invalid + exit #2 bbox_unresolvable + exit #2a off-screen
-    // precondition bbox_unresolvable (PR-F NF-TPA-02 closure) → marker write.
+    // exit #1 bbox_invalid → marker write.
     expect(phase5).toContain(
       'writePartVisualTerminalSkipMarker(ctx, part.embeddingId, "bbox_invalid")'
     );
+    // exit #2a + clamp-後 row #2 (truncation-gated 2-branch, Amendment 13 §8.2):
+    // the terminal `bbox_unresolvable` (non-truncated / flag-OFF) branch.
     expect(phase5).toContain(
       'writePartVisualTerminalSkipMarker(ctx, part.embeddingId, "bbox_unresolvable")'
     );
+    // exit #2a + clamp-後 row #2 (truncation-gated 2-branch, Amendment 13 §8.2):
+    // the bounded-retryable `screenshot_truncated` (truncated AND flag-ON) branch.
+    expect(phase5).toContain(
+      'writePartVisualTerminalSkipMarker(ctx, part.embeddingId, "screenshot_truncated")'
+    );
     // PR-BT-4 (ADR-0018 Amendment 10 Decision 10.2): the exported residual-marker
-    // helper `markResidualBboxUnresolvableParts` REUSES the same idempotent writer
-    // (the 4th `(ctx,` callsite) so the backfill residual bbox path writes a
-    // Layer-1 marker rather than forking a second writer.
+    // helper `markResidualBboxUnresolvableParts` REUSES the same idempotent writer.
     expect(phase5).toContain(
       'writePartVisualTerminalSkipMarker(ctx, embeddingId, "bbox_unresolvable")'
     );
-    // Exactly 4 terminal marker call-sites that reuse the single SSOT writer:
-    //   #1 bbox_invalid     (main-path: missing / non-positive bbox)
-    //   #2 bbox_unresolvable (main-path: clamped crop yields cropWidth/cropHeight <= 0)
-    //   #2a bbox_unresolvable (main-path PR-F: fully off-screen left-top edge,
-    //       top >= imgHeight || left >= imgWidth — zero croppable pixels)
-    //   #4 bbox_unresolvable (PR-BT-4: residual backfill path, gap B closure)
-    // The first 3 stay in the main-path loop (the transient DINOv2-catch exit is
-    // STILL never marked); a 5th would mean an unintended new terminal marker.
+    // Exactly 6 terminal/retryable marker call-sites that reuse the single SSOT
+    // writer (Amendment 13 widened exit #2a + clamp-後 row #2 to a 2-branch each):
+    //   #1 bbox_invalid           (main-path: missing / non-positive bbox)
+    //   #2a bbox_unresolvable     (off-screen, NON-truncated / flag-OFF terminal)
+    //   #2a screenshot_truncated  (off-screen, truncated AND flag-ON retryable)
+    //   #2 bbox_unresolvable      (clamp-後 row #2, NON-truncated / flag-OFF terminal)
+    //   #2 screenshot_truncated   (clamp-後 row #2, truncated AND flag-ON retryable)
+    //   #4 bbox_unresolvable      (PR-BT-4: residual backfill path, gap B closure)
+    // The transient DINOv2-catch exit is STILL never marked; a 7th would mean an
+    // unintended new terminal/retryable marker.
     const markerCallCount = (phase5.match(/writePartVisualTerminalSkipMarker\(ctx,/g) ?? []).length;
-    expect(markerCallCount).toBe(4);
-    // The DINOv2 catch (exit #3, transient) keeps the row pending (no marker) —
-    // assert it logs a warn and continues, never calling the marker helper in
-    // its catch body. The catch body matches the DINOv2 part-visual failure log.
+    expect(markerCallCount).toBe(6);
+    // The DINOv2 catch (exit #3, transient) keeps the row pending (no marker).
     expect(phase5).toContain("DINOv2 visual embedding failed for part (non-fatal)");
     // PR-F NF-TPA-02: the off-screen precondition (exit #2a) MUST sit BEFORE the
-    // `Math.max(1, imgHeight - top)` clamp — assert the source-pin of the guard
-    // condition so a future refactor that moves it after the clamp (re-opening
-    // the permanent-pending gap) is caught at CI.
+    // `Math.max(1, imgHeight - top)` clamp.
     expect(phase5).toContain("top >= imgHeight || left >= imgWidth");
+    // Amendment 13 §8.2: the truncation-gated 2-branch is BOTH truncation-gated AND
+    // flag-gated (isTruncatedRun && fallbackEnabled) — flag-OFF preserves status-quo.
+    expect(phase5).toMatch(/isTruncatedRun\s*&&\s*fallbackEnabled/);
   });
 
-  it("INV-PART-VISUAL-SKIP-TERMINAL-001: (c) marker writes use the SSOT-derived terminal reasons only (bbox_invalid / bbox_unresolvable)", () => {
+  it("INV-PART-VISUAL-SKIP-TERMINAL-001: (c) marker writes use SSOT-derived terminal reasons (bbox_invalid / bbox_unresolvable / screenshot_truncated_expired); screenshot_truncated is writable but NON-terminal (Amendment 13)", () => {
     // EMBEDDING_PART_VISUAL_SKIP_REASONS is the SSOT-derived terminal subset.
+    // Amendment 13: gains `screenshot_truncated_expired` (terminal) but NOT
+    // `screenshot_truncated` (writable but non-terminal / stays pending).
     expect([...EMBEDDING_PART_VISUAL_SKIP_REASONS].sort()).toEqual([
       "bbox_invalid",
       "bbox_unresolvable",
+      "screenshot_truncated_expired",
     ]);
-    // Each terminal reason MUST be a member of the 20-value EMBEDDING_SKIP_REASONS
-    // SSOT (drift guard — derived, never hardcoded).
+    // Each terminal reason MUST be a member of the EMBEDDING_SKIP_REASONS SSOT
+    // (drift guard — derived, never hardcoded).
     for (const reason of EMBEDDING_PART_VISUAL_SKIP_REASONS) {
       expect(EMBEDDING_SKIP_REASONS as readonly string[]).toContain(reason);
     }
+    // `screenshot_truncated` is NON-terminal: writable into the column but must NOT
+    // be in the terminal subset (the 3-way predicate keeps it pending).
+    expect(EMBEDDING_PART_VISUAL_SKIP_REASONS as readonly string[]).not.toContain(
+      "screenshot_truncated"
+    );
   });
 
   // ==========================================================================

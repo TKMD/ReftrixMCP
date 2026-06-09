@@ -290,6 +290,11 @@ export const childVisualResultSchema = z
     // field) default to 0 via Zod, preserving backward compatibility (symmetric
     // with partVisualSkippedBboxInvalid).
     partVisualSkippedBboxUnresolvable: z.number().int().min(0).optional().default(0),
+    // ADR-0018 Amendment 13 (truncated-screenshot data-loss fix): additively added
+    // optional `partVisualSkippedScreenshotTruncated`. Legacy child messages
+    // (missing this field) default to 0 via Zod, preserving backward compatibility
+    // (symmetric with partVisualSkippedBboxUnresolvable).
+    partVisualSkippedScreenshotTruncated: z.number().int().min(0).optional().default(0),
     embeddingFailedChunks: z.number().int().min(0),
   })
   .strict();

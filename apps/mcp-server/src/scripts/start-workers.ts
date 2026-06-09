@@ -53,6 +53,7 @@ import { checkRedisConnection, getRedisConfig } from "../config/redis";
 import { embeddingService } from "@reftrixmcp/ml";
 import { prisma } from "@reftrixmcp/database";
 import { webPageService } from "../services/web-page.service";
+import { closeEmbeddingCache } from "../services/layout-embedding.service";
 import {
   initializeAllServices,
   type ServiceInitializerConfig,
@@ -992,6 +993,24 @@ async function shutdownWorkers(): Promise<void> {
   }
 
   await Promise.all(shutdownPromises);
+
+  // Embedding temp-leak fix Phase 2 (TPA-IMPL-01 / Plan v2 §2.6): wire the
+  // singleton embedding cache close() into the async shutdown path so the
+  // dangling `saveDebounceTimer` is deterministically cleared (V1 §1.5
+  // closure). Fire-and-forget — NOT awaited — so it never consumes the
+  // shutdownTimeoutMs budget (TPA-05 / C-03 behavior-invariant contract). On
+  // the worker path close() runs with skipFlushOnClose=true (Plan §2.6.1), so
+  // it generates no 70MB temp; this wiring only guarantees the timer teardown.
+  // 同期 process.on('exit') には配線しない (await 不可、Plan v2 §2.6)。
+  //
+  // Embedding temp-leak fix Phase 2 (TPA-IMPL-01 / Plan v2 §2.6): singleton
+  // embedding cache の close() を async shutdown path に fire-and-forget で配線。
+  // close() が saveDebounceTimer を確定 clearTimeout する (V1 §1.5)。await しない
+  // ため shutdownTimeoutMs 予算を消費しない。worker は skipFlushOnClose=true で
+  // close 時 temp 非生成。
+  void closeEmbeddingCache().catch((e) =>
+    console.warn("[WorkerStartup] closeEmbeddingCache failed (non-fatal):", sanitizeErrorMessage(e))
+  );
 
   // v0.4.0 PR7d-2: Release standalone Redis lock so subsequent starts succeed.
   // v0.4.0 PR7d-2: standalone Redis lock を解放し、後続起動が成功するように

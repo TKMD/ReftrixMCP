@@ -1321,6 +1321,21 @@ function skipReasonToBackfillStatus(reason: EmbeddingSkipReason): EmbeddingBackf
     case "vision_residual_at_phase5_start":
     case "vision_probe_failed_at_phase5_start":
     case "partial_chunked_<n>_of_<total>":
+    case "screenshot_truncated":
+      // ADR-0018 Amendment 13 (truncated-screenshot data-loss fix, Plan §5.4):
+      // `screenshot_truncated` is the NON-terminal bounded-retryable reason for a
+      // part/section off-screen ONLY because the persisted screenshot was
+      // truncated to viewport-only. It maps to the existing `skipped_fork_error`
+      // retry bucket (same bucket as `bbox_unresolvable`) so the row is actually
+      // re-enqueued — until the PR-B section fallback supplies a real generation
+      // source, or the bounded budget (`SCREENSHOT_TRUNCATED_RETRY_CAP`=5)
+      // converges it to the `screenshot_truncated_expired` terminal (Plan §5.5
+      // reconciliation per-row branch → `not_required`, NOT `failed`).
+      //
+      // ADR-0018 Amendment 13 (Plan §5.4): `screenshot_truncated` (non-terminal,
+      // bounded-retryable) maps to the `skipped_fork_error` retry bucket so it is
+      // actually re-enqueued; the bounded budget converges it to
+      // `screenshot_truncated_expired` (→ `not_required`).
       // TDA MEDIUM 1 (v0.4.0 PR2 監査): `dispatch_phase_failed` は
       // `dispatchEmbeddingPhase` 全体の予期せぬ例外に対応する汎用分類で、
       // fork / child 系と同じ backfill queue 経路で再試行させる。
@@ -1379,6 +1394,18 @@ function skipReasonToBackfillStatus(reason: EmbeddingSkipReason): EmbeddingBackf
     case "section_visual_pii_excluded":
     case "section_visual_blank":
     case "section_visual_no_position":
+    case "screenshot_truncated_expired":
+      // ADR-0018 Amendment 13 (truncated-screenshot data-loss fix, Plan §5.4 /
+      // §5.5): `screenshot_truncated_expired` is the TERMINAL of the bounded-retry
+      // budget. It maps to `not_required` (NOT `failed`) so the page can reach
+      // `completed` without the false-failed pin this fix removes. The
+      // reconciliation per-row branch (Plan §5.5) converges `screenshot_truncated`
+      // rows over the retry cap to this terminal.
+      //
+      // ADR-0018 Amendment 13 (Plan §5.4/§5.5): `screenshot_truncated_expired`
+      // (terminal) maps to `not_required` (NOT `failed`), avoiding the
+      // false-failed pin; the reconciliation per-row branch converges here.
+      //
       // secvisual-blank-terminal (Plan V1 §4, IO Plan Decision V1 `019e7f1c-0b66`,
       // FIND-PLAN-M-03): `section_visual_blank` / `section_visual_no_position` は
       // backfill-path の degraded-coverage technical terminal marker (NON-PII;

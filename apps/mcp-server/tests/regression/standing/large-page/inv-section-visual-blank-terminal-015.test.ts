@@ -168,10 +168,13 @@ describe("INV-SECTION-VISUAL-BLANK-TERMINAL-015: section_visual blank/no-positio
     expect(EMBEDDING_SKIP_REASONS as readonly string[]).toContain(NEW_NO_POSITION_TERMINAL_REASON);
   });
 
-  it("INV-SECTION-VISUAL-BLANK-TERMINAL-015: surface 1 — the SSOT-derived terminal subset is the 5-value set (additive 3 → 5)", () => {
-    // The full terminal subset after this PR: the prior 3 (uncroppable, duplicate,
-    // pii_excluded) + the 2 new (blank, no_position). Sorted for determinism.
+  it("INV-SECTION-VISUAL-BLANK-TERMINAL-015: surface 1 — the SSOT-derived terminal subset is the 6-value set (ADR-0018 Amendment 13 additive 5 → 6)", () => {
+    // The full terminal subset after ADR-0018 Amendment 13: the prior 5
+    // (uncroppable, duplicate, pii_excluded, blank, no_position) + the new
+    // `screenshot_truncated_expired` (terminal). `screenshot_truncated` is writable
+    // but NON-terminal, so it is NOT in this subset. Sorted for determinism.
     expect([...EMBEDDING_SECTION_VISUAL_SKIP_REASONS].sort()).toEqual([
+      "screenshot_truncated_expired",
       "section_visual_blank",
       "section_visual_duplicate",
       "section_visual_no_position",

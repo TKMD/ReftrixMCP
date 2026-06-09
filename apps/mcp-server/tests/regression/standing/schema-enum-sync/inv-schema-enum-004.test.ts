@@ -110,6 +110,10 @@ const EXPECTED_SKIP_REASONS: readonly string[] = [
   //     terminals, NON-PII; distinct from section_visual_pii_excluded, FIND-PLAN-L-07) ---
   "section_visual_blank",
   "section_visual_no_position",
+  // --- ADR-0018 Amendment 13 additions (visual-backfill truncated-screenshot
+  //     data-loss fix; NON-PII degraded-coverage technical metadata) ---
+  "screenshot_truncated",
+  "screenshot_truncated_expired",
 ];
 
 describe("INV-SCHEMA-ENUM-004: EmbeddingSkipReason SSOT consistency", () => {
@@ -132,8 +136,8 @@ describe("INV-SCHEMA-ENUM-004: EmbeddingSkipReason SSOT consistency", () => {
     assertInvName(expect.getState().currentTestName ?? "", "INV-SCHEMA-ENUM-004");
   });
 
-  it("INV-SCHEMA-ENUM-004: SSOT has exactly 25 values including dispatch_phase_failed, bbox_invalid, bbox_unresolvable, Plan v3 T3-Vision V1 §4.2 additions, PR-V3-T1a §3.4.1 chunked-encoder additions, PR-BT-2 section_visual terminal-skip additions, the PR-C4 section_visual PII-exclusion terminal-skip addition, and the secvisual-blank-terminal degraded-coverage technical terminal additions", () => {
-    // 25 値の存在と各 tail append 値の包含を明示的に assert する。
+  it("INV-SCHEMA-ENUM-004: SSOT has exactly 27 values including the ADR-0018 Amendment 13 truncated-screenshot additions (screenshot_truncated / screenshot_truncated_expired) on top of the prior 25", () => {
+    // 27 値の存在と各 tail append 値の包含を明示的に assert する。
     // ADR-0018 §Decision 2 で `fork_terminated_before_done` と
     // `parity_check_failed` が追加され、12 値 → 14 値。PR-D-2 (ADR-0018 §Decision 3
     // Amendment) で `bbox_invalid` が tail append され 14 → 15 値。PR-D-9 Wave 4
@@ -151,7 +155,7 @@ describe("INV-SCHEMA-ENUM-004: EmbeddingSkipReason SSOT consistency", () => {
     // (index 22 = 23 番目) され 22 → 23 値に拡張された。最後に secvisual-blank-terminal
     // (Plan V1 §4) で `section_visual_blank` (index 23) / `section_visual_no_position`
     // (index 24) が tail append され 23 → 25 値に拡張された。
-    expect(ssotValues).toHaveLength(25);
+    expect(ssotValues).toHaveLength(27);
     expect(ssotValues).toContain("dispatch_phase_failed");
     expect(ssotValues).toContain("bbox_invalid");
     expect(ssotValues).toContain("bbox_unresolvable");
@@ -164,6 +168,8 @@ describe("INV-SCHEMA-ENUM-004: EmbeddingSkipReason SSOT consistency", () => {
     expect(ssotValues).toContain("section_visual_pii_excluded");
     expect(ssotValues).toContain("section_visual_blank");
     expect(ssotValues).toContain("section_visual_no_position");
+    expect(ssotValues).toContain("screenshot_truncated");
+    expect(ssotValues).toContain("screenshot_truncated_expired");
 
     // 宣言順序まで含めて契約的に固定する (追加順序のドリフトを検出)。
     const expectedSet = new Set(EXPECTED_SKIP_REASONS);

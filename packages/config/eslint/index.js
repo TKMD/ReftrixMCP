@@ -373,6 +373,26 @@ export const baseConfig = [
       complexity: ["error", 10],
     },
   },
+  // ADR-0018 Amendment 8 (visual-backfill truncated-screenshot data-loss fix,
+  // Plan §5.10c / §8 L-02, FIND-RE-TDA-L-01a): scope-limited
+  // `complexity: ["error", 10]` machine-enforcement for the screenshot
+  // truncation-detection leaf module. `phase-5-embedding.ts` is NOT added here
+  // (it carries pre-existing CC>10 functions under the base `complexity: "off"`,
+  // Q3-2026 successor issue — same rationale as the GPU-COORD block above);
+  // instead `isScreenshotTruncated` is extracted into the dedicated leaf module
+  // `screenshot-truncation.ts` (CC ≤ 10), making `pnpm lint` exit 0 a real
+  // complexity guarantee for the new truncation-detection code path. Follows the
+  // url-normalizer / GPU-COORD scope-limited pattern.
+  //
+  // ADR-0018 Amendment 8: truncation 検出を leaf module `screenshot-truncation.ts`
+  // に抽出し `complexity: ["error", 10]` を machine-enforce (phase-5-embedding.ts
+  // は pre-existing CC>10 のため override 非対象、GPU-COORD block と同 rationale)。
+  {
+    files: ["apps/mcp-server/src/workers/phases/screenshot-truncation.ts"],
+    rules: {
+      complexity: ["error", 10],
+    },
+  },
   // PR-BT-4 (ADR-0018 Amendment 10 Decision 10.1 + 10.4, U3): scope-limited
   // `complexity: ["error", 10]` machine-enforcement for the H-1 analysis-status
   // guard pure decision leaf helper. `embedding-backfill-worker.ts` is NOT added
@@ -447,6 +467,28 @@ export const baseConfig = [
   // / PR-BT-5 / phase-5-chunked-text-loop.ts blocks above).
   {
     files: ["apps/mcp-server/src/workers/phases/backfill-enqueue-relocation.ts"],
+    rules: {
+      complexity: ["error", 10],
+    },
+  },
+  // Embedding cache temp-leak fix (Plan v2 §2.7 / U-7 / TDA-RE2-01): scope-limited
+  // `complexity: ["error", 10]` machine-enforcement for the persistent-cache write/
+  // close/sweep path + the dedicated orphan-sweep leaf module. `persistent-cache.ts`
+  // had NO scoped override before this PR, so a CC>10 sweep/cleanup body would have
+  // passed `pnpm lint` exit 0 under the base `complexity: "off"`. The orphan-sweep
+  // logic (EPERM≠ESRCH, 3-stage whitelist, dead-pid dir recovery) is isolated into
+  // `cache-orphan-sweep.ts` (all functions CC ≤ 10) so the new code path is a real
+  // complexity guarantee. The temp-prefix SSOT lives in the dependency-free
+  // `cache-temp-const.ts` leaf (TDA-RE2-02 circular-import avoidance). Follows the
+  // existing scope-limited pattern (PR-D-6 / PR-D-8 / GPU-COORD / url-normalizer above).
+  //
+  // Embedding cache temp-leak fix (Plan v2 §2.7): persistent-cache.ts + orphan-sweep
+  // leaf に `complexity: ["error", 10]` を machine-enforce (base rule は `off`)。
+  {
+    files: [
+      "apps/mcp-server/src/services/persistent-cache.ts",
+      "apps/mcp-server/src/services/cache-orphan-sweep.ts",
+    ],
     rules: {
       complexity: ["error", 10],
     },

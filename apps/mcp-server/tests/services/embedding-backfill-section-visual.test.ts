@@ -341,8 +341,12 @@ describe("SectionVisualProcessor DINOv2 integration (v0.4.0 PR7b)", () => {
       expect(callArg!.sectionIdMapping.size).toBeGreaterThan(0);
       // Part visual path must remain inert during section_visual backfill.
       expect(callArg!.partsSavedCount).toBe(0);
-      // Screenshot Fallback (Playwright per-section capture) must be disabled.
-      expect(callArg!.fallbackEnabled).toBe(false);
+      // Screenshot Fallback (Playwright per-section capture) must be ENABLED for
+      // backfill: PR-B turns section fallback on so truncated screenshots are
+      // genuinely re-captured per-section, with robots.txt re-evaluated just before
+      // navigation (T1 production contract = fallbackEnabled:true + recheckRobotsTxt:true).
+      expect(callArg!.fallbackEnabled).toBe(true);
+      expect(callArg!.recheckRobotsTxt).toBe(true);
       expect(callArg!.screenshotPngPath).toBe("/tmp/reftrix-screenshots/phase5/xyz.png");
       // DINOv2 generated count surfaces correctly.
       expect(result.generated).toBe(4);

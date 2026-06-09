@@ -58,6 +58,7 @@ import {
   AUDIT_ACTION_BACKFILL_RECONCILE_IN_PROGRESS_FAILED,
   AUDIT_ACTION_BACKFILL_RESCUE_QUEUED,
   AUDIT_ACTION_BACKFILL_RESCUE_QUEUED_GAVE_UP,
+  AUDIT_ACTION_BACKFILL_SCREENSHOT_TRUNCATED_EXPIRED,
   AUDIT_ACTOR_BACKFILL_RECONCILIATION_CRON,
 } from "../audit/audit-actions";
 // Plan v3 §V2.4 threshold-ordering rule: Section C (queued rescue) aligns its
@@ -131,6 +132,13 @@ export interface BackfillReconciliationResult {
    * before enqueueing recovery; rows exceeding the cap are counted here.
    */
   retryCapExhausted: number;
+  /**
+   * ADR-0018 Amendment 13 §5.5 (truncated-screenshot data-loss fix): number of
+   * pages whose truncation-origin `screenshot_truncated` per-row markers were
+   * converged fail-loud to `screenshot_truncated_expired` (terminal) over the
+   * retry cap, with the page pinned to `not_required` (NOT `failed`).
+   */
+  screenshotTruncatedExpired: number;
   /**
    * Plan v3 Section C: `queued`-stuck rescue で re-enqueue した件数（P2）。
    * BullMQ job を失った `queued` 固着ページを worker-present で救済し全 7 カテゴリ
@@ -257,6 +265,17 @@ const DEFAULT_SKIP_RECOVERY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
  * SSOT in `queues/embedding-backfill-queue.ts`. Previously duplicated with
  * `page-analyze-worker.ts`, creating drift risk.
  */
+
+/**
+ * ADR-0018 Amendment 13 §5.10a (truncated-screenshot data-loss fix, M-02):
+ * bounded retry budget for `screenshot_truncated` rows. SSOT-derived from
+ * `SKIP_RECOVERY_RETRY_CAP` (=5) — no magic number. When a page's retry count
+ * exceeds this cap and the page carries truncation-origin `screenshot_truncated`
+ * per-row markers, those rows are converged fail-loud to
+ * `screenshot_truncated_expired` (terminal) and the page is pinned to
+ * `not_required` (NOT `failed`), avoiding the false-failed pin (Plan §5.5).
+ */
+const SCREENSHOT_TRUNCATED_RETRY_CAP = SKIP_RECOVERY_RETRY_CAP;
 
 /**
  * Queue 状態が「まだ処理中とみなす」かを返す。
@@ -443,6 +462,7 @@ export async function reconcileStaleBackfillJobs(
     skipRecoveryEnqueued: 0,
     ttlExpired: 0,
     retryCapExhausted: 0,
+    screenshotTruncatedExpired: 0,
     queuedRescueEnqueued: 0,
     queuedGaveUp: 0,
     dryRun,
@@ -489,6 +509,7 @@ export async function reconcileStaleBackfillJobs(
     skipRecoveryEnqueued: result.skipRecoveryEnqueued,
     ttlExpired: result.ttlExpired,
     retryCapExhausted: result.retryCapExhausted,
+    screenshotTruncatedExpired: result.screenshotTruncatedExpired,
     queuedRescueEnqueued: result.queuedRescueEnqueued,
     queuedGaveUp: result.queuedGaveUp,
     errors: result.errors,
@@ -767,6 +788,153 @@ async function expireSkippedRowOverTTL(args: {
  * PR7b-convergence (TDA H-2): Pin retry-cap-exceeded skipped_* rows to `failed`.
  * Extracted from `reconcileSkippedRows` to bring its complexity down to ≤10.
  */
+/**
+ * ADR-0018 Amendment 13 §5.5 (FIND-RE-SEC-M-01) — per-row reason branch for the
+ * retry-cap convergence.
+ *
+ * Detects whether a retry-cap-exhausted page carries truncation-origin
+ * `screenshot_truncated` per-row markers (part `component_part_embeddings` and/or
+ * section `section_embeddings`). If so:
+ *   1. CAS-transition those rows to the `screenshot_truncated_expired` terminal
+ *      (fail-loud bound, only rows still marked `screenshot_truncated`).
+ *   2. Pin the page-level status to `not_required` (NOT `failed`) so the page can
+ *      reach `completed` without the false-failed pin (no-fake-success).
+ *   3. Emit `backfill_screenshot_truncated_expired` (Art.30 processing-record).
+ *
+ * Returns `true` if the page was a truncation-origin page (handled here), `false`
+ * if no `screenshot_truncated` rows exist (caller falls through to the legacy
+ * `bbox_unresolvable`-origin → `failed` convergence).
+ *
+ * Per-row reason source is the live `visual_skip_reason` / `vision_skip_reason`
+ * column (NOT the page-level status, which cannot distinguish truncation-origin
+ * from genuinely-off-screen — both map to `skipped_fork_error`).
+ */
+async function convergeTruncatedRowsOverRetryCap(args: {
+  prisma: PrismaClient;
+  row: WebPageSkippedRow;
+  dryRun: boolean;
+  result: BackfillReconciliationResult;
+}): Promise<boolean> {
+  const { prisma, row, dryRun, result } = args;
+
+  // Count `screenshot_truncated` per-row markers for this page (part + section).
+  // Enum-bound literal only (no user input) — no SQL-injection surface.
+  let truncatedCount = 0;
+  try {
+    const counts = await prisma.$queryRawUnsafe<Array<{ n: bigint }>>(
+      `SELECT (
+         (SELECT COUNT(*) FROM component_part_embeddings cpe
+            JOIN component_parts cp ON cp.id = cpe.component_part_id
+           WHERE cp.web_page_id = $1::uuid AND cpe.visual_skip_reason = 'screenshot_truncated')
+         +
+         (SELECT COUNT(*) FROM section_embeddings se
+           WHERE se.section_pattern_id IN (
+             SELECT id FROM section_patterns WHERE web_page_id = $1::uuid
+           ) AND se.vision_skip_reason = 'screenshot_truncated')
+       ) AS n`,
+      row.id
+    );
+    truncatedCount = counts.length > 0 ? Number(counts[0]!.n) : 0;
+  } catch (queryError) {
+    // Non-fatal: on a count query error fall through to the legacy `failed` pin
+    // (the safety net), never silently absorb the row.
+    logger.warn("[BackfillReconciliation] screenshot_truncated count query failed (non-fatal)", {
+      webPageId: truncateAuditTargetId(row.id),
+      error: sanitizeErrorMessage(queryError),
+    });
+    return false;
+  }
+
+  if (truncatedCount === 0) return false;
+
+  if (dryRun) {
+    logger.info(
+      "[BackfillReconciliation] [dry-run] Would converge screenshot_truncated rows to expired",
+      {
+        webPageId: truncateAuditTargetId(row.id),
+        truncatedCount,
+        retryCount: row.retryCount,
+        cap: SCREENSHOT_TRUNCATED_RETRY_CAP,
+      }
+    );
+    result.screenshotTruncatedExpired += 1;
+    return true;
+  }
+
+  // 1. CAS-transition only rows still marked `screenshot_truncated` (idempotent).
+  try {
+    await prisma.$executeRawUnsafe(
+      `UPDATE component_part_embeddings cpe
+          SET visual_skip_reason = 'screenshot_truncated_expired'
+         FROM component_parts cp
+        WHERE cp.id = cpe.component_part_id
+          AND cp.web_page_id = $1::uuid
+          AND cpe.visual_skip_reason = 'screenshot_truncated'`,
+      row.id
+    );
+    await prisma.$executeRawUnsafe(
+      `UPDATE section_embeddings se
+          SET vision_skip_reason = 'screenshot_truncated_expired'
+        WHERE se.section_pattern_id IN (
+          SELECT id FROM section_patterns WHERE web_page_id = $1::uuid
+        )
+          AND se.vision_skip_reason = 'screenshot_truncated'`,
+      row.id
+    );
+  } catch (updateError) {
+    logger.warn(
+      "[BackfillReconciliation] screenshot_truncated→expired transition failed (non-fatal)",
+      {
+        webPageId: truncateAuditTargetId(row.id),
+        error: sanitizeErrorMessage(updateError),
+      }
+    );
+    return false;
+  }
+
+  // 2. Pin page-level to `not_required` (NOT `failed`), CAS-guarded.
+  const pinned = await prisma.webPage.updateMany({
+    where: {
+      id: row.id,
+      embeddingBackfillStatus: { in: ["skipped_fork_error", "skipped_memory_pressure"] },
+    },
+    data: { embeddingBackfillStatus: "not_required", embeddingBackfillStartedAt: null },
+  });
+  if (pinned.count === 0) {
+    result.concurrentUpdatesSkipped += 1;
+    return true;
+  }
+
+  result.screenshotTruncatedExpired += 1;
+  result.remediated += 1;
+
+  // 3. Art.30 processing-record (PII-free numeric/enum details, targetId truncated).
+  try {
+    await getAuditLogService().log({
+      action: AUDIT_ACTION_BACKFILL_SCREENSHOT_TRUNCATED_EXPIRED,
+      actor: AUDIT_ACTOR_BACKFILL_RECONCILIATION_CRON,
+      targetType: "web_page",
+      targetId: row.id,
+      details: {
+        truncatedCount,
+        retryCount: row.retryCount,
+        retryCap: SCREENSHOT_TRUNCATED_RETRY_CAP,
+      },
+      result: "success",
+    });
+  } catch {
+    /* audit log 失敗は致命的でない / non-fatal */
+  }
+
+  logger.warn("[BackfillReconciliation] Converged screenshot_truncated rows to expired terminal", {
+    webPageId: truncateAuditTargetId(row.id),
+    truncatedCount,
+    retryCount: row.retryCount,
+    cap: SCREENSHOT_TRUNCATED_RETRY_CAP,
+  });
+  return true;
+}
+
 async function pinSkippedRowOverRetryCap(args: {
   prisma: PrismaClient;
   row: WebPageSkippedRow;
@@ -774,6 +942,16 @@ async function pinSkippedRowOverRetryCap(args: {
   result: BackfillReconciliationResult;
 }): Promise<void> {
   const { prisma, row, dryRun, result } = args;
+
+  // ADR-0018 Amendment 13 §5.5 (FIND-RE-SEC-M-01) per-row reason branch:
+  // before pinning to `failed`, detect truncation-origin `screenshot_truncated`
+  // rows for this page. If present, converge them fail-loud to
+  // `screenshot_truncated_expired` (terminal) and pin the page to `not_required`
+  // (NOT `failed`) so the page reaches `completed` without the false-failed pin.
+  // A page with only genuinely-off-screen (`bbox_unresolvable`-origin) rows keeps
+  // the legacy `failed` convergence.
+  const converged = await convergeTruncatedRowsOverRetryCap({ prisma, row, dryRun, result });
+  if (converged) return;
 
   if (dryRun) {
     logger.info("[BackfillReconciliation] [dry-run] Would pin skipped_* page (retry cap)", {

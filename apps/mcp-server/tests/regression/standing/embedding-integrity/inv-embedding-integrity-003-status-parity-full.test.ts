@@ -100,6 +100,10 @@ const SKIP_REASON_TO_BACKFILL_STATUS_MAPPING: Record<string, string> = {
   vision_residual_at_phase5_start: "skipped_fork_error",
   vision_probe_failed_at_phase5_start: "skipped_fork_error",
   "partial_chunked_<n>_of_<total>": "skipped_fork_error",
+  // ADR-0018 Amendment 13 (truncated-screenshot data-loss fix):
+  // `screenshot_truncated` (non-terminal, bounded-retryable) maps to the
+  // `skipped_fork_error` retry bucket so it is actually re-enqueued.
+  screenshot_truncated: "skipped_fork_error",
   // Not-required bucket (6): no_embeddable_items + the 5 section_visual
   // terminal-skip reasons (2 from PR-BT-2 + section_visual_pii_excluded from
   // PR-C4 + section_visual_blank / section_visual_no_position from
@@ -119,6 +123,10 @@ const SKIP_REASON_TO_BACKFILL_STATUS_MAPPING: Record<string, string> = {
   section_visual_pii_excluded: "not_required",
   section_visual_blank: "not_required",
   section_visual_no_position: "not_required",
+  // ADR-0018 Amendment 13: `screenshot_truncated_expired` (terminal of the
+  // bounded-retry budget) maps to `not_required` (NOT `failed`) so the page can
+  // reach `completed` without the false-failed pin.
+  screenshot_truncated_expired: "not_required",
 };
 
 // ============================================================================
@@ -232,7 +240,7 @@ describe("INV-EMBEDDING-INTEGRITY-003: status parity full landing (PR-D-4)", () 
       expect(switchLabels).toContain("bbox_invalid");
     });
 
-    it("INV-EMBEDDING-INTEGRITY-003: A4 — EMBEDDING_SKIP_REASONS total = 25 with tail-append of new values", () => {
+    it("INV-EMBEDDING-INTEGRITY-003: A4 — EMBEDDING_SKIP_REASONS total = 27 with tail-append of new values", () => {
       // Supersedes partial Test #4. Additive policy: existing values
       // unchanged; parity_check_failed + bbox_invalid + bbox_unresolvable +
       // vision_residual_at_phase5_start + vision_probe_failed_at_phase5_start +
@@ -248,7 +256,10 @@ describe("INV-EMBEDDING-INTEGRITY-003: status parity full landing (PR-D-4)", () 
       // PII asymmetry closure: section_visual_pii_excluded, index 22) /
       // secvisual-blank-terminal (Plan V1 §4: section_visual_blank index 23 +
       // section_visual_no_position index 24).
-      expect(ssotValues).toHaveLength(25);
+      // ADR-0018 Amendment 13 (truncated-screenshot data-loss fix): +2 tail-append
+      // (screenshot_truncated index 25 + screenshot_truncated_expired index 26).
+      // 25 → 27.
+      expect(ssotValues).toHaveLength(27);
       // Spot-check a few existing values are preserved (SSOT-level guarantee)
       expect(ssotValues).toContain("v8_heap_headroom_low");
       expect(ssotValues).toContain("dispatch_phase_failed");
@@ -265,6 +276,8 @@ describe("INV-EMBEDDING-INTEGRITY-003: status parity full landing (PR-D-4)", () 
       expect(ssotValues).toContain("section_visual_pii_excluded");
       expect(ssotValues).toContain("section_visual_blank");
       expect(ssotValues).toContain("section_visual_no_position");
+      expect(ssotValues).toContain("screenshot_truncated");
+      expect(ssotValues).toContain("screenshot_truncated_expired");
     });
   });
 
@@ -287,7 +300,7 @@ describe("INV-EMBEDDING-INTEGRITY-003: status parity full landing (PR-D-4)", () 
       expect(snapshotKeys).toHaveLength(7);
     });
 
-    it("INV-EMBEDDING-INTEGRITY-003: B6 — 25 skipReasons partition into 3 buckets (memory/retry/not_required)", () => {
+    it("INV-EMBEDDING-INTEGRITY-003: B6 — 27 skipReasons partition into 3 buckets (memory/retry/not_required)", () => {
       // Exhaustive partition coverage: every SSOT skipReason must map to
       // exactly one of 3 EmbeddingBackfillStatus buckets.
       const bucketCounts: Record<string, number> = {
@@ -322,15 +335,19 @@ describe("INV-EMBEDDING-INTEGRITY-003: status parity full landing (PR-D-4)", () 
       // section_visual_no_position add 2 to the not_required bucket (4 → 6) —
       // degraded-coverage technical terminals (NON-PII), page-completable, NOT the
       // skipped_fork_error retry bucket. Sum 23 → 25.
+      // ADR-0018 Amendment 13 (truncated-screenshot data-loss fix):
+      // screenshot_truncated adds 1 to the skipped_fork_error bucket (16 → 17,
+      // bounded-retryable); screenshot_truncated_expired adds 1 to the not_required
+      // bucket (6 → 7, terminal → page-completable, NOT failed). Sum 25 → 27.
       expect(bucketCounts.skipped_memory_pressure).toBe(3);
-      expect(bucketCounts.skipped_fork_error).toBe(16);
-      expect(bucketCounts.not_required).toBe(6);
-      // Sum = 25 (INV-SCHEMA-ENUM-004 total enum value count post secvisual-blank-terminal)
+      expect(bucketCounts.skipped_fork_error).toBe(17);
+      expect(bucketCounts.not_required).toBe(7);
+      // Sum = 27 (INV-SCHEMA-ENUM-004 total enum value count post Amendment 13)
       expect(
         bucketCounts.skipped_memory_pressure +
           bucketCounts.skipped_fork_error +
           bucketCounts.not_required
-      ).toBe(25);
+      ).toBe(27);
     });
 
     it("INV-EMBEDDING-INTEGRITY-003: B7 — parity_check_failed → skipped_fork_error AND NOT skipped_screenshot_missing (retry-bucket exclusion)", () => {
@@ -347,7 +364,7 @@ describe("INV-EMBEDDING-INTEGRITY-003: status parity full landing (PR-D-4)", () 
       expect(switchLabels).toContain("parity_check_failed");
     });
 
-    it("INV-EMBEDDING-INTEGRITY-003: B8 — exhaustive switch coverage for all 25 EmbeddingSkipReason values", () => {
+    it("INV-EMBEDDING-INTEGRITY-003: B8 — exhaustive switch coverage for all 27 EmbeddingSkipReason values", () => {
       // Every SSOT enum value must be a case label in skipReasonToBackfillStatus
       // (except the TypeScript exhaustiveness `default` clause). Catches the
       // classic "new enum value added but switch case forgotten" regression.

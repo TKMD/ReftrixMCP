@@ -897,3 +897,56 @@ export const AUDIT_ACTION_EMBEDDING_CPU_FALLBACK_DEGRADED =
  * @see CONTRIBUTING.md §"Worker actor naming SSOT"
  */
 export const AUDIT_ACTOR_PHASE5_INIT = "system:phase5-init" as const;
+
+/**
+ * `backfill_screenshot_truncated_expired` — ADR-0018 Amendment 13 §7.3 (M-09).
+ *
+ * Emitted by the reconciliation cron when a `screenshot_truncated` part/section
+ * row exceeds `SCREENSHOT_TRUNCATED_RETRY_CAP` (=5) and is converged fail-loud to
+ * the terminal `screenshot_truncated_expired` (Plan §5.5 per-row reason branch).
+ * The page-level status becomes `not_required` (NOT `failed`) so the page can
+ * reach `completed`.
+ *
+ * `audit_logs` 行: actor = {@link AUDIT_ACTOR_BACKFILL_RECONCILIATION_CRON}
+ * (`system:backfill-reconciliation-cron`), `details` は PII-free numeric/enum 値
+ * のみ (`truncateAuditTargetId` で targetId truncate)。Template-literal 構築禁止
+ * (CWE-209 / GDPR Art.30 consistency, INV-AUDIT-EMIT-SSOT-IMPORT-001 AST sweep)。
+ *
+ * @see ADR-0018 Amendment 13 §5.5 / §7.3
+ * @see CONTRIBUTING.md §"Worker actor naming SSOT"
+ */
+export const AUDIT_ACTION_BACKFILL_SCREENSHOT_TRUNCATED_EXPIRED =
+  "backfill_screenshot_truncated_expired" as const;
+
+/**
+ * `backfill_truncated_screenshot_repaired` — ADR-0018 Amendment 13 §7.3 (M-09) /
+ * §7.4 (2B repair).
+ *
+ * Emitted by the one-shot repair script
+ * (`repair-truncated-screenshot-terminals.ts`) in BOTH dry-run and `--confirm`
+ * modes when truncation-origin terminal markers (`bbox_unresolvable` /
+ * `section_visual_uncroppable`) on truncated pages are reverted to the
+ * bounded-retryable `screenshot_truncated` (GDPR Art.30 processing-records, Plan
+ * §7.4). high-PII rows are always excluded (Plan §5.3 H-02).
+ *
+ * `audit_logs` 行: actor = {@link AUDIT_ACTOR_BACKFILL_TRUNCATED_REPAIR}
+ * (`system:backfill-truncated-repair`), `details` は PII-free count/enum 値のみ。
+ *
+ * @see ADR-0018 Amendment 13 §7.4
+ * @see CONTRIBUTING.md §"Worker actor naming SSOT"
+ */
+export const AUDIT_ACTION_BACKFILL_TRUNCATED_SCREENSHOT_REPAIRED =
+  "backfill_truncated_screenshot_repaired" as const;
+
+/**
+ * `system:backfill-truncated-repair` — Canonical `audit_logs.actor` literal for
+ * the truncated-screenshot one-shot repair script (ADR-0018 Amendment 13 §7.4).
+ *
+ * SSOT-bound `system:` prefixed actor per the Worker actor naming SSOT convention
+ * (`.claude/rules/security.md`). Template-literal construction is forbidden
+ * (CWE-209 / GDPR Art.30 consistency, INV-AUDIT-EMIT-SSOT-IMPORT-001 AST sweep).
+ *
+ * @see ADR-0018 Amendment 13 §7.4
+ * @see CONTRIBUTING.md §"Worker actor naming SSOT"
+ */
+export const AUDIT_ACTOR_BACKFILL_TRUNCATED_REPAIR = "system:backfill-truncated-repair" as const;

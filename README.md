@@ -131,6 +131,8 @@ Add to your MCP config:
 > `DUPLICATE_VECTOR_THRESHOLD` (default 0.995) -- cosine similarity threshold for vision embedding dedup.
 > `EMBEDDING_IDLE_TIMEOUT_MS` (default 30000) -- ONNX Worker VRAM auto-release timer (0 to disable).
 > `DINOV2_MODEL_PATH` -- custom DINOv2 ViT-B/14 ONNX model path.
+> `EMBEDDING_CACHE_ENABLED` (default true) -- enable/disable the Layout Embedding disk cache (additive opt-out flag; set `"false"` to write no cache files).
+> `REFTRIX_EMBEDDING_CACHE_ROOT` (default `/tmp/reftrix-embedding-cache`) -- embedding cache root; a root resolving outside `os.tmpdir()` is rejected by default (fail-closed). Set `REFTRIX_EMBEDDING_CACHE_ROOT_ALLOW_FALLBACK=true` to instead degrade to the default root with a warning.
 
 ## Example tools
 

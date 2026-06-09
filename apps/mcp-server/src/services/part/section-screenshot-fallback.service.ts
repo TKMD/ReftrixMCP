@@ -13,14 +13,26 @@
  * パターン: part-bbox-playwright.service.ts の sharedBrowser パターンに準拠。
  * Pattern: Follows sharedBrowser pattern from part-bbox-playwright.service.ts.
  *
- * robots.txt: このサービスは page-analyze-worker (Phase 5) 内からのみ呼ばれることを前提とする。
- * robots.txt の検証は Phase 0 (PageIngestAdapter.ingest) で実施済みであり、
- * ここでは重複検証しない。同一URLへの再訪問のため、別途のrobots.txt確認は不要。
+ * robots.txt: このサービスは 2 つの文脈から呼ばれる:
+ *   (1) page-analyze-worker (Phase 5 proper, contemporaneous): robots.txt の検証は
+ *       Phase 0 (PageIngestAdapter.ingest) で実施済みであり、ここでは重複検証しない。
+ *       同一 run 内の同一URL再訪問のため、別途の robots.txt 確認は不要 (`recheckRobotsTxt`
+ *       省略 = 既定 false で従来挙動)。
+ *   (2) embedding-backfill (PR-B, 非同期別オペ): backfill 再capture は元 ingest から
+ *       数日後の別オペであり Phase 0 の robots.txt 検証が stale。`recheckRobotsTxt: true`
+ *       で navigation 直前に robots.txt を再評価し、Disallow なら capture を起動せず
+ *       `robotsDisallowed: true` を返す (呼び出し側が `screenshot_truncated_expired`
+ *       terminal へ fail-loud 収束、Plan §7.5 / FIND-RE-LCC-01)。
  *
- * robots.txt: This service is designed to be called only from page-analyze-worker (Phase 5).
- * robots.txt validation is already performed in Phase 0 (PageIngestAdapter.ingest),
- * so it is not duplicated here. Since this is a re-visit to the same URL, no additional
- * robots.txt check is required.
+ * robots.txt: This service is called from 2 contexts:
+ *   (1) page-analyze-worker (Phase 5 proper, contemporaneous): robots.txt was already
+ *       validated in Phase 0 (PageIngestAdapter.ingest); not re-checked here (same-run
+ *       same-URL re-visit). `recheckRobotsTxt` omitted (default false) = legacy behaviour.
+ *   (2) embedding-backfill (PR-B, async separate op): backfill re-capture happens days
+ *       after the original ingest, so Phase 0's robots.txt check is stale. With
+ *       `recheckRobotsTxt: true` we re-evaluate robots.txt just before navigation and,
+ *       on Disallow, do NOT start the capture and return `robotsDisallowed: true` (the
+ *       caller converges fail-loud to `screenshot_truncated_expired`, Plan §7.5 / FIND-RE-LCC-01).
  *
  * @module services/part/section-screenshot-fallback.service
  */
@@ -28,7 +40,7 @@
 import type { Browser, BrowserContext, Page } from "playwright";
 import { chromium } from "playwright";
 import sharp from "sharp";
-import { ROBOTS_TXT } from "@reftrixmcp/core";
+import { ROBOTS_TXT, isUrlAllowedByRobotsTxt } from "@reftrixmcp/core";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { logger, isDevelopment } from "../../utils/logger";
 
@@ -170,6 +182,25 @@ export interface SectionScreenshotOptions {
   checkMemoryPressure?:
     | (() => { shouldDegrade: boolean; shouldAbort: boolean; rssMb: number })
     | undefined;
+  /**
+   * PR-B (Plan §7.5 / FIND-RE-LCC-01): backfill 文脈で navigation 直前に robots.txt
+   * を再評価する。`true` の場合、Disallow なら capture を起動せず `robotsDisallowed: true`
+   * を返す。Phase 5 proper (contemporaneous) は省略 (既定 false) で従来挙動を保持。
+   *
+   * PR-B (Plan §7.5 / FIND-RE-LCC-01): re-evaluate robots.txt just before navigation in
+   * the backfill context. When `true`, on Disallow the capture is NOT started and
+   * `robotsDisallowed: true` is returned. Phase 5 proper (contemporaneous) omits this
+   * (default false) to preserve legacy behaviour.
+   */
+  recheckRobotsTxt?: boolean | undefined;
+  /**
+   * PR-B: robots.txt を尊重するかのオーバーライド（`recheckRobotsTxt: true` 時のみ参照）。
+   * undefined の場合は env flag `REFTRIX_RESPECT_ROBOTS_TXT` に従う (既定有効)。
+   *
+   * PR-B: robots.txt respect override (consulted only when `recheckRobotsTxt: true`).
+   * When undefined, follows env flag `REFTRIX_RESPECT_ROBOTS_TXT` (default enabled).
+   */
+  respectRobotsTxt?: boolean | undefined;
 }
 
 /**
@@ -183,6 +214,20 @@ export interface SectionScreenshotAggregateResult {
   capturedCount: number;
   /** スキップ数 / Number of skipped sections */
   skippedCount: number;
+  /**
+   * PR-B (Plan §7.5 / FIND-RE-LCC-01): `recheckRobotsTxt: true` で robots.txt 再評価が
+   * Disallow を返した場合 `true`。呼び出し側はこの run の全対象セクションを
+   * `screenshot_truncated_expired` terminal へ fail-loud 収束させる (再capture 不能の確定)。
+   * SSRF block / HTTP error / 空結果とは区別される (それらは `false`、bounded budget で
+   * 後続 retry または terminal 化)。
+   *
+   * PR-B (Plan §7.5 / FIND-RE-LCC-01): `true` when `recheckRobotsTxt: true` and the
+   * robots.txt re-evaluation returned Disallow. The caller converges all target sections
+   * of this run to the `screenshot_truncated_expired` terminal fail-loud (re-capture is
+   * confirmed impossible). Distinct from SSRF block / HTTP error / empty result (those
+   * leave it `false` and rely on the bounded budget for later retry/terminal).
+   */
+  robotsDisallowed: boolean;
 }
 
 // ============================================================================
@@ -215,12 +260,15 @@ export async function captureSectionScreenshots(
     maxSections = DEFAULT_MAX_SECTIONS,
     timeoutMs = DEFAULT_CUMULATIVE_TIMEOUT_MS,
     checkMemoryPressure,
+    recheckRobotsTxt = false,
+    respectRobotsTxt,
   } = options;
 
   const emptyResult: SectionScreenshotAggregateResult = {
     results: [],
     capturedCount: 0,
     skippedCount: 0,
+    robotsDisallowed: false,
   };
 
   // 0. 入力バリデーション / Input validation
@@ -255,12 +303,84 @@ export async function captureSectionScreenshots(
     Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_CUMULATIVE_TIMEOUT_MS;
 
   // 1. SSRF検証 / SSRF validation
+  // M-06 (Plan §7.1): section fallback re-capture も既存 SSRF 契約を必ず経由する
+  // (localhost / private IP / metadata block)。新規 SSRF surface を作らない。
+  // INV-BACKFILL-SECTION-FALLBACK-SSRF が本 callsite を AST-pin する。
+  // M-06 (Plan §7.1): section fallback re-capture always routes through the existing
+  // SSRF contract; INV-BACKFILL-SECTION-FALLBACK-SSRF AST-pins this callsite.
   const urlValidation = validateExternalUrl(url);
   if (!urlValidation.valid) {
     logger.warn(`${LOG_PREFIX} URL blocked by SSRF validation`, {
       error: urlValidation.error,
     });
     return emptyResult;
+  }
+
+  // 1b. robots.txt 再評価 (PR-B, Plan §7.5 / FIND-RE-LCC-01)
+  //     backfill 再capture は元 ingest から数日後の非同期別オペで Phase 0 の
+  //     robots.txt 検証が stale。`recheckRobotsTxt: true` の場合のみ navigation 直前に
+  //     再評価し、Disallow なら capture を起動せず `robotsDisallowed: true` を返す
+  //     (呼び出し側が `screenshot_truncated_expired` terminal へ fail-loud 収束)。
+  //     SSRF block (上) とは区別される (robots は時間経過で変わりうる別契約)。
+  //
+  // 1b. robots.txt re-evaluation (PR-B, Plan §7.5 / FIND-RE-LCC-01)
+  //     Backfill re-capture is an async separate op days after the original ingest, so
+  //     Phase 0's robots.txt check is stale. Only when `recheckRobotsTxt: true` we
+  //     re-evaluate just before navigation and, on Disallow, do NOT start the capture and
+  //     return `robotsDisallowed: true` (the caller converges fail-loud to
+  //     `screenshot_truncated_expired`). Distinct from the SSRF block above (robots is a
+  //     separate, time-varying contract). INV-BACKFILL-SECTION-FALLBACK-ROBOTS pins this.
+  if (recheckRobotsTxt) {
+    try {
+      const robotsResult = await isUrlAllowedByRobotsTxt(url, respectRobotsTxt);
+      // LCC-IMPL-B-L-01: genuine Disallow (`reason === "disallowed"`) のみ fail-loud で
+      // terminal 化する。`isUrlAllowedByRobotsTxt` は fetch_error (robots.txt の
+      // timeout/5xx/network 等の取得失敗) を **例外ではなく値** `{allowed:false,
+      // reason:"fetch_error"}` で返す (`@reftrixmcp/core` robots-txt.service.ts、
+      // RobotsTxtCheckResult.reason は "allowed"|"disallowed"|"fetch_error"|... の union)。
+      // `!allowed` で一括判定すると transient な fetch_error が genuine Disallow と同一視され、
+      // section が `screenshot_truncated_expired` に永久収束 (bounded budget bypass) してしまう。
+      // よって reason で分岐し、fetch_error / feature_disabled / override / allowed は capture
+      // 続行 (Graceful Degradation — robots fetch の一過性障害が解消すれば再capture できる)。
+      //
+      // LCC-IMPL-B-L-01: Only a genuine Disallow (`reason === "disallowed"`) terminalizes
+      // fail-loud. `isUrlAllowedByRobotsTxt` returns fetch_error (robots.txt fetch failures
+      // such as timeout/5xx/network) as a **value** `{allowed:false, reason:"fetch_error"}`,
+      // NOT as a thrown exception (RobotsTxtCheckResult.reason is the union
+      // "allowed"|"disallowed"|"fetch_error"|...). Gating on `!allowed` would conflate a
+      // transient fetch_error with a genuine Disallow and converge the section permanently to
+      // `screenshot_truncated_expired` (bypassing the bounded retry budget). So we branch on
+      // reason: only "disallowed" terminalizes; fetch_error proceeds with the capture
+      // (Graceful Degradation — once the transient robots-fetch failure clears, the section
+      // can be re-captured on a later attempt).
+      if (robotsResult.reason === "disallowed") {
+        logger.warn(`${LOG_PREFIX} robots.txt Disallow on backfill re-capture; skipping`, {
+          domain: robotsResult.domain,
+          reason: robotsResult.reason,
+        });
+        return { ...emptyResult, robotsDisallowed: true };
+      }
+      if (robotsResult.reason === "fetch_error") {
+        // transient robots fetch 障害は永久 terminal 化しない (capture 続行)。
+        // A transient robots-fetch failure must not permanently terminalize (proceed).
+        logger.warn(`${LOG_PREFIX} robots.txt fetch_error on backfill re-capture; proceeding`, {
+          domain: robotsResult.domain,
+          reason: robotsResult.reason,
+        });
+      }
+    } catch (robotsError) {
+      // ここに到達するのは fetch_error (上で値として処理済) ではなく、
+      // `isUrlAllowedByRobotsTxt` 内部の **genuine exception** (programming error /
+      // URL parse 失敗等) のみ。catch は安全側 fallback として capture を阻害せず続行する
+      // (robots 取得経路の予期せぬ例外で section を永久 terminal 化しない)。
+      // Reaching here is NOT the value-returned fetch_error (handled above) but a **genuine
+      // exception** inside `isUrlAllowedByRobotsTxt` (programming error / URL parse failure,
+      // etc.). The catch is a safe-side fallback that proceeds with the capture (an unexpected
+      // exception on the robots path must not permanently terminalize the section).
+      logger.warn(`${LOG_PREFIX} robots.txt re-check threw (non-fatal); proceeding`, {
+        error: robotsError instanceof Error ? robotsError.message : String(robotsError),
+      });
+    }
   }
 
   // 2. maxSectionsで制限 / Limit by maxSections
@@ -641,7 +761,7 @@ export async function captureSectionScreenshots(
       });
     }
 
-    return { results, capturedCount, skippedCount };
+    return { results, capturedCount, skippedCount, robotsDisallowed: false };
   } catch (error) {
     // 全体失敗: Graceful Degradation / Overall failure: Graceful Degradation
     logger.warn(`${LOG_PREFIX} Section screenshot capture failed (non-fatal)`, {

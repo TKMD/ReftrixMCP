@@ -5,10 +5,12 @@
  * Standing Regression Suite — INV-SCHEMA-ENUM-004 (ADR-0018 + PR-V3-T1a enum expansion)
  *
  * ADR-0018 §Decision 2 / §Decision 3 Amendment / §Decision 1 Supplement S3 +
- * PR-V3-T1a §3.4.1 + PR-BT-2 + PR-C4 で `EMBEDDING_SKIP_REASONS` が
- * 12 → 14 → 15 → 16 → 18 → 20 → 22 → 23 値に拡張されたことを verify する。本 test
- * は既存 `inv-schema-enum-004.test.ts` を置き換えるものではなく、ADR-0018 +
- * PR-V3-T1a + PR-BT-2 + PR-C4 で追加された 11 値の semantic を明示する追加 guard。
+ * PR-V3-T1a §3.4.1 + PR-BT-2 + PR-C4 + secvisual-blank-terminal + ADR-0018
+ * Amendment 13 で `EMBEDDING_SKIP_REASONS` が 12 → ... → 25 値 (本 PR 後 27 値)
+ * に拡張されたことを verify する (TDA-RE2-L-01 co-landing: executable
+ * `toHaveLength(27)` が T1、本 JSDoc は説明文ゆえ executable に追従)。本 test は
+ * 既存 `inv-schema-enum-004.test.ts` を置き換えるものではなく、各 PR で追加された
+ * 値の semantic を明示する追加 guard。
  *
  * 保証する 4 点 / What this file guarantees:
  *   1. ADR-0018 4 値 (`fork_terminated_before_done` / `parity_check_failed` /
@@ -16,17 +18,20 @@
  *      (`text_child_memory_budget_exceeded_at_chunk_<n>` /
  *      `partial_chunked_<n>_of_<total>`)、Plan v3 T3-Vision 2 値、PR-BT-2 2 値
  *      (`section_visual_uncroppable` / `section_visual_duplicate`)、PR-C4 1 値
- *      (`section_visual_pii_excluded`) が named 値として TS SSOT
- *      `EMBEDDING_SKIP_REASONS` に存在すること (23 値)
+ *      (`section_visual_pii_excluded`)、secvisual-blank-terminal 2 値、ADR-0018
+ *      Amendment 13 2 値 (`screenshot_truncated` / `screenshot_truncated_expired`)
+ *      が named 値として TS SSOT `EMBEDDING_SKIP_REASONS` に存在すること (27 値)
  *   2. それぞれが `skipReasonToBackfillStatus()` の exhaustive switch で
  *      明示的な case 節として存在すること
  *   3. 新値が配列末尾 (index 12 〜 22) に append されており、
  *      既存 12 値の順序が保持されていること
  *   4. index-based assertion により既存値の前/中間への誤挿入を即座に検出する
  *
- * Guards the ADR-0018 + PR-V3-T1a + PR-BT-2 + PR-C4 expansion of
- * `EMBEDDING_SKIP_REASONS` from 12 → 14 → 15 → 16 → 18 → 20 → 22 → 23 values.
- * Complements (does NOT replace) `inv-schema-enum-004.test.ts`.
+ * Guards the ADR-0018 + PR-V3-T1a + PR-BT-2 + PR-C4 + secvisual-blank-terminal +
+ * ADR-0018 Amendment 13 expansion of `EMBEDDING_SKIP_REASONS` to 25 (then 27)
+ * values (executable `toHaveLength(27)` is T1; this JSDoc is descriptive and
+ * follows the executable assertion). Complements (does NOT replace)
+ * `inv-schema-enum-004.test.ts`.
  *
  * @see ADR-0018 §Decision 2 (fork_terminated_before_done, parity_check_failed)
  * @see ADR-0018 §Decision 3 Amendment (bbox_invalid — PR-D-2)
@@ -120,15 +125,32 @@ const SECTION_VISUAL_ADDITIONS = [
  */
 const SECVISUAL_BLANK_ADDITIONS = ["section_visual_blank", "section_visual_no_position"] as const;
 
+/**
+ * ADR-0018 Amendment 13 (visual-backfill truncated-screenshot data-loss fix) で
+ * 追加される 2 値。順序は SSOT の末尾 append 順に一致する必要がある
+ * (index 25 → 26)。`screenshot_truncated` = non-terminal bounded-retryable、
+ * `screenshot_truncated_expired` = terminal。いずれも NON-PII degraded-coverage
+ * technical metadata (GDPR Art.4(1) 非該当)。
+ *
+ * Two values added by ADR-0018 Amendment 13. Order must match the tail-append
+ * order of SSOT (index 25 → 26). `screenshot_truncated` = non-terminal
+ * bounded-retryable; `screenshot_truncated_expired` = terminal. Both NON-PII.
+ */
+const SCREENSHOT_TRUNCATED_ADDITIONS = [
+  "screenshot_truncated",
+  "screenshot_truncated_expired",
+] as const;
+
 const ALL_ENUM_ADDITIONS = [
   ...ADR_0018_ADDITIONS,
   ...PLAN_V3_T3_VISION_ADDITIONS,
   ...PR_V3_T1A_ADDITIONS,
   ...SECTION_VISUAL_ADDITIONS,
   ...SECVISUAL_BLANK_ADDITIONS,
+  ...SCREENSHOT_TRUNCATED_ADDITIONS,
 ] as const;
 
-describe("INV-SCHEMA-ENUM-004: ADR-0018 + Plan v3 T3-Vision V1 + PR-V3-T1a + PR-BT-2 + PR-C4 + secvisual-blank-terminal enum expansion (25 values)", () => {
+describe("INV-SCHEMA-ENUM-004: ADR-0018 + Plan v3 T3-Vision V1 + PR-V3-T1a + PR-BT-2 + PR-C4 + secvisual-blank-terminal + Amendment 13 truncated enum expansion (27 values)", () => {
   let ssotValues: string[];
   let switchLabels: string[];
 
@@ -144,8 +166,8 @@ describe("INV-SCHEMA-ENUM-004: ADR-0018 + Plan v3 T3-Vision V1 + PR-V3-T1a + PR-
     assertInvName(expect.getState().currentTestName ?? "", "INV-SCHEMA-ENUM-004");
   });
 
-  it("INV-SCHEMA-ENUM-004: SSOT contains ADR-0018 + Plan v3 T3-Vision V1 + PR-V3-T1a + PR-BT-2 + PR-C4 + secvisual-blank-terminal additions (25 values total)", () => {
-    expect(ssotValues).toHaveLength(25);
+  it("INV-SCHEMA-ENUM-004: SSOT contains ADR-0018 + Plan v3 T3-Vision V1 + PR-V3-T1a + PR-BT-2 + PR-C4 + secvisual-blank-terminal + Amendment 13 additions (27 values total)", () => {
+    expect(ssotValues).toHaveLength(27);
     for (const value of ALL_ENUM_ADDITIONS) {
       expect(ssotValues, `Enum addition \`${value}\` is missing from SSOT`).toContain(value);
     }
@@ -214,6 +236,10 @@ describe("INV-SCHEMA-ENUM-004: ADR-0018 + Plan v3 T3-Vision V1 + PR-V3-T1a + PR-
     // secvisual-blank-terminal (Plan V1 §4) tail additions at index 23 / 24.
     expect(ssotValues.indexOf("section_visual_blank")).toBe(23);
     expect(ssotValues.indexOf("section_visual_no_position")).toBe(24);
+    // ADR-0018 Amendment 13 (truncated-screenshot data-loss fix) tail additions
+    // at index 25 / 26.
+    expect(ssotValues.indexOf("screenshot_truncated")).toBe(25);
+    expect(ssotValues.indexOf("screenshot_truncated_expired")).toBe(26);
 
     // Additional: existing 12 values' indices remain stable (spot-check).
     // 既存 12 値の index が変動していないことを確認 (drift detection).
