@@ -53,8 +53,31 @@ const EMBEDDING_PHASE_SLICE = 75000;
 /** Section Visual Embedding ブロックのスライスサイズ（processEmbeddingPhase内のセクション+サブ関数collectAndCapture分） */
 const SECTION_VISUAL_SLICE = 35000;
 
-/** processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック。secvisual blank/no-position terminal exit 2件追加で実関数長 ~10992 文字に拡大、result.generated++ は rel offset 10587） */
-const SINGLE_SECTION_SLICE = 12000;
+/**
+ * processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック。secvisual blank/no-position terminal exit 2件追加で実関数長 ~10992 文字に拡大、result.generated++ は rel offset 10587）。
+ *
+ * ADR-0018 Amendment 13 follow-up (PR #59): backfill section_visual write の stale
+ * `vision_skip_reason = NULL` クリア（コメント2行 + SQL 1行）で brace-balanced 実関数長が
+ * 12381 文字に増加。本ファイルが pin する dedup/DB-save 文字列（`isDuplicateVector` /
+ * `writeSectionVisionSkipReason` / `visualEmbedding.join` / `UPDATE section_embeddings`、
+ * 最大 rel 11344）は依然 12000 窓内で本ファイルは PR #59 で fail していないが、sibling
+ * section-visual test 2 ファイル（page-analyze-worker-section-visual-embedding /
+ * section-visual-embedding-fallback）と SINGLE_SECTION_SLICE を揃え、将来の同型 drift を
+ * 防ぐため 12000 → 13500（実測関数長 + ~1100 margin、前例 internal decision 019e7f68）
+ * に統一する。本ファイルの検証は positive `.toContain` + in-window 順序 indexOf のみで、
+ * pin はすべて 13500 内に収まるため挙動不変。
+ *
+ * The PR #59 backfill stale-`vision_skip_reason = NULL` clear grew the brace-balanced
+ * function length to 12381 chars. This file's pinned dedup/DB-save strings
+ * (`isDuplicateVector` / `writeSectionVisionSkipReason` / `visualEmbedding.join` /
+ * `UPDATE section_embeddings`, max rel 11344) still sit within the 12000 window, so this
+ * file did NOT fail in PR #59; but align SINGLE_SECTION_SLICE with the two sibling
+ * section-visual test files and unify to 13500 (measured length + ~1100 margin, precedent
+ * internal decision 019e7f68) to prevent the same-shaped drift in future. This file's
+ * checks are positive `.toContain` + in-window ordering `indexOf` only, with all pins
+ * inside 13500, so behaviour is unchanged.
+ */
+const SINGLE_SECTION_SLICE = 13500;
 
 // ==========================================================================
 // SectionScreenshotFallbackService モックテスト用

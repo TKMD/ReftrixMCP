@@ -34,8 +34,32 @@ import * as path from "node:path";
 const EMBEDDING_PHASE_SLICE = 75000;
 /** Section Visual Embedding ブロックのスライスサイズ（processEmbeddingPhase内、PII+セクション取得まで。PR-B で backfill section fallback の robots.txt 再評価 + SSRF threading + Disallow terminal 収束ブロックを追加し +~4K 文字拡大） */
 const SECTION_VISUAL_SLICE = 80000;
-/** processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック。secvisual blank/no-position terminal exit 2件追加で実関数長 ~10992 文字に拡大、result.generated++ は rel offset 10587） */
-const SINGLE_SECTION_SLICE = 12000;
+/**
+ * processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック。secvisual blank/no-position terminal exit 2件追加で実関数長 ~10992 文字に拡大、result.generated++ は rel offset 10587）。
+ *
+ * ADR-0018 Amendment 13 follow-up (PR #59): backfill section_visual write の stale
+ * `vision_skip_reason = NULL` クリア（コメント2行 + SQL 1行）が、末尾の per-section
+ * catch ブロック（`catch (sectionVisualError)` / `DINOv2 visual embedding failed
+ * for section (non-fatal)` / `truncateAuditTargetId(p.section.id)`、rel ~12000-12212）
+ * より前に挿入されたため、12000 固定窓の外に押し出された（文字列は関数内に残存、
+ * production 挙動は不変）。brace-balanced 実関数長は 12381 文字（最後の pin
+ * `truncateAuditTargetId(p.section.id)` は rel 12177、終端 ~12212）。前例
+ * (internal decision 019e7f68, PR-SECVISUAL-FORK COND-1) の canonical fix に倣い、
+ * 実測関数長 + ~1100 margin = 13500 に拡大する（盲目的 bump や次関数本体への
+ * 過剰越境を避ける）。13500 は末尾 catch ブロックを網羅し、次関数
+ * `processDynamicFallbackBatch` 本体には実質越境しない。
+ *
+ * The backfill stale-`vision_skip_reason = NULL` clear (2 comment lines + 1 SQL line)
+ * added in PR #59 was inserted BEFORE the trailing per-section catch block, pushing the
+ * pinned strings out of the fixed 12000-char window (the strings remain in-function; the
+ * production behaviour is unchanged). The brace-balanced function length is 12381 chars
+ * (the last pin `truncateAuditTargetId(p.section.id)` is at rel 12177, ending ~12212).
+ * Following the canonical fix of the precedent (internal decision 019e7f68,
+ * PR-SECVISUAL-FORK COND-1), widen to measured length + ~1100 margin = 13500 (avoiding a
+ * blind bump or excessive overrun into the next function body). 13500 covers the trailing
+ * catch block without materially crossing into the `processDynamicFallbackBatch` body.
+ */
+const SINGLE_SECTION_SLICE = 13500;
 
 describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
   // After TDA-C1 refactoring, processEmbeddingPhase and visual embedding logic
