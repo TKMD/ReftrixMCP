@@ -31,7 +31,7 @@ import { resetRateLimiter } from "../../src/middleware/rate-limiter";
 // テスト用の39ツールリスト
 // =============================================================================
 
-const ALL_39_TOOLS = [
+const ALL_40_TOOLS = [
   "style.get_palette",
   "system.health",
   "layout.inspect",
@@ -54,6 +54,7 @@ const ALL_39_TOOLS = [
   "part.search",
   "part.inspect",
   "part.compare",
+  "section.inspect",
   "search.unified",
   "design.search_by_image",
   "design.similar_site",
@@ -130,10 +131,10 @@ function hasRequestId(response: unknown): boolean {
 }
 
 // =============================================================================
-// 全39ツールのMcpResponse形式検証テスト
+// 全40ツールのMcpResponse形式検証テスト
 // =============================================================================
 
-describe("MCP-RESP-08: All 39 Tools McpResponse Format Verification", () => {
+describe("MCP-RESP-08: All 40 Tools McpResponse Format Verification", () => {
   beforeEach(() => {
     clearToolHandlers();
     resetToolMetrics();
@@ -146,23 +147,23 @@ describe("MCP-RESP-08: All 39 Tools McpResponse Format Verification", () => {
     resetRateLimiter();
   });
 
-  describe("39 tools registered correctly", () => {
-    it("should have exactly 39 tools defined in allToolDefinitions", () => {
-      expect(allToolDefinitions.length).toBe(39);
+  describe("40 tools registered correctly", () => {
+    it("should have exactly 40 tools defined in allToolDefinitions", () => {
+      expect(allToolDefinitions.length).toBe(40);
     });
 
-    it("should have exactly 39 tools in toolHandlers", () => {
-      expect(Object.keys(toolHandlers).length).toBe(39);
+    it("should have exactly 40 tools in toolHandlers", () => {
+      expect(Object.keys(toolHandlers).length).toBe(40);
     });
 
-    it.each(ALL_39_TOOLS)("%s is registered in toolHandlers", (toolName) => {
+    it.each(ALL_40_TOOLS)("%s is registered in toolHandlers", (toolName) => {
       expect(toolHandlers[toolName]).toBeDefined();
       expect(typeof toolHandlers[toolName]).toBe("function");
     });
   });
 
   describe("McpResponse success structure for mock handlers", () => {
-    it.each(ALL_39_TOOLS)("%s returns valid McpResponse structure on success", async (toolName) => {
+    it.each(ALL_40_TOOLS)("%s returns valid McpResponse structure on success", async (toolName) => {
       // モックハンドラーを登録（成功レスポンス）
       registerTool(toolName, async () => ({
         success: true,
@@ -177,7 +178,7 @@ describe("MCP-RESP-08: All 39 Tools McpResponse Format Verification", () => {
       expect(isSuccessResponse(result as { success: true; data: unknown })).toBe(true);
     });
 
-    it.each(ALL_39_TOOLS)("%s returns valid McpResponse structure on error", async (toolName) => {
+    it.each(ALL_40_TOOLS)("%s returns valid McpResponse structure on error", async (toolName) => {
       // モックハンドラーを登録（エラーレスポンス）
       registerTool(toolName, async () => ({
         success: false,

@@ -33,6 +33,10 @@ import {
 } from "@reftrixmcp/ml";
 import type { RankedItem } from "@reftrixmcp/ml";
 import { truncateId } from "./schemas";
+import {
+  resolveQueryEmbedding,
+  type QueryEmbeddingResult,
+} from "../_shared/resolve-query-embedding";
 
 // =====================================================
 // インターフェース / Interfaces
@@ -117,12 +121,23 @@ export interface PartSearchResult {
  */
 export interface PartSearchServiceInterface {
   generateQueryEmbedding(query: string): Promise<number[] | null>;
+  /**
+   * クエリ embedding を discriminated union で解決 (ok / unavailable / failed)。
+   * ADR-0043 Decision 1/3 / plan v4 §4.1: tool 層 part 4-state dispatch 用。
+   */
+  resolveQueryEmbeddingResult(query: string): Promise<QueryEmbeddingResult>;
   searchParts(embedding: number[], options: PartSearchOptions): Promise<PartSearchResult>;
   searchPartsHybrid(
     queryText: string,
     embedding: number[],
     options: PartSearchOptions
   ): Promise<PartSearchResult>;
+  /**
+   * 全文検索のみ (embedding 不要)。
+   * ADR-0043 Decision 3 / plan v4 §4.3.1 (UB-V1-1 (a)): part の text-mode が
+   * embedding 失敗時に fulltext-only で続行するための public entry。
+   */
+  searchPartsFulltext(query: string, options: PartSearchOptions): Promise<PartSearchResult>;
   searchPartsByVisual(
     referencePartId: string,
     options: PartSearchOptions
@@ -314,25 +329,7 @@ import { sanitizeErrorMessage } from "../../utils/sanitize-error";
  * Provides vector, full-text, and hybrid search for component parts.
  */
 export class PartSearchService implements PartSearchServiceInterface {
-  private embeddingService: PartSearchEmbeddingService | null = null;
   private prismaClient: PartSearchPrismaClient | null = null;
-
-  /**
-   * EmbeddingServiceを取得
-   * Get EmbeddingService
-   */
-  private getEmbeddingService(): PartSearchEmbeddingService {
-    if (this.embeddingService) {
-      return this.embeddingService;
-    }
-
-    if (embeddingServiceFactory) {
-      this.embeddingService = embeddingServiceFactory();
-      return this.embeddingService;
-    }
-
-    throw new Error("EmbeddingService not initialized");
-  }
 
   /**
    * PrismaClientを取得
@@ -352,35 +349,35 @@ export class PartSearchService implements PartSearchServiceInterface {
   }
 
   /**
-   * クエリテキストからEmbeddingを生成
-   * Generate embedding from query text
+   * クエリテキストから embedding を解決 (discriminated union)
+   * Resolve query embedding as a discriminated union (ok / unavailable / failed).
    *
-   * EmbeddingServiceが利用できない場合はnullを返す。
-   * Returns null if EmbeddingService is not available.
+   * ADR-0043 Decision 1/3 / plan v4 §4.1: service層 SSOT `resolveQueryEmbedding` 経由で
+   * factory 不在 (unavailable) と生成 throw (failed) を区別し、tool 層が
+   * part 4-state dispatch (text-mode fulltext fallback / visual·hybrid fail-loud) に
+   * 使えるようにする。reason は sanitizeErrorMessage 済 (CWE-209 + PII)。
    */
-  async generateQueryEmbedding(query: string): Promise<number[] | null> {
+  async resolveQueryEmbeddingResult(query: string): Promise<QueryEmbeddingResult> {
     if (isDevelopment()) {
-      logger.info("[PartSearchService] Generating query embedding", {
+      logger.info("[PartSearchService] Resolving query embedding", {
         queryLength: query.length,
       });
     }
+    return resolveQueryEmbedding(embeddingServiceFactory, (svc) =>
+      svc.generateEmbedding(query, "query")
+    );
+  }
 
-    if (!embeddingServiceFactory) {
-      if (isDevelopment()) {
-        logger.warn("[PartSearchService] EmbeddingService not available, returning null");
-      }
-      return null;
-    }
-
-    try {
-      const service = this.getEmbeddingService();
-      return await service.generateEmbedding(query, "query");
-    } catch (error) {
-      logger.warn("[PartSearchService] Embedding generation failed, returning null", {
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return null;
-    }
+  /**
+   * クエリテキストからEmbeddingを生成 (後方互換: null 化版)
+   * Generate embedding from query text (backward-compatible null-returning form).
+   *
+   * EmbeddingServiceが利用できない/生成失敗時はnullを返す。
+   * 新規 caller は discriminated な `resolveQueryEmbeddingResult` を使うこと。
+   */
+  async generateQueryEmbedding(query: string): Promise<number[] | null> {
+    const result = await this.resolveQueryEmbeddingResult(query);
+    return result.status === "ok" ? result.embedding : null;
   }
 
   /**
@@ -569,42 +566,11 @@ export class PartSearchService implements PartSearchServiceInterface {
         return toRankedItems(rows);
       };
 
-      // 全文検索関数
+      // 全文検索関数 (DRY: searchPartsFulltext と SQL 構築を共有、plan v4 §4.3.1)
       const fulltextSearchFn = async (): Promise<RankedItem[]> => {
         try {
-          const ftQueryIdx = nextIndex;
-          const ftLimitIdx = nextIndex + 1;
-
-          const ftConditions = buildFulltextConditions("cpe.search_vector", ftQueryIdx);
-          const ftRank = buildFulltextRankExpression("cpe.search_vector", ftQueryIdx);
-
-          const whereClause = filterClause
-            ? `WHERE ${filterClause} AND ${ftConditions}`
-            : `WHERE ${ftConditions}`;
-
-          const sql = `
-            SELECT
-              cp.id, cp.part_type, cp.part_subtype,
-              cp.bounding_box, cp.computed_styles, cp.html_snippet,
-              sp.section_type,
-              wp.url AS web_page_url,
-              ${ftRank} AS similarity
-            FROM component_parts cp
-            INNER JOIN component_part_embeddings cpe ON cpe.component_part_id = cp.id
-            INNER JOIN section_patterns sp ON sp.id = cp.section_pattern_id
-            INNER JOIN web_pages wp ON wp.id = cp.web_page_id
-            ${whereClause}
-            ORDER BY similarity DESC
-            LIMIT $${ftLimitIdx}
-          `;
-
-          const rows = await prisma.$queryRawUnsafe<PartVectorSearchRow[]>(
-            sql,
-            ...filterParams,
-            queryText,
-            fetchLimit
-          );
-
+          const { sql, params } = this.buildPartFulltextQuery(queryText, options, fetchLimit);
+          const rows = await prisma.$queryRawUnsafe<PartVectorSearchRow[]>(sql, ...params);
           return toRankedItems(rows);
         } catch (ftError) {
           logger.warn("[PartSearchService] Full-text search failed, using vector only", {
@@ -652,6 +618,114 @@ export class PartSearchService implements PartSearchServiceInterface {
       });
       // フォールバック: ベクトル検索のみ
       return this.searchParts(embedding, options);
+    }
+  }
+
+  /**
+   * 全文検索 SQL・パラメータを構築 (DRY: searchPartsFulltext と searchPartsHybrid の closure が共有)
+   * Build the full-text search SQL/params (shared by searchPartsFulltext and the
+   * searchPartsHybrid closure to avoid SQL duplication, plan v4 §4.3.1).
+   */
+  private buildPartFulltextQuery(
+    queryText: string,
+    options: PartSearchOptions,
+    fetchLimit: number
+  ): { sql: string; params: unknown[] } {
+    const {
+      clause: filterClause,
+      params: filterParams,
+      nextIndex,
+    } = buildPartSearchWhereClause(options, 1);
+
+    const ftQueryIdx = nextIndex;
+    const ftLimitIdx = nextIndex + 1;
+
+    const ftConditions = buildFulltextConditions("cpe.search_vector", ftQueryIdx);
+    const ftRank = buildFulltextRankExpression("cpe.search_vector", ftQueryIdx);
+
+    const whereClause = filterClause
+      ? `WHERE ${filterClause} AND ${ftConditions}`
+      : `WHERE ${ftConditions}`;
+
+    const sql = `
+          SELECT
+            cp.id, cp.part_type, cp.part_subtype,
+            cp.bounding_box, cp.computed_styles, cp.html_snippet,
+            sp.section_type,
+            wp.url AS web_page_url,
+            ${ftRank} AS similarity
+          FROM component_parts cp
+          INNER JOIN component_part_embeddings cpe ON cpe.component_part_id = cp.id
+          INNER JOIN section_patterns sp ON sp.id = cp.section_pattern_id
+          INNER JOIN web_pages wp ON wp.id = cp.web_page_id
+          ${whereClause}
+          ORDER BY similarity DESC
+          LIMIT $${ftLimitIdx}
+        `;
+
+    return { sql, params: [...filterParams, queryText, fetchLimit] };
+  }
+
+  /**
+   * 全文検索のみ (embedding 不要、e5-base text vector を使わない PostgreSQL tsvector 検索)
+   * Full-text-only search (no embedding; PostgreSQL tsvector search).
+   *
+   * ADR-0043 Decision 3 / plan v4 §4.3.1 (UB-V1-1 (a)): part の `search_mode=text` が
+   * embedding 失敗時に fulltext-only で続行 (success:true 正当) するための public entry。
+   * embedding 障害でも real fulltext value を返せるため fail-loud にしない (空偽装でもない)。
+   */
+  async searchPartsFulltext(query: string, options: PartSearchOptions): Promise<PartSearchResult> {
+    const startTime = Date.now();
+
+    if (isDevelopment()) {
+      logger.info("[PartSearchService] Starting fulltext-only search", {
+        queryLength: query.length,
+        limit: options.limit,
+        offset: options.offset,
+      });
+    }
+
+    let prisma: PartSearchPrismaClient;
+    try {
+      prisma = this.getPrismaClient();
+    } catch {
+      logger.warn("[PartSearchService] PrismaClient not available");
+      return { results: [], total: 0, query: { text: query } };
+    }
+
+    try {
+      // RRF を使わない fulltext-only ゆえ limit+offset 分を直接取得する。
+      const fetchLimit = options.limit + options.offset;
+      const { sql, params } = this.buildPartFulltextQuery(query, options, fetchLimit);
+
+      let rows: PartVectorSearchRow[] = [];
+      try {
+        rows = await prisma.$queryRawUnsafe<PartVectorSearchRow[]>(sql, ...params);
+      } catch (dbError) {
+        logger.warn("[PartSearchService] Fulltext query failed", {
+          error: sanitizeErrorMessage(dbError),
+        });
+        return { results: [], total: 0, query: { text: query } };
+      }
+
+      const paginated = rows.slice(options.offset, options.offset + options.limit);
+      const results = paginated
+        .filter((r) => r.similarity >= options.minSimilarity)
+        .map(mapRowToResultItem);
+
+      if (isDevelopment()) {
+        logger.info("[PartSearchService] Fulltext-only search completed", {
+          resultsCount: results.length,
+          processingTimeMs: Date.now() - startTime,
+        });
+      }
+
+      return { results, total: results.length, query: { text: query } };
+    } catch (error) {
+      logger.warn("[PartSearchService] searchPartsFulltext error", {
+        error: sanitizeErrorMessage(error),
+      });
+      return { results: [], total: 0, query: { text: query } };
     }
   }
 

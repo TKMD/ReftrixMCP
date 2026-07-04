@@ -130,6 +130,12 @@ export interface PostProcessableSection {
   heading?: string;
   confidence: number;
   htmlSnippet?: string;
+  /**
+   * 安定 DOM selector (W6 Issue A PR-2 / F-M-04)。additive。merge/split 時の
+   * `{ ...section }` spread で保存される。split fragment は同一 container を指す
+   * (container scope + sampleIndex で gate が解決)。
+   */
+  sectionSelector?: string;
   position?: { startY: number; endY: number; height: number };
 }
 

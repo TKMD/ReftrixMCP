@@ -17,10 +17,12 @@
  * ## 設計判断 / Design decisions
  *
  *   - BullMQ Repeatable Job ではなく setInterval を採用
- *     → screenshot-cleanup-cron.ts と同じパターンを踏襲
+ *     → (retired) screenshot-cleanup-cron.ts と同じパターンを踏襲していた
+ *       (screenshot TTL cron は PR-SS-B / ADR-0041 で撤去済)
  *     → cleanup は DB 操作のみ (Redis 不要) で本体 worker と同プロセスで問題ない
- *   - We use setInterval rather than BullMQ Repeatable Job. Mirrors
- *     screenshot-cleanup-cron.ts since the cleanup only touches DB (no Redis)
+ *   - We use setInterval rather than BullMQ Repeatable Job. This mirrored the
+ *     (retired) screenshot-cleanup-cron.ts pattern (the screenshot TTL cron was
+ *     removed in PR-SS-B / ADR-0041) since the cleanup only touches DB (no Redis)
  *     and piggybacks on the existing worker process.
  *
  * @module cron/phase0-cleanup-cron

@@ -115,6 +115,10 @@ function createMockService(
   overrides?: Partial<IBackgroundSearchService>
 ): IBackgroundSearchService {
   return {
+    // ADR-0043 / plan v4 §4.1: tool は discriminated な resolveQueryEmbeddingResult を呼ぶ。
+    resolveQueryEmbeddingResult: vi
+      .fn()
+      .mockResolvedValue({ status: "ok", embedding: new Array(768).fill(0.1) }),
     generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.1)),
     searchBackgroundDesigns: vi.fn().mockResolvedValue({
       results: [
@@ -282,7 +286,7 @@ describe("background.search MCPツール", () => {
       });
 
       expect(result.success).toBe(true);
-      expect(mockService.generateQueryEmbedding).toHaveBeenCalledTimes(1);
+      expect(mockService.resolveQueryEmbeddingResult).toHaveBeenCalledTimes(1);
       expect(mockService.searchBackgroundDesigns).toHaveBeenCalledTimes(1);
     });
 
@@ -475,19 +479,22 @@ describe("background.search MCPツール", () => {
         query: "dark gradient",
       });
 
-      // generateQueryEmbedding に "query: dark gradient" が渡される
-      expect(mockService.generateQueryEmbedding).toHaveBeenCalledWith(
+      // resolveQueryEmbeddingResult に "query: dark gradient" が渡される
+      expect(mockService.resolveQueryEmbeddingResult).toHaveBeenCalledWith(
         expect.stringContaining("query:")
       );
-      expect(mockService.generateQueryEmbedding).toHaveBeenCalledWith(
+      expect(mockService.resolveQueryEmbeddingResult).toHaveBeenCalledWith(
         expect.stringContaining("dark gradient")
       );
     });
 
-    // Embedding生成失敗時は空結果を返す
-    it("Embedding生成失敗時は空結果を返す", async () => {
+    // ADR-0043 Decision 1 / plan v4 §4.1: background は embedding 必須 leaf。
+    // embedding 失敗を success:true total:0 で偽装せず success:false (fail-loud) を返す (PR-2a-2)。
+    it("Embedding解決失敗(failed)時は success:false + embedding_failed を返す", async () => {
       const mockService = createMockService({
-        generateQueryEmbedding: vi.fn().mockResolvedValue(null),
+        resolveQueryEmbeddingResult: vi
+          .fn()
+          .mockResolvedValue({ status: "failed", reason: "Database operation failed" }),
       });
       setBackgroundSearchServiceFactory(() => mockService);
 
@@ -495,10 +502,13 @@ describe("background.search MCPツール", () => {
         query: "gradient background",
       });
 
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.results).toHaveLength(0);
-        expect(result.data.total).toBe(0);
+      expect(mockService.searchBackgroundDesigns).not.toHaveBeenCalled();
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe("EMBEDDING_FAILED");
+        expect(result.error.degradedReason).toBe("embedding_failed");
+        expect(result.error.message).not.toContain("gradient background");
+        expect(result.error.message).not.toContain(".so");
       }
     });
 
@@ -506,7 +516,9 @@ describe("background.search MCPツール", () => {
     it("768次元Embeddingベクトルが検索サービスに渡される", async () => {
       const mockEmbedding = new Array(768).fill(0.05);
       const mockService = createMockService({
-        generateQueryEmbedding: vi.fn().mockResolvedValue(mockEmbedding),
+        resolveQueryEmbeddingResult: vi
+          .fn()
+          .mockResolvedValue({ status: "ok", embedding: mockEmbedding }),
       });
       setBackgroundSearchServiceFactory(() => mockService);
 
@@ -564,10 +576,10 @@ describe("background.search MCPツール", () => {
       }
     });
 
-    // Embedding生成エラー時は適切なエラーを返す
-    it("Embedding生成エラー時は適切にハンドリングされる", async () => {
+    // Embedding解決が unavailable (factory 不在) の場合は fail-loud
+    it("Embedding解決がunavailable時は success:false + embedding_unavailable を返す", async () => {
       const mockService = createMockService({
-        generateQueryEmbedding: vi.fn().mockRejectedValue(new Error("Embedding model not loaded")),
+        resolveQueryEmbeddingResult: vi.fn().mockResolvedValue({ status: "unavailable" }),
       });
       setBackgroundSearchServiceFactory(() => mockService);
 
@@ -575,10 +587,11 @@ describe("background.search MCPツール", () => {
         query: "gradient background",
       });
 
+      expect(mockService.searchBackgroundDesigns).not.toHaveBeenCalled();
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.code).toBeDefined();
-        expect(result.error.message).toBeDefined();
+        expect(result.error.code).toBe("SERVICE_UNAVAILABLE");
+        expect(result.error.degradedReason).toBe("embedding_unavailable");
       }
     });
 

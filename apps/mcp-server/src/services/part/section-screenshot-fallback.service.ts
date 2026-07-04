@@ -43,6 +43,9 @@ import sharp from "sharp";
 import { ROBOTS_TXT, isUrlAllowedByRobotsTxt } from "@reftrixmcp/core";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { logger, isDevelopment } from "../../utils/logger";
+// W6 Issue A PR-2 (F-M-05): rAF-race tail dedup leaf util。scroll セマンティクスは
+// 共有しない (scrollTo vs scrollIntoView)、rAF tail のみ共有。
+import { waitForRafSettle } from "./section-selector.helper";
 
 // ============================================================================
 // Constants / 定数
@@ -115,6 +118,46 @@ const DEFAULT_MAX_TILES_PER_SECTION = 20;
  */
 const ABSOLUTE_MAX_TILES_LIMIT = 100;
 
+/**
+ * W6 Issue A PR-2 (§3.3.2 live-Y、a-deep 前提): sectionSelector で container を
+ * viewport に入れ (`scrollIntoView`)、`getBoundingClientRect` から live 絶対 Y /
+ * height を取得する。garbage `section.startY` を置換するため。
+ *
+ * selector 無し / 解決不能 / 非 finite は `null` を返し、caller は garbage-startY
+ * path に degrade する (機能維持、回帰なし、honest)。
+ *
+ * Resolves the live absolute top / height of the section container via
+ * `scrollIntoView` + `getBoundingClientRect`, to replace the garbage
+ * `section.startY`. Returns `null` (caller degrades to the garbage path) when the
+ * selector is absent / unresolvable / non-finite.
+ */
+async function resolveLiveSectionGeometry(
+  page: Page,
+  sectionSelector: string | undefined
+): Promise<{ top: number; height: number } | null> {
+  if (!sectionSelector) return null;
+  try {
+    await page.evaluate((sel: string) => {
+      const el = document.querySelector(sel);
+      if (el) el.scrollIntoView();
+    }, sectionSelector);
+    await waitForRafSettle(page, 2000);
+    const rect = await page.evaluate((sel: string) => {
+      const el = document.querySelector(sel);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { top: r.top + window.scrollY, height: r.height };
+    }, sectionSelector);
+    if (!rect || !Number.isFinite(rect.top) || !Number.isFinite(rect.height) || rect.height <= 0) {
+      return null;
+    }
+    return { top: rect.top, height: rect.height };
+  } catch {
+    // live-Y 計測失敗は非致命的 — garbage path に degrade。
+    return null;
+  }
+}
+
 function getMaxTilesPerSection(): number {
   const envVal = process.env.MAX_TILES_PER_SECTION;
   if (envVal !== undefined) {
@@ -167,6 +210,12 @@ export interface SectionScreenshotOptions {
     id: string;
     startY: number;
     height: number;
+    /**
+     * 安定 DOM selector (W6 Issue A PR-2 / F-M-04)。存在する場合は live-Y 化
+     * (scrollIntoView + getBoundingClientRect) で garbage startY を置換する。
+     * 無し / liveRect null は garbage-startY path に degrade (機能維持、回帰なし)。
+     */
+    sectionSelector?: string | undefined;
   }>;
   /** ビューポート幅（デフォルト1920） / Viewport width (default 1920) */
   viewportWidth?: number | undefined;
@@ -560,7 +609,14 @@ export async function captureSectionScreenshots(
       }
 
       try {
-        const sectionHeight = Math.round(section.height);
+        // W6 Issue A PR-2 (§3.3.2 live-Y、a-deep 前提): sectionSelector があれば
+        // scrollIntoView + getBoundingClientRect で live 絶対 Y / height を取得し、
+        // garbage startY を置換する。selector 無し / liveRect null は garbage path に
+        // degrade (機能維持、回帰なし)。`clip_height_zero` honest-skip guard 維持。
+        const liveGeom = await resolveLiveSectionGeometry(page, section.sectionSelector);
+        const effectiveStartY = liveGeom ? liveGeom.top : section.startY;
+        const effectiveHeight = liveGeom ? liveGeom.height : section.height;
+        const sectionHeight = Math.round(effectiveHeight);
 
         // マルチタイルキャプチャ判定: section.height > viewportHeight の場合は複数タイルに分割
         // Multi-tile capture: split into multiple tiles when section.height > viewportHeight
@@ -595,30 +651,17 @@ export async function captureSectionScreenshots(
 
           // タイルのスクロール先を計算 / Calculate tile scroll target
           const tileOffsetY = tileIndex * safeViewportHeight;
-          const scrollY = Math.max(0, Math.round(section.startY + tileOffsetY));
+          const scrollY = Math.max(0, Math.round(effectiveStartY + tileOffsetY));
 
           await page.evaluate((y: number) => window.scrollTo(0, y), scrollY);
 
           // スクロール後の待機（レンダリング + lazy load） / Wait after scroll (rendering + lazy load)
           await page.waitForTimeout(POST_SCROLL_WAIT_MS);
 
-          // requestAnimationFrame完了待ち（2フレーム分、2秒タイムアウト付き）
-          // Wait for requestAnimationFrame completion (2 frames, with 2s timeout)
-          // Lazy Rendering のレイアウト確定とペイント完了を保証する
-          // Ensures layout commit and paint completion for Lazy Rendering
-          try {
-            await Promise.race([
-              page.evaluate(
-                () =>
-                  new Promise<void>((resolve) => {
-                    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-                  })
-              ),
-              page.waitForTimeout(2000),
-            ]);
-          } catch {
-            // rAF待ちの失敗は非致命的 / rAF wait failure is non-fatal
-          }
+          // requestAnimationFrame完了待ち（F-M-05: waitForRafSettle leaf util に dedup）。
+          // Lazy Rendering のレイアウト確定とペイント完了を保証する。失敗は非致命的。
+          // rAF settle via the shared `waitForRafSettle` leaf util (F-M-05 dedup).
+          await waitForRafSettle(page, 2000);
 
           // networkidle 追加待機（最大3秒、失敗しても続行）
           // Additional networkidle wait (max 3s, continue on failure)
@@ -633,8 +676,8 @@ export async function captureSectionScreenshots(
           // v0.1.10: actualScrollY が期待値から大きくズレた場合は旧方式（期待値ベース）にフォールバック
           // v0.1.10: Fall back to expected scrollY when actualScrollY deviates significantly
           const actualScrollY = await page.evaluate(() => window.scrollY);
-          const expectedClipY = Math.max(0, section.startY + tileOffsetY - scrollY);
-          const actualClipY = Math.max(0, section.startY + tileOffsetY - actualScrollY);
+          const expectedClipY = Math.max(0, effectiveStartY + tileOffsetY - scrollY);
+          const actualClipY = Math.max(0, effectiveStartY + tileOffsetY - actualScrollY);
           // 実測値が期待値から viewportHeight の半分以上ズレている場合は旧方式を使用
           // Use expected value when actual deviates by more than half the viewport height
           const clipY =

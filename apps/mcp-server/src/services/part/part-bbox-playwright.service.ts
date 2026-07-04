@@ -30,12 +30,13 @@
 import type { Browser, BrowserContext, Page } from "playwright";
 import { chromium } from "playwright";
 import type { PrismaClient, Prisma } from "@prisma/client";
-import { ROBOTS_TXT } from "@reftrixmcp/core";
+import { ROBOTS_TXT, escapeCssIdentifier } from "@reftrixmcp/core";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { logger, isDevelopment } from "../../utils/logger";
 import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { getLazyScrollMaxIterations } from "../page-ingest-adapter";
 import { truncateId } from "./schemas";
+import { waitForRafSettle } from "./section-selector.helper";
 import { TAG_TO_PART_TYPE } from "./types";
 
 // ============================================================================
@@ -247,9 +248,22 @@ export interface ResolvePartBoundingBoxesResult {
 interface PartSelectorData {
   /** DB パーツID / DB part ID */
   id: string;
+  /**
+   * section container を一意特定する安定 DOM selector (W6 Issue A PR-2 / F-M-04)。
+   * 未 persist (旧データ) では undefined → gate は honest-skip (`bbox_unresolvable`)。
+   * Stable DOM selector identifying the section container; undefined for legacy
+   * (un-persisted) rows → the gate honest-skips (`bbox_unresolvable`).
+   */
+  sectionSelector?: string | undefined;
   /** CSSセレクタ候補（優先度順） / CSS selector candidates (in priority order) */
   selectors: string[];
-  /** セクションの絶対Y開始座標 / Section absolute Y start coordinate */
+  /**
+   * セクションの絶対Y開始座標 / Section absolute Y start coordinate.
+   * 後方互換のため残置 (band 削除後は gate 判定に使わないが、stored y の self-cancel
+   * 計算 `Math.max(0, absoluteY - sectionStartY)` + clamp edge 判定に使用、F-L-08)。
+   * Retained for backward-compat: not used for gating after band removal, but used
+   * by the stored-y self-cancel computation + the clamp-edge check (F-L-08).
+   */
   sectionStartY: number;
   /** 同一セクション内の同一partType別インデックス / Per-partType index within section */
   sampleIndex: number;
@@ -312,6 +326,12 @@ function buildPartTypeToTagsMap(): ReadonlyMap<string, readonly string[]> {
  * @param params - 取得パラメータ / Resolution parameters
  * @returns 更新結果 / Resolution result
  */
+// W6 Issue A PR-2 (F-M-06): pre-existing CC=30 orchestrator (browser lifecycle +
+// budget + sweep + reload + cleanup branches), OUTSIDE PR-2 scope. PR-2 added only
+// the additive `sectionSelectorMap` build (no new branch). Honest disable per
+// Registry C-5 (no false CC guarantee); forward refactor (sub-method extraction)
+// tracked, deadline 2026-06-24 (T+1d).
+// eslint-disable-next-line complexity
 export async function resolvePartBoundingBoxes(
   params: ResolvePartBoundingBoxesParams
 ): Promise<ResolvePartBoundingBoxesResult> {
@@ -370,16 +390,21 @@ export async function resolvePartBoundingBoxes(
     select: { id: true, layoutInfo: true },
   });
   const sectionStartYMap = new Map<string, number>();
+  // W6 Issue A PR-2 (F-M-04): section container selector を併せて構築 (SELECT 追加不要、
+  // layoutInfo は既に取得済)。bbox-resolve gate が live container scope を解決するため。
+  const sectionSelectorMap = new Map<string, string | undefined>();
   for (const s of sectionPositions) {
     const info = s.layoutInfo as Record<string, unknown> | null;
     const position = info?.position as { startY?: number } | undefined;
     sectionStartYMap.set(s.id, position?.startY ?? 0);
+    sectionSelectorMap.set(s.id, info?.sectionSelector as string | undefined);
   }
 
   // 4. パーツごとにCSSセレクタを構築
   //    Build CSS selectors for each part
   const selectorData: PartSelectorData[] = partsNeedingBbox.map((p) => ({
     id: p.id,
+    sectionSelector: sectionSelectorMap.get(p.sectionPatternId),
     selectors: buildSelectorsForPart(p.partType, p.cssClasses),
     sectionStartY: sectionStartYMap.get(p.sectionPatternId) ?? 0,
     sampleIndex: p.sampleIndex,
@@ -653,6 +678,11 @@ interface BboxReloadPassParams {
  *
  * @internal exported indirectly via `resolvePartBoundingBoxes` reload pass
  */
+// W6 Issue A PR-2 (F-M-06): pre-existing CC=14 reload-pass (per-page reload + dual
+// safety-budget caps + per-iteration merge), OUTSIDE PR-2 scope (untouched by
+// PR-2). Honest disable per Registry C-5 (no false CC guarantee); forward refactor
+// tracked, deadline 2026-06-24 (T+1d).
+// eslint-disable-next-line complexity
 async function runBboxReloadPass(params: BboxReloadPassParams): Promise<BboxReloadPassResult> {
   const { page, skippedSelectors, budget } = params;
   const startedAt = Date.now();
@@ -759,68 +789,88 @@ async function runBboxPageEvaluate(
   page: Page,
   selectors: PartSelectorData[]
 ): Promise<Array<BboxResult | null>> {
+  // W6 Issue A PR-2 (gate-fix): the legacy ±500px proximity band is replaced by
+  // DOM-ancestry containment scope. This page.evaluate body is the BROWSER-CONTEXT
+  // MIRROR of the Node-context SSOT `resolvePartBboxesInScope`
+  // (`section-selector.helper.ts`) — it re-declares the same semantic inline
+  // because page.evaluate cannot import (closures are not serialized). Their
+  // equivalence is pinned by INV-TOLERANCE-NON-GATING-001 (Layer (i) AST-pin +
+  // Layer (ii) jsdom fixture against the SSOT).
+  // 分解方式 (W6 Issue A `__name` 真因修正): named const helper
+  // (finalize / matchInContainer / resolveOne) は esbuild keepNames が
+  // `const finalize = __name((...) => {}, "finalize")` に wrap し、page.evaluate の
+  // Function.prototype.toString() シリアライズで `__name(...)` が browser に混入 →
+  // browser に `__name` helper 不在 → `ReferenceError: __name is not defined` →
+  // sweep catch で握られ resolvedCount=0 になる真因。これを回避するため body を
+  // argument-position の anonymous callback (`data.map` + `[selector].map(...)[0]`) のみ
+  // で構成し named function binding を持たせない (keepNames は引数 arrow を wrap しない)。
+  // 挙動は INV-TOLERANCE-NON-GATING-001 の semantic、serialize 安全性は
+  // INV-PAGE-EVALUATE-NO-NAME-INJECTION-001 で pin。
+  //
+  // Decomposed into argument-position anonymous callbacks only (`data.map` +
+  // `[selector].map(...)[0]`) so esbuild keepNames never wraps a named binding —
+  // preventing the `__name(...)` serialize-injection that made `resolvedCount: 0`.
   return page.evaluate((data: PartSelectorData[]): Array<BboxResult | null> => {
-    // マッチ済み要素を追跡（同一要素の重複マッチ防止）
-    // Track matched elements to prevent duplicate matching.
-    const globalMatched = new Set<Element>();
-    const results: Array<BboxResult | null> = [];
-
-    for (const part of data) {
-      let found = false;
-
+    const matched = new Set<Element>();
+    return data.map((part) => {
+      // === resolveOne: container 解決 (null は honest-skip、document fallback / band 復帰しない) ===
+      // L-8: `container` は single-assignment 必須。`if (!container) return null` の narrowing が
+      // 下の `[selector].map(...)` closure へ伝播するのは再代入が無い場合のみ。再 query /
+      // document-fallback で 2 度目の代入を足すと closure narrowing が破れ TS18047 になる。
+      // `container` MUST stay single-assignment: the non-null narrowing propagates
+      // into the nested `[selector].map(...)` closure only with no reassignment.
+      if (!part.sectionSelector) return null;
+      let container: Element | null;
+      try {
+        container = document.querySelector(part.sectionSelector);
+      } catch {
+        return null;
+      }
+      if (!container) return null;
       for (const selector of part.selectors) {
-        if (found) break;
-
-        let elements: NodeListOf<Element>;
-        try {
-          elements = document.querySelectorAll(selector);
-        } catch {
-          // 不正なセレクタはスキップ / Skip invalid selectors.
-          continue;
-        }
-
-        // sectionStartY 付近の要素のみをフィルタし、sampleIndex でマッチ
-        // Filter elements near sectionStartY and match by sampleIndex.
-        let matchIndex = 0;
-        for (const el of elements) {
-          if (globalMatched.has(el)) continue;
-
-          const rect = el.getBoundingClientRect();
-          if (rect.width <= 0 || rect.height <= 0) continue;
-
-          // 要素の絶対Y座標を計算 / Calculate absolute Y coordinate.
-          const absoluteY = rect.top + window.scrollY;
-
-          // セクション範囲内かチェック（startY から ±500px の許容範囲）
-          // Check if within section range (±500px tolerance from startY).
-          const sectionTolerance = 500;
-          if (Math.abs(absoluteY - part.sectionStartY) > sectionTolerance + rect.height) {
-            continue;
+        // === matchInContainer + finalize: single-element map (`[selector].map(...)[0]`) ===
+        // 1 要素配列 `[selector]` を map し selector を param に再束縛した scoped callback を作る
+        // (named binding 回避)。container の non-null narrowing を closure 継承し、
+        // `container.querySelectorAll(selector)` で container scope に限定する。
+        // Single-element-map scoped callback: re-binds `selector` as the param to avoid
+        // a named binding while inheriting `container`'s non-null narrowing.
+        const hit = [selector].map((selector): BboxResult | null | undefined => {
+          let elements: NodeListOf<Element>;
+          try {
+            elements = container.querySelectorAll(selector);
+          } catch {
+            return undefined; // parse-fail → 次 selector へ / invalid selector → try next candidate
           }
-
-          // sampleIndex によるマッチング / Match by sampleIndex.
-          if (matchIndex === part.sampleIndex) {
-            globalMatched.add(el);
-            results.push({
-              id: part.id,
-              x: Math.max(0, rect.left),
-              y: Math.max(0, absoluteY - part.sectionStartY),
-              width: rect.width,
-              height: rect.height,
-            });
-            found = true;
-            break;
+          let matchIndex = 0;
+          for (const el of elements) {
+            if (matched.has(el)) continue;
+            const rect = el.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) continue; // zero-size skip
+            if (matchIndex === part.sampleIndex) {
+              // === finalize: clamp-edge honest-skip ===
+              // absoluteY < sectionStartY だと stored y が 0 にクランプ → crop 絶対 y =
+              // 0 + sectionStartY = garbage ゆえ null (honest-skip)。
+              const absoluteY = rect.top + window.scrollY;
+              if (absoluteY < part.sectionStartY) return null; // (C) honest-skip garbage crop
+              matched.add(el); // clamp 判定後に add (shared `matched` Set 共有)
+              return {
+                id: part.id,
+                x: Math.max(0, rect.left),
+                y: absoluteY - part.sectionStartY, // self-cancel (absoluteY >= sectionStartY)
+                width: rect.width,
+                height: rect.height,
+              };
+            }
+            matchIndex++;
           }
-          matchIndex++;
-        }
+          // (B) population-divergent: live population (matchIndex) が sampleIndex を含まない → null。
+          // それ以外 (parse 後 selector 枯渇でない undefined) は次 selector を試行。
+          return matchIndex <= part.sampleIndex ? null : undefined;
+        })[0];
+        if (hit !== undefined) return hit;
       }
-
-      if (!found) {
-        results.push(null);
-      }
-    }
-
-    return results;
+      return null;
+    });
   }, selectors);
 }
 
@@ -862,17 +912,12 @@ export function computeSweepStepPx(viewportHeight: number): number {
  */
 async function performSweepStepScroll(page: Page, y: number): Promise<void> {
   await page.evaluate((sy: number) => window.scrollTo(0, sy), y);
-  await Promise.race([
-    page.evaluate(
-      () =>
-        new Promise<void>((resolve) => {
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-        })
-    ),
-    page.waitForTimeout(SWEEP_RAF_TIMEOUT_MS),
-  ]).catch(() => {
-    /* non-fatal: rAF timeout / disposed page mid-step */
-  });
+  // F-M-05 dedup: the rAF-race tail is shared via the `waitForRafSettle` leaf util
+  // (byte-identical: same double-rAF `page.evaluate` + `page.waitForTimeout` +
+  // non-fatal `.catch`). The `scrollTo` above stays inline (scroll semantics differ
+  // from `scrollIntoView`, so only the rAF tail is the dedup unit). Timeout value
+  // (`SWEEP_RAF_TIMEOUT_MS` = 2000) is preserved unchanged.
+  await waitForRafSettle(page, SWEEP_RAF_TIMEOUT_MS);
 }
 
 /**
@@ -1084,21 +1129,8 @@ export function buildSelectorsForPart(partType: string, cssClasses: string[]): s
   return selectors;
 }
 
-/**
- * CSSセレクタ用の識別子をエスケープする
- * Escape a CSS identifier for use in selectors
- *
- * CSS.escape() がブラウザコンテキスト外では利用できないため、
- * Node.js 側でのセレクタ構築用に基本的なエスケープを行う。
- *
- * Since CSS.escape() is not available outside browser context,
- * provides basic escaping for selector construction in Node.js.
- *
- * @param identifier - エスケープ対象の識別子 / Identifier to escape
- * @returns エスケープ済み識別子 / Escaped identifier
- */
-function escapeCssIdentifier(identifier: string): string {
-  // CSS識別子として安全でない文字をバックスラッシュエスケープ
-  // Backslash-escape characters unsafe for CSS identifiers
-  return identifier.replace(/([!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, "\\$1");
-}
+// W6 Issue A PR-2 (F-M-01 / SEC `019ef01e`): the previous module-private
+// `escapeCssIdentifier` has been promoted to the `@reftrixmcp/core` SSOT (imported
+// at the top of this file). `buildSelectorsForPart` (above) and the
+// section-detector `generateSelector` both consume the single SSOT — no inline
+// re-implementation. ADDENDUM A (id-token whitespace) is included in the SSOT.

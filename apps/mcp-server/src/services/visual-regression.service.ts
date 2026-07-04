@@ -21,6 +21,11 @@ import { logger } from "../utils/logger";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
 import { createDIFactory } from "../utils/di-factory";
 import { validateExternalUrl } from "../utils/url-validator";
+// PR-SS-A D-2 (UB-1): screenshot root default は SSOT (screenshot-persistence.service)
+// から derive する (bare literal 重複定義禁止 — SSOT sweep test が CI 検出)。
+// PR-SS-A D-2 (UB-1): derive the screenshot root default from the SSOT
+// (no duplicated bare literals — CI-detected by the SSOT sweep test).
+import { resolveScreenshotRootRaw } from "./screenshot-persistence.service";
 
 // =====================================================
 // Constants / 定数
@@ -217,9 +222,7 @@ async function getBaselineScreenshot(snapshotId: string): Promise<{
   }
 
   // ファイルパスの場合 — path.resolve + realpath + allowlist 検証
-  const ALLOWED_SCREENSHOT_ROOT_RAW = path.resolve(
-    process.env.REFTRIX_SCREENSHOT_ROOT ?? "/tmp/reftrix-screenshots"
-  );
+  const ALLOWED_SCREENSHOT_ROOT_RAW = path.resolve(resolveScreenshotRootRaw());
   let ALLOWED_SCREENSHOT_ROOT: string;
   try {
     ALLOWED_SCREENSHOT_ROOT = await fs.realpath(ALLOWED_SCREENSHOT_ROOT_RAW);

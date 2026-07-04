@@ -424,51 +424,81 @@ describe("PageAnalyzeWorker - Batch Fallback + Duplicate Vector Detection", () =
   // ========================================================================
   describe("rAF待機: scrollTo後のレンダリング完了保証 / rAF wait: rendering completion after scrollTo", () => {
     it("scrollTo後にrequestAnimationFrame待ちが実行される", () => {
-      // Arrange & Act: SectionScreenshotFallbackService のソースコード構造解析
+      // INTENT: スクロール位置決めの直後に rAF settle が実行される（順序性）。
+      // F-M-05 dedup により rAF tail 本体は leaf util waitForRafSettle に集約され、
+      // service は scroll → waitForRafSettle 委譲で順序性を表現する。
+      // INTENT: rAF settle runs right after scroll positioning (ordering).
+      // After F-M-05 dedup, the rAF tail body lives in the leaf util waitForRafSettle;
+      // the service expresses the ordering via scroll → waitForRafSettle delegation.
+
+      // Arrange & Act: service + leaf helper のソースコード構造解析
       const servicePath = path.resolve(
         __dirname,
         "../../src/services/part/section-screenshot-fallback.service.ts"
       );
       const serviceSource = fs.readFileSync(servicePath, "utf8");
+      const helperPath = path.resolve(
+        __dirname,
+        "../../src/services/part/section-selector.helper.ts"
+      );
+      const helperSource = fs.readFileSync(helperPath, "utf8");
 
-      // Assert: scrollTo → waitForTimeout → rAF待ちの順序
+      // Assert (service): タイルループの scroll 位置決め（絶対 Y）が存在する。
+      // 実コードは `page.evaluate((y) => window.scrollTo(0, y), scrollY)` であり
+      // arrow callback の literal は `window.scrollTo(0, y)`。
       const scrollToPos = serviceSource.indexOf("window.scrollTo(0, y)");
       expect(scrollToPos).toBeGreaterThan(-1);
 
-      // 実際のrAFコード呼び出し（コメントではなく）を検索
-      const rafCodePos = serviceSource.indexOf("requestAnimationFrame(() =>");
+      // Assert (service): scroll の後に waitForRafSettle 委譲がある（順序性）
+      const rafSettleCallPos = serviceSource.indexOf("waitForRafSettle(page,", scrollToPos);
+      expect(rafSettleCallPos).toBeGreaterThan(-1);
+      expect(scrollToPos).toBeLessThan(rafSettleCallPos);
+
+      // Assert (leaf): rAF tail 本体（2フレーム分のダブルrAF）が leaf util に存在する
+      const rafCodePos = helperSource.indexOf("requestAnimationFrame(() =>");
       expect(rafCodePos).toBeGreaterThan(-1);
-
-      // scrollTo の後に rAF 待ちがある
-      expect(scrollToPos).toBeLessThan(rafCodePos);
-
-      // 2フレーム分のrAF待ち（ダブルrAF パターン）
-      // requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-      const rafBlock = serviceSource.slice(rafCodePos, rafCodePos + 200);
+      const rafBlock = helperSource.slice(rafCodePos, rafCodePos + 200);
       expect(rafBlock).toContain("requestAnimationFrame(() => resolve()");
     });
 
     it("rAF待ちが2秒タイムアウトでハングしない", () => {
-      // Arrange & Act: SectionScreenshotFallbackService のソースコード構造解析
+      // INTENT: rAF settle が timeout cap（Promise.race + waitForTimeout）で打ち切られ
+      // ハングせず、失敗は非致命的（catch で吸収）。F-M-05 dedup により本体は leaf util
+      // waitForRafSettle にあり（timeout 引数は timeoutMs）、2秒の cap は service の
+      // call site（waitForRafSettle(page, 2000)）で渡される。
+      // INTENT: rAF settle is capped by a timeout (Promise.race + waitForTimeout) so it
+      // does not hang, and failures are non-fatal (caught). After F-M-05 dedup the body is
+      // in the leaf util waitForRafSettle (its timeout arg is timeoutMs); the 2s cap is
+      // passed at the service call site (waitForRafSettle(page, 2000)).
+
+      // Arrange & Act: service + leaf helper のソースコード構造解析
       const servicePath = path.resolve(
         __dirname,
         "../../src/services/part/section-screenshot-fallback.service.ts"
       );
       const serviceSource = fs.readFileSync(servicePath, "utf8");
+      const helperPath = path.resolve(
+        __dirname,
+        "../../src/services/part/section-selector.helper.ts"
+      );
+      const helperSource = fs.readFileSync(helperPath, "utf8");
 
-      // Assert: rAF待ちにPromise.raceで2秒タイムアウトが設定されている
-      // 実際のrAFコード呼び出しを検索
-      const rafCodePos = serviceSource.indexOf("requestAnimationFrame(() =>");
+      // Assert (leaf): rAF tail 本体が存在する
+      const rafCodePos = helperSource.indexOf("requestAnimationFrame(() =>");
       expect(rafCodePos).toBeGreaterThan(-1);
 
-      // Promise.race で rAF と timeout の競合（rAFコードの前方を検索）
-      const promiseRaceBlock = serviceSource.slice(Math.max(0, rafCodePos - 300), rafCodePos + 300);
-      expect(promiseRaceBlock).toContain("Promise.race");
-      expect(promiseRaceBlock).toContain("waitForTimeout(2000)");
+      // Assert (leaf): Promise.race で rAF と timeout を競合させ、waitForTimeout(timeoutMs)
+      // で打ち切る（ハング防止）。
+      const raceBlock = helperSource.slice(Math.max(0, rafCodePos - 300), rafCodePos + 300);
+      expect(raceBlock).toContain("Promise.race");
+      expect(raceBlock).toContain("waitForTimeout(timeoutMs)");
 
-      // rAF失敗は非致命的（catch で吸収）
-      const afterRaf = serviceSource.slice(rafCodePos, rafCodePos + 500);
-      expect(afterRaf).toContain("非致命的");
+      // Assert (leaf): rAF 失敗は非致命的（catch で吸収）
+      const afterRaf = helperSource.slice(rafCodePos, rafCodePos + 500);
+      expect(afterRaf).toContain("non-fatal");
+
+      // Assert (service): call site が 2 秒の cap を渡している（waitForRafSettle(page, 2000)）
+      expect(serviceSource).toContain("waitForRafSettle(page, 2000)");
     });
   });
 

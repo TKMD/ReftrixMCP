@@ -113,6 +113,52 @@ describe("LayoutSearchService", () => {
     });
   });
 
+  // ADR-0043 Decision 1 / plan v4 §4.1: service層 SSOT `resolveQueryEmbedding` 経由で
+  // factory 不在 (unavailable) と生成 throw (failed) を区別する discriminated union。
+  describe("resolveQueryEmbeddingResult (discriminated union)", () => {
+    it("EmbeddingServiceが設定されている場合、{status:'ok', embedding}を返すこと", async () => {
+      setLayoutEmbeddingServiceFactory(() => mockEmbeddingService);
+      const service = new LayoutSearchService();
+
+      const result = await service.resolveQueryEmbeddingResult("hero section");
+
+      expect(result.status).toBe("ok");
+      if (result.status === "ok") {
+        expect(result.embedding.length).toBe(768);
+      }
+    });
+
+    it("EmbeddingServiceが未配線の場合、{status:'unavailable'}を返すこと", async () => {
+      const service = new LayoutSearchService();
+
+      const result = await service.resolveQueryEmbeddingResult("test");
+
+      expect(result.status).toBe("unavailable");
+    });
+
+    it("EmbeddingServiceが throw する場合、{status:'failed', reason}を返し reason に query 本文・.so を含まないこと", async () => {
+      const failingService: IEmbeddingService = {
+        generateEmbedding: vi
+          .fn()
+          .mockRejectedValue(
+            new Error("libonnxruntime_providers_cuda.so: cannot open shared object file")
+          ),
+      };
+      setLayoutEmbeddingServiceFactory(() => failingService);
+      const service = new LayoutSearchService();
+
+      const result = await service.resolveQueryEmbeddingResult("secret-query-xyz");
+
+      expect(result.status).toBe("failed");
+      if (result.status === "failed") {
+        // CWE-209 / GDPR Art.5(1)(c): reason は sanitizeErrorMessage 済 (query 本文・.so 非含有)
+        expect(result.reason).not.toContain("secret-query-xyz");
+        expect(result.reason).not.toContain(".so");
+        expect(result.reason).not.toContain("libonnxruntime");
+      }
+    });
+  });
+
   describe("searchSectionPatterns", () => {
     const mockEmbedding = new Array(768).fill(0.1);
     const defaultOptions: SearchOptions = {

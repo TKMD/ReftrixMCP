@@ -78,8 +78,13 @@ import {
  *
  * 3-second SLA per ADR-0016 interpretation of GDPR Art.17 "without undue delay".
  * Any relaxation proposal requires LCC sign-off (§ Amendment Process).
+ *
+ * Exported as the single SSOT for the 3s GDPR deletion SLA so sibling
+ * gdpr-delete standing tests (e.g. INV-CROP-RETENTION-001 #4) pin the same
+ * absolute contract without re-declaring the `3000` literal (CWE-209
+ * truncateId SSOT-derive rigor parity, W6 Issue A PR-3b F-08).
  */
-const SLA_WITHIN_MS = 3000 as const;
+export const SLA_WITHIN_MS = 3000 as const;
 
 // ============================================================================
 // Module-scoped state (per-file DB client + DI wire-up shared across tests)

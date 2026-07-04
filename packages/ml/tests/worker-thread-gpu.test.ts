@@ -653,8 +653,16 @@ describe("P2-H: GPU推論サポート (CUDA/ROCm)", () => {
       );
     });
 
-    it("GPU検出結果がeffectiveDeviceに反映されること", () => {
-      expect(workerSource).toContain('resolvedProvider === "cuda" ? "cuda" : config.device');
+    it("GPU検出結果がeffectiveDeviceに反映されること (gate parity, PR-1 — config.device 非参照)", () => {
+      // Embedding worker-thread CUDA gate fix PR-1 (Plan v1 §5.1): the effective
+      // device now HONORS the gate result (resolvedProvider) via the extracted
+      // resolveWorkerEffectiveDevice helper, and must NOT fall back to
+      // config.device (the pre-fix line-97 bug that let a "cuda" env override a
+      // "cpu" gate result → dlopen raw throw). Parity with resolveInProcessDevice.
+      // See INV-EMBEDDING-WORKER-CUDA-GATE-001 (large-page standing) for the
+      // canonical contract.
+      expect(workerSource).toContain("resolveWorkerEffectiveDevice(resolvedProvider)");
+      expect(workerSource).not.toContain('resolvedProvider === "cuda" ? "cuda" : config.device');
     });
   });
 

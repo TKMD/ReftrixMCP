@@ -112,13 +112,13 @@ describe("start-workers.ts — CWE-209 raw error.message sanitize (FIND-PLAN-SEC
       // L513: IPC-triggered shutdown failure.
       // L513: IPC-triggered shutdown 失敗。
       { context: "Error during IPC-triggered shutdown", minMatches: 1 },
-      // L624 / L652: Cron schedule init failures.
-      // L624 / L652: Cron schedule 初期化失敗。
-      { context: "Failed to schedule screenshot cleanup cron", minMatches: 1 },
+      // Cron schedule init failure. (PR-SS-A D-3 / L-01: screenshot cleanup
+      // cron は unschedule 済のため当該 fragment は撤去 / the screenshot-cron
+      // fragments were retired together with the PR-SS-A unschedule.)
+      // Cron schedule 初期化失敗。
       { context: "Failed to schedule reconciliation cron", minMatches: 1 },
-      // L725 / L736: Cron.stop synchronous failures (shutdown path).
-      // L725 / L736: Cron.stop 同期失敗 (shutdown path)。
-      { context: "Error stopping screenshot cleanup cron", minMatches: 1 },
+      // Cron.stop synchronous failure (shutdown path).
+      // Cron.stop 同期失敗 (shutdown path)。
       { context: "Error stopping backfill reconciliation cron", minMatches: 1 },
     ];
 

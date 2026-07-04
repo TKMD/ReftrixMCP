@@ -4,11 +4,11 @@
 /**
  * MCP Tool Registration Smoke Test
  *
- * 目的: 全39ツールが正しく登録されていることを確認
+ * 目的: 全40ツールが正しく登録されていることを確認
  *
  * このテストは以下を検証:
- * - toolHandlers に39ツールが登録されている
- * - allToolDefinitions に39ツール定義がある
+ * - toolHandlers に40ツールが登録されている
+ * - allToolDefinitions に40ツール定義がある
  * - 各ツールに対応するハンドラーが存在する
  * - ツール名の形式が正しい（{category}.{action}）
  *
@@ -24,7 +24,7 @@ import {
 } from "../../src/tools/index";
 
 /**
- * 現行39ツールの定義
+ * 現行40ツールの定義
  * v0.1.0: SVG機能削除、WebDesign専用
  * v0.1.0: narrative.search, background.search 追加
  * v0.1.1: responsive.search 追加
@@ -32,6 +32,7 @@ import {
  * v0.2.0: part.search, part.inspect, part.compare 追加
  * v0.2.0: search.unified, design.search_by_image 追加
  * v0.3.0: quality.batch_evaluate, quality.getJobStatus 削除
+ * WebUI v1 W6 Issue A PR-1: section.inspect 追加（39→40）
  */
 const EXPECTED_TOOLS = [
   // Style (1)
@@ -70,6 +71,8 @@ const EXPECTED_TOOLS = [
   "part.search",
   "part.inspect",
   "part.compare",
+  // Section (1) — WebUI v1 W6 Issue A PR-1
+  "section.inspect",
   // Search (2)
   "search.unified",
   "search.facets",
@@ -96,7 +99,7 @@ const EXPECTED_TOOLS = [
   "report.generate",
 ] as const;
 
-const EXPECTED_TOOL_COUNT = 39;
+const EXPECTED_TOOL_COUNT = 40;
 
 describe("MCP Tool Registration Smoke Test", () => {
   describe("ツール数の検証", () => {

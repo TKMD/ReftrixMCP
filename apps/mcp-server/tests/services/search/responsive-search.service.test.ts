@@ -126,6 +126,37 @@ describe("ResponsiveSearchService", () => {
     });
   });
 
+  // ADR-0043 Decision 1 / plan v4 §4.1: discriminated union (ok / unavailable / failed)
+  describe("resolveQueryEmbeddingResult", () => {
+    it("should return {status:'ok', embedding} on success", async () => {
+      const { service } = createTestService();
+
+      const result = await service.resolveQueryEmbeddingResult("query: hamburger menu responsive");
+
+      expect(result.status).toBe("ok");
+      if (result.status === "ok") {
+        expect(result.embedding).toHaveLength(768);
+      }
+    });
+
+    it("should return {status:'failed', reason} with no query body / .so in reason (CWE-209)", async () => {
+      const embeddingService = createMockEmbeddingService();
+      embeddingService.generateEmbedding.mockRejectedValue(
+        new Error("libonnxruntime_providers_cuda.so: cannot open shared object file")
+      );
+      const { service } = createTestService({ embeddingService });
+
+      const result = await service.resolveQueryEmbeddingResult("query: secret-query-xyz");
+
+      expect(result.status).toBe("failed");
+      if (result.status === "failed") {
+        expect(result.reason).not.toContain("secret-query-xyz");
+        expect(result.reason).not.toContain(".so");
+        expect(result.reason).not.toContain("libonnxruntime");
+      }
+    });
+  });
+
   describe("searchResponsiveAnalyses", () => {
     let prisma: MockPrisma;
     let service: ReturnType<typeof createResponsiveSearchService>;

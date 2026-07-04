@@ -103,6 +103,16 @@ export interface RawCropResult {
   rawCropBuffer: Buffer | null;
   /** 白画像として検出されたか / Whether detected as blank image */
   isBlank: boolean;
+  /**
+   * 永続化用 viewable PNG crop バッファ（W6 Issue A PR-3a、C2 save-only）。
+   * RAW decode in-range path は既に `croppedPngBuffer` を生成済 → 冗長な `.png()` を
+   * 足さず流用する（L-TPA-01）。crop が生成されない exit では undefined。
+   *
+   * Viewable PNG crop buffer for persistence (W6 Issue A PR-3a, C2 save-only). The
+   * RAW-decode in-range path already builds `croppedPngBuffer`, so it is reused
+   * without a redundant `.png()` (L-TPA-01). undefined on no-crop exits.
+   */
+  viewablePngBuffer?: Buffer | undefined;
 }
 
 // ============================================================================
@@ -150,11 +160,12 @@ export function createPhase5TempDir(): string {
  *
  * **永続化パス `<REFTRIX_SCREENSHOT_ROOT>/phase5/` は絶対に渡さないこと。**
  * **Never pass the persisted screenshot path (`<REFTRIX_SCREENSHOT_ROOT>/phase5/`).**
- * Persisted-screenshot deletion is consolidated into exactly two paths:
- *   (a) PR6 TTL cron (`scheduleScreenshotCleanupCron()`, 7d)
- *   (b) GDPR `data.delete` (Art. 17 synchronous, via
- *       `ScreenshotPersistenceService.deleteScreenshot()`)
- * See ADR-0010 and `DATA_RETENTION.md` §9 for the full deletion-path matrix.
+ * Persisted-screenshot deletion is consolidated into GDPR `data.delete`
+ *   (Art. 17 synchronous, via `ScreenshotPersistenceService.deleteScreenshot()`)
+ *   only. The TTL deletion path was structurally removed in PR-SS-B (ADR-0041;
+ *   screenshot retention = "until `data.delete`").
+ * See ADR-0010, ADR-0041, and `DATA_RETENTION.md` §9 for the full
+ * deletion-path matrix.
  *
  * Note on the fork orchestrator helper:
  *   `cleanupPhase5TmpDirOnly()` in `phase-5-fork-orchestrator.ts` used to
@@ -419,5 +430,9 @@ export async function acquireSectionCropBufferFromRaw(
     .raw()
     .toBuffer();
 
-  return { rawCropBuffer, isBlank: false };
+  // C2 (W6 Issue A PR-3a): in-range raw path は既に viewable PNG (`croppedPngBuffer`)
+  // を生成済 → save-only で流用（冗長な `.png()` を足さない、L-TPA-01）。
+  // C2 (W6 Issue A PR-3a): the in-range raw path already built a viewable PNG
+  // (`croppedPngBuffer`) → reuse it save-only (no redundant `.png()`, L-TPA-01).
+  return { rawCropBuffer, isBlank: false, viewablePngBuffer: croppedPngBuffer };
 }

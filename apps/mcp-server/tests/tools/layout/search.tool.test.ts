@@ -148,6 +148,10 @@ const mockSectionPatterns = [
 
 function createMockService(overrides?: Partial<ILayoutSearchService>): ILayoutSearchService {
   return {
+    // ADR-0043 / plan v4 §4.1: tool は discriminated な resolveQueryEmbeddingResult を呼ぶ。
+    resolveQueryEmbeddingResult: vi
+      .fn()
+      .mockResolvedValue({ status: "ok", embedding: new Array(768).fill(0.15) }),
     generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.15)),
     searchSectionPatterns: vi.fn().mockResolvedValue({
       results: mockSectionPatterns.slice(0, 2).map((p, index) => ({
@@ -505,7 +509,8 @@ describe("layoutSearchHandler - 正常系", () => {
     const result = await layoutSearchHandler(input);
 
     expect(result.success).toBe(true);
-    expect(mockService.generateQueryEmbedding).toHaveBeenCalled();
+    // ADR-0043 / plan v4 §4.1: tool は discriminated な resolveQueryEmbeddingResult を呼ぶ。
+    expect(mockService.resolveQueryEmbeddingResult).toHaveBeenCalled();
   });
 
   it("previewにheadingとdescriptionが含まれる", async () => {
@@ -1037,9 +1042,13 @@ describe("layoutSearchHandler - エラーハンドリング", () => {
     }
   });
 
-  it("Embedding生成エラーをハンドリングする", async () => {
+  it("Embedding生成失敗(failed)を fail-loud (success:false + embedding_failed) で返す", async () => {
+    // ADR-0043 Decision 1 / plan v4 §4.1: layout は embedding 必須 leaf。
+    // embedding 失敗を success:true total:0 で偽装せず success:false を返す (PR-2a-2)。
     const mockService = createMockService({
-      generateQueryEmbedding: vi.fn().mockRejectedValue(new Error("Embedding service error")),
+      resolveQueryEmbeddingResult: vi
+        .fn()
+        .mockResolvedValue({ status: "failed", reason: "Database operation failed" }),
     });
     setLayoutSearchServiceFactory(() => mockService);
 
@@ -1048,9 +1057,12 @@ describe("layoutSearchHandler - エラーハンドリング", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.code).toBe("EMBEDDING_ERROR");
-      // sanitizeErrorMessage maps this to generic message (CWE-209)
+      expect(result.error.code).toBe("EMBEDDING_FAILED");
+      expect(result.error.degradedReason).toBe("embedding_failed");
+      // CWE-209 / GDPR Art.5(1)(c): query 本文・.so を含まない generic message
       expect(result.error.message).toBeTruthy();
+      expect(result.error.message).not.toContain(".so");
+      expect(result.error.message).not.toContain("libonnxruntime");
     }
   });
 
@@ -1099,11 +1111,9 @@ describe("layoutSearchHandler - エラーハンドリング", () => {
     }
   });
 
-  it("エラーメッセージに詳細が含まれる", async () => {
+  it("Embedding未配線(unavailable)を fail-loud (success:false + embedding_unavailable) で返す", async () => {
     const mockService = createMockService({
-      generateQueryEmbedding: vi
-        .fn()
-        .mockRejectedValue(new Error("Model loading failed: out of memory")),
+      resolveQueryEmbeddingResult: vi.fn().mockResolvedValue({ status: "unavailable" }),
     });
     setLayoutSearchServiceFactory(() => mockService);
 
@@ -1112,6 +1122,8 @@ describe("layoutSearchHandler - エラーハンドリング", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
+      expect(result.error.code).toBe("SERVICE_UNAVAILABLE");
+      expect(result.error.degradedReason).toBe("embedding_unavailable");
       expect(result.error.message).toBeTruthy();
     }
   });
@@ -1383,7 +1395,7 @@ describe("layoutSearchHandler - 統合テスト", () => {
     const result = await layoutSearchHandler(input);
 
     expect(result.success).toBe(true);
-    expect(mockService.generateQueryEmbedding).toHaveBeenCalled();
+    expect(mockService.resolveQueryEmbeddingResult).toHaveBeenCalled();
     expect(mockService.searchSectionPatterns).toHaveBeenCalled();
 
     if (result.success) {
@@ -1399,7 +1411,7 @@ describe("layoutSearchHandler - 統合テスト", () => {
     const input: LayoutSearchInput = { query: "feature section with icons" };
     await layoutSearchHandler(input);
 
-    expect(mockService.generateQueryEmbedding).toHaveBeenCalledWith(
+    expect(mockService.resolveQueryEmbeddingResult).toHaveBeenCalledWith(
       expect.stringContaining("feature section with icons")
     );
   });

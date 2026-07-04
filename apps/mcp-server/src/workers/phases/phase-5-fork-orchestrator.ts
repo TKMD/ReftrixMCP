@@ -1051,14 +1051,16 @@ async function runVisualSubPhaseFork(args: {
  *
  * @returns Aggregated EmbeddingPhaseResult merged across all sub-phase forks
  */
-// v0.4.0 PR7c: IPhase5ScreenshotPersistence 依存を削除
-//   - 削除責務は PR6 の TTL cron (`scheduleScreenshotCleanupCron`, 7d) に一本化。
+// v0.4.0 PR7c / PR-SS-B: IPhase5ScreenshotPersistence 依存を削除
+//   - 削除責務は GDPR `data.delete` (Art.17 同期削除) のみに集約。TTL 構造は
+//     PR-SS-B (ADR-0041) で撤去済 (Screenshot 保持 = `data.delete` まで)。
 //   - GDPR 削除経路は引き続き `service-registrar-search.ts` 経由で
 //     `ScreenshotPersistenceService.deleteScreenshot()` を使用するため、
 //     `screenshot-persistence.types.ts` の型定義自体は保持する。
-// v0.4.0 PR7c: Removed IPhase5ScreenshotPersistence dependency
-//   - Deletion responsibility is consolidated into PR6's TTL cron
-//     (`scheduleScreenshotCleanupCron`, 7d).
+// v0.4.0 PR7c / PR-SS-B: Removed IPhase5ScreenshotPersistence dependency
+//   - Deletion responsibility is consolidated into GDPR `data.delete` (Art.17,
+//     synchronous) only. The TTL structure was removed in PR-SS-B (ADR-0041);
+//     screenshot retention is "until `data.delete`".
 //   - GDPR deletion still uses `ScreenshotPersistenceService.deleteScreenshot()`
 //     via `service-registrar-search.ts`, so the type definition itself is retained.
 
@@ -1337,14 +1339,15 @@ export async function runPhase5ViaFork(
   //   into `cleanupPhase5TempDir` (phase-5-raw-decode.ts) which now carries a
   //   3-stage whitelist defense (realpath + os.tmpdir() containment + prefix
   //   whitelist). `screenshotPngPath` may be undefined (e.g. WebGL sites that
-  //   skipped the screenshot); guard accordingly. The persisted PNG is still
-  //   retained and reaped exclusively by (a) PR6 TTL cron (7d) and
-  //   (b) GDPR `data.delete` (Art. 17). See ADR-0009 + ADR-0010 + DATA_RETENTION.md §9.
-  // v0.4.0 PR7d-1 (ADR-0010): `cleanupPhase5TmpDirOnly()` has been removed and
-  //   delegates to `cleanupPhase5TempDir` (phase-5-raw-decode.ts) which enforces
-  //   a 3-stage whitelist (realpath + os.tmpdir() containment + `reftrix-phase5-raw-`
-  //   prefix). Persisted PNG deletion remains consolidated into (a) PR6 TTL cron
-  //   (7d) and (b) GDPR `data.delete` (Art. 17).
+  //   skipped the screenshot); guard accordingly. The persisted PNG is retained
+  //   until GDPR `data.delete` (Art. 17) — the TTL deletion path was removed in
+  //   PR-SS-B (ADR-0041; retention = "until `data.delete`").
+  //   See ADR-0009 + ADR-0010 + ADR-0041 + DATA_RETENTION.md §9.
+  // v0.4.0 PR7d-1 (ADR-0010) / PR-SS-B (ADR-0041): `cleanupPhase5TmpDirOnly()`
+  //   has been removed and delegates to `cleanupPhase5TempDir`
+  //   (phase-5-raw-decode.ts) which enforces a 3-stage whitelist (realpath +
+  //   os.tmpdir() containment + `reftrix-phase5-raw-` prefix). Persisted PNG
+  //   deletion is consolidated into GDPR `data.delete` (Art. 17) only.
   if (screenshotPngPath) {
     cleanupPhase5TempDir(path.dirname(screenshotPngPath));
   }

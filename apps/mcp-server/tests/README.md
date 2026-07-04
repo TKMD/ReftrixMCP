@@ -117,8 +117,8 @@ pnpm test tests/smoke/
 
 ```typescript
 describe("MCP Tool Registration", () => {
-  it("toolHandlers に39ツールが登録されている");
-  it("allToolDefinitions に39ツール定義がある");
+  it("toolHandlers に40ツールが登録されている");
+  it("allToolDefinitions に40ツール定義がある");
   it("各ツールに対応するハンドラーが存在する");
 });
 ```

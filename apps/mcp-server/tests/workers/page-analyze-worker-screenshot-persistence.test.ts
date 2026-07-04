@@ -11,12 +11,14 @@
  * before Queue-based Backfill (`part_visual` / `section_visual`) can read it,
  * producing zero visual embeddings — the PR7b/PR7c carry-over bug.
  *
- * Deletion of the persisted screenshot must only flow through:
- *   (a) PR6 TTL cron (`scheduleScreenshotCleanupCron()`, 7d)
- *   (b) GDPR `data.delete` (Art. 17 synchronous,
- *       `ScreenshotPersistenceService.deleteScreenshot()`)
+ * Deletion of the persisted screenshot must only flow through GDPR
+ * `data.delete` (Art. 17 synchronous,
+ * `ScreenshotPersistenceService.deleteScreenshot()`). The TTL deletion path was
+ * structurally removed in PR-SS-B (ADR-0041; screenshot retention = "until
+ * `data.delete`").
  *
- * See ADR-0010 + DATA_RETENTION.md §9 for the full deletion-path matrix.
+ * See ADR-0010 + ADR-0041 + DATA_RETENTION.md §9 for the full
+ * deletion-path matrix.
  *
  * This file uses static source inspection rather than a live pipeline run
  * because Phase 5 has heavy dependencies (Playwright, ONNX, Ollama) that are

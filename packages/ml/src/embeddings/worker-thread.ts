@@ -28,6 +28,7 @@ import {
   isLdLibraryPathSetAtOsLevel,
 } from "../onnx-provider-detect.js";
 import type { ExecutionProvider } from "../onnx-provider-detect.js";
+import { resolveWorkerEffectiveDevice, canSwitchToCuda } from "./worker-thread-device.js";
 
 // =====================================================
 // Pipeline types (mirrors service.ts DisposablePipeline)
@@ -97,7 +98,13 @@ async function initializePipeline(): Promise<void> {
         resolvedProvider = "cpu";
       }
 
-      const effectiveDevice = resolvedProvider === "cuda" ? "cuda" : config.device;
+      // Honor the gate decision. resolvedProvider is already the result of
+      // detectExecutionProvider() (CUDA EP .so check) + the LD_LIBRARY_PATH OS-level
+      // check above (line 88-95). config.device (set straight from the env var) must
+      // NOT override the gate — otherwise a "cuda" env on a host without the EP .so
+      // passes device:"cuda" to transformers, which raw-throws on dlopen. Parity with
+      // the in-process resolveInProcessDevice() gate (service.ts:472, FIND-IMPL-PR1-H-NEW-01).
+      const effectiveDevice: ExecutionProvider = resolveWorkerEffectiveDevice(resolvedProvider);
 
       // eslint-disable-next-line no-console
       console.log("[EmbeddingWorker] Initializing ONNX pipeline", {
@@ -355,9 +362,17 @@ async function handleMessage(message: WorkerMessage): Promise<void> {
     case "switch-provider": {
       const targetProvider = message.provider;
 
-      // If switching to CUDA, verify availability first
+      // If switching to CUDA, verify availability first. Mirror the init-time
+      // AND gate (line ~88): CUDA may proceed only if BOTH the EP .so is present
+      // AND LD_LIBRARY_PATH was set at the OS level. Gating on
+      // verifyCudaAvailability ALONE (the pre-fix gap, UB-6) would let a host
+      // with the EP .so but unset LD_LIBRARY_PATH pass device:"cuda" through →
+      // dlopen raw throw. canSwitchToCuda ANDs both checks (init parity).
       if (targetProvider === "cuda") {
-        const canUseCuda = verifyCudaAvailability("EmbeddingWorker");
+        const canUseCuda = canSwitchToCuda(
+          () => verifyCudaAvailability("EmbeddingWorker"),
+          isLdLibraryPathSetAtOsLevel
+        );
         if (!canUseCuda) {
           // Cannot switch to CUDA — respond with current (cpu) provider
           sendResponse({

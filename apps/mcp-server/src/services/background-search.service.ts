@@ -19,6 +19,10 @@ import {
 } from "@reftrixmcp/ml";
 import type { RankedItem } from "@reftrixmcp/ml";
 import type { BackgroundDesignSearchResult } from "../tools/background/search.tool";
+import {
+  resolveQueryEmbedding,
+  type QueryEmbeddingResult,
+} from "./_shared/resolve-query-embedding";
 
 // =====================================================
 // PrismaClient インターフェース（DI用）
@@ -172,6 +176,7 @@ export interface BackgroundSearchServiceConfig {
 }
 
 export function createBackgroundSearchService(config: BackgroundSearchServiceConfig): {
+  resolveQueryEmbeddingResult: (query: string) => Promise<QueryEmbeddingResult>;
   generateQueryEmbedding: (query: string) => Promise<number[] | null>;
   searchBackgroundDesigns: (
     embedding: number[],
@@ -186,17 +191,26 @@ export function createBackgroundSearchService(config: BackgroundSearchServiceCon
   const { prisma, embeddingService } = config;
 
   // -----------------------------------------------
-  // generateQueryEmbedding
+  // resolveQueryEmbeddingResult (discriminated union)
+  // ADR-0043 Decision 1 / plan v4 §4.1: service層 SSOT `resolveQueryEmbedding` 経由で
+  // factory 不在 (unavailable) と生成 throw (failed) を区別。reason は sanitizeErrorMessage 済
+  // (CWE-209 + GDPR Art.5(1)(c): query 本文非含有)。
+  // -----------------------------------------------
+  async function resolveQueryEmbeddingResult(query: string): Promise<QueryEmbeddingResult> {
+    // embeddingService は createBackgroundSearchServiceFromFactories で factory から既に
+    // 解決済 (factory 不在時は service 自体が null)。ここでは生成成功/失敗のみを区別する。
+    return resolveQueryEmbedding(
+      () => embeddingService,
+      (svc) => svc.generateEmbedding(query, "query")
+    );
+  }
+
+  // -----------------------------------------------
+  // generateQueryEmbedding (後方互換: null 化版)
   // -----------------------------------------------
   async function generateQueryEmbedding(query: string): Promise<number[] | null> {
-    try {
-      return await embeddingService.generateEmbedding(query, "query");
-    } catch (error) {
-      logger.warn("[BackgroundSearchService] Embedding generation failed", {
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return null;
-    }
+    const result = await resolveQueryEmbeddingResult(query);
+    return result.status === "ok" ? result.embedding : null;
   }
 
   // -----------------------------------------------
@@ -377,6 +391,7 @@ export function createBackgroundSearchService(config: BackgroundSearchServiceCon
   }
 
   return {
+    resolveQueryEmbeddingResult,
     generateQueryEmbedding,
     searchBackgroundDesigns,
     searchBackgroundDesignsHybrid,

@@ -43,7 +43,13 @@ const EMBEDDING_PHASE_SLICE = 75000;
 // the truncated-screenshot run-level `maxSectionExtentY` pre-pass added at the
 // top of `processSectionVisualEmbeddingLoop` shifted the orchestrator finally a
 // few hundred chars past the old 70000 cap (the 2nd dispose sits at ~71291).
-const SECTION_VISUAL_SLICE = 80000;
+// Bumped 80000 -> 100000 in W6 Issue A PR-3a: crop persistence added the
+// `clearStaleBboxUnresolvableParts` / `persistPartCrop` / `persistSectionCrop`
+// helpers + the W5 clear wiring between `fnStart` and the orchestrator finally,
+// shifting the 2nd dispose to ~80994 bytes past fnStart (just past the old 80000
+// cap). Both disposes still exist (behaviour unchanged); only the fixed-slice
+// window needed widening to keep covering them.
+const SECTION_VISUAL_SLICE = 100000;
 /**
  * processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック。secvisual blank/no-position terminal exit 2件追加で実関数長 ~10992 文字に拡大、result.generated++ は rel offset 10587）。
  *

@@ -22,6 +22,10 @@ import {
   toRankedItems,
 } from "@reftrixmcp/ml";
 import type { RankedItem } from "@reftrixmcp/ml";
+import {
+  resolveQueryEmbedding,
+  type QueryEmbeddingResult,
+} from "./_shared/resolve-query-embedding";
 import type {
   ILayoutSearchService,
   SearchOptions,
@@ -513,24 +517,7 @@ function vectorResultToSearchResult(r: VectorSearchResult): SearchResult {
  * LayoutSearchServiceクラス
  */
 export class LayoutSearchService implements ILayoutSearchService {
-  private embeddingService: IEmbeddingService | null = null;
   private prismaClient: IPrismaClient | null = null;
-
-  /**
-   * EmbeddingServiceを取得
-   */
-  private getEmbeddingService(): IEmbeddingService {
-    if (this.embeddingService) {
-      return this.embeddingService;
-    }
-
-    if (embeddingServiceFactory) {
-      this.embeddingService = embeddingServiceFactory();
-      return this.embeddingService;
-    }
-
-    throw new Error("EmbeddingService not initialized");
-  }
 
   /**
    * PrismaClientを取得
@@ -549,34 +536,35 @@ export class LayoutSearchService implements ILayoutSearchService {
   }
 
   /**
-   * クエリテキストからEmbeddingを生成
-   * EmbeddingServiceが利用できない場合はnullを返す
+   * クエリテキストから embedding を解決 (discriminated union)
+   * Resolve query embedding as a discriminated union (ok / unavailable / failed).
+   *
+   * ADR-0043 Decision 1 / plan v4 §4.1: service層 SSOT `resolveQueryEmbedding` 経由で
+   * factory 不在 (unavailable) と生成 throw (failed) を区別し、tool 層が
+   * 案A leaf fail-loud (embedding 失敗 → success:false) に使えるようにする。
+   * reason は sanitizeErrorMessage 済 (CWE-209 + GDPR Art.5(1)(c): query 本文非含有)。
    */
-  async generateQueryEmbedding(query: string): Promise<number[] | null> {
+  async resolveQueryEmbeddingResult(query: string): Promise<QueryEmbeddingResult> {
     if (isDevelopment()) {
-      logger.info("[LayoutSearchService] Generating query embedding", {
+      logger.info("[LayoutSearchService] Resolving query embedding", {
         queryLength: query.length,
       });
     }
+    return resolveQueryEmbedding(embeddingServiceFactory, (svc) =>
+      svc.generateEmbedding(query, "query")
+    );
+  }
 
-    // EmbeddingServiceが利用できない場合はnullを返す
-    if (!embeddingServiceFactory) {
-      if (isDevelopment()) {
-        logger.warn("[LayoutSearchService] EmbeddingService not available, returning null");
-      }
-      return null;
-    }
-
-    try {
-      const embeddingService = this.getEmbeddingService();
-      return await embeddingService.generateEmbedding(query, "query");
-    } catch (error) {
-      logger.warn("[LayoutSearchService] Embedding generation failed, returning null", {
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      // エラー時もnullを返し、空の結果を返す
-      return null;
-    }
+  /**
+   * クエリテキストからEmbeddingを生成 (後方互換: null 化版)
+   * Generate embedding from query text (backward-compatible null-returning form).
+   *
+   * EmbeddingServiceが利用できない/生成失敗時はnullを返す。
+   * 新規 caller は discriminated な `resolveQueryEmbeddingResult` を使うこと。
+   */
+  async generateQueryEmbedding(query: string): Promise<number[] | null> {
+    const result = await this.resolveQueryEmbeddingResult(query);
+    return result.status === "ok" ? result.embedding : null;
   }
 
   /**

@@ -146,6 +146,42 @@ describe("BackgroundSearchService", () => {
     });
   });
 
+  // ADR-0043 Decision 1 / plan v4 §4.1: discriminated union (ok / unavailable / failed)
+  describe("resolveQueryEmbeddingResult", () => {
+    it("正常系: {status:'ok', embedding}を返すこと", async () => {
+      const expectedVector = createMockEmbedding(0.05);
+      const embeddingService = createMockEmbeddingService();
+      (embeddingService.generateEmbedding as ReturnType<typeof vi.fn>).mockResolvedValue(
+        expectedVector
+      );
+      const { service } = createTestService({ embeddingService });
+
+      const result = await service.resolveQueryEmbeddingResult("gradient background");
+
+      expect(result.status).toBe("ok");
+      if (result.status === "ok") {
+        expect(result.embedding).toHaveLength(768);
+      }
+    });
+
+    it("生成throw時: {status:'failed', reason}を返し reason に query 本文・.so を含まないこと", async () => {
+      const embeddingService = createMockEmbeddingService();
+      (embeddingService.generateEmbedding as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error("libonnxruntime_providers_cuda.so: cannot open shared object file")
+      );
+      const { service } = createTestService({ embeddingService });
+
+      const result = await service.resolveQueryEmbeddingResult("secret-query-xyz");
+
+      expect(result.status).toBe("failed");
+      if (result.status === "failed") {
+        expect(result.reason).not.toContain("secret-query-xyz");
+        expect(result.reason).not.toContain(".so");
+        expect(result.reason).not.toContain("libonnxruntime");
+      }
+    });
+  });
+
   // -------------------------------------------------
   // searchBackgroundDesigns (vector-only)
   // -------------------------------------------------

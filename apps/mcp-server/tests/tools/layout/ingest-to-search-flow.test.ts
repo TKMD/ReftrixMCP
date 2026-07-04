@@ -163,6 +163,9 @@ const createMockSearchService = (
   results: Record<string, unknown>[] = [],
   total = results.length
 ): ILayoutSearchService => ({
+  resolveQueryEmbeddingResult: vi
+    .fn()
+    .mockResolvedValue({ status: "ok", embedding: new Array(768).fill(0.1) }),
   generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.1)),
   searchSectionPatterns: vi.fn().mockResolvedValue({ results, total }),
 });

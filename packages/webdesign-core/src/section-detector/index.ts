@@ -30,6 +30,9 @@ import {
   SECTION_TYPE_MAPPINGS,
   HTML_SNIPPET_MAX_SIZE,
 } from "../types/section.types";
+// CSS identifier escape SSOT (W6 Issue A PR-2 / F-M-01, SEC `019ef01e`).
+// id/class token を selector に埋める際の唯一の escape 実装。inline 再実装禁止。
+import { escapeCssIdentifier } from "@reftrixmcp/core";
 
 // Type alias for Cheerio elements
 type CheerioElement = cheerio.Cheerio<DomElement>;
@@ -524,19 +527,57 @@ const TAILWIND_SECTION_PATTERNS: Record<string, RegExp[]> = {
 };
 
 /**
- * 要素のCSSセレクタを生成
+ * 要素の同一タグ兄弟内での 1-based 出現順 (`:nth-of-type(k)`) を算出する。
+ * cheerio の per-tag sibling order (F-L-06): 直前の同一タグ兄弟数 + 1。
+ *
+ * Computes the 1-based same-tag sibling order (`:nth-of-type(k)`) via cheerio's
+ * per-tag sibling order (F-L-06): number of preceding same-tag siblings + 1.
+ */
+function computeNthOfType($el: CheerioElement, tagName: string): number {
+  if (!tagName) return 1;
+  try {
+    return $el.prevAll(tagName).length + 1;
+  } catch {
+    return 1;
+  }
+}
+
+/**
+ * 要素の安定 CSS セレクタを生成する (W6 Issue A PR-2 / F-M-04 拡張)。
+ *
+ * 優先順位 (段階的劣化):
+ *   1. `${tag}#${escape(id)}`                     — id があり最も安定。
+ *   2. `${tag}.${escape(class0)}:nth-of-type(k)`  — id 無し時、tag+class+出現順で曖昧性解消。
+ *   3. `${tag}:nth-of-type(k)`                     — class も無い時の fallback。
+ *   4. `${tag}`                                    — nth も解決不能な最終 fallback。
+ *
+ * id/class token は **必ず `@reftrixmcp/core` の escape SSOT を経由** する (F-M-01,
+ * ADDENDUM B: id arm も escape)。`:nth-of-type` で同 tag/class 兄弟 section の
+ * 曖昧性を解消し、bbox-resolve 側の `document.querySelector` が意図しない先頭要素を
+ * 返すのを防ぐ (R-1)。`k` の source = cheerio per-tag sibling order (F-L-06)。
+ * live-DOM での nth-of-type 等価性は仮定であり、乖離時は bbox-resolve 側の
+ * population-parity honest-skip が silent-wrong を防ぐ。
+ *
+ * Generates a stable CSS selector (W6 Issue A PR-2 / F-M-04 extension). The id and
+ * class tokens always go through the `@reftrixmcp/core` escape SSOT (F-M-01,
+ * ADDENDUM B: the id arm is escaped too). `:nth-of-type(k)` (k = cheerio per-tag
+ * sibling order, F-L-06) disambiguates same-tag/class sibling sections.
  */
 function generateSelector(
-  _$el: CheerioElement,
+  $el: CheerioElement,
   tagName: string,
   id?: string,
   classes: string[] = []
 ): string {
   if (id) {
-    return `${tagName}#${id}`;
+    return `${tagName}#${escapeCssIdentifier(id)}`;
   }
-  if (classes.length > 0) {
-    return `${tagName}.${classes[0]}`;
+  const nth = computeNthOfType($el, tagName);
+  if (classes.length > 0 && classes[0]) {
+    return `${tagName}.${escapeCssIdentifier(classes[0])}:nth-of-type(${nth})`;
+  }
+  if (tagName) {
+    return `${tagName}:nth-of-type(${nth})`;
   }
   return tagName;
 }

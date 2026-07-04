@@ -105,6 +105,10 @@ backups/
 
 # Playwright
 test-results/
+# WebUI v1 W4b config writes to `e2e/.test-results/` (leading dot) which does NOT
+# match `test-results/` above; this rule excludes it from git AND from format:check
+# (`--ignore-path .gitignore`) so a generated `.last-run.json` never trips the gate.
+.test-results/
 playwright-report/
 playwright/.cache/
 .auto-trigger-state.json

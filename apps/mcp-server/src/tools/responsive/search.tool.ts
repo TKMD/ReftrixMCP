@@ -30,6 +30,8 @@ import type {
 } from "../../services/responsive-search.service";
 import { applyPreferenceReranking } from "../../services/preference-rerank.helper";
 import type { IPrismaClient } from "../../services/preference-profile.service";
+import { buildEmbeddingFailureError } from "../_shared/embedding-failure-response";
+import type { DegradedReason } from "../../services/_shared/resolve-query-embedding";
 import {
   generateCacheKey,
   getCachedResult,
@@ -73,6 +75,12 @@ export type ResponsiveSearchOutput =
       error: {
         code: string;
         message: string;
+        /**
+         * embedding 障害の degraded 理由 (ADR-0043 Decision 1/5 / plan v4 §4.1)。
+         * embedding_unavailable | embedding_failed。aggregator (search.unified、PR-2b)
+         * が service 単位 degraded 分類に使う。embedding 障害以外の error では undefined。
+         */
+        degradedReason?: DegradedReason;
       };
     };
 
@@ -184,26 +192,29 @@ export async function responsiveSearchHandler(input: unknown): Promise<Responsiv
     // E5 モデル用 query: プレフィックスを付与
     const processedQuery = `query: ${validated.query}`;
 
-    // Embedding 生成
-    const queryEmbedding = await service.generateQueryEmbedding(processedQuery);
+    // Embedding 解決 (discriminated union: ok / unavailable / failed)
+    // ADR-0043 Decision 1 / plan v4 §4.1: responsive は embedding 必須 leaf。
+    // embedding 失敗を success:true total:0 で偽装せず fail-loud (success:false)。
+    const embeddingResult = await service.resolveQueryEmbeddingResult(processedQuery);
 
-    if (queryEmbedding === null) {
-      if (isDevelopment()) {
-        logger.warn(
-          "[MCP Tool] responsive.search embedding not available, returning empty results"
-        );
-      }
-
+    if (embeddingResult.status !== "ok") {
+      // 案A leaf fail-loud: embedding unavailable/failed → success:false
+      const failure = buildEmbeddingFailureError(embeddingResult.status);
+      logger.warn("[MCP Tool] responsive.search: embedding required but unavailable (fail-loud)", {
+        code: failure.code,
+        degradedReason: failure.degradedReason,
+      });
       return {
-        success: true,
-        data: {
-          results: [],
-          total: 0,
-          query: validated.query,
-          searchTimeMs: Date.now() - startTime,
+        success: false,
+        error: {
+          code: failure.code,
+          message: failure.message,
+          degradedReason: failure.degradedReason,
         },
       };
     }
+
+    const queryEmbedding = embeddingResult.embedding;
 
     // 検索オプション構築
     const searchOptions: ResponsiveSearchOptions = {

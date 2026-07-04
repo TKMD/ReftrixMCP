@@ -1284,6 +1284,12 @@ export type LayoutSearchData = z.infer<typeof layoutSearchDataSchema>;
 export const layoutSearchErrorInfoSchema = z.object({
   code: z.string(),
   message: z.string(),
+  /**
+   * embedding 障害の degraded 理由 (ADR-0043 Decision 1/5 / plan v4 §4.1)。
+   * embedding_unavailable | embedding_failed。aggregator (search.unified、PR-2b)
+   * が service 単位 degraded 分類に使う。embedding 障害以外の error では undefined。
+   */
+  degradedReason: z.enum(["embedding_unavailable", "embedding_failed"]).optional(),
 });
 export type LayoutSearchErrorInfo = z.infer<typeof layoutSearchErrorInfoSchema>;
 

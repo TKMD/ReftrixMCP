@@ -37,14 +37,35 @@ import {
 // 定数
 // =====================================================
 
-/** Base64入力の最大バイトサイズ（10MB） */
-const MAX_BASE64_BYTES = 10 * 1024 * 1024;
+/**
+ * Base64入力の最大デコード後バイトサイズ（10MB）。
+ * SEC-W3-M2: 内部 read API の `imageSearchBodySchema` がこの値を import し、char-level の
+ * Zod 上限 (`MAX_BASE64_CHARS = ceil(bytes*4/3)`) を導出する単一の真実の源泉 (SSOT)。
+ * MCP tool 経路 (本ファイル) と内部 API 経路が同一 cap を共有する (magic number 二重定義の排除)。
+ *
+ * Decoded-byte cap for base64 image input (10MB). SEC-W3-M2: the internal read API's
+ * `imageSearchBodySchema` imports this value as the single source of truth, deriving its
+ * char-level Zod cap (`MAX_BASE64_CHARS`). The MCP-tool path (this file) and the internal-API
+ * path share ONE cap (no duplicated magic number).
+ */
+export const MAX_BASE64_BYTES = 10 * 1024 * 1024;
 
 /** RRFのkパラメータ（既存設定と統一） */
 const RRF_K = 60;
 
 /** 画像URL取得のタイムアウト（ms） */
 const IMAGE_FETCH_TIMEOUT_MS = 15_000;
+
+/**
+ * 画像URL取得時に追従を許可する最大リダイレクト hop 数（SEC-W3-H2 / CWE-918）。
+ * `redirect:"manual"` で各 3xx の Location header を再度 `validateExternalUrl` で検証し、
+ * private IP / metadata endpoint への 302 リダイレクト到達を構造的に reject する。
+ *
+ * Max redirect hops allowed when fetching an image URL (SEC-W3-H2 / CWE-918). With
+ * `redirect:"manual"`, each 3xx Location header is re-validated via `validateExternalUrl`,
+ * structurally rejecting a 302 redirect to a private IP / metadata endpoint.
+ */
+const MAX_IMAGE_REDIRECT_HOPS = 3;
 
 // =====================================================
 // 入力スキーマ
@@ -208,58 +229,112 @@ function decodeBase64Image(input: string): Buffer {
 }
 
 /**
- * 画像URLからバイナリBufferを取得（SSRF検証付き）
+ * 単一 hop の fetch を `redirect:"manual"` で実行（自動追従禁止、SEC-W3-H2 / CWE-918）。
+ * 3xx は追従せず raw response を返す（呼び出し側が Location を再検証する）。
+ *
+ * Performs a single-hop fetch with `redirect:"manual"` (no auto-follow). 3xx responses are
+ * returned raw so the caller can re-validate the Location header (SEC-W3-H2 / CWE-918).
  */
-async function fetchImageFromUrl(url: string): Promise<Buffer> {
-  // SSRF検証
-  const validation = validateExternalUrl(url);
-  if (!validation.valid) {
-    throw new Error(`SSRF blocked: ${validation.error}`);
-  }
-
-  const safeUrl = validation.normalizedUrl ?? url;
-
+async function fetchImageHopManual(safeUrl: string): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), IMAGE_FETCH_TIMEOUT_MS);
-
   try {
-    const response = await fetch(safeUrl, {
+    return await fetch(safeUrl, {
+      // CWE-918: never auto-follow — a 302 to 169.254.169.254 would bypass the initial gate.
+      redirect: "manual",
       signal: controller.signal,
       headers: {
         "User-Agent": "Reftrix/1.0 (design-search)",
         Accept: "image/*",
       },
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    // Content-Type検証
-    const contentType = response.headers.get("content-type") ?? "";
-    if (!contentType.startsWith("image/")) {
-      throw new Error(`Invalid content-type: ${contentType} (expected image/*)`);
-    }
-
-    // サイズ検証
-    const contentLength = response.headers.get("content-length");
-    if (contentLength && parseInt(contentLength, 10) > MAX_BASE64_BYTES) {
-      throw new Error(`Image size exceeds maximum ${MAX_BASE64_BYTES / 1024 / 1024}MB`);
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    if (buffer.length > MAX_BASE64_BYTES) {
-      throw new Error(
-        `Image size ${(buffer.length / 1024 / 1024).toFixed(1)}MB exceeds maximum ${MAX_BASE64_BYTES / 1024 / 1024}MB`
-      );
-    }
-
-    return buffer;
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+/**
+ * 3xx の Location header を解決し（相対 URL は base に対して解決）、再度 SSRF 検証して
+ * 次 hop の安全な URL を返す（SEC-W3-H2）。Location 欠落 / 検証失敗は throw。
+ *
+ * Resolves a 3xx Location header (relative URLs against the base), re-validates it via
+ * `validateExternalUrl`, and returns the next safe hop URL (SEC-W3-H2). A missing Location or
+ * a validation failure throws (no silent SSRF bypass).
+ */
+function resolveRedirectTarget(response: Response, baseUrl: string): string {
+  const location = response.headers.get("location");
+  if (!location) {
+    throw new Error(`Redirect ${response.status} without a Location header`);
+  }
+  // 相対 Location を base に対して絶対化してから検証（host のみの partial も解決）。
+  let absolute: string;
+  try {
+    absolute = new URL(location, baseUrl).toString();
+  } catch {
+    throw new Error("Redirect target is not a valid URL");
+  }
+  // CWE-918: each redirect target is re-validated against the SSRF gate (private IP / metadata).
+  const validation = validateExternalUrl(absolute);
+  if (!validation.valid) {
+    throw new Error(`SSRF blocked (redirect): ${validation.error}`);
+  }
+  return validation.normalizedUrl ?? absolute;
+}
+
+/**
+ * 2xx 画像 response を検証して Buffer を返す（content-type image/* + size cap、CWE-770）。
+ * Validates a 2xx image response and returns its Buffer (content-type + size cap).
+ */
+async function readImageResponse(response: Response): Promise<Buffer> {
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.startsWith("image/")) {
+    throw new Error(`Invalid content-type: ${contentType} (expected image/*)`);
+  }
+  const contentLength = response.headers.get("content-length");
+  if (contentLength && parseInt(contentLength, 10) > MAX_BASE64_BYTES) {
+    throw new Error(`Image size exceeds maximum ${MAX_BASE64_BYTES / 1024 / 1024}MB`);
+  }
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.length > MAX_BASE64_BYTES) {
+    throw new Error(
+      `Image size ${(buffer.length / 1024 / 1024).toFixed(1)}MB exceeds maximum ${MAX_BASE64_BYTES / 1024 / 1024}MB`
+    );
+  }
+  return buffer;
+}
+
+/**
+ * 画像URLからバイナリBufferを取得（SSRF検証付き、redirect:"manual" で各 hop を再検証）。
+ *
+ * SEC-W3-H2 / CWE-918: 初回 URL を `validateExternalUrl` で検証 → `redirect:"manual"` で
+ * fetch → 3xx なら Location を再検証して次 hop（最大 {@link MAX_IMAGE_REDIRECT_HOPS} hop）。
+ * 自動追従しないため 302→metadata endpoint への到達は構造的に不可能。
+ *
+ * Fetches an image URL with SSRF validation, re-validating every redirect hop. The initial URL
+ * is gated by `validateExternalUrl`; the fetch uses `redirect:"manual"`, and each 3xx Location
+ * is re-validated before the next hop (up to {@link MAX_IMAGE_REDIRECT_HOPS}). Auto-follow is
+ * never used, so reaching a metadata endpoint via a 302 is structurally impossible.
+ */
+async function fetchImageFromUrl(url: string): Promise<Buffer> {
+  const validation = validateExternalUrl(url);
+  if (!validation.valid) {
+    throw new Error(`SSRF blocked: ${validation.error}`);
+  }
+  let currentUrl = validation.normalizedUrl ?? url;
+
+  for (let hop = 0; hop <= MAX_IMAGE_REDIRECT_HOPS; hop++) {
+    const response = await fetchImageHopManual(currentUrl);
+    // 3xx (with a Location header) = a redirect to re-validate; otherwise read as the image.
+    const isRedirect = response.status >= 300 && response.status < 400;
+    if (!isRedirect) {
+      return await readImageResponse(response);
+    }
+    currentUrl = resolveRedirectTarget(response, currentUrl);
+  }
+  throw new Error(`Too many redirects (>${MAX_IMAGE_REDIRECT_HOPS})`);
 }
 
 /**

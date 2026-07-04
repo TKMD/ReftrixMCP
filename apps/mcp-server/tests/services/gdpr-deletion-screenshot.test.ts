@@ -123,7 +123,13 @@ describe("GdprDeletionService + ScreenshotPersistence", () => {
       expect(mockScreenshot.deleteScreenshot).toHaveBeenCalledWith(PAGE_ID_A);
     });
 
-    it("screenshot service 未設定時は warn を出し graceful degrade する / graceful degrade when unset", async () => {
+    it("screenshot service 未設定時は H-1 inline fallback で削除を成立させ warn を出す / H-1 inline fallback when factory unwired (ADR-0041 Decision 5)", async () => {
+      // PR-SS-B (ADR-0041 Decision 5): TTL 構造撤去後、factory 未配線時は
+      //   getScreenshotService() が default ScreenshotPersistenceService を
+      //   inline 構築して削除を成立させる (H-1)。skip ではなく fallback。
+      // PR-SS-B (ADR-0041 Decision 5): after TTL removal, an unwired factory
+      //   inline-constructs a default ScreenshotPersistenceService (H-1) to
+      //   complete erasure — it falls back, it does NOT skip.
       setGdprPrismaClientFactory(() => createExistingPrismaMock([PAGE_ID_A]));
       // screenshotPersistenceFactory を設定しない
       service = new GdprDeletionService();
@@ -132,10 +138,16 @@ describe("GdprDeletionService + ScreenshotPersistence", () => {
       expect(result.deleted).toBe(true);
 
       const warnCalls = (logger.warn as ReturnType<typeof vi.fn>).mock.calls;
-      const hasWarning = warnCalls.some((call) =>
-        String(call[0]).includes("ScreenshotPersistenceService not wired")
+      // H-1 fallback の warn が出る (配線漏れ観測のため)。
+      const hasFallbackWarning = warnCalls.some((call) =>
+        String(call[0]).includes("using H-1 inline fallback")
       );
-      expect(hasWarning).toBe(true);
+      expect(hasFallbackWarning).toBe(true);
+      // 旧 "not wired; skipping" 経路 (= 削除を行わない skip) はもはや存在しない。
+      const hasSkipWarning = warnCalls.some((call) =>
+        String(call[0]).includes("skipping screenshot file deletion")
+      );
+      expect(hasSkipWarning).toBe(false);
     });
 
     it("screenshot 削除失敗でも DB 削除を rollback しない / file failure does not roll back DB", async () => {

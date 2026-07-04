@@ -96,6 +96,9 @@ const mockSectionPatterns = [
 
 function createMockService(overrides?: Partial<ILayoutSearchService>): ILayoutSearchService {
   return {
+    resolveQueryEmbeddingResult: vi
+      .fn()
+      .mockResolvedValue({ status: "ok", embedding: new Array(768).fill(0.15) }),
     generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.15)),
     searchSectionPatterns: vi.fn().mockResolvedValue({
       results: mockSectionPatterns,

@@ -303,8 +303,8 @@ describe("system.health MCPツール", () => {
         ]);
         expect(result.data.services.initialization?.skippedCategories).toEqual([]);
         expect(result.data.services.initialization?.errors).toEqual([]);
-        // v0.4.0: 39 tools — report.generate追加
-        expect(result.data.services.initialization?.registeredToolCount).toBe(39);
+        // v0.4.0: 39 tools — report.generate追加 / WebUI v1 W6 Issue A PR-1: 40 tools — section.inspect追加
+        expect(result.data.services.initialization?.registeredToolCount).toBe(40);
       }
     });
 

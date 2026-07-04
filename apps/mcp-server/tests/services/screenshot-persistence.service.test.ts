@@ -9,8 +9,12 @@
  * - saveScreenshot: 正常系、Path Traversal 防御、ディレクトリ自動作成、DB 更新ロールバック
  * - getScreenshotPath: 存在時、NULL 時、DB の stale 値クリア、Path Traversal 防御
  * - deleteScreenshot: ファイル削除 + DB 更新、存在しないファイル時の冪等性
- * - cleanupExpired: 古いファイル削除、新しいファイル保持、DB 行 NULL 化
  * - エラーハンドリング: 無効入力、DB エラー、FS エラー
+ *
+ * 注 / Note: TTL cron (cleanupExpired) は PR-SS-B で構造撤去済。non-emit 契約は
+ * gdpr-delete standing (INV-DATA-DELETE-002-B) が担保する。
+ * TTL cron (cleanupExpired) was structurally removed by PR-SS-B; the non-emit
+ * contract is owned by the gdpr-delete standing test (INV-DATA-DELETE-002-B).
  */
 
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
@@ -22,17 +26,12 @@ import {
   clearResolvedRootCache,
   createScreenshotPersistenceService,
   type IScreenshotPersistencePrismaClient,
+  resolveDefaultScreenshotRoot,
   resolvePhase5Dir,
   resolveScreenshotRoot,
+  resolveScreenshotRootRaw,
   validateScreenshotPath,
 } from "../../src/services/screenshot-persistence.service";
-// v0.4.0 PR7d-3 (LCC MEDIUM-2): verify audit_logs recording for TTL cron.
-import {
-  setAuditLogPrismaClientFactory,
-  resetAuditLogPrismaClientFactory,
-  resetAuditLogService,
-  type AuditLogPrismaClient,
-} from "../../src/services/audit-log.service";
 
 // =====================================================
 // Test fixtures / テストフィクスチャ
@@ -101,17 +100,52 @@ describe("resolveScreenshotRoot / resolvePhase5Dir", () => {
     }
   });
 
-  it("env 未設定時はデフォルト `/tmp/reftrix-screenshots` を返す / returns default when env is unset", async () => {
+  it("env 未設定時は XDG default (`$XDG_DATA_HOME or $HOME/.local/share` 配下) を返す / returns the XDG default when env is unset", async () => {
     delete process.env.REFTRIX_SCREENSHOT_ROOT;
-    // realpath on /tmp は macOS では /private/tmp を返す可能性があるため
-    // realpath may expand /tmp -> /private/tmp on macOS; compare to realpath fallback
-    const expected = path.resolve("/tmp/reftrix-screenshots");
+    // PR-SS-A D-1: default は /tmp ではなく XDG data dir (永続)。実ディレクトリが
+    // 存在する場合 realpath が symlink を解決しうるため両形を許容する。
+    // PR-SS-A D-1: the default is a persistent XDG data dir (not /tmp). If the
+    // directory exists, realpath may resolve symlinks — accept both forms.
+    const expectedResolved = path.resolve(resolveDefaultScreenshotRoot());
+    const expectedReal = await fs.realpath(expectedResolved).catch(() => expectedResolved);
     const got = await resolveScreenshotRoot();
-    expect([expected, await fs.realpath(path.dirname(expected)).catch(() => expected)]).toContain(
-      got.startsWith(path.sep) ? got : expected
-    );
+    expect([expectedResolved, expectedReal]).toContain(got);
+    expect(got.endsWith(path.join("reftrix", "screenshots"))).toBe(true);
     const phase5 = await resolvePhase5Dir();
-    expect(phase5.endsWith(path.join("reftrix-screenshots", "phase5"))).toBe(true);
+    expect(phase5.endsWith(path.join("reftrix", "screenshots", "phase5"))).toBe(true);
+  });
+
+  it("resolveDefaultScreenshotRoot: XDG_DATA_HOME (絶対パス) を尊重し、相対パスは無視する / honors absolute XDG_DATA_HOME and ignores relative values", () => {
+    const ORIG_XDG = process.env.XDG_DATA_HOME;
+    try {
+      process.env.XDG_DATA_HOME = path.join(os.tmpdir(), "xdg-test-data");
+      expect(resolveDefaultScreenshotRoot()).toBe(
+        path.join(os.tmpdir(), "xdg-test-data", "reftrix", "screenshots")
+      );
+      // XDG spec: 相対パスの XDG_DATA_HOME は無効として無視 → $HOME fallback
+      // XDG spec: a relative XDG_DATA_HOME is invalid and ignored → $HOME fallback.
+      process.env.XDG_DATA_HOME = "relative/data";
+      expect(resolveDefaultScreenshotRoot()).toBe(
+        path.join(os.homedir(), ".local", "share", "reftrix", "screenshots")
+      );
+      delete process.env.XDG_DATA_HOME;
+      expect(resolveDefaultScreenshotRoot()).toBe(
+        path.join(os.homedir(), ".local", "share", "reftrix", "screenshots")
+      );
+    } finally {
+      if (ORIG_XDG === undefined) {
+        delete process.env.XDG_DATA_HOME;
+      } else {
+        process.env.XDG_DATA_HOME = ORIG_XDG;
+      }
+    }
+  });
+
+  it("resolveScreenshotRootRaw (SSOT): env override > XDG default の優先順位 / env override takes precedence over the XDG default", () => {
+    process.env.REFTRIX_SCREENSHOT_ROOT = "/custom/ssot-raw-root";
+    expect(resolveScreenshotRootRaw()).toBe("/custom/ssot-raw-root");
+    delete process.env.REFTRIX_SCREENSHOT_ROOT;
+    expect(resolveScreenshotRootRaw()).toBe(resolveDefaultScreenshotRoot());
   });
 
   it("env 設定時はそれを resolve して返す / resolves env override", async () => {
@@ -374,217 +408,6 @@ describe("ScreenshotPersistenceService.deleteScreenshot", () => {
     mock.webPageUpdate.mockRejectedValueOnce(p2025);
 
     await expect(service.deleteScreenshot(VALID_UUID_A)).resolves.toBeUndefined();
-  });
-});
-
-describe("ScreenshotPersistenceService.cleanupExpired", () => {
-  let sandbox: string;
-
-  beforeEach(async () => {
-    sandbox = await makeSandbox();
-    process.env.REFTRIX_SCREENSHOT_ROOT = sandbox;
-    clearResolvedRootCache();
-  });
-
-  afterEach(async () => {
-    delete process.env.REFTRIX_SCREENSHOT_ROOT;
-    delete process.env.SCREENSHOT_MAX_BYTES;
-    clearResolvedRootCache();
-    await rmSandbox(sandbox);
-  });
-
-  it("phase5 ディレクトリ未作成時は 0 を返す / returns 0 when phase5 dir missing", async () => {
-    const mock = createMockPrisma();
-    const service = createScreenshotPersistenceService({ prisma: mock });
-
-    const count = await service.cleanupExpired(1000);
-    expect(count).toBe(0);
-    expect(mock.webPageUpdateMany).not.toHaveBeenCalled();
-  });
-
-  it("古いファイルのみ削除し、DB を NULL 化する / deletes old files and nulls DB rows", async () => {
-    const mock = createMockPrisma();
-    mock.webPageUpdateMany.mockResolvedValueOnce({ count: 1 });
-    const service = createScreenshotPersistenceService({ prisma: mock });
-
-    // 新しい + 古いファイルを2つ作る
-    const freshPath = await service.saveScreenshot(VALID_UUID_A, MINI_PNG_BUFFER);
-    const oldPath = await service.saveScreenshot(VALID_UUID_B, MINI_PNG_BUFFER);
-
-    // 古い方の mtime を 1 時間前に書き換え
-    const oneHourAgo = new Date(Date.now() - 3600_000);
-    await fs.utimes(oldPath, oneHourAgo, oneHourAgo);
-
-    // 30 分以上古いものを削除
-    const count = await service.cleanupExpired(30 * 60 * 1000);
-
-    expect(count).toBe(1);
-    await expect(fs.access(oldPath)).rejects.toThrow();
-    // 新しい方は残っている
-    await fs.access(freshPath);
-
-    expect(mock.webPageUpdateMany).toHaveBeenCalledWith({
-      where: { screenshotStoragePath: { in: [oldPath] } },
-      data: { screenshotStoragePath: null },
-    });
-  });
-
-  it("non-.png ファイルは無視する / skips non-.png entries", async () => {
-    const mock = createMockPrisma();
-    const service = createScreenshotPersistenceService({ prisma: mock });
-    await service.saveScreenshot(VALID_UUID_A, MINI_PNG_BUFFER);
-    const stray = path.join(sandbox, "phase5", "stray.txt");
-    await fs.writeFile(stray, "ignored", { mode: 0o600 });
-    const oneHourAgo = new Date(Date.now() - 3600_000);
-    await fs.utimes(stray, oneHourAgo, oneHourAgo);
-
-    const count = await service.cleanupExpired(30 * 60 * 1000);
-    expect(count).toBe(0);
-    await fs.access(stray); // 残っている
-  });
-
-  it("負の olderThanMs を拒否する / rejects negative threshold", async () => {
-    const mock = createMockPrisma();
-    const service = createScreenshotPersistenceService({ prisma: mock });
-    await expect(service.cleanupExpired(-1)).rejects.toThrow(/non-negative finite/);
-    await expect(service.cleanupExpired(Number.NaN)).rejects.toThrow(/non-negative finite/);
-    await expect(service.cleanupExpired(Number.POSITIVE_INFINITY)).rejects.toThrow(
-      /non-negative finite/
-    );
-  });
-
-  it("DB updateMany 失敗時でも throw せず削除件数を返す / tolerates DB failure", async () => {
-    const mock = createMockPrisma();
-    mock.webPageUpdateMany.mockRejectedValueOnce(new Error("DB down"));
-    const service = createScreenshotPersistenceService({ prisma: mock });
-
-    const oldPath = await service.saveScreenshot(VALID_UUID_A, MINI_PNG_BUFFER);
-    const oneHourAgo = new Date(Date.now() - 3600_000);
-    await fs.utimes(oldPath, oneHourAgo, oneHourAgo);
-
-    const count = await service.cleanupExpired(30 * 60 * 1000);
-    expect(count).toBe(1);
-    await expect(fs.access(oldPath)).rejects.toThrow();
-  });
-
-  it("maxBatchSize で1実行あたりの削除上限を制限する / honors maxBatchSize option", async () => {
-    const mock = createMockPrisma();
-    mock.webPageUpdateMany.mockResolvedValue({ count: 1 });
-    const service = createScreenshotPersistenceService({ prisma: mock });
-
-    // 3件の古いファイルを作る / Create 3 old files
-    const uuids = [
-      "01234567-89ab-7111-8111-456789abcdef",
-      "01234567-89ab-7222-8222-456789abcdef",
-      "01234567-89ab-7333-8333-456789abcdef",
-    ];
-    const oneHourAgo = new Date(Date.now() - 3600_000);
-    for (const id of uuids) {
-      const p = await service.saveScreenshot(id, MINI_PNG_BUFFER);
-      await fs.utimes(p, oneHourAgo, oneHourAgo);
-    }
-
-    // maxBatchSize=2 で呼ぶ → 2件のみ削除
-    const count = await service.cleanupExpired(30 * 60 * 1000, { maxBatchSize: 2 });
-    expect(count).toBe(2);
-
-    // 1件は残存 / one file remains
-    const remainingEntries = await fs.readdir(path.join(sandbox, "phase5"));
-    const pngCount = remainingEntries.filter((n) => n.endsWith(".png")).length;
-    expect(pngCount).toBe(1);
-  });
-
-  it("maxBatchSize の NaN/0/負数は既定値にフォールバック / NaN/0/negative falls back to default", async () => {
-    const mock = createMockPrisma();
-    const service = createScreenshotPersistenceService({ prisma: mock });
-
-    const oldPath = await service.saveScreenshot(VALID_UUID_A, MINI_PNG_BUFFER);
-    const oneHourAgo = new Date(Date.now() - 3600_000);
-    await fs.utimes(oldPath, oneHourAgo, oneHourAgo);
-
-    // NaN/0/負数はデフォルト（1000）が適用される（下記は削除上限に達しないので1件削除）
-    await expect(service.cleanupExpired(0, { maxBatchSize: Number.NaN })).resolves.toBe(1);
-  });
-});
-
-// ============================================================================
-// v0.4.0 PR7d-3 (LCC MEDIUM-2): cleanupExpired audit_logs recording
-// ============================================================================
-
-describe("ScreenshotPersistenceService.cleanupExpired audit_logs (v0.4.0 PR7d-3)", () => {
-  let sandbox: string;
-  let auditCreateCalls: Array<{
-    action: string;
-    actor: string;
-    targetType: string;
-    targetId: string | null;
-    details: Record<string, unknown> | null;
-    ipAddress: string | null;
-    result: string;
-  }>;
-
-  beforeEach(async () => {
-    sandbox = await makeSandbox();
-    process.env.REFTRIX_SCREENSHOT_ROOT = sandbox;
-    clearResolvedRootCache();
-    auditCreateCalls = [];
-    const mockAuditPrisma: AuditLogPrismaClient = {
-      auditLog: {
-        create: vi.fn(async ({ data }) => {
-          auditCreateCalls.push(data);
-          return { id: "audit-mock-id" };
-        }),
-        findMany: vi.fn(async () => []),
-        deleteMany: vi.fn(async () => ({ count: 0 })),
-        count: vi.fn(async () => 0),
-      },
-    };
-    setAuditLogPrismaClientFactory(() => mockAuditPrisma);
-    resetAuditLogService(); // force singleton reconstruction with new factory
-  });
-
-  afterEach(async () => {
-    resetAuditLogPrismaClientFactory();
-    resetAuditLogService();
-    delete process.env.REFTRIX_SCREENSHOT_ROOT;
-    clearResolvedRootCache();
-    await rmSandbox(sandbox);
-  });
-
-  it("writes a screenshot_ttl_cleanup audit entry when deletedCount > 0", async () => {
-    const mock = createMockPrisma();
-    mock.webPageUpdateMany.mockResolvedValueOnce({ count: 1 });
-    const service = createScreenshotPersistenceService({ prisma: mock });
-
-    const oldPath = await service.saveScreenshot(VALID_UUID_A, MINI_PNG_BUFFER);
-    const oneHourAgo = new Date(Date.now() - 3600_000);
-    await fs.utimes(oldPath, oneHourAgo, oneHourAgo);
-
-    const count = await service.cleanupExpired(30 * 60 * 1000);
-    expect(count).toBe(1);
-
-    expect(auditCreateCalls).toHaveLength(1);
-    const entry = auditCreateCalls[0];
-    expect(entry.action).toBe("screenshot_ttl_cleanup");
-    expect(entry.actor).toBe("system:screenshot-cleanup-cron");
-    expect(entry.targetType).toBe("web_page_screenshot");
-    expect(entry.result).toBe("success");
-    expect(entry.details).toMatchObject({
-      deletedCount: 1,
-      olderThanMs: 30 * 60 * 1000,
-    });
-    expect((entry.details as Record<string, unknown>).batchSize).toEqual(expect.any(Number));
-    expect((entry.details as Record<string, unknown>).durationMs).toEqual(expect.any(Number));
-  });
-
-  it("does NOT write an audit entry when deletedCount === 0 (noise reduction)", async () => {
-    const mock = createMockPrisma();
-    const service = createScreenshotPersistenceService({ prisma: mock });
-
-    // No files in phase5/ at all → zero deletions.
-    const count = await service.cleanupExpired(30 * 60 * 1000);
-    expect(count).toBe(0);
-    expect(auditCreateCalls).toHaveLength(0);
   });
 });
 

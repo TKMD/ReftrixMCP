@@ -17,6 +17,10 @@
  */
 
 import { isDevelopment, logger } from "../utils/logger";
+import {
+  resolveQueryEmbedding,
+  type QueryEmbeddingResult,
+} from "./_shared/resolve-query-embedding";
 
 // =====================================================
 // 型定義
@@ -79,6 +83,11 @@ export interface ResponsiveSearchServiceConfig {
 }
 
 export interface IResponsiveSearchService {
+  /**
+   * クエリテキストから embedding を解決 (discriminated union: ok / unavailable / failed)
+   * ADR-0043 Decision 1 / plan v4 §4.1: 案A leaf fail-loud に使う。
+   */
+  resolveQueryEmbeddingResult: (query: string) => Promise<QueryEmbeddingResult>;
   generateQueryEmbedding: (query: string) => Promise<number[] | null>;
   searchResponsiveAnalyses: (
     embedding: number[],
@@ -96,16 +105,21 @@ export function createResponsiveSearchService(
 ): IResponsiveSearchService {
   const { prisma, embeddingService } = config;
 
+  // ADR-0043 Decision 1 / plan v4 §4.1: service層 SSOT `resolveQueryEmbedding` 経由で
+  // factory 不在 (unavailable) と生成 throw (failed) を区別。reason は sanitizeErrorMessage 済
+  // (CWE-209 + GDPR Art.5(1)(c): query 本文非含有)。
+  const resolveQueryEmbeddingResult = async (query: string): Promise<QueryEmbeddingResult> =>
+    resolveQueryEmbedding(
+      () => embeddingService,
+      (svc) => svc.generateEmbedding(query, "query")
+    );
+
   return {
+    resolveQueryEmbeddingResult,
+    // 後方互換: null 化版
     generateQueryEmbedding: async (query: string): Promise<number[] | null> => {
-      try {
-        return await embeddingService.generateEmbedding(query, "query");
-      } catch (error) {
-        logger.warn("[ResponsiveSearch] Embedding generation failed", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-        return null;
-      }
+      const result = await resolveQueryEmbeddingResult(query);
+      return result.status === "ok" ? result.embedding : null;
     },
 
     searchResponsiveAnalyses: async (

@@ -24,6 +24,11 @@ import Handlebars from "handlebars";
 import { logger } from "../utils/logger";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
 import { createDIFactory } from "../utils/di-factory";
+// PR-SS-A D-2 (UB-1): screenshot root default は SSOT (screenshot-persistence.service)
+// から derive する (bare literal 重複定義禁止 — SSOT sweep test が CI 検出)。
+// PR-SS-A D-2 (UB-1): derive the screenshot root default from the SSOT
+// (no duplicated bare literals — CI-detected by the SSOT sweep test).
+import { resolveScreenshotRootRaw } from "./screenshot-persistence.service";
 
 // =====================================================
 // Error Codes / エラーコード
@@ -313,9 +318,7 @@ export async function readScreenshotAsBase64(
       return screenshotFullUrl.replace(/^data:image\/\w+;base64,/, "");
     }
 
-    const ALLOWED_ROOT_RAW = path.resolve(
-      process.env.REFTRIX_SCREENSHOT_ROOT ?? "/tmp/reftrix-screenshots"
-    );
+    const ALLOWED_ROOT_RAW = path.resolve(resolveScreenshotRootRaw());
     let allowedRoot: string;
     try {
       allowedRoot = await fs.realpath(ALLOWED_ROOT_RAW);

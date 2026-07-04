@@ -42,6 +42,7 @@ import type { Browser } from "playwright";
 import sharp from "sharp";
 import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { emitSupervisorAuditLog } from "../../services/worker-supervisor-helpers";
+import { isCropPersistenceEnabled } from "../../services/part/crop-persistence.helper";
 
 // ============================================================================
 // Dynamic Memory Configuration (lazy initialization — L-3 fix)
@@ -1997,6 +1998,20 @@ export interface AcquireSectionCropResult {
   rawCropBuffer: Buffer | null;
   /** 白画像として検出されたか */
   isBlank: boolean;
+  /**
+   * 永続化用 viewable PNG crop バッファ（W6 Issue A PR-3a、crop persistence）。
+   * in-range path は既存 `croppedPngBuffer` を流用（save-only、C1）、out-of-range
+   * fallback path は additive `.png()` で生成（C3）。crop が生成されない exit
+   * (skip / blank) では undefined。呼び出し側が `CROP_PERSISTENCE_ENABLED` flag-gate
+   * 下でのみ消費する（flag OFF でも buffer 自体は安価ゆえ常に返す）。
+   *
+   * Viewable PNG crop buffer for persistence (W6 Issue A PR-3a). The in-range path
+   * reuses the existing `croppedPngBuffer` (save-only, C1); the out-of-range
+   * fallback path produces it additively via `.png()` (C3). undefined on exits
+   * that produce no crop (skip / blank). The caller consumes it only under the
+   * `CROP_PERSISTENCE_ENABLED` flag gate.
+   */
+  viewablePngBuffer?: Buffer | undefined;
 }
 
 export async function acquireSectionCropBuffer(
@@ -2035,6 +2050,21 @@ export async function acquireSectionCropBuffer(
       return { rawCropBuffer: null, isBlank: true };
     }
 
+    // C3 (W6 Issue A PR-3a): out-of-range fallback buffer は viewable PNG 中間物を
+    // 持たない（直接 raw 化）ため additive `.png().toBuffer()` で crop persistence 用
+    // の viewable PNG を生成する（raw 化は embedding 用に継続）。この viewable PNG
+    // encode は `isCropPersistenceEnabled()` flag-gate 下でのみ実行し、flag OFF 時は
+    // 無駄な encode を払わない（C4 part path と cost parity、SEC-IMPL-PR3A-L-01）。
+    // C3 (W6 Issue A PR-3a): the fallback buffer has no viewable PNG intermediate,
+    // so produce one additively via `.png().toBuffer()` for crop persistence (the
+    // raw conversion continues for embedding). The viewable PNG encode runs only
+    // under the `isCropPersistenceEnabled()` flag gate so flag-OFF pays no extra
+    // encode (cost parity with the C4 part path, SEC-IMPL-PR3A-L-01).
+    let fallbackViewablePng: Buffer | undefined;
+    if (isCropPersistenceEnabled()) {
+      fallbackViewablePng = await sharp(fb).png().toBuffer();
+    }
+
     const rawCropBuffer = await sharp(fb)
       .resize(dinov2InputSize, dinov2InputSize, { fit: "cover", kernel: "cubic" })
       .removeAlpha()
@@ -2043,7 +2073,7 @@ export async function acquireSectionCropBuffer(
       .toBuffer();
 
     fallbackScreenshots.delete(sectionPatternId);
-    return { rawCropBuffer, isBlank: false };
+    return { rawCropBuffer, isBlank: false, viewablePngBuffer: fallbackViewablePng };
   }
 
   // 既存パス: screenshotBase64 から Sharp crop
@@ -2071,7 +2101,11 @@ export async function acquireSectionCropBuffer(
     .raw()
     .toBuffer();
 
-  return { rawCropBuffer, isBlank: false };
+  // C1 (W6 Issue A PR-3a): in-range path は既に viewable PNG (`croppedPngBuffer`) を
+  // 生成済 → save-only で流用（冗長な再 encode なし、L-TPA-01）。
+  // C1 (W6 Issue A PR-3a): the in-range path already built a viewable PNG
+  // (`croppedPngBuffer`) → reuse it save-only (no redundant re-encode, L-TPA-01).
+  return { rawCropBuffer, isBlank: false, viewablePngBuffer: croppedPngBuffer };
 }
 
 // ============================================================================

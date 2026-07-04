@@ -17,6 +17,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   MotionSearchService,
+  MotionEmbeddingUnavailableError,
   setEmbeddingServiceFactory,
   resetEmbeddingServiceFactory,
   setPrismaClientFactory,
@@ -714,33 +715,21 @@ describe("MotionSearchService", () => {
   });
 
   describe("search", () => {
-    // パラメータ化テスト: サービス未設定ケース
-    it.each([
-      {
-        desc: "両方未設定",
-        embedService: false,
-        prisma: false,
-        query: "fade in animation",
-        checkQuery: true,
-      },
-      {
-        desc: "EmbeddingServiceのみ",
-        embedService: true,
-        prisma: false,
-        query: "hover effect",
-        checkQuery: false,
-      },
-    ])("$desc の場合、空の結果を返すこと", async ({ embedService, prisma, query, checkQuery }) => {
-      const service = setupServices(
-        embedService ? mockEmbeddingService : undefined,
-        prisma ? mockPrismaClient : undefined
-      );
+    // ADR-0043 Decision 1 / plan v4 §4.5: embedding 未配線 (factory 不在) は
+    // fail-loud で MotionEmbeddingUnavailableError を throw する (旧: 空結果 success:true)。
+    it("EmbeddingService 未配線 (factory 不在) の場合、MotionEmbeddingUnavailableError を throw すること (fail-loud)", async () => {
+      const service = setupServices(undefined, undefined);
+      await expect(
+        service.search(createSearchParams({ query: "fade in animation" }))
+      ).rejects.toThrow(MotionEmbeddingUnavailableError);
+    });
 
-      const result = await service.search(createSearchParams({ query }));
-
+    // embedding 成功 + Prisma 未配線は embedding 障害ではないため正当な空結果 (success:true) を維持する。
+    it("EmbeddingService のみ配線 (Prisma 未配線) の場合、正当な空の結果を返すこと", async () => {
+      const service = setupServices(mockEmbeddingService, undefined);
+      const result = await service.search(createSearchParams({ query: "hover effect" }));
       expect(result.results).toEqual([]);
       expect(result.total).toBe(0);
-      if (checkQuery) expect(result.query?.text).toBe(query);
     });
 
     it("両方のサービスが設定されている場合、検索を実行すること", async () => {
@@ -804,35 +793,26 @@ describe("MotionSearchService", () => {
       expect(query).toContain("trigger_type");
     });
 
-    // パラメータ化テスト: エラーケース
-    it.each([
-      {
-        desc: "Embedding生成に失敗した場合",
-        embedFactory: () =>
-          createMockEmbeddingService({
-            generateEmbedding: vi.fn().mockRejectedValue(new Error("Embedding failed")),
-          }),
-        prismaFactory: () => mockPrismaClient,
-      },
-      {
-        desc: "データベースエラーの場合",
-        embedFactory: () => mockEmbeddingService,
-        prismaFactory: () =>
-          createMockPrismaClient() as IPrismaClient & {
-            $queryRawUnsafe: ReturnType<typeof vi.fn>;
-          },
-        setupExtra: (prisma: IPrismaClient) => {
-          (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockRejectedValue(
-            new Error("DB error")
-          );
-        },
-      },
-    ])("$desc 、空の結果を返すこと", async ({ embedFactory, prismaFactory, setupExtra }) => {
-      const embedService = embedFactory();
-      const prisma = prismaFactory();
-      setupExtra?.(prisma);
+    // ADR-0043 Decision 1 / plan v4 §4.5: embedding 生成 throw は fail-loud で
+    // MotionEmbeddingUnavailableError を throw する (旧: 空結果 success:true の握り潰し撤去)。
+    it("Embedding 生成に失敗した場合、MotionEmbeddingUnavailableError を throw すること (fail-loud)", async () => {
+      const embedService = createMockEmbeddingService({
+        generateEmbedding: vi.fn().mockRejectedValue(new Error("Embedding failed")),
+      });
+      const service = setupServices(embedService, mockPrismaClient);
+      await expect(service.search(createSearchParams())).rejects.toThrow(
+        MotionEmbeddingUnavailableError
+      );
+    });
 
-      const service = setupServices(embedService, prisma);
+    // DB error は embedding 障害ではないため正当な空結果 (success:true) を維持する。
+    it("データベースエラーの場合、正当な空の結果を返すこと", async () => {
+      const prisma = createMockPrismaClient() as IPrismaClient & {
+        $queryRawUnsafe: ReturnType<typeof vi.fn>;
+      };
+      (prisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("DB error"));
+
+      const service = setupServices(mockEmbeddingService, prisma);
       const result = await service.search(createSearchParams());
 
       expect(result.results).toEqual([]);

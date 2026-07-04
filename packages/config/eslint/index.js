@@ -284,6 +284,29 @@ export const baseConfig = [
       complexity: ["error", 10],
     },
   },
+  // W6 Issue A PR-3a (TDA-PR3A-01): crop persistence leaf module. The new crop
+  // path-build / save / flag-resolve logic is extracted into this single leaf so
+  // the edited Phase 5 callsites (types.ts / phase-5-raw-decode.ts /
+  // phase-5-embedding.ts) gain no silent CC creep. Scope-limited
+  // `complexity: ["error", 10]` CI-gates the leaf (single-file pin, base rule is
+  // `off` monorepo-wide). url-normalizer.ts canonical pattern.
+  {
+    files: ["apps/mcp-server/src/services/part/crop-persistence.helper.ts"],
+    rules: {
+      complexity: ["error", 10],
+    },
+  },
+  // W6 Issue A PR-4a (TDA-M-01 / F-M-03): the one-shot crop-backfill operator
+  // script must stay ≤ CC 10 per-function so a future per-page branch addition is
+  // machine-gated (the cut logic lives in the gated crop-persistence.helper SSOT,
+  // so the script stays thin). Scope-limited override (base rule is `off`
+  // monorepo-wide); canonical pattern (cf. `_worker-spawn-helper.ts`).
+  {
+    files: ["apps/mcp-server/scripts/backfill-crops.ts"],
+    rules: {
+      complexity: ["error", 10],
+    },
+  },
   // PR-D-8 Phase 2 (TDA-V11-02 M resolution):
   // Scope-limited `complexity: ["error", 10]` enforcement for WorkerSupervisor
   // + IPC boundary + spawn helper per Plan v1.1 §3.2.5 + Finding Registry v2
@@ -368,6 +391,43 @@ export const baseConfig = [
     files: [
       "apps/mcp-server/src/workers/phases/phase-5-gpu-probe.ts",
       "apps/mcp-server/src/services/vision/vram-thresholds.ts",
+    ],
+    rules: {
+      complexity: ["error", 10],
+    },
+  },
+  // W6 Issue A PR-2 (part bbox gate-fix, FIND-IMPL-F-M-06 / plan-v1 §3.4):
+  // scope-limited `complexity: ["error", 10]` machine-enforcement for the bbox
+  // gate host file + the new section-selector leaf module. The new gate logic
+  // lives in the `runBboxPageEvaluate` page.evaluate body (serialize-bound, leaf
+  // import impossible), so the leaf-only override could NOT machine-enforce the
+  // hotspot — the host file MUST be in scope (F-M-06 closes the misleading
+  // `pnpm lint` exit-0 gap). The page.evaluate body is composed of
+  // argument-position anonymous callbacks (`data.map` + `[selector].map(...)[0]`)
+  // with NO named function binding — this avoids the esbuild keepNames
+  // `__name(...)` serialize-injection (W6 Issue A `__name` ReferenceError fix,
+  // pinned by INV-PAGE-EVALUATE-NO-NAME-INJECTION-001) while keeping each callback
+  // CC ≤ 10 (the prior named const helpers resolveOne / matchInContainer / finalize
+  // were the `__name`-injected form). The Node-context SSOT mirror
+  // (`section-selector.helper.ts`) is a separate file of pure CC ≤ 10 helpers.
+  // Pre-existing CC>10 functions in the
+  // host file that are OUTSIDE PR-2 scope carry an inline
+  // `// eslint-disable-next-line complexity` + an honest rationale (no false CC
+  // guarantee, Registry C-5). Follows the existing scope-limited pattern
+  // (PR-D-6 / PR-D-8 / Plan v4.5 PR3 / PR-1 GPU-COORD blocks above); the base
+  // rule stays `complexity: "off"` for the pre-existing monorepo violations.
+  //
+  // W6 Issue A PR-2 (F-M-06): bbox gate host file + leaf module を CC ≤ 10 で
+  // machine-enforce。page.evaluate body は serialize-bound ゆえ leaf import 不可、
+  // host file を scope に入れて hotspot を gate 化。body は argument-position の
+  // anonymous callback (`data.map` + `[selector].map(...)[0]`) で構成し named
+  // function binding を持たない (esbuild keepNames の `__name` serialize-injection
+  // 回避、INV-PAGE-EVALUATE-NO-NAME-INJECTION-001 で pin)。各 callback CC ≤ 10。
+  // PR-2 scope 外の pre-existing CC>10 は inline disable + honest rationale。
+  {
+    files: [
+      "apps/mcp-server/src/services/part/part-bbox-playwright.service.ts",
+      "apps/mcp-server/src/services/part/section-selector.helper.ts",
     ],
     rules: {
       complexity: ["error", 10],
@@ -488,6 +548,70 @@ export const baseConfig = [
     files: [
       "apps/mcp-server/src/services/persistent-cache.ts",
       "apps/mcp-server/src/services/cache-orphan-sweep.ts",
+    ],
+    rules: {
+      complexity: ["error", 10],
+    },
+  },
+  // WebUI v1 W1 (UB-6 / FIND-IO-PLAN-M-07): scope-limited
+  // `complexity: ["error", 10]` machine-enforcement for the mcp-server internal
+  // read HTTP API (`/internal/*`, O-1 Option A / ADR-0042 Decision 1). These are
+  // NEW files (no pre-existing CC>10 violations under the base `complexity: "off"`),
+  // so the override makes a green `pnpm lint` a real complexity guarantee for the
+  // new read-API code path. The `apps/webui` side enforces CC≤10 by default via its
+  // own clean-slate eslint config. Follows the url-normalizer / GPU-COORD pattern.
+  //
+  // WebUI v1 W1 (UB-6): mcp-server の内部 read API (`/internal/*`、新規 file) に
+  // `complexity: ["error", 10]` を machine-enforce (base rule は `off`)。
+  {
+    files: ["apps/mcp-server/src/api/internal/**/*.ts"],
+    rules: {
+      complexity: ["error", 10],
+    },
+  },
+  // Embedding worker-thread CUDA gate fix PR-1 (Plan v1 §5.1 / L-TDA-RE-01):
+  // scope-limited `complexity: ["error", 10]` machine-enforcement for the
+  // extracted worker-thread device gate helpers. `worker-thread.ts` is NOT added
+  // here (it carries pre-existing CC>10 functions — e.g. `initializePipeline` —
+  // under the base `complexity: "off"`, Q3-2026 successor issue, same rationale
+  // as the GPU-COORD / truncation blocks above); instead the gate logic is
+  // extracted into the dedicated leaf module `worker-thread-device.ts`
+  // (pure helpers, CC ≤ 10), making `pnpm lint` exit 0 a real complexity
+  // guarantee for the new gate path. Follows the url-normalizer / GPU-COORD
+  // scope-limited pattern. NOTE: path is relative to the repo root (this config
+  // file's directory), so `packages/ml/...` matches even when eslint cwd is the
+  // package dir.
+  //
+  // Embedding worker-thread CUDA gate fix PR-1 (L-TDA-RE-01): gate logic を leaf
+  // module `worker-thread-device.ts` に抽出し `complexity: ["error", 10]` を
+  // machine-enforce (worker-thread.ts は pre-existing CC>10 のため override 非対象)。
+  {
+    files: ["packages/ml/src/embeddings/worker-thread-device.ts"],
+    rules: {
+      complexity: ["error", 10],
+    },
+  },
+  // embedding fix PR-2a (plan v4 §4.2 / §11 DoD UB-V1-6, ADR-0043):
+  // Scope-limited `complexity: ["error", 10]` machine-enforcement for the two
+  // NEW search embedding-failure SSOT files (service層 resolveQueryEmbedding +
+  // tool層 embedding-failure-response). Both are NEW files with all functions
+  // CC ≤ 10 (no pre-existing violations under the base `complexity: "off"`), so
+  // adding them makes `pnpm lint` exit 0 a real complexity guarantee for the SSOT
+  // and CI-gates future drift. `motion-search.service.ts` is NOT added here: its
+  // search()/searchHybrid()/buildWhereClause/jsAnimationToMotionPattern carry
+  // pre-existing CC>10 under the base `complexity: "off"` (Q3-2026 successor
+  // issue), and the R9 control-flow refactor EXTRACTED the embedding logic into
+  // `resolveValidatedQueryEmbedding` (lowering, not raising, search()/searchHybrid
+  // embedding-branch CC) — so the FIND-V3-04 conditional override is NOT triggered
+  // (adding motion-search.service.ts would FAIL on the pre-existing functions).
+  //
+  // embedding fix PR-2a (plan v4 §4.2 / DoD UB-V1-6): 検索 embedding 障害 SSOT
+  // 2 ファイル (新規、全関数 CC ≤ 10) に `complexity: ["error", 10]` を machine-enforce
+  // (base rule は `off`)。motion-search.service.ts は pre-existing CC>10 のため override 非対象。
+  {
+    files: [
+      "apps/mcp-server/src/services/_shared/resolve-query-embedding.ts",
+      "apps/mcp-server/src/tools/_shared/embedding-failure-response.ts",
     ],
     rules: {
       complexity: ["error", 10],

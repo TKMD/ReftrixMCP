@@ -270,6 +270,9 @@ function createMockServiceWithVisualFeatures(
   overrides?: Partial<ILayoutSearchService>
 ): ILayoutSearchService {
   return {
+    resolveQueryEmbeddingResult: vi
+      .fn()
+      .mockResolvedValue({ status: "ok", embedding: new Array(768).fill(0.15) }),
     generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.15)),
     searchSectionPatterns: vi.fn().mockImplementation(async (options) => {
       // モックデータをベースに結果を構築（SearchResult型に準拠）
@@ -1371,6 +1374,9 @@ describe("layoutSearchHandler - visualFeaturesエッジケース", () => {
 
   it("visualFeaturesがないパターンをフィルタリングで除外", async () => {
     const mockServiceWithMissingFeatures = {
+      resolveQueryEmbeddingResult: vi
+        .fn()
+        .mockResolvedValue({ status: "ok", embedding: new Array(768).fill(0.15) }),
       generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.15)),
       searchSectionPatterns: vi.fn().mockResolvedValue({
         results: [
@@ -1406,6 +1412,9 @@ describe("layoutSearchHandler - visualFeaturesエッジケース", () => {
 
   it("部分的なvisualFeaturesでも動作する", async () => {
     const mockServiceWithPartialFeatures = {
+      resolveQueryEmbeddingResult: vi
+        .fn()
+        .mockResolvedValue({ status: "ok", embedding: new Array(768).fill(0.15) }),
       generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.15)),
       searchSectionPatterns: vi.fn().mockResolvedValue({
         results: [
@@ -1495,6 +1504,9 @@ describe("layoutSearchHandler - visualFeaturesパフォーマンス", () => {
     }));
 
     const mockService = {
+      resolveQueryEmbeddingResult: vi
+        .fn()
+        .mockResolvedValue({ status: "ok", embedding: new Array(768).fill(0.15) }),
       generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.15)),
       searchSectionPatterns: vi.fn().mockResolvedValue({
         results: largeResults,

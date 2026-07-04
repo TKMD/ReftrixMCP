@@ -48,6 +48,14 @@ import {
 } from "../../services/part/part-embedding-db.service";
 // Part Bounding Box resolution via Playwright (Phase 5 pre-step for DINOv2)
 import { resolvePartBoundingBoxes } from "../../services/part/part-bbox-playwright.service";
+// Crop Persistence (W6 Issue A PR-3a): save-before-discard viewable PNG crops,
+// flag-gated by CROP_PERSISTENCE_ENABLED (default OFF), PII-filtered-loop internal.
+import {
+  cutCropFromScreenshot,
+  isCropPersistenceEnabled,
+  persistDynamicFallbackSectionCrop,
+  saveCropFromBuffer,
+} from "../../services/part/crop-persistence.helper";
 // Section Screenshot Fallback: screenshotBase64範囲外セクション用Playwrightキャプチャ
 import { captureSectionScreenshots } from "../../services/part/section-screenshot-fallback.service";
 // Responsive Analysis Embedding generation
@@ -1093,6 +1101,132 @@ export async function markResidualBboxUnresolvableParts(
 }
 
 /**
+ * W5 2468 quick-win (W6 Issue A PR-3a, TPA-PR3A-M-01 + SEC-PR3A-M-03): clear the
+ * STALE `bbox_unresolvable` terminal marker for parts that actually have a
+ * valid-nonzero bbox (off-screen-clamp residue), so they re-enter the part_visual
+ * pending predicate and get re-embedded (and, under PR-3a, re-cropped).
+ *
+ * `bbox_unresolvable` is a member of the TERMINAL subset
+ * `EMBEDDING_PART_VISUAL_SKIP_REASONS` (types.ts). Clearing it moves a part
+ * terminal→PENDING. The part_visual loop early-returns on `!hasScreenshotSource`,
+ * and only pages holding a persisted fullPage screenshot can re-embed. THEREFORE
+ * this clear is GATED on screenshot-source availability:
+ *
+ *   - STALL-SAFETY (TPA-PR3A-M-01, MOST IMPORTANT): the `EXISTS (... web_pages wp
+ *     ... screenshot_storage_path IS NOT NULL)` gate means a screenshot-LESS page
+ *     clears NOTHING — its parts keep their terminal marker. Without this gate a
+ *     cleared part on a screenshot-less page becomes PERPETUALLY PENDING
+ *     (MEMORY.md #162-class stall + inflates real-leak). The honest closure scope
+ *     is therefore SCREENSHOT-BEARING-PAGES-LIMITED (NOT all 2468 parts).
+ *   - PII-SAFETY (SEC-PR3A-M-03): `cp.pii_risk_level <> 'high'` is re-applied so a
+ *     high-PII part is never cleared / re-cropped.
+ *   - SCOPE: only `visual_skip_reason = 'bbox_unresolvable'` AND a valid-nonzero
+ *     bbox (`width>0 AND height>0`) — never other terminal reasons, never a part
+ *     whose bbox is genuinely still zero/null.
+ *
+ * Idempotent (re-running clears the same stale set to NULL again). Per-page scope.
+ * Returns the number of stale markers cleared (0 when the page has no persisted
+ * screenshot, on no stale rows, or on error). Non-fatal (logged, Graceful
+ * Degradation) — a clear failure does not abort Phase 5.
+ *
+ * @param prisma     a prisma client exposing raw execute/query (worker or shared)
+ * @param webPageId  the owning web page id (stale parts scoped to this page)
+ * @returns number of stale `bbox_unresolvable` markers cleared
+ */
+async function clearStaleBboxUnresolvableParts(
+  prisma: Pick<EmbeddingPhasePrismaClient, "$executeRawUnsafe">,
+  webPageId: string
+): Promise<number> {
+  try {
+    // TPA-PR3A-M-01: the `EXISTS (... screenshot_storage_path IS NOT NULL)` gate is
+    // the stall-safety contract — a screenshot-less page matches zero rows, so its
+    // cleared parts can never become perpetually pending. SEC-PR3A-M-03: the
+    // `cp.pii_risk_level <> 'high'` predicate keeps high-PII parts untouched.
+    const cleared = await prisma.$executeRawUnsafe(
+      `UPDATE component_part_embeddings cpe
+          SET visual_skip_reason = NULL
+         FROM component_parts cp
+        WHERE cpe.component_part_id = cp.id
+          AND cp.web_page_id = $1::uuid
+          AND cp.pii_risk_level <> 'high'
+          AND cpe.visual_embedding IS NULL
+          AND cpe.visual_skip_reason = 'bbox_unresolvable'
+          AND COALESCE((cp.bounding_box->>'width')::float8, 0) > 0
+          AND COALESCE((cp.bounding_box->>'height')::float8, 0) > 0
+          AND EXISTS (
+            SELECT 1 FROM web_pages wp
+             WHERE wp.id = $1::uuid
+               AND wp.screenshot_storage_path IS NOT NULL
+          )`,
+      webPageId
+    );
+    return typeof cleared === "number" ? cleared : 0;
+  } catch (clearError) {
+    // Non-fatal (Graceful Degradation): a clear failure leaves the stale marker in
+    // place (status-quo terminal) and does not abort Phase 5. Log in all envs.
+    logger.warn(
+      "[PartVisualProcessor] clearStaleBboxUnresolvableParts failed (non-fatal, stale markers kept)",
+      {
+        webPageId: truncateAuditTargetId(webPageId),
+        error: clearError instanceof Error ? clearError.message : String(clearError),
+      }
+    );
+    return 0;
+  }
+}
+
+/**
+ * Part crop persistence (W6 Issue A PR-3a). Persists the viewable PNG crop that
+ * produced a part's `visual_embedding`, then updates
+ * `component_part_embeddings.crop_storage_path`. Called ONLY after the
+ * `visual_embedding` write succeeds, from inside the part loop whose query filters
+ * `piiRiskLevel: { not: "high" }` (high-PII parts never reach here = fail-closed,
+ * INV-CROP-PII-EXCLUDED-001).
+ *
+ * - `saveCropFromBuffer` no-ops + returns null when `CROP_PERSISTENCE_ENABLED` is
+ *   OFF (default) → crop_storage_path stays NULL (SEC-M-03 flag-gate parity).
+ * - Crop failure is non-fatal (Graceful Degradation): the `visual_embedding` write
+ *   is already committed; only the crop path column is left NULL.
+ * - vision-scoped parity (INV-CROP-COVERAGE-PARITY-001).
+ *
+ * @param ctx          embedding sub-phase context (webPageId + prisma)
+ * @param embeddingId  component_part_embeddings.id (DB UPDATE key)
+ * @param componentPartId  component_parts.id (crop filename entityId)
+ * @param viewablePng  the viewable PNG crop buffer (null → no-op)
+ */
+async function persistPartCrop(
+  ctx: Pick<EmbeddingSubPhaseContext, "webPageId" | "prisma">,
+  embeddingId: string,
+  componentPartId: string,
+  viewablePng: Buffer | null
+): Promise<void> {
+  if (!viewablePng) return;
+  const cropPath = await saveCropFromBuffer({
+    webPageId: ctx.webPageId,
+    kind: "part",
+    entityId: componentPartId,
+    pngBuffer: viewablePng,
+  });
+  if (cropPath === null) return;
+  try {
+    await ctx.prisma.$executeRawUnsafe(
+      `UPDATE component_part_embeddings
+         SET crop_storage_path = $1
+       WHERE id = $2::uuid`,
+      cropPath,
+      embeddingId
+    );
+  } catch (cropDbError) {
+    // Non-fatal: crop file saved but path column failed; the embedding is intact.
+    // Log in all environments (no isDevelopment() guard, SEC-L-01).
+    logger.warn("[PageAnalyzeWorker] Failed to write part crop_storage_path (non-fatal)", {
+      partEmbeddingId: truncateAuditTargetId(embeddingId),
+      error: cropDbError instanceof Error ? cropDbError.message : String(cropDbError),
+    });
+  }
+}
+
+/**
  * Part Visual Embedding loop (DINOv2) — extracted from orchestrator.
  *
  * P0-C: Loads partRawBuffer independently (not shared with section visual embedding).
@@ -1420,6 +1554,36 @@ async function processPartVisualEmbeddingLoop(
           continue;
         }
 
+        // C4 (W6 Issue A PR-3a): the part crop goes straight to `.raw()` and has no
+        // viewable PNG intermediate, so produce one ADDITIVELY (only when crop
+        // persistence is enabled — flag-gated by saveCropFromBuffer below — so
+        // flag-OFF pays no extra encode here either). W6 PR-4a (F-M-02): the cut +
+        // clamp gate is delegated to the `cutCropFromScreenshot` SSOT so the clamp
+        // logic is single-source across the Phase 5 and backfill paths (drift guard).
+        // The clamp gate inside the SSOT is a no-op re-clamp here (left/top/cropWidth/
+        // cropHeight were already validated above), so it returns the same region.
+        // generate → save → free one at a time (OOM guard, R3): the viewable PNG is
+        // null'd right after the save call so it never accumulates in pipeline state.
+        let partViewablePng: Buffer | null = null;
+        if (isCropPersistenceEnabled()) {
+          const partCutSource =
+            partRawBuffer && rawScreenshotMeta
+              ? {
+                  rawBuffer: partRawBuffer,
+                  rawMeta: {
+                    width: rawScreenshotMeta.width,
+                    height: rawScreenshotMeta.height,
+                    channels: rawScreenshotMeta.channels as 1 | 2 | 3 | 4,
+                  },
+                }
+              : { pngBuffer: (screenshotBuffer ?? partFallbackBuffer) as Buffer };
+          partViewablePng = await cutCropFromScreenshot({
+            source: partCutSource,
+            bbox: { x: left, y: top, width: cropWidth, height: cropHeight },
+            imgDims: { imgWidth, imgHeight },
+          });
+        }
+
         const rawCropBuffer = await partSharpInput
           .extract({ left, top, width: cropWidth, height: cropHeight })
           .resize(DINOV2_INPUT_SIZE, DINOV2_INPUT_SIZE, { fit: "cover", kernel: "cubic" })
@@ -1438,6 +1602,13 @@ async function processPartVisualEmbeddingLoop(
           visualVectorString,
           part.embeddingId
         );
+
+        // Part crop persistence (W6 Issue A PR-3a). Co-located with the
+        // visual_embedding write (vision-scoped parity). This loop's query already
+        // filters `piiRiskLevel: { not: "high" }`, so the crop is structurally
+        // PII-safe (fail-closed, INV-CROP-PII-EXCLUDED-001). flag-OFF → no-op.
+        await persistPartCrop(ctx, part.embeddingId, part.id, partViewablePng);
+        partViewablePng = null;
 
         ctx.result.partVisualEmbeddingsGenerated++;
       } catch (partVisualError) {
@@ -1520,9 +1691,14 @@ async function processPartVisualEmbeddingLoop(
  * セクションビジュアルエンベディングループのパラメータ
  */
 interface SectionVisualEmbeddingLoopParams {
+  /** 所有 web page id（crop 永続化の per-page dir + UUID 検証用、W6 Issue A PR-3a） */
+  webPageId: string;
   sectionsFiltered: Array<{ id: string; section_pattern_id: string }>;
   sectionsNeedingVisual: Array<{ id: string; section_pattern_id: string }>;
-  sectionPositionMap: Map<string, { startY: number; height: number; sectionType: string }>;
+  sectionPositionMap: Map<
+    string,
+    { startY: number; height: number; sectionType: string; sectionSelector?: string | undefined }
+  >;
   screenshotBufferRef: { value: Buffer | null };
   imgWidth: number;
   imgHeight: number;
@@ -1562,7 +1738,10 @@ interface SectionVisualEmbeddingLoopResult {
  */
 async function collectFallbackScreenshots(
   sectionsFiltered: Array<{ section_pattern_id: string }>,
-  sectionPositionMap: Map<string, { startY: number; height: number; sectionType: string }>,
+  sectionPositionMap: Map<
+    string,
+    { startY: number; height: number; sectionType: string; sectionSelector?: string | undefined }
+  >,
   imgHeight: number,
   fallbackEnabled: boolean,
   url: string,
@@ -1581,7 +1760,12 @@ async function collectFallbackScreenshots(
   // section_pattern_ids the caller converges to `screenshot_truncated_expired`.
   robotsDisallowedSectionPatternIds: string[];
 }> {
-  const fallbackSections: Array<{ id: string; startY: number; height: number }> = [];
+  const fallbackSections: Array<{
+    id: string;
+    startY: number;
+    height: number;
+    sectionSelector?: string | undefined;
+  }> = [];
   for (const section of sectionsFiltered) {
     const sectionPos = sectionPositionMap.get(section.section_pattern_id);
     if (!sectionPos || sectionPos.height < 10) continue;
@@ -1591,6 +1775,8 @@ async function collectFallbackScreenshots(
         id: section.section_pattern_id,
         startY: sectionPos.startY,
         height: sectionPos.height,
+        // W6 Issue A PR-2 (F-M-04): live-Y 化用 selector (undefined 可、garbage path degrade)。
+        sectionSelector: sectionPos.sectionSelector,
       });
     }
   }
@@ -1661,6 +1847,7 @@ async function processSectionVisualEmbeddingLoop(
   loopParams: SectionVisualEmbeddingLoopParams
 ): Promise<SectionVisualEmbeddingLoopResult> {
   const {
+    webPageId,
     sectionsFiltered,
     sectionsNeedingVisual,
     sectionPositionMap,
@@ -1870,6 +2057,7 @@ async function processSectionVisualEmbeddingLoop(
 
     for (const section of chunk) {
       const singleResult = await processSingleSectionVisualEmbedding({
+        webPageId,
         section,
         sectionPositionMap,
         screenshotBuffer: screenshotBufferRef.value!,
@@ -1946,6 +2134,8 @@ async function processSectionVisualEmbeddingLoop(
 
     // 2. Playwright Fallbackキャプチャ実行（既存コード）
     const dynamicResult = await processDynamicFallbackBatch({
+      // W6 Issue A PR-3b (F-14): deep-crop C5 の crop 永続化用 page UUID を供給。
+      webPageId,
       dynamicFallbackSections,
       sectionFallbackCapturedCount,
       sectionPositionMap,
@@ -2023,8 +2213,13 @@ async function processSectionVisualEmbeddingLoop(
  * 単一セクションのビジュアルエンベディング処理パラメータ
  */
 interface SingleSectionVisualParams {
+  /** 所有 web page id（crop 永続化の per-page dir、W6 Issue A PR-3a） */
+  webPageId: string;
   section: { id: string; section_pattern_id: string };
-  sectionPositionMap: Map<string, { startY: number; height: number; sectionType: string }>;
+  sectionPositionMap: Map<
+    string,
+    { startY: number; height: number; sectionType: string; sectionSelector?: string | undefined }
+  >;
   screenshotBuffer: Buffer;
   imgWidth: number;
   imgHeight: number;
@@ -2123,6 +2318,54 @@ async function writeSectionVisionSkipReason(
         error: markerError instanceof Error ? markerError.message : String(markerError),
       }
     );
+  }
+}
+
+/**
+ * Section crop persistence (W6 Issue A PR-3a). Persists the viewable PNG crop that
+ * produced the section's `vision_embedding`, then updates the
+ * `section_embeddings.crop_storage_path` column. Called ONLY after the
+ * `vision_embedding` write succeeds, from inside the PII-filtered `sectionsFiltered`
+ * loop (high-PII sections never reach here = fail-closed, INV-CROP-PII-EXCLUDED-001).
+ *
+ * - `saveCropFromBuffer` no-ops + returns null when `CROP_PERSISTENCE_ENABLED` is
+ *   OFF (default) → crop_storage_path stays NULL (SEC-M-03 flag-gate parity).
+ * - Crop failure is non-fatal (Graceful Degradation): the `vision_embedding` write
+ *   is already committed; only the crop path column is left NULL.
+ * - vision-scoped parity: this write is co-located with the `vision_embedding`
+ *   write so `vision_embedding IS NOT NULL ⇔ crop_storage_path IS NOT NULL` holds
+ *   for non-PII-skipped rows (INV-CROP-COVERAGE-PARITY-001).
+ *
+ * @param p              the single-section visual params (webPageId + section.id)
+ * @param viewablePng    the viewable PNG crop buffer (undefined → no-op)
+ */
+async function persistSectionCrop(
+  p: SingleSectionVisualParams,
+  viewablePng: Buffer | undefined
+): Promise<void> {
+  if (!viewablePng) return;
+  const cropPath = await saveCropFromBuffer({
+    webPageId: p.webPageId,
+    kind: "section",
+    entityId: p.section.section_pattern_id,
+    pngBuffer: viewablePng,
+  });
+  if (cropPath === null) return;
+  try {
+    await p.prisma.$executeRawUnsafe(
+      `UPDATE section_embeddings
+         SET crop_storage_path = $1
+       WHERE id = $2::uuid`,
+      cropPath,
+      p.section.id
+    );
+  } catch (cropDbError) {
+    // Non-fatal: the crop file is saved but the path column failed; the embedding
+    // is intact. Log in all environments (no isDevelopment() guard, SEC-L-01).
+    logger.warn("[PageAnalyzeWorker] Failed to write section crop_storage_path (non-fatal)", {
+      sectionEmbeddingId: truncateAuditTargetId(p.section.id),
+      error: cropDbError instanceof Error ? cropDbError.message : String(cropDbError),
+    });
   }
 }
 
@@ -2397,7 +2640,11 @@ async function processSingleSectionVisualEmbedding(
     // RAW decode 最適化: in-range セクションで RAW メタデータがあれば RAW パスを使用。
     // out-of-range セクション（フォールバック対象）は従来の acquireSectionCropBuffer を使用
     // （フォールバックスクリーンショットは PNG バッファなので RAW パス不適用）。
-    let cropResult: { rawCropBuffer: Buffer | null; isBlank: boolean };
+    let cropResult: {
+      rawCropBuffer: Buffer | null;
+      isBlank: boolean;
+      viewablePngBuffer?: Buffer | undefined;
+    };
 
     if (!isOutOfRange && p.rawScreenshotMeta && p.rawBuffer) {
       // RAW 最適化パス: PNG デコード不要
@@ -2593,6 +2840,15 @@ async function processSingleSectionVisualEmbedding(
       p.section.id
     );
 
+    // Crop persistence (W6 Issue A PR-3a, vision-scoped parity): persist the
+    // viewable PNG crop that produced this vision_embedding. This call sits INSIDE
+    // the PII-filtered `sectionsFiltered` loop (high-PII section_pattern_ids are
+    // already excluded, fail-closed), and `saveCropFromBuffer` no-ops when
+    // CROP_PERSISTENCE_ENABLED is OFF (default). Crop failure is non-fatal (path
+    // column stays NULL = webui "視覚未取得"); the vision_embedding write above is
+    // already committed regardless. INV-CROP-PII-EXCLUDED-001 / -COVERAGE-PARITY-001.
+    await persistSectionCrop(p, cropResult.viewablePngBuffer);
+
     if (isOutOfRange) {
       result.diagFallback++;
     } else {
@@ -2628,6 +2884,8 @@ async function processSingleSectionVisualEmbedding(
  * 動的Fallbackバッチ処理パラメータ
  */
 interface DynamicFallbackBatchParams {
+  /** W6 Issue A PR-3b (F-14): deep-crop C5 の crop dir / filename 用 page UUID。 */
+  webPageId: string;
   dynamicFallbackSections: Array<{
     sectionEmbeddingId: string;
     sectionPatternId: string;
@@ -2635,7 +2893,10 @@ interface DynamicFallbackBatchParams {
     height: number;
   }>;
   sectionFallbackCapturedCount: number;
-  sectionPositionMap: Map<string, { startY: number; height: number; sectionType: string }>;
+  sectionPositionMap: Map<
+    string,
+    { startY: number; height: number; sectionType: string; sectionSelector?: string | undefined }
+  >;
   url: string;
   job: EmbeddingPhaseParams["job"];
   params: EmbeddingPhaseParams;
@@ -2696,6 +2957,8 @@ async function processDynamicFallbackBatch(
         id: s.sectionPatternId,
         startY: s.startY,
         height: s.height,
+        // W6 Issue A PR-2 (F-M-04): live-Y 化用 selector (undefined 可、garbage degrade)。
+        sectionSelector: p.sectionPositionMap.get(s.sectionPatternId)?.sectionSelector,
       })),
       viewportWidth: p.job.data.options?.layoutOptions?.viewport?.width ?? 1920,
       viewportHeight: p.job.data.options?.layoutOptions?.viewport?.height ?? 1080,
@@ -2747,6 +3010,16 @@ async function processDynamicFallbackBatch(
       if (!matchingSection) continue;
 
       try {
+        // C5 (W6 Issue A PR-3b, deep-crop): the dynamic-fallback path goes straight
+        // to `.raw()` and has no viewable PNG intermediate, so produce one ADDITIVELY
+        // via `.png()` from the same source buffer — flag-gated (flag OFF pays no
+        // extra encode) — BEFORE the screenshotBuffer is null'd below. generate →
+        // (later) save → free one at a time (OOM guard, C4 parity).
+        let dynamicViewablePng: Buffer | null = null;
+        if (isCropPersistenceEnabled()) {
+          dynamicViewablePng = await sharp(fbResult.screenshotBuffer).png().toBuffer();
+        }
+
         const rawCropBuffer = await sharp(fbResult.screenshotBuffer)
           .resize(DINOV2_INPUT_SIZE, DINOV2_INPUT_SIZE, {
             fit: "cover",
@@ -2773,6 +3046,9 @@ async function processDynamicFallbackBatch(
         });
 
         if (isDuplicateVector) {
+          // dedup-skip: no vision_embedding written → no crop persisted
+          // (vision-scoped parity). Free the viewable PNG (OOM guard).
+          dynamicViewablePng = null;
           logger.warn(
             "[PageAnalyzeWorker] Duplicate vision embedding (dynamic fallback), skipping",
             {
@@ -2803,6 +3079,21 @@ async function processDynamicFallbackBatch(
           visualVectorString,
           matchingSection.sectionEmbeddingId
         );
+
+        // C5 (W6 Issue A PR-3b): persist the viewable PNG crop co-located with the
+        // vision_embedding write (vision-scoped parity, INV-CROP-COVERAGE-PARITY-001
+        // surface 5). PII fail-closed: high-PII sections are excluded upstream
+        // (`sectionsFiltered`) so they never enter `dynamicFallbackSections` (F-04,
+        // no redundant gate). Leaf helper (F-09) keeps host branch delta ≤2.
+        // flag OFF / failure → no-op. generate → save → free one at a time.
+        await persistDynamicFallbackSectionCrop(
+          p.prisma,
+          p.webPageId,
+          matchingSection.sectionEmbeddingId,
+          matchingSection.sectionPatternId,
+          dynamicViewablePng
+        );
+        dynamicViewablePng = null;
 
         result.dynamicCount++;
         result.generated++;
@@ -3224,10 +3515,11 @@ export async function runVisualEmbeddingSubPhases(
     // persisted screenshot directory `<REFTRIX_SCREENSHOT_ROOT>/phase5/`).
     //
     // Rationale:
-    //   - The persisted screenshot dir is GDPR-sensitive storage with a 7d
-    //     TTL cron; mixing ephemeral RAW files in risks (a) leaking them past
-    //     the TTL reconciliation window and (b) re-introducing the PR7a..c
-    //     retention-over-deletion bug class if any cleanup path ever
+    //   - The persisted screenshot dir is GDPR-sensitive storage retained
+    //     until GDPR `data.delete` (the 7d TTL deletion path was structurally
+    //     removed in PR-SS-B / ADR-0041); mixing ephemeral RAW files in risks
+    //     (a) leaking them past any reconciliation window and (b) re-introducing
+    //     the PR7a..c retention-over-deletion bug class if any cleanup path ever
     //     widened its scope.
     //   - `cleanupPhase5TempDir()` enforces a 3-stage whitelist that requires
     //     the `reftrix-phase5-raw-` prefix under `os.tmpdir()`, so using the
@@ -3349,7 +3641,12 @@ export async function runVisualEmbeddingSubPhases(
           })) as Array<{ id: string; layoutInfo: unknown; sectionType: string }>;
           const sectionPositionMap = new Map<
             string,
-            { startY: number; height: number; sectionType: string }
+            {
+              startY: number;
+              height: number;
+              sectionType: string;
+              sectionSelector?: string | undefined;
+            }
           >();
           for (const sp of sectionPatterns) {
             const info = sp.layoutInfo as Record<string, unknown> | null;
@@ -3358,6 +3655,8 @@ export async function runVisualEmbeddingSubPhases(
               startY: position?.startY ?? 0,
               height: position?.height ?? 0,
               sectionType: sp.sectionType,
+              // W6 Issue A PR-2 (F-M-04): live-Y 化用の section container selector。
+              sectionSelector: info?.sectionSelector as string | undefined,
             });
           }
 
@@ -3370,6 +3669,7 @@ export async function runVisualEmbeddingSubPhases(
               : sectionsNeedingVisual;
 
           const sectionVisualLoop = await processSectionVisualEmbeddingLoop({
+            webPageId: vParams.webPageId,
             sectionsFiltered,
             sectionsNeedingVisual,
             sectionPositionMap,
@@ -3440,6 +3740,23 @@ export async function runVisualEmbeddingSubPhases(
           // an empty record keeps TS happy and the visual path never reads it.
           chunkedEncoderTelemetry: {},
         };
+
+        // W5 2468 quick-win (W6 Issue A PR-3a, TPA-PR3A-M-01): clear stale
+        // `bbox_unresolvable` markers for valid-nonzero-bbox parts so they re-enter
+        // the pending predicate and get re-embedded (+ re-cropped) in THIS run. The
+        // clear is screenshot-source gated inside the helper (a screenshot-less page
+        // clears nothing → no perpetual pending). Runs BEFORE the part visual loop
+        // so the cleared parts are picked up by `partsNeedingVisual`.
+        const staleCleared = await clearStaleBboxUnresolvableParts(
+          vParams.prisma,
+          vParams.webPageId
+        );
+        if (staleCleared > 0 && isDevelopment()) {
+          logger.info("[PartVisualProcessor] cleared stale bbox_unresolvable markers (W5)", {
+            webPageId: truncateAuditTargetId(vParams.webPageId),
+            cleared: staleCleared,
+          });
+        }
 
         await processPartVisualEmbeddingLoop(
           partCtx,
@@ -3523,12 +3840,15 @@ export async function dispatchEmbeddingPhase(
   deps: EmbeddingPhaseDeps
 ): Promise<EmbeddingPhaseResult> {
   const { runPhase5ViaFork } = await import("./phase-5-fork-orchestrator.js");
-  // v0.4.0 PR7c: Screenshot 削除は PR6 の TTL cron (`scheduleScreenshotCleanupCron`, 7d)
-  //   に一本化したため、Phase 5 dispatch では ScreenshotPersistenceService を注入しない。
-  //   GDPR `data.delete` 経路は `service-registrar-search.ts` 経由で引き続きサービスを使用する。
-  // v0.4.0 PR7c: Screenshot deletion is consolidated into PR6's TTL cron, so Phase 5
-  //   dispatch no longer injects ScreenshotPersistenceService. The GDPR `data.delete`
-  //   path continues to use it via `service-registrar-search.ts`.
+  // v0.4.0 PR7c / PR-SS-B: Screenshot 削除は GDPR `data.delete` (Art.17 同期削除) のみ。
+  //   TTL 構造は PR-SS-B (ADR-0041) で撤去済 (保持 = `data.delete` まで)。よって Phase 5
+  //   dispatch では ScreenshotPersistenceService を注入しない。GDPR `data.delete` 経路は
+  //   `service-registrar-search.ts` 経由で引き続きサービスを使用する。
+  // v0.4.0 PR7c / PR-SS-B: Screenshot deletion is consolidated into GDPR
+  //   `data.delete` (Art.17, synchronous) only — the TTL structure was removed in
+  //   PR-SS-B (ADR-0041; retention = "until `data.delete`"). Phase 5 dispatch no
+  //   longer injects ScreenshotPersistenceService. The GDPR `data.delete` path
+  //   continues to use it via `service-registrar-search.ts`.
 
   let dinov2ModelPath: string;
   if (process.env["DINOV2_MODEL_PATH"]) {

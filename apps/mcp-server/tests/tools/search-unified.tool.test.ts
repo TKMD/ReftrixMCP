@@ -856,7 +856,7 @@ describe("search.unified", () => {
   // =================================================
 
   describe("graceful degradation", () => {
-    it("should return partial results when layout search fails", async () => {
+    it("should return partial results AND surface degradedServices when layout search rejects", async () => {
       vi.mocked(layoutSearchHandler).mockRejectedValue(new Error("Layout DB timeout"));
       mockPartSuccess([{ id: "p-1", similarity: 0.9 }]);
       mockMotionSuccess([{ similarity: 0.7, pageId: "m-1" }]);
@@ -874,6 +874,10 @@ describe("search.unified", () => {
       expect(result.data.breakdown.layout).toBe(0);
       expect(result.data.breakdown.part).toBe(1);
       expect(result.data.breakdown.motion).toBe(1);
+      // ADR-0043 Decision 2: rejecting leaf は silent drop されず degraded marker で surface。
+      expect(result.data.degradedServices).toEqual([
+        { service: "layout", reason: "embedding_failed" },
+      ]);
     });
 
     it("should return partial results when part search fails", async () => {
@@ -916,7 +920,10 @@ describe("search.unified", () => {
       expect(result.data.breakdown.motion).toBe(0);
     });
 
-    it("should return empty results when all searches fail", async () => {
+    // ADR-0043 Decision 2 / plan v4 §4.4: 全 service が degraded (embedding_failed) で
+    // 全滅した場合は **success:false** (旧: success:true total:0 の fake-empty を撤去)。
+    // silent degradation 排除 (feedback_no_fake_success)。
+    it("should return success:false when all embedding-required services are degraded", async () => {
       vi.mocked(layoutSearchHandler).mockRejectedValue(new Error("Layout fail"));
       vi.mocked(partSearchHandler).mockRejectedValue(new Error("Part fail"));
       vi.mocked(motionSearchHandler).mockRejectedValue(new Error("Motion fail"));
@@ -927,24 +934,21 @@ describe("search.unified", () => {
         query: "test",
       })) as SearchUnifiedOutput;
 
-      expect(result.success).toBe(true);
-      if (!result.success) return;
-
-      expect(result.data.results).toHaveLength(0);
-      expect(result.data.total).toBe(0);
-      expect(result.data.breakdown).toEqual({
-        layout: 0,
-        part: 0,
-        motion: 0,
-        background: 0,
-        narrative: 0,
-      });
+      // 全滅 → success:false (空 success:true で誤魔化さない)
+      expect(result.success).toBe(false);
+      if (result.success) return;
+      expect(result.error.code).toBe(UNIFIED_SEARCH_ERROR_CODES.SEARCH_FAILED);
     });
 
-    it("should handle layout returning success: false gracefully", async () => {
+    it("should surface layout success:false (with degradedReason) as a degraded marker", async () => {
+      // layout は error.degradedReason を carry する → aggregator はそれを使う。
       vi.mocked(layoutSearchHandler).mockResolvedValue({
         success: false,
-        error: { code: "SEARCH_FAILED", message: "Layout search failed" },
+        error: {
+          code: "EMBEDDING_FAILED",
+          message: "Query embedding generation failed",
+          degradedReason: "embedding_failed",
+        },
       } as unknown as Awaited<ReturnType<typeof layoutSearchHandler>>);
       mockPartSuccess([{ id: "p-1", similarity: 0.8 }]);
       mockMotionSuccess([]);
@@ -960,13 +964,45 @@ describe("search.unified", () => {
 
       expect(result.data.breakdown.layout).toBe(0);
       expect(result.data.breakdown.part).toBe(1);
+      expect(result.data.degradedServices).toEqual([
+        { service: "layout", reason: "embedding_failed" },
+      ]);
     });
 
-    it("should handle part returning success: false gracefully", async () => {
+    it("should surface layout success:false (unavailable) as embedding_unavailable degraded marker", async () => {
+      vi.mocked(layoutSearchHandler).mockResolvedValue({
+        success: false,
+        error: {
+          code: "SERVICE_UNAVAILABLE",
+          message: "Query embedding service is unavailable",
+          degradedReason: "embedding_unavailable",
+        },
+      } as unknown as Awaited<ReturnType<typeof layoutSearchHandler>>);
+      mockPartSuccess([{ id: "p-1", similarity: 0.8 }]);
+      mockMotionSuccess([]);
+      mockBackgroundSuccess([]);
+      mockNarrativeSuccess([]);
+
+      const result = (await searchUnifiedHandler({
+        query: "test",
+      })) as SearchUnifiedOutput;
+
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+      expect(result.data.degradedServices).toEqual([
+        { service: "layout", reason: "embedding_unavailable" },
+      ]);
+    });
+
+    it("should surface part success:false as a degraded marker", async () => {
       mockLayoutSuccess([{ id: "l-1", similarity: 0.7 }]);
       vi.mocked(partSearchHandler).mockResolvedValue({
         success: false,
-        error: { code: "SEARCH_FAILED", message: "Part search failed" },
+        error: {
+          code: "EMBEDDING_FAILED",
+          message: "Query embedding generation failed",
+          degradedReason: "embedding_failed",
+        },
       } as unknown as Awaited<ReturnType<typeof partSearchHandler>>);
       mockMotionSuccess([]);
       mockBackgroundSuccess([]);
@@ -981,14 +1017,20 @@ describe("search.unified", () => {
 
       expect(result.data.breakdown.layout).toBe(1);
       expect(result.data.breakdown.part).toBe(0);
+      expect(result.data.degradedServices).toEqual([
+        { service: "part", reason: "embedding_failed" },
+      ]);
     });
 
-    it("should handle motion returning success: false gracefully", async () => {
+    // TPA-IMPL-02 forward-coupling: motion tool は degradedReason を carry しない。
+    // aggregator は error.code から推論する (EMBEDDING_ERROR → embedding_failed)。
+    it("should infer motion degradedReason from error.code (EMBEDDING_ERROR, no degradedReason carried)", async () => {
       mockLayoutSuccess([]);
       mockPartSuccess([{ id: "p-1", similarity: 0.9 }]);
       vi.mocked(motionSearchHandler).mockResolvedValue({
         success: false,
-        error: { code: "SEARCH_FAILED", message: "Motion search failed" },
+        // motion error は degradedReason を持たない (TPA-IMPL-02)
+        error: { code: "EMBEDDING_ERROR", message: "Query embedding generation failed" },
       } as unknown as Awaited<ReturnType<typeof motionSearchHandler>>);
       mockBackgroundSuccess([]);
       mockNarrativeSuccess([]);
@@ -1002,6 +1044,49 @@ describe("search.unified", () => {
 
       expect(result.data.breakdown.motion).toBe(0);
       expect(result.data.breakdown.part).toBe(1);
+      // code から embedding_failed を推論 (motion tool/service 非 touch で granularity 取得)
+      expect(result.data.degradedServices).toEqual([
+        { service: "motion", reason: "embedding_failed" },
+      ]);
+    });
+
+    it("should infer motion embedding_unavailable from SERVICE_UNAVAILABLE code", async () => {
+      mockLayoutSuccess([{ id: "l-1", similarity: 0.7 }]);
+      mockPartSuccess([]);
+      vi.mocked(motionSearchHandler).mockResolvedValue({
+        success: false,
+        error: { code: "SERVICE_UNAVAILABLE", message: "Motion search service is not available" },
+      } as unknown as Awaited<ReturnType<typeof motionSearchHandler>>);
+      mockBackgroundSuccess([]);
+      mockNarrativeSuccess([]);
+
+      const result = (await searchUnifiedHandler({
+        query: "test",
+      })) as SearchUnifiedOutput;
+
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+      expect(result.data.degradedServices).toEqual([
+        { service: "motion", reason: "embedding_unavailable" },
+      ]);
+    });
+
+    // legitimate empty 非退行: embedding 成功・0 件は degraded でない (degradedServices に出ない)。
+    it("should NOT mark legitimate empty (success:true total:0) as degraded", async () => {
+      mockLayoutSuccess([{ id: "l-1", similarity: 0.8 }]);
+      mockPartSuccess([]); // 正当な空 (embedding ok + 0 件)
+      mockMotionSuccess([]);
+      mockBackgroundSuccess([]);
+      mockNarrativeSuccess([]);
+
+      const result = (await searchUnifiedHandler({
+        query: "test",
+      })) as SearchUnifiedOutput;
+
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+      // 正当な空は degraded でない → degradedServices は省略 (undefined)
+      expect(result.data.degradedServices).toBeUndefined();
     });
   });
 

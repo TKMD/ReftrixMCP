@@ -950,3 +950,77 @@ export const AUDIT_ACTION_BACKFILL_TRUNCATED_SCREENSHOT_REPAIRED =
  * @see CONTRIBUTING.md §"Worker actor naming SSOT"
  */
 export const AUDIT_ACTOR_BACKFILL_TRUNCATED_REPAIR = "system:backfill-truncated-repair" as const;
+
+/**
+ * `crop_backfill_robots_disallowed` — W6 Issue A PR-4a (ADR-0042 Amendment 12,
+ * F-M-05 / SEC-M-02 / LCC-M-02).
+ *
+ * Emitted by the one-shot crop-backfill operator script (`scripts/backfill-crops.ts`)
+ * when the live re-visit's mandatory robots.txt pre-flight gate
+ * (`isUrlAllowedByRobotsTxt`) returns a genuine Disallow (`reason === "disallowed"`)
+ * for a page's URL. The page is honest-skipped (no live visit, no crop generated)
+ * and this `audit_logs` row records the robots-driven skip (GDPR Art.30
+ * processing-records). Legal basis: CNIL 2025 web-scraping guidance (robots
+ * violation → Art.5(1)(c)/Art.6(1)(f) enforcement risk).
+ *
+ * `crop_backfill_robots_disallowed` — backfill が独立した新規 live visit である
+ * ため、robots.txt の mandatory pre-flight gate が genuine Disallow を返した際に
+ * honest-skip し、その skip を記録する固定 action 名 (GDPR Art.30)。
+ *
+ * `audit_logs` 行: actor = {@link AUDIT_ACTOR_CROP_BACKFILL} (`system:crop-backfill`)、
+ * `details` は PII-free count/enum 値のみ (`truncateAuditTargetId` で targetId truncate)。
+ * Template-literal 構築禁止 (CWE-209 / GDPR Art.30 consistency)。
+ *
+ * @see ADR-0042 Amendment 12 (W6 Issue A PR-4a crop serve + backfill)
+ * @see CONTRIBUTING.md §"Worker actor naming SSOT"
+ */
+export const AUDIT_ACTION_CROP_BACKFILL_ROBOTS_DISALLOWED =
+  "crop_backfill_robots_disallowed" as const;
+
+/**
+ * `system:crop-backfill` — Canonical `audit_logs.actor` literal for the one-shot
+ * crop-backfill operator script (W6 Issue A PR-4a, ADR-0042 Amendment 12).
+ *
+ * SSOT-bound `system:` prefixed actor per the Worker actor naming SSOT convention
+ * (`.claude/rules/security.md`). Template-literal construction is forbidden
+ * (CWE-209 / GDPR Art.30 consistency).
+ *
+ * @see ADR-0042 Amendment 12
+ * @see CONTRIBUTING.md §"Worker actor naming SSOT"
+ */
+export const AUDIT_ACTOR_CROP_BACKFILL = "system:crop-backfill" as const;
+
+/**
+ * `screenshot_storage_migrated` — PR-SS-A D-7 (ADR-0041、screenshot 永続化)。
+ *
+ * Emitted by the one-shot migration CLI
+ * (`migrate-screenshots-to-persistent-root.ts`) once per `--confirm` run with a
+ * non-zero processed count (migrated + stale-reconciled > 0), recording the
+ * legacy-root → persistent-XDG-root storage migration as a GDPR Art.30
+ * processing-activity record (Plan v1 §9 spec item 6 / L-17 real-DB asserted).
+ *
+ * `audit_logs` 行: actor = {@link AUDIT_ACTOR_SCREENSHOT_STORAGE_MIGRATION}
+ * (`system:screenshot-storage-migration`)、`targetId` は service 側で truncate、
+ * `details` は PII-free count/enum 値のみ (CWE-209)。
+ *
+ * Emit 条件は confirm モードかつ処理件数 > 0 のみ (dry-run では emit しない)。
+ * Emitted only on confirm runs with a non-zero processed count (never dry-run).
+ *
+ * @see  §9
+ * @see CONTRIBUTING.md §"Worker actor naming SSOT"
+ */
+export const AUDIT_ACTION_SCREENSHOT_STORAGE_MIGRATED = "screenshot_storage_migrated" as const;
+
+/**
+ * `system:screenshot-storage-migration` — Canonical `audit_logs.actor` literal
+ * for the screenshot storage migration CLI (PR-SS-A D-7 / ADR-0041).
+ *
+ * SSOT-bound `system:` prefixed actor per the Worker actor naming SSOT convention
+ * (`.claude/rules/security.md`). Template-literal construction is forbidden
+ * (CWE-209 / GDPR Art.30 consistency, INV-AUDIT-EMIT-SSOT-IMPORT-001 AST sweep).
+ *
+ * @see  §9
+ * @see CONTRIBUTING.md §"Worker actor naming SSOT"
+ */
+export const AUDIT_ACTOR_SCREENSHOT_STORAGE_MIGRATION =
+  "system:screenshot-storage-migration" as const;

@@ -19,6 +19,12 @@ import {
   type IBackgroundSearchService,
   type BackgroundDesignSearchResult,
 } from "../../../src/tools/background/search.tool";
+import type { QueryEmbeddingResult } from "../../../src/services/_shared/resolve-query-embedding";
+
+/** embedding 解決成功 (ok) の共通モック / Shared mock for a successful (ok) embedding resolution */
+function okEmbeddingResult(): QueryEmbeddingResult {
+  return { status: "ok", embedding: new Array(768).fill(0.01) };
+}
 
 // =====================================================
 // モックデータファクトリ
@@ -48,6 +54,7 @@ function createMockServiceWithHybrid(
   vectorResults?: BackgroundDesignSearchResult[]
 ): IBackgroundSearchService {
   return {
+    resolveQueryEmbeddingResult: vi.fn().mockResolvedValue(okEmbeddingResult()),
     generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.01)),
     searchBackgroundDesigns: vi.fn().mockResolvedValue({
       results: vectorResults ?? [createMockBgSearchResult()],
@@ -65,6 +72,7 @@ function createMockServiceWithoutHybrid(
   vectorResults?: BackgroundDesignSearchResult[]
 ): IBackgroundSearchService {
   return {
+    resolveQueryEmbeddingResult: vi.fn().mockResolvedValue(okEmbeddingResult()),
     generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.01)),
     searchBackgroundDesigns: vi.fn().mockResolvedValue({
       results: vectorResults ?? [createMockBgSearchResult()],
@@ -289,31 +297,63 @@ describe("background.search ハイブリッド検索分岐", () => {
     });
   });
 
-  // --- Embedding生成失敗時 ---
+  // --- Embedding生成失敗時 (ADR-0043 Decision 1: 案A leaf fail-loud) ---
+  // background は embedding 必須 leaf。embedding 失敗を success:true total:0 で
+  // 偽装せず success:false (fail-loud) を返す。旧 fake-empty 契約は撤去 (PR-2a-2)。
 
-  describe("Embedding生成が失敗した場合", () => {
-    it("embeddingがnullの場合に空結果が返ること", async () => {
-      // Arrange: embedding生成が null を返す
+  describe("Embedding解決が失敗した場合 (fail-loud)", () => {
+    it("embeddingがfailed(生成throw)の場合に success:false + embedding_failed を返すこと", async () => {
+      // Arrange: embedding 生成が throw (failed)
       const service: IBackgroundSearchService = {
-        generateQueryEmbedding: vi.fn().mockResolvedValue(null),
+        resolveQueryEmbeddingResult: vi
+          .fn()
+          .mockResolvedValue({ status: "failed", reason: "Database operation failed" }),
+        generateQueryEmbedding: vi.fn(),
         searchBackgroundDesigns: vi.fn(),
         searchBackgroundDesignsHybrid: vi.fn(),
       };
       setBackgroundSearchServiceFactory(() => service);
 
       // Act
-      const result = await backgroundSearchHandler({
-        query: "test query",
-      });
+      const result = await backgroundSearchHandler({ query: "test query" });
 
-      // Assert: 検索メソッドは呼び出されない
+      // Assert: 検索メソッドは呼び出されない (fail-loud で早期 return)
       expect(service.searchBackgroundDesigns).not.toHaveBeenCalled();
       expect(service.searchBackgroundDesignsHybrid).not.toHaveBeenCalled();
 
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.results).toHaveLength(0);
-        expect(result.data.total).toBe(0);
+      // 案A leaf: success:false (0件偽装しない)
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe("EMBEDDING_FAILED");
+        expect(result.error.degradedReason).toBe("embedding_failed");
+        // CWE-209 / GDPR Art.5(1)(c): query 本文・.so を含まない generic message
+        expect(result.error.message).not.toContain("test query");
+        expect(result.error.message).not.toContain(".so");
+        expect(result.error.message).not.toContain("libonnxruntime");
+      }
+    });
+
+    it("embeddingがunavailable(factory不在)の場合に success:false + embedding_unavailable を返すこと", async () => {
+      // Arrange: embedding service 未配線 (unavailable)
+      const service: IBackgroundSearchService = {
+        resolveQueryEmbeddingResult: vi.fn().mockResolvedValue({ status: "unavailable" }),
+        generateQueryEmbedding: vi.fn(),
+        searchBackgroundDesigns: vi.fn(),
+        searchBackgroundDesignsHybrid: vi.fn(),
+      };
+      setBackgroundSearchServiceFactory(() => service);
+
+      // Act
+      const result = await backgroundSearchHandler({ query: "test query" });
+
+      // Assert
+      expect(service.searchBackgroundDesigns).not.toHaveBeenCalled();
+      expect(service.searchBackgroundDesignsHybrid).not.toHaveBeenCalled();
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe("SERVICE_UNAVAILABLE");
+        expect(result.error.degradedReason).toBe("embedding_unavailable");
+        expect(result.error.message).not.toContain("test query");
       }
     });
   });

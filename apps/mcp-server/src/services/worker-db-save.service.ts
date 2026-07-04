@@ -74,6 +74,15 @@ export interface LayoutSection {
   /** CSSフレームワーク検出メタデータ / CSS framework detection metadata */
   cssFrameworkMeta?: { confidence: number; evidence: string[] };
   position?: { startY: number; endY: number; height: number };
+  /**
+   * 安定 DOM selector (W6 Issue A PR-2 / F-M-04)。additive sibling。
+   * `layoutInfo.sectionSelector` に persist され、bbox-resolve / section fallback が
+   * live container を再 query して DOM-ancestry containment を判定する。
+   *
+   * Stable DOM selector (additive). Persisted into `layoutInfo.sectionSelector`
+   * so the bbox-resolve / section-fallback paths can re-query the live container.
+   */
+  sectionSelector?: string;
   visionFeatures?: unknown;
   visualFeatures?: unknown;
 }
@@ -312,6 +321,11 @@ export async function saveSectionPatterns(
       };
       if (section.position) {
         layoutInfo.position = section.position;
+      }
+      // W6 Issue A PR-2 (F-M-04): additive sibling key. jsonb ゆえ migration 不要、
+      // 既存 reader は unknown key を ignore (schema-enum-sync 非該当 / Prisma JSON)。
+      if (section.sectionSelector) {
+        layoutInfo.sectionSelector = section.sectionSelector;
       }
 
       // components JSON（htmlSnippetから簡易抽出）

@@ -62,7 +62,7 @@ Webページを「単なるスクリーンショット」ではなく、ベク�
 ### 🤖 MCP統合
 
 - **Model Context Protocol**: Claude等のAIエージェントと直接統合
-- **39のMCPツール**: WebDesign専用の分析・検索・評価ツール
+- **40のMCPツール**: WebDesign専用の分析・検索・評価ツール
 
 ### 🔍 Vision統合
 
@@ -75,7 +75,7 @@ Webページを「単なるスクリーンショット」ではなく、ベク�
 
 - **HTMLサニタイズ**: Webページ取得時のHTMLサニタイズ処理（DOMPurify 3.3.x）
 - **SSRF対策**: プライベートIP・メタデータサービスへのアクセスブロック
-- **レート制限**: Token Bucket + Redis Luaスクリプトによるアトミック制御（CWE-770 DoS対策）。3ティア構成: analysis 10RPM / search 120RPM / default 60RPM。Graceful Degradation: Redis未接続時はインメモリフォールバック。全39 MCPツールに自動適用
+- **レート制限**: Token Bucket + Redis Luaスクリプトによるアトミック制御（CWE-770 DoS対策）。3ティア構成: analysis 10RPM / search 120RPM / default 60RPM。Graceful Degradation: Redis未接続時はインメモリフォールバック。全40 MCPツールに自動適用
 - **入力検証**: Zodスキーマによる厳格な検証
 - **SBOM**: CycloneDX 1.6 JSON形式の自動生成（EU CRA 2026/9/11脆弱性報告義務対応）
 
@@ -281,7 +281,7 @@ const analysis = await mcp__reftrix__page_analyze({
 
 ## MCP ツール一覧
 
-Reftrixは**39のMCPツール**を提供しています（WebDesign専用）。
+Reftrixは**40のMCPツール**を提供しています（WebDesign専用）。
 
 ### レイアウト解析（5ツール）
 
@@ -375,7 +375,7 @@ Reftrixは**39のMCPツール**を提供しています（WebDesign専用）。
 ReftrixMCP/
 ├── apps/
 │   ├── cli/                          # スタンドアロンCLI（MCP非依存）
-│   └── mcp-server/                   # MCP Server（39ツール）
+│   └── mcp-server/                   # MCP Server（40ツール）
 │       └── src/
 │           └── tools/                # MCPツール定義
 │
@@ -569,7 +569,7 @@ AGPL-3.0の条件が適合しないユースケース（プロプライエタリ
 | ガイド                                                               | 内容                                 |
 | -------------------------------------------------------------------- | ------------------------------------ |
 | [Getting Started](./users-guide/01-getting-started.md)               | インストール、セットアップ、初回分析 |
-| [MCP Tools Guide](./users-guide/02-mcp-tools-guide.md)               | 全39ツールの使用例                   |
+| [MCP Tools Guide](./users-guide/02-mcp-tools-guide.md)               | 全40ツールの使用例                   |
 | [page.analyze Deep Dive](./users-guide/03-page-analyze-deep-dive.md) | 非同期分析フローとデータ構造         |
 | [Troubleshooting](./users-guide/04-troubleshooting.md)               | よくある問題と解決方法               |
 

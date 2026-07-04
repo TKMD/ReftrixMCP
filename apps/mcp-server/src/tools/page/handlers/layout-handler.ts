@@ -71,6 +71,12 @@ type MutableSection = {
   heading?: string;
   confidence: number;
   htmlSnippet?: string;
+  /**
+   * 安定 DOM selector (W6 Issue A PR-2 / F-M-04)。bbox-resolve / section fallback が
+   * live container を再 query して DOM-ancestry containment を判定するために persist。
+   * additive — Vision 検出専用セクション (DOM element 無し) では undefined。
+   */
+  sectionSelector?: string;
   position?: { startY: number; endY: number; height: number };
   visionFeatures?: {
     success: boolean;
@@ -1082,6 +1088,11 @@ export async function defaultAnalyzeLayout(
       const headingText = section.content?.headings?.[0]?.text;
       if (headingText !== undefined) {
         result.heading = headingText;
+      }
+      // W6 Issue A PR-2 (F-M-04): persist the stable DOM selector so the
+      // bbox-resolve / section-fallback paths can re-query the live container.
+      if (section.element?.selector !== undefined) {
+        result.sectionSelector = section.element.selector;
       }
       if (section.htmlSnippet !== undefined) {
         result.htmlSnippet = section.htmlSnippet;

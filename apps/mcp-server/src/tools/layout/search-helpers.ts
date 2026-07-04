@@ -25,6 +25,7 @@ import type {
 } from "../../services/vision-embedding-search.service";
 import type { VisionSearchResult } from "../../services/vision-embedding-search.service";
 import type { Mood, BrandTone } from "../../schemas/mood-brandtone-filters";
+import type { QueryEmbeddingResult } from "../../services/_shared/resolve-query-embedding";
 
 // =====================================================
 // 型定義
@@ -155,7 +156,13 @@ export interface SearchServiceResult {
  */
 export interface ILayoutSearchService {
   /**
-   * クエリテキストからEmbeddingを生成
+   * クエリテキストから embedding を解決 (discriminated union: ok / unavailable / failed)
+   * ADR-0043 Decision 1 / plan v4 §4.1: 案A leaf fail-loud に使う。
+   */
+  resolveQueryEmbeddingResult: (query: string) => Promise<QueryEmbeddingResult>;
+
+  /**
+   * クエリテキストからEmbeddingを生成 (後方互換: null 化版)
    * EmbeddingServiceが利用できない場合はnullを返す
    */
   generateQueryEmbedding: (query: string) => Promise<number[] | null>;

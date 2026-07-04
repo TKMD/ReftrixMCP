@@ -2179,18 +2179,19 @@ async function processPageAnalyzeJob(
         await job.log(`[Phase 5] Embedding failed: ${errorDetail}`);
       }
 
-      // v0.4.0 PR7d-1 (ADR-0010): Phase 5 Screenshot は永続化パス
-      //   `<REFTRIX_SCREENSHOT_ROOT>/phase5/<webPageId>.png` に保存され、
-      //   削除は (1) GDPR `data.delete` (Art. 17 同期削除) + (2) PR6 TTL cron
-      //   (7d) の 2 経路のみ。Worker 側で即時削除すると Queue-based Backfill
-      //   (`part_visual` / `section_visual`) が screenshot を参照できず
-      //   visual embedding が 0 件になる（ADR-0009 バグ 2 の再発）。
-      //   ここでは in-memory 参照のみ null 化する（後続のダブル実行を防ぐ）。
+      // v0.4.0 PR7d-1 (ADR-0010) / PR-SS-B (ADR-0041): Phase 5 Screenshot は
+      //   永続化パス `<REFTRIX_SCREENSHOT_ROOT>/phase5/<webPageId>.png` に保存され、
+      //   削除責務は GDPR `data.delete` (Art. 17 同期削除) のみ。TTL 構造は
+      //   PR-SS-B (ADR-0041) で撤去済 (保持 = `data.delete` まで)。Worker 側で
+      //   即時削除すると Queue-based Backfill (`part_visual` / `section_visual`) が
+      //   screenshot を参照できず visual embedding が 0 件になる（ADR-0009 バグ 2 の
+      //   再発）。ここでは in-memory 参照のみ null 化する（後続のダブル実行を防ぐ）。
       //
-      // v0.4.0 PR7d-1 (ADR-0010): Phase 5 screenshots live at the persisted
-      //   path `<REFTRIX_SCREENSHOT_ROOT>/phase5/<webPageId>.png`. Deletion
-      //   is consolidated into exactly two paths: (1) GDPR `data.delete`
-      //   (Art. 17, synchronous) + (2) PR6 TTL cron (7d). Any eager deletion
+      // v0.4.0 PR7d-1 (ADR-0010) / PR-SS-B (ADR-0041): Phase 5 screenshots live
+      //   at the persisted path `<REFTRIX_SCREENSHOT_ROOT>/phase5/<webPageId>.png`.
+      //   Deletion is consolidated into GDPR `data.delete` (Art. 17, synchronous)
+      //   only — the TTL structure was removed in PR-SS-B (ADR-0041; retention =
+      //   "until `data.delete`"). Any eager deletion
       //   by the worker would regress ADR-0009 Bug 2 — Queue-based Backfill
       //   (`part_visual` / `section_visual`) would read a zero-byte file and
       //   generate no visual embeddings. We therefore only null-out the
@@ -3284,15 +3285,16 @@ async function processPageAnalyzeJob(
     // SEC-L1: Defensive cleanup - release capture buffers on any exit path
     state.scrollVisionCapturesForDeferred = null;
 
-    // v0.4.0 PR7d-1 (ADR-0010): Phase 5 Screenshot は永続化パスに保存され、
-    //   削除経路は GDPR `data.delete` + PR6 TTL cron の 2 経路に集約。
-    //   finally では in-memory 参照の null 化のみ行う（delete は throw しないので
-    //   try/catch 不要）。
+    // v0.4.0 PR7d-1 (ADR-0010) / PR-SS-B (ADR-0041): Phase 5 Screenshot は
+    //   永続化パスに保存され、削除責務は GDPR `data.delete` のみ。TTL 構造は
+    //   PR-SS-B (ADR-0041) で撤去済 (保持 = `data.delete` まで)。finally では
+    //   in-memory 参照の null 化のみ行う（delete は throw しないので try/catch 不要）。
     //
-    // v0.4.0 PR7d-1 (ADR-0010): Screenshots are persisted; deletion is
-    //   consolidated into GDPR `data.delete` + PR6 TTL cron. In finally we
-    //   only null-out the in-memory reference (`delete` cannot throw, so no
-    //   try/catch needed).
+    // v0.4.0 PR7d-1 (ADR-0010) / PR-SS-B (ADR-0041): Screenshots are persisted;
+    //   deletion is consolidated into GDPR `data.delete` only (the TTL structure
+    //   was removed in PR-SS-B / ADR-0041; retention = "until `data.delete`").
+    //   In finally we only null-out the in-memory reference (`delete` cannot
+    //   throw, so no try/catch needed).
     if (state.screenshotPngPath) {
       delete state.screenshotPngPath;
     }

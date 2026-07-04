@@ -533,6 +533,19 @@ model SectionEmbedding {
   // 20260524192012 (initial 2 values) + 20260530… (adds pii_excluded).
   visionSkipReason String? @map("vision_skip_reason")
 
+  // Crop 永続化パス（W6 Issue A PR-3a）。vision_embedding を生成した viewable PNG crop の
+  // 永続パス。vision-scoped parity: vision_embedding IS NOT NULL ⇔ crop_storage_path IS NOT NULL
+  // （PII-skip 行を除外、INV-CROP-COVERAGE-PARITY-001）。high-PII section は PII-filtered loop で
+  // crop が構造的に非生成（fail-closed、INV-CROP-PII-EXCLUDED-001）。CROP_PERSISTENCE_ENABLED
+  // default OFF の間は常に NULL。retention = data.delete まで（ADR-0041 整合、TTL cron 復活なし）。
+  //
+  // Crop persistence path (W6 Issue A PR-3a). The persisted viewable PNG crop that produced
+  // vision_embedding. Vision-scoped parity: vision_embedding IS NOT NULL ⇔ crop_storage_path IS
+  // NOT NULL (PII-skipped rows excluded, INV-CROP-COVERAGE-PARITY-001). high-PII sections never
+  // get a crop (fail-closed in the PII-filtered loop, INV-CROP-PII-EXCLUDED-001). Always NULL
+  // while CROP_PERSISTENCE_ENABLED is OFF. retention = until data.delete (ADR-0041 aligned).
+  cropStoragePath String? @map("crop_storage_path")
+
   // 統合Embedding（v2予定, 768D）
   // HNSW indexed for semantic search
   combinedEmbedding Unsupported("vector(768)")? @map("combined_embedding")
@@ -1084,64 +1097,37 @@ model MotionAnalysisResult {
 
   // === AnimationZone (resultType = 'animation_zone') ===
   // 差分分析結果: 変化したピクセル数、変化率、変化領域
-  /**
-   * /**
-   * /**
-   * /**
-   * /**
-   * /**
-   * /**
-   * /**
-   * /*
-   * {
-   * "changedPixels": 12500,
-   * "totalPixels": 2073600,
-   * "changeRatio": 0.006,
-   * "hasChange": true,
-   * "regions": [{ "x": 100, "y": 200, "width": 300, "height": 150 }]
-   * }
-   */
+  // resultData example:
+  // {
+  //   "changedPixels": 12500,
+  //   "totalPixels": 2073600,
+  //   "changeRatio": 0.006,
+  //   "hasChange": true,
+  //   "regions": [{ "x": 100, "y": 200, "width": 300, "height": 150 }]
+  // }
 
   // === LayoutShift (resultType = 'layout_shift') ===
   // CLS影響スコア、影響領域、推定原因
-  /**
-   * /**
-   * /**
-   * /**
-   * /**
-   * /**
-   * /**
-   * /**
-   * /*
-   * {
-   * "shiftStartMs": 500,
-   * "impactScore": 0.15,
-   * "affectedRegions": [{ "x": 0, "y": 100, "width": 1920, "height": 200 }],
-   * "estimatedCause": "image_load",
-   * "shiftDirection": 90,
-   * "shiftDistance": 50
-   * }
-   */
+  // resultData example:
+  // {
+  //   "shiftStartMs": 500,
+  //   "impactScore": 0.15,
+  //   "affectedRegions": [{ "x": 0, "y": 100, "width": 1920, "height": 200 }],
+  //   "estimatedCause": "image_load",
+  //   "shiftDirection": 90,
+  //   "shiftDistance": 50
+  // }
 
   // === MotionVector (resultType = 'motion_vector') ===
   // 方向、速度、モーションタイプ
-  /**
-   * /**
-   * /**
-   * /**
-   * /**
-   * /**
-   * /**
-   * /**
-   * /*
-   * {
-   * "dominantDirection": 270,
-   * "avgSpeed": 15.5,
-   * "maxSpeed": 30.2,
-   * "confidence": 0.85,
-   * "motionType": "slide_left"
-   * }
-   */
+  // resultData example:
+  // {
+  //   "dominantDirection": 270,
+  //   "avgSpeed": 15.5,
+  //   "maxSpeed": 30.2,
+  //   "confidence": 0.85,
+  //   "motionType": "slide_left"
+  // }
 
   // 解析結果データ（上記3タイプに共通のJSON構造）
   resultData Json @map("result_data")
@@ -1903,6 +1889,13 @@ model ComponentPartEmbedding {
   // here per the existing skipReason TEXT convention. Non-PII (GDPR Recital 26 /
   // Art.4(1)); CASCADE-deleted with parent, no independent retention (ADR §7.5 req5).
   visualSkipReason   String?                     @map("visual_skip_reason")
+  // Crop 永続化パス（W6 Issue A PR-3a）。visual_embedding を生成した viewable PNG crop の
+  // 永続パス。vision-scoped parity（INV-CROP-COVERAGE-PARITY-001）。high-PII part は
+  // piiRiskLevel:{not:"high"} filtered loop で crop が構造的に非生成（INV-CROP-PII-EXCLUDED-001）。
+  // retention = data.delete まで（parent CASCADE 削除、ADR-0041 整合）。
+  // Crop persistence path (W6 Issue A PR-3a). Vision-scoped parity; high-PII parts never get a
+  // crop (fail-closed in the piiRiskLevel:{not:"high"} filtered loop). retention = until data.delete.
+  cropStoragePath    String?                     @map("crop_storage_path")
   visualModelVersion String                      @map("visual_model_version") @db.VarChar(50)
   textModelVersion   String                      @map("text_model_version") @db.VarChar(50)
   embeddingTimestamp DateTime                    @map("embedding_timestamp") @db.Timestamptz()

@@ -147,15 +147,21 @@ export default async function setup(): Promise<() => Promise<void>> {
     // SEC-M2-01: production screenshot path contamination guard (fail-closed)
     //
     // Setup で記録した beforeProductionArtifactsCount と比較し、test 実行中に
-    // production default path (`/tmp/reftrix-screenshots/`) への書込が発生していた
-    // 場合は teardown を fail させる。ADR-0016 § Fixture Lifecycle SEC-Plan-05
-    // Amendment の contamination-prevention 契約を code level で強制する。
+    // production default path (PR-SS-A D-1: XDG data dir、SSOT
+    // `resolveDefaultScreenshotRoot()` から derive した `PRODUCTION_SCREENSHOT_ROOT`)
+    // への書込が発生していた場合は teardown を fail させる。ADR-0016 § Fixture
+    // Lifecycle SEC-Plan-05 Amendment の contamination-prevention 契約を code
+    // level で強制する。検査は read-only であり、検出時も default root を削除
+    // しない (fail-loud 報告のみ — PR-SS-A D-1a 設計制約)。
     //
     // SEC-M2-01: compare against the setup-time baseline and fail-close the
     // teardown if any artifact leaked into the production default path
-    // (`/tmp/reftrix-screenshots/`) during the run. Enforces the contamination-
-    // prevention contract of ADR-0016 § Fixture Lifecycle SEC-Plan-05 Amendment
-    // at the code level.
+    // (PR-SS-A D-1: the XDG data dir `PRODUCTION_SCREENSHOT_ROOT`, derived from
+    // the SSOT `resolveDefaultScreenshotRoot()`) during the run. Enforces the
+    // contamination-prevention contract of ADR-0016 § Fixture Lifecycle
+    // SEC-Plan-05 Amendment at the code level. The inspection is read-only and
+    // never deletes the default root even on detection (fail-loud reporting
+    // only — PR-SS-A D-1a design constraint).
     // ==========================================================================
     if (beforeProductionArtifactsCount !== undefined) {
       const afterProductionArtifactsCount = countProductionScreenshotArtifacts();

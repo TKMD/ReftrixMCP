@@ -38,6 +38,7 @@ import {
 } from "../../services/query-context-analyzer";
 import { applyPreferenceReranking } from "../../services/preference-rerank.helper";
 import type { IPrismaClient } from "../../services/preference-profile.service";
+import { buildEmbeddingFailureError } from "../_shared/embedding-failure-response";
 import {
   ProjectContextAnalyzer,
   type ProjectPatterns,
@@ -238,26 +239,29 @@ export async function layoutSearchHandler(input: unknown): Promise<LayoutSearchO
       });
     }
 
-    // Embedding生成
-    const queryEmbedding = await service.generateQueryEmbedding(processedQuery);
+    // Embedding解決 (discriminated union: ok / unavailable / failed)
+    // ADR-0043 Decision 1 / plan v4 §4.1: layout は embedding 必須 leaf。
+    // embedding 失敗を success:true total:0 で偽装せず fail-loud (success:false)。
+    const embeddingResult = await service.resolveQueryEmbeddingResult(processedQuery);
 
-    // EmbeddingServiceが利用できない場合は空の結果を返す
-    if (queryEmbedding === null) {
-      if (isDevelopment()) {
-        logger.warn("[MCP Tool] layout.search embedding not available, returning empty results");
-      }
-
+    if (embeddingResult.status !== "ok") {
+      // 案A leaf fail-loud: embedding unavailable/failed → success:false
+      const failure = buildEmbeddingFailureError(embeddingResult.status);
+      logger.warn("[MCP Tool] layout.search: embedding required but unavailable (fail-loud)", {
+        code: failure.code,
+        degradedReason: failure.degradedReason,
+      });
       return {
-        success: true,
-        data: {
-          results: [],
-          total: 0,
-          query: validated.query,
-          filters: validated.filters ?? {},
-          searchTimeMs: Date.now() - startTime,
+        success: false,
+        error: {
+          code: failure.code,
+          message: failure.message,
+          degradedReason: failure.degradedReason,
         },
       };
     }
+
+    const queryEmbedding = embeddingResult.embedding;
 
     // 検索オプション構築
     // MCP-RESP-03: include_html (snake_case) を優先使用

@@ -26,10 +26,16 @@
  */
 
 import { createHash } from "node:crypto";
+import fs from "node:fs/promises";
 import { logger } from "../utils/logger";
 import { sanitizeAnalysisErrorForClient, sanitizeErrorMessage } from "../utils/sanitize-error";
 import { truncateId } from "../utils/truncate-id";
 import { AUDIT_LOG_CONSTANTS } from "./audit-log.service";
+import { buildSafeCropDir } from "./part/crop-persistence.helper";
+import {
+  createScreenshotPersistenceService,
+  type IScreenshotPersistencePrismaClient,
+} from "./screenshot-persistence.service";
 import type { IPhase5ScreenshotPersistence } from "./screenshot-persistence.types";
 
 // =====================================================
@@ -302,10 +308,16 @@ let screenshotPersistenceFactory: (() => IPhase5ScreenshotPersistence) | null = 
  * GDPR Art. 17 削除経路で `deleteScreenshot()` を呼び出すために使用する。
  * Used by the GDPR Art. 17 deletion paths to call `deleteScreenshot()`.
  *
- * ファクトリが未設定の場合、screenshot ファイルは削除されず、PR6 の TTL cron
- * による `cleanupExpired()` で最終的に削除される（graceful degradation）。
- * When unset, screenshots are not deleted immediately and will be reaped by
- * PR6's TTL cron via `cleanupExpired()` (graceful degradation).
+ * ファクトリ未設定でも削除は成立する: `getScreenshotService()` が default
+ * `ScreenshotPersistenceService` を inline 構築して fallback する (H-1、
+ * ADR-0041 Decision 5)。TTL 構造は PR-SS-B で撤去済のため、もはや TTL backstop
+ * は存在しない (保持 = `data.delete` まで)。本 factory は production 配線で
+ * 共有インスタンスを供給する最適化経路であり、未配線は warn を残しつつ機能継続する。
+ * When unset, erasure still succeeds: `getScreenshotService()` inline-constructs
+ * a default `ScreenshotPersistenceService` as a fallback (H-1, ADR-0041 Decision
+ * 5). The TTL structure was removed in PR-SS-B, so there is no TTL backstop
+ * (retention = "until `data.delete`"). This factory is the production wiring
+ * that supplies a shared instance; an unwired factory logs a warn and continues.
  */
 export function setGdprScreenshotPersistenceFactory(
   factory: () => IPhase5ScreenshotPersistence
@@ -350,10 +362,24 @@ export class GdprDeletionService {
   }
 
   /**
-   * Screenshot 永続化サービスを取得（未設定時は null）
-   * Get screenshot persistence service (null if unset — graceful degradation)
+   * Screenshot 永続化サービスを取得（H-1: factory 未配線でも fallback で必ず返す）
+   * Get screenshot persistence service (H-1: always returns a service, falling
+   * back to an inline default when the factory is unwired)
+   *
+   * ADR-0041 Decision 5 (H-1): TTL 構造を撤去 (PR-SS-B) したため TTL backstop は
+   * もはや存在しない。factory 未配線時に null を返すと screenshot ファイルが永続化
+   * パスに残存し続け Art.17 削除が不完全になる。よって未配線時は自身の Prisma
+   * client から default `ScreenshotPersistenceService` を inline 構築して返す。
+   * warn は配線漏れの観測のために残す。
+   *
+   * ADR-0041 Decision 5 (H-1): the TTL structure was removed in PR-SS-B, so there
+   * is no TTL backstop. Returning null on an unwired factory would leave the
+   * screenshot file on the persisted path, making the Art.17 erasure incomplete.
+   * When unwired, we therefore inline-construct a default
+   * `ScreenshotPersistenceService` from our own Prisma client. The warn is kept
+   * to surface the missing wiring.
    */
-  private getScreenshotService(): IPhase5ScreenshotPersistence | null {
+  private getScreenshotService(): IPhase5ScreenshotPersistence {
     if (this.screenshotService) {
       return this.screenshotService;
     }
@@ -361,31 +387,120 @@ export class GdprDeletionService {
       this.screenshotService = screenshotPersistenceFactory();
       return this.screenshotService;
     }
-    return null;
+    // H-1 inline fallback (ADR-0041 Decision 5).
+    logger.warn(
+      "[GdprDeletionService] ScreenshotPersistenceService factory not wired; " +
+        "using H-1 inline fallback for Art.17 screenshot erasure"
+    );
+    this.screenshotService = createScreenshotPersistenceService({
+      prisma: this.buildScreenshotPrismaAdapter(),
+    });
+    return this.screenshotService;
+  }
+
+  /**
+   * raw-SQL アダプタ: `GdprPrismaClient` (raw-SQL 専用、`webPage` delegate なし) を
+   * `IScreenshotPersistencePrismaClient` に適合させる (ADR-0041 §Decision 5 補注、
+   * FB-4 型ギャップ解消)。H-1 fallback 経路 (`deleteScreenshot`) は `update` のみを
+   * 使用する (0-row でも throw しない)。未使用の `updateMany` / `findUnique` は
+   * 明示 throw でスタブ化する (silent no-op 禁止 — 誤用検知優先、Registry
+   * FIND-SSB-PLAN-L-11)。SQL は固定リテラル + パラメータバインドのみで injection
+   * surface は 0 (security.md 準拠、`$1::uuid` cast precedent は本サービス内既存)。
+   *
+   * Adapts the raw-SQL-only `GdprPrismaClient` (no `webPage` delegate) to
+   * `IScreenshotPersistencePrismaClient` (ADR-0041 §Decision 5, FB-4 type-gap
+   * closure). The H-1 fallback path (`deleteScreenshot`) uses only `update`
+   * (no throw on 0 rows). The unused `updateMany` / `findUnique` are stubbed with
+   * an explicit throw (no silent no-op — fail-loud on misuse, Registry
+   * FIND-SSB-PLAN-L-11). The SQL is a fixed literal + parameter binding only, so
+   * the injection surface is 0 (security.md; the `$1::uuid` cast precedent
+   * already exists in this service).
+   */
+  private buildScreenshotPrismaAdapter(): IScreenshotPersistencePrismaClient {
+    const prisma = this.getPrismaClient();
+    return {
+      webPage: {
+        update: async (args: {
+          where: { id: string };
+          data: { screenshotStoragePath: string | null };
+        }): Promise<{ id: string }> => {
+          // 0-row でも throw しない (web_pages 行は post-tx に既削除されうる)。
+          // No throw on 0 rows (the web_pages row may already be deleted post-tx).
+          await prisma.$executeRawUnsafe(
+            `UPDATE web_pages SET screenshot_storage_path = $1 WHERE id = $2::uuid`,
+            args.data.screenshotStoragePath,
+            args.where.id
+          );
+          return { id: args.where.id };
+        },
+        updateMany: (): never => {
+          throw new Error("unsupported in gdpr fallback adapter: webPage.updateMany");
+        },
+        findUnique: (): never => {
+          throw new Error("unsupported in gdpr fallback adapter: webPage.findUnique");
+        },
+      },
+    };
   }
 
   /**
    * Screenshot ファイルを削除（best-effort、失敗は warn のみ）
    * Delete a screenshot file (best-effort; failures logged as warn)
    *
-   * DB 削除成功後に呼ばれる想定。ファイル削除失敗時も DB 変更を巻き戻さず、
-   * 残ったファイルは PR6 の TTL cron で回収される。
+   * DB 削除成功後に呼ばれる想定。ファイル削除失敗時も DB 変更を巻き戻さない。
+   * factory 未配線でも H-1 inline fallback で削除が成立する (ADR-0041 Decision 5)。
    * Called after successful DB deletion. Does not roll back DB on file failure;
-   * orphaned files are reaped by PR6's TTL cron.
+   * erasure succeeds even when the factory is unwired via the H-1 inline
+   * fallback (ADR-0041 Decision 5).
    */
   private async deleteScreenshotBestEffort(pageId: string): Promise<void> {
     const svc = this.getScreenshotService();
-    if (!svc) {
-      logger.warn(
-        "[GdprDeletionService] ScreenshotPersistenceService not wired; skipping screenshot file deletion",
-        { pageId: truncateId(pageId) }
-      );
-      return;
-    }
     try {
       await svc.deleteScreenshot(pageId);
     } catch (err) {
       logger.warn("[GdprDeletionService] Screenshot file deletion failed (non-fatal)", {
+        pageId: truncateId(pageId),
+        error: sanitizeErrorMessage(err),
+      });
+    }
+  }
+
+  /**
+   * crop dir を削除（best-effort、失敗は warn のみ、GDPR Art.17 crop-dir cascade）
+   * Delete the per-page crop dir (best-effort; failures logged as warn).
+   *
+   * `<root>/crops/<webPageId>/` を一括 unlink する。`CROP_PERSISTENCE_ENABLED`
+   * を ON にすると crop file が disk に生成されるため、screenshot と対称に
+   * `data.delete` で回収しないと第三者 visual-PII が永久残存する (Art.17 違反)。
+   *
+   * - path-traversal 防御: dir は `buildSafeCropDir(webPageId)`
+   *   (`UUID_REGEX` 検証 + `buildSafePathWithinRoot` 共有 core) でのみ構築し、
+   *   返り値の validated dir だけを `fs.rm` する (raw-join 禁止、SEC-H-02 / F-06)。
+   *   batch path は DB-sourced id を回すが、`buildSafeCropDir` が内部再検証する。
+   * - 冪等性: `fs.rm(force:true, recursive:true)` ゆえ crop 未生成ページ /
+   *   既削除ページでも ENOENT を throw しない (orphan reconcile 冪等 re-run、F-12)。
+   * - factory 非依存: `resolveCropRoot()` (env-only) のみに依存するため crop は
+   *   factory を持たず、DI 配線非依存性が構造的に成立 (screenshot H-1 fallback parity)。
+   * - best-effort: 失敗は `logger.warn` のみ (truncateId + sanitizeErrorMessage、
+   *   catch 内 isDevelopment() ガード禁止 = SEC-L-01、全環境で出力)、DB 削除を
+   *   巻き戻さない (deleteScreenshotBestEffort parity)。
+   *
+   * Deletes `<root>/crops/<webPageId>/` in one shot, symmetric with the
+   * screenshot cascade so `data.delete` reaps crop files (else third-party
+   * visual-PII persists forever, Art.17 violation). Path-traversal-safe via
+   * `buildSafeCropDir` (UUID_REGEX + shared `buildSafePathWithinRoot` core);
+   * idempotent (`fs.rm force:true recursive`); factory-independent
+   * (`resolveCropRoot()` env-only); best-effort (warn only, no DB rollback).
+   */
+  private async deleteCropDirBestEffort(pageId: string): Promise<void> {
+    try {
+      // validated dir のみ unlink (UUID_REGEX gate → buildSafePathWithinRoot)。
+      // malformed id は throw して fs.rm に到達しない (F-06)。
+      const cropDir = await buildSafeCropDir(pageId);
+      await fs.rm(cropDir, { recursive: true, force: true });
+    } catch (err) {
+      // SEC-L-01: catch 内 isDevelopment() ガード禁止 (全環境で logger.warn 出力)。
+      logger.warn("[GdprDeletionService] Crop dir deletion failed (non-fatal)", {
         pageId: truncateId(pageId),
         error: sanitizeErrorMessage(err),
       });
@@ -458,6 +573,10 @@ export class GdprDeletionService {
     // The row is already gone, so deleteScreenshot()'s internal DB null-out
     // catches P2025 and swallows it; the on-disk PNG is removed deterministically.
     await this.deleteScreenshotBestEffort(pageId);
+
+    // GDPR Art.17 crop-dir cascade (single path, W6 Issue A PR-3b F-03 #1):
+    // unlink `<root>/crops/<pageId>/` so crop visual-PII is reaped with the page.
+    await this.deleteCropDirBestEffort(pageId);
 
     const deletedAt = new Date().toISOString();
 
@@ -755,9 +874,25 @@ export class GdprDeletionService {
     });
 
     // DB コミット後、削除成功した各ページの screenshot を best-effort で削除
-    // After DB commit, best-effort delete screenshot files for each deleted page
+    // After DB commit, best-effort delete screenshot files for each deleted page.
     for (const pageId of deletedPageIds) {
       await this.deleteScreenshotBestEffort(pageId);
+    }
+
+    // GDPR Art.17 crop-dir cascade (batch path, W6 Issue A PR-3b F-03 #2 / F-12):
+    // single-only 配線だと batch 削除ページの crop が永久 orphan = Art.17 違反ゆえ
+    // batch 側にも配線する。crop cascade は **要求された全 pageIds** に対して走らせる
+    // (deletedPageIds ではなく)。`fs.rm force:true recursive` は ENOENT 冪等ゆえ、
+    // DB 行が既に消えた orphan page (partial-failure 後の冪等 re-run) でも残存 crop を
+    // demonstrably 回収できる (EDPB 2025 CEF Report on the right to erasure
+    // (Art.17, Feb 2026): "controllers need to verify that erasure has been
+    // carried out and be able to demonstrate such erasure")。
+    //
+    // The crop cascade runs over the **requested pageIds** (not deletedPageIds):
+    // `fs.rm force:true recursive` is ENOENT-idempotent, so an idempotent re-run
+    // reaps residual crops even when the DB row is already gone (orphan reconcile).
+    for (const pageId of pageIds) {
+      await this.deleteCropDirBestEffort(pageId);
     }
 
     const deletedAt = new Date().toISOString();

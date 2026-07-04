@@ -68,6 +68,9 @@ function createMockServiceWithHybrid(
   vectorResult: SearchServiceResult | null = null
 ): ILayoutSearchService {
   return {
+    resolveQueryEmbeddingResult: vi
+      .fn()
+      .mockResolvedValue({ status: "ok", embedding: new Array(768).fill(0.01) }),
     generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.01)),
     searchSectionPatterns: vi.fn().mockResolvedValue(vectorResult ?? createMockSearchResult()),
     searchSectionPatternsHybrid: vi.fn().mockResolvedValue(hybridResult),
@@ -79,6 +82,9 @@ function createMockServiceWithoutHybrid(
   vectorResult?: SearchServiceResult | null
 ): ILayoutSearchService {
   return {
+    resolveQueryEmbeddingResult: vi
+      .fn()
+      .mockResolvedValue({ status: "ok", embedding: new Array(768).fill(0.01) }),
     generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.01)),
     searchSectionPatterns: vi.fn().mockResolvedValue(vectorResult ?? createMockSearchResult()),
     // searchSectionPatternsHybrid は undefined（未実装）
@@ -236,6 +242,9 @@ describe("layout.search ハイブリッド検索分岐", () => {
     it("vector-only検索がnullを返した場合に空結果が返ること", async () => {
       // Arrange: searchSectionPatterns が明示的に null を返すサービス
       const service: ILayoutSearchService = {
+        resolveQueryEmbeddingResult: vi
+          .fn()
+          .mockResolvedValue({ status: "ok", embedding: new Array(768).fill(0.01) }),
         generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.01)),
         searchSectionPatterns: vi.fn().mockResolvedValue(null),
         // searchSectionPatternsHybrid は undefined（未実装）
@@ -256,30 +265,57 @@ describe("layout.search ハイブリッド検索分岐", () => {
     });
   });
 
-  // --- Embedding生成失敗時 ---
+  // --- Embedding解決失敗時 (ADR-0043 Decision 1: 案A leaf fail-loud) ---
+  // layout は embedding 必須 leaf。embedding 失敗を success:true total:0 で
+  // 偽装せず success:false (fail-loud) を返す。旧 fake-empty 契約は撤去 (PR-2a-2)。
 
-  describe("Embedding生成が失敗した場合", () => {
-    it("embeddingがnullの場合に空結果が返ること", async () => {
-      // Arrange: embedding生成が null を返す
+  describe("Embedding解決が失敗した場合 (fail-loud)", () => {
+    it("embeddingがfailed(生成throw)の場合に success:false + embedding_failed を返すこと", async () => {
+      // Arrange: embedding 生成が throw (failed)
       const service: ILayoutSearchService = {
-        generateQueryEmbedding: vi.fn().mockResolvedValue(null),
+        resolveQueryEmbeddingResult: vi
+          .fn()
+          .mockResolvedValue({ status: "failed", reason: "Database operation failed" }),
+        generateQueryEmbedding: vi.fn(),
         searchSectionPatterns: vi.fn(),
         searchSectionPatternsHybrid: vi.fn(),
       };
       setLayoutSearchServiceFactory(() => service);
 
       // Act
-      const result = await layoutSearchHandler({
-        query: "test query",
-      });
+      const result = await layoutSearchHandler({ query: "test query" });
 
-      // Assert: 検索メソッドは呼び出されない
+      // Assert: 検索メソッドは呼び出されない (fail-loud で早期 return)
       expect(service.searchSectionPatterns).not.toHaveBeenCalled();
       expect(service.searchSectionPatternsHybrid).not.toHaveBeenCalled();
 
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.results).toHaveLength(0);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe("EMBEDDING_FAILED");
+        expect(result.error.degradedReason).toBe("embedding_failed");
+        // CWE-209 / GDPR Art.5(1)(c): query 本文・.so を含まない
+        expect(result.error.message).not.toContain("test query");
+        expect(result.error.message).not.toContain(".so");
+      }
+    });
+
+    it("embeddingがunavailable(factory不在)の場合に success:false + embedding_unavailable を返すこと", async () => {
+      const service: ILayoutSearchService = {
+        resolveQueryEmbeddingResult: vi.fn().mockResolvedValue({ status: "unavailable" }),
+        generateQueryEmbedding: vi.fn(),
+        searchSectionPatterns: vi.fn(),
+        searchSectionPatternsHybrid: vi.fn(),
+      };
+      setLayoutSearchServiceFactory(() => service);
+
+      const result = await layoutSearchHandler({ query: "test query" });
+
+      expect(service.searchSectionPatterns).not.toHaveBeenCalled();
+      expect(service.searchSectionPatternsHybrid).not.toHaveBeenCalled();
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe("SERVICE_UNAVAILABLE");
+        expect(result.error.degradedReason).toBe("embedding_unavailable");
       }
     });
   });

@@ -430,7 +430,7 @@ await mcp__reftrix__system_health({ detailed: true });
 
 Once setup is complete, refer to the following guides to utilize the features:
 
-- [MCPツール使用ガイド / MCP Tools Usage Guide](./02-mcp-tools-guide.md) - <!-- gen:tool-count -->39<!-- /gen:tool-count -->のMCPツールの使用方法 / How to use the <!-- gen:tool-count -->39<!-- /gen:tool-count --> MCP tools
+- [MCPツール使用ガイド / MCP Tools Usage Guide](./02-mcp-tools-guide.md) - <!-- gen:tool-count -->40<!-- /gen:tool-count -->のMCPツールの使用方法 / How to use the <!-- gen:tool-count -->40<!-- /gen:tool-count --> MCP tools
 - [page.analyze詳細ガイド / page.analyze Deep Dive](./03-page-analyze-deep-dive.md) - 統合分析の詳細 / Detailed unified analysis
 - [トラブルシューティングガイド / Troubleshooting Guide](./04-troubleshooting.md) - 問題解決 / Problem solving
 

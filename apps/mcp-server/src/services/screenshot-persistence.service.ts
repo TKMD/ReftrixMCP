@@ -19,7 +19,6 @@
  * - ディレクトリパーミッション 0o700（オーナーのみ） / 0o700 (owner only)
  * - ファイル名は webPageId（UUID v4/v7）のみを許可 / Filename must be UUID v4/v7
  * - saveScreenshot サイズ上限（デフォルト 50MB） / saveScreenshot size cap (default 50MB)
- * - cleanupExpired バッチサイズ上限（デフォルト 1000件/実行） / Batch cap (default 1000)
  * - ログ出力時は webPageId を truncate して PII 漏洩を防止 / PII truncation in logs
  *
  * DI: Prisma client は注入可能（テスト容易性） / Prisma client is injectable
@@ -28,19 +27,12 @@
  */
 
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { logger, isDevelopment } from "../utils/logger";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
 import { truncateId } from "../utils/truncate-id";
 import type { IPhase5ScreenshotPersistence } from "./screenshot-persistence.types";
-// v0.4.0 PR7d-3 (LCC MEDIUM-2): record TTL cron deletions in audit_logs so the
-// TTL-driven erasure path is captured as a processing activity record (GDPR
-// Art.30). Import is deferred (lazy access via getAuditLogService()) to keep
-// the module load graph lightweight for scripts that never trigger cleanup.
-//
-// v0.4.0 PR7d-3 (LCC MEDIUM-2): TTL cron での削除を audit_logs に記録する。
-// getAuditLogService() の呼び出しは lazy (cleanupExpired 内)。
-import { getAuditLogService } from "./audit-log.service";
 
 // Re-export for backward compatibility (既存の import パスを維持)
 // Re-export for backward compatibility (preserves existing import paths)
@@ -50,9 +42,59 @@ export type { IPhase5ScreenshotPersistence } from "./screenshot-persistence.type
 // Constants / 定数
 // =====================================================
 
-/** Screenshot 永続化ルートディレクトリのデフォルト値 */
-/** Default root directory for screenshot persistence */
-const DEFAULT_SCREENSHOT_ROOT = "/tmp/reftrix-screenshots";
+/**
+ * 永続 screenshot root のデフォルトを XDG Base Directory 準拠で解決する leaf helper
+ * (PR-SS-A D-1 / L-14)。
+ *
+ * `${XDG_DATA_HOME:-$HOME/.local/share}/reftrix/screenshots` を返す。repo 外の
+ * 永続ディレクトリのため (a) `git clean -xdf` による誤消去が構造的に不可能、
+ * (b) OSS sync (rsync working tree) の対象外が構造保証される (H-2 第一防御)、
+ * (c) OS 再起動で消えない (tmpfs / systemd-tmpfiles 対象外)。
+ *
+ * XDG 準拠: `XDG_DATA_HOME` が非空かつ絶対パスのときのみ尊重し、それ以外は
+ * `$HOME/.local/share` に fallback する (XDG Base Directory Specification —
+ * 相対パスの XDG_DATA_HOME は無効として無視)。
+ *
+ * Resolves the default persistent screenshot root per the XDG Base Directory
+ * spec: `${XDG_DATA_HOME:-$HOME/.local/share}/reftrix/screenshots`. Living
+ * outside the repo makes it (a) structurally immune to `git clean -xdf`,
+ * (b) structurally outside the OSS sync working tree (H-2 primary defense),
+ * and (c) reboot-safe (not tmpfs territory). A non-absolute `XDG_DATA_HOME`
+ * is ignored per the XDG spec.
+ *
+ * SSOT: standing regression fixture infra (`tests/regression/standing/_setup/`)
+ * の `PRODUCTION_SCREENSHOT_ROOT` も本 helper から derive する (D-1a)。
+ * The standing-regression fixture infra derives `PRODUCTION_SCREENSHOT_ROOT`
+ * from this helper (D-1a).
+ */
+export function resolveDefaultScreenshotRoot(): string {
+  const xdgDataHome = process.env.XDG_DATA_HOME;
+  const dataHome =
+    xdgDataHome !== undefined && xdgDataHome.trim() !== "" && path.isAbsolute(xdgDataHome)
+      ? xdgDataHome
+      : path.join(os.homedir(), ".local", "share");
+  return path.join(dataHome, "reftrix", "screenshots");
+}
+
+/**
+ * Screenshot root の raw 解決 (SSOT、env override 込み・sync・realpath なし)
+ * (PR-SS-A D-2 / UB-1)。
+ *
+ * `REFTRIX_SCREENSHOT_ROOT` env var → 未設定時は XDG default。bare literal の
+ * 重複定義を禁止し、root default を参照する全 callsite (現在の consumer:
+ * `visual-regression.service.ts` / `report-template.service.ts` の allowlist
+ * root) は本 export を import して derive すること。drift は
+ * `tests/services/screenshot-root-ssot-sweep.test.ts` が CI で検出する。
+ *
+ * Raw (sync, no realpath) SSOT resolution of the screenshot root:
+ * `REFTRIX_SCREENSHOT_ROOT` env var, falling back to the XDG default. Every
+ * callsite referencing the root default MUST import and derive from this
+ * export (no duplicated bare literals); drift is CI-detected by the SSOT
+ * sweep test.
+ */
+export function resolveScreenshotRootRaw(): string {
+  return process.env.REFTRIX_SCREENSHOT_ROOT ?? resolveDefaultScreenshotRoot();
+}
 
 /** Phase 5 Backfill 用サブディレクトリ名 */
 /** Sub-directory name for Phase 5 Backfill */
@@ -78,13 +120,29 @@ const PHASE5_SUBDIR = "phase5";
 export const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[47][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-/** ファイルパーミッション（オーナー読み書きのみ） */
-/** File permission (owner read-write only) */
-const FILE_MODE = 0o600;
+/**
+ * ファイルパーミッション（オーナー読み書きのみ）
+ * File permission (owner read-write only)
+ *
+ * SSOT: crop persistence (`crop-persistence.helper.ts`) 等、screenshot SSOT の
+ * path-traversal core を共有する全 consumer が本 export を import して使うこと
+ * （bare literal `0o600` の重複宣言を禁止、TDA-02 / W6 Issue A PR-3a）。
+ * SSOT: every consumer sharing the screenshot path-traversal core (e.g. crop
+ * persistence) MUST import this export rather than re-declaring the `0o600`
+ * literal (TDA-02 / W6 Issue A PR-3a).
+ */
+export const FILE_MODE = 0o600;
 
-/** ディレクトリパーミッション（オーナーのみ rwx） */
-/** Directory permission (owner rwx only) */
-const DIR_MODE = 0o700;
+/**
+ * ディレクトリパーミッション（オーナーのみ rwx）
+ * Directory permission (owner rwx only)
+ *
+ * SSOT: 共有 path-traversal core を使う全 consumer が import すること（bare
+ * literal `0o700` の重複宣言を禁止、TDA-02 / W6 Issue A PR-3a）。
+ * SSOT: every consumer sharing the path-traversal core MUST import this export
+ * rather than re-declaring the `0o700` literal (TDA-02 / W6 Issue A PR-3a).
+ */
+export const DIR_MODE = 0o700;
 
 /** Screenshot サイズのデフォルト上限（バイト）: 50MB */
 /** Default max screenshot size (bytes): 50MB */
@@ -93,14 +151,6 @@ const DEFAULT_MAX_SCREENSHOT_BYTES = 50 * 1024 * 1024;
 /** Screenshot サイズの絶対上限（バイト）: 500MB（DoS対策） */
 /** Absolute max screenshot size (bytes): 500MB (DoS defense) */
 const ABSOLUTE_MAX_SCREENSHOT_BYTES = 500 * 1024 * 1024;
-
-/** cleanupExpired の1実行あたりのデフォルト削除件数上限 */
-/** Default batch size cap for cleanupExpired per invocation */
-const DEFAULT_CLEANUP_BATCH_SIZE = 1000;
-
-/** cleanupExpired batch size の絶対上限（DoS対策） */
-/** Absolute cap for cleanupExpired batch size (DoS defense) */
-const ABSOLUTE_CLEANUP_BATCH_SIZE = 100_000;
 
 // =====================================================
 // Helpers / ヘルパー
@@ -148,31 +198,6 @@ export interface IScreenshotPersistenceService extends IPhase5ScreenshotPersiste
    * Delete screenshot file and NULL out the DB path column
    */
   deleteScreenshot(webPageId: string): Promise<void>;
-
-  /**
-   * 指定時刻より古い screenshot を一括削除し、対応する DB 行も NULL 化する
-   * Cleanup screenshots older than olderThanMs and NULL out corresponding DB rows
-   *
-   * @param olderThanMs - これより古いファイルを削除（ミリ秒） / Delete files older than this (ms)
-   * @param options - オプション（バッチサイズ等） / Options (batch size etc.)
-   * @returns 削除したファイル数 / Number of deleted files
-   */
-  cleanupExpired(olderThanMs: number, options?: CleanupExpiredOptions): Promise<number>;
-}
-
-/**
- * cleanupExpired のオプション
- * Options for cleanupExpired
- */
-export interface CleanupExpiredOptions {
-  /**
-   * 1実行で削除する最大件数（DoS対策）
-   * Max number of files deleted per invocation (DoS defense)
-   *
-   * デフォルト: 1000件、絶対上限: 100,000件
-   * Default: 1000, absolute cap: 100,000
-   */
-  maxBatchSize?: number;
 }
 
 /**
@@ -230,7 +255,7 @@ const resolvedRootCache = new Map<string, string>();
  * defense relies on startsWith check).
  */
 export async function resolveScreenshotRoot(): Promise<string> {
-  const raw = process.env.REFTRIX_SCREENSHOT_ROOT ?? DEFAULT_SCREENSHOT_ROOT;
+  const raw = resolveScreenshotRootRaw();
   const cached = resolvedRootCache.get(raw);
   if (cached !== undefined) return cached;
 
@@ -290,25 +315,44 @@ function assertValidWebPageId(webPageId: string): void {
 }
 
 /**
- * webPageId から安全な絶対パスを構築する（Path Traversal 対策）
- * Build a safe absolute path from webPageId (path traversal defense)
+ * allowlist root を引数化した安全パス構築 core（Path Traversal 対策、SSOT）
+ * Build a safe absolute path within an arbitrary allowlist root (SSOT core)
  *
- * path.resolve + startsWith で candidate が phase5Dir 配下であることを検証する。
- * Uses path.resolve + startsWith check to ensure candidate is within phase5Dir.
+ * `path.resolve(allowlistDir, filename)` + startsWith で candidate が
+ * `allowlistDir` 配下であることを検証する。`phase5Dir` を hardcode していた
+ * `buildSafeScreenshotPath` の core を `allowlistDir` 引数化し、crops sibling dir
+ * （`crop-persistence.helper.ts`）と複製ゼロで共有する（SEC-H-02 ≡ TDA-08、
+ * 弱い第 2 resolver 禁止、W6 Issue A PR-3a）。
+ *
+ * Parameterizes the formerly `phase5Dir`-hardcoded core of `buildSafeScreenshotPath`
+ * by `allowlistDir` so the crops sibling dir reuses it with zero duplication
+ * (no weak second resolver, SEC-H-02 ≡ TDA-08, W6 Issue A PR-3a).
+ *
+ * @throws Error if the resolved path escapes `allowlistDir`
+ */
+export function buildSafePathWithinRoot(allowlistDir: string, filename: string): string {
+  const candidate = path.resolve(allowlistDir, filename);
+  if (!candidate.startsWith(allowlistDir + path.sep) && candidate !== allowlistDir) {
+    throw new Error(
+      "[ScreenshotPersistence] Path traversal detected — rejected unsafe path (escapes allowlist root)"
+    );
+  }
+  return candidate;
+}
+
+/**
+ * webPageId から安全な絶対パスを構築する（Path Traversal 対策、薄い wrapper）
+ * Build a safe absolute path from webPageId (thin wrapper over the shared core)
+ *
+ * `buildSafePathWithinRoot` 共有 core に `phase5Dir` を allowlist root として渡す。
+ * Delegates to the shared `buildSafePathWithinRoot` core with `phase5Dir`.
  *
  * @throws Error if the resolved path escapes the Phase 5 directory
  */
 async function buildSafeScreenshotPath(webPageId: string): Promise<string> {
   assertValidWebPageId(webPageId);
   const phase5Dir = await resolvePhase5Dir();
-  const candidate = path.resolve(phase5Dir, `${webPageId}.png`);
-
-  if (!candidate.startsWith(phase5Dir + path.sep) && candidate !== phase5Dir) {
-    throw new Error(
-      "[ScreenshotPersistence] Path traversal detected — rejected unsafe screenshot path"
-    );
-  }
-  return candidate;
+  return buildSafePathWithinRoot(phase5Dir, `${webPageId}.png`);
 }
 
 /**
@@ -334,6 +378,32 @@ async function buildSafeScreenshotPath(webPageId: string): Promise<string> {
  * @returns Phase 5 配下であれば realpath 結果、そうでなければ null
  */
 export async function validateScreenshotPath(candidatePath: string): Promise<string | null> {
+  const phase5Dir = await resolvePhase5Dir();
+  return validatePathWithinRoot(candidatePath, phase5Dir);
+}
+
+/**
+ * allowlist root を引数化した realpath+isFile+startsWith 検証 core（SSOT）
+ * Validate a candidate path within an arbitrary allowlist root (5-stage SSOT core)
+ *
+ * `validateScreenshotPath` の 5 段防御（null byte → startsWith → realpath → realpath
+ * 再 startsWith → isFile）を `allowlistDir` 引数化したもの。crops sibling dir の
+ * serve-time validator（`crop-persistence.helper.ts`）が複製ゼロで共有する
+ * （弱い第 2 resolver 禁止、SEC-H-02 ≡ TDA-08、W6 Issue A PR-3a）。
+ *
+ * Parameterizes `validateScreenshotPath`'s 5-stage defense (null byte → startsWith →
+ * realpath → realpath re-startsWith → isFile) by `allowlistDir` so the crops
+ * sibling-dir serve-time validator reuses it with zero duplication (no weak second
+ * resolver, SEC-H-02 ≡ TDA-08, W6 Issue A PR-3a).
+ *
+ * @param candidatePath 検証対象の絶対パス候補 / Candidate absolute path
+ * @param allowlistDir 許可する root ディレクトリ / Allowlist root directory
+ * @returns `allowlistDir` 配下の実ファイルなら realpath 結果、そうでなければ null
+ */
+export async function validatePathWithinRoot(
+  candidatePath: string,
+  allowlistDir: string
+): Promise<string | null> {
   if (typeof candidatePath !== "string" || candidatePath.length === 0) {
     return null;
   }
@@ -342,12 +412,11 @@ export async function validateScreenshotPath(candidatePath: string): Promise<str
     return null;
   }
 
-  const phase5Dir = await resolvePhase5Dir();
   const resolved = path.resolve(candidatePath);
 
-  // 1. allowlist: phase5Dir 配下であることを確認
-  //    allowlist: must be inside phase5Dir
-  if (!resolved.startsWith(phase5Dir + path.sep) && resolved !== phase5Dir) {
+  // 1. allowlist: allowlistDir 配下であることを確認
+  //    allowlist: must be inside allowlistDir
+  if (!resolved.startsWith(allowlistDir + path.sep) && resolved !== allowlistDir) {
     return null;
   }
 
@@ -362,9 +431,9 @@ export async function validateScreenshotPath(candidatePath: string): Promise<str
     return null;
   }
 
-  // 3. realpath 結果も phase5Dir 配下であることを再検証
-  //    Re-check that the realpath result is inside phase5Dir
-  if (!realPath.startsWith(phase5Dir + path.sep) && realPath !== phase5Dir) {
+  // 3. realpath 結果も allowlistDir 配下であることを再検証
+  //    Re-check that the realpath result is inside allowlistDir
+  if (!realPath.startsWith(allowlistDir + path.sep) && realPath !== allowlistDir) {
     return null;
   }
 
@@ -552,224 +621,6 @@ class ScreenshotPersistenceService implements IScreenshotPersistenceService {
         error: sanitizeErrorMessage(dbError),
       });
     }
-  }
-
-  /**
-   * Orchestrator: TTL-driven cleanup of expired Phase 5 screenshots.
-   * オーケストレーター: TTL に基づく Phase 5 screenshot の期限切れ削除。
-   *
-   * v0.4.0 Wave 4 V3 TDA carryover (TDA-V3-M-OBS-01 M): SRP refactor —
-   * cyclomatic complexity reduced from ~14 to ≤5 via helper extraction.
-   * Behaviour preserved (43/43 service tests + INV-DATA-DELETE-002 standing
-   * regression remain green).
-   */
-  async cleanupExpired(olderThanMs: number, options?: CleanupExpiredOptions): Promise<number> {
-    if (!Number.isFinite(olderThanMs) || olderThanMs < 0) {
-      throw new Error("[ScreenshotPersistence] olderThanMs must be a non-negative finite number");
-    }
-
-    // v0.4.0 PR7d-3 (LCC MEDIUM-2): capture wall-clock start so we can emit
-    // `durationMs` in the audit log.
-    // v0.4.0 PR7d-3 (LCC MEDIUM-2): 処理時間を audit_logs に記録するため開始時刻を記録。
-    const startedAtMs = Date.now();
-    const maxBatchSize = resolveCleanupBatchSize(options);
-    const phase5Dir = await resolvePhase5Dir();
-    const entries = await readPhase5Entries(phase5Dir);
-    if (entries.length === 0) return 0;
-
-    const cutoffMs = Date.now() - olderThanMs;
-    const deletedPaths = await deleteExpiredFilesBatch(phase5Dir, entries, cutoffMs, maxBatchSize);
-
-    await this.nullOutDbPathsForDeleted(deletedPaths);
-    logCleanupDebugIfDev(deletedPaths.length, olderThanMs, maxBatchSize);
-    await emitCleanupAuditLogIfDeleted(
-      deletedPaths.length,
-      maxBatchSize,
-      olderThanMs,
-      Date.now() - startedAtMs
-    );
-
-    return deletedPaths.length;
-  }
-
-  /**
-   * Helper: null out web_pages.screenshot_storage_path for files that were
-   * successfully deleted from disk. Failure is logged but never propagated —
-   * the cleanup result must remain authoritative for the caller (TTL cron).
-   *
-   * ヘルパー: 削除済みファイルに対応する DB 行の screenshot_storage_path を
-   * NULL 化する。失敗は warn ログのみで上位へ伝播しない。
-   */
-  private async nullOutDbPathsForDeleted(deletedPaths: string[]): Promise<void> {
-    if (deletedPaths.length === 0) return;
-    try {
-      await this.prisma.webPage.updateMany({
-        where: { screenshotStoragePath: { in: deletedPaths } },
-        data: { screenshotStoragePath: null },
-      });
-    } catch (dbError) {
-      logger.warn("[ScreenshotPersistence] Failed to null DB paths for cleaned files (non-fatal)", {
-        deletedCount: deletedPaths.length,
-        error: sanitizeErrorMessage(dbError),
-      });
-    }
-  }
-}
-
-// =====================================================
-// cleanupExpired helpers (TDA-V3-M-OBS-01 SRP refactor)
-// cleanupExpired ヘルパー群 (SRP リファクタ)
-// =====================================================
-
-/**
- * Resolve `maxBatchSize` from `CleanupExpiredOptions`, defending against
- * NaN / negative / oversized values. Returns the clamped batch size.
- *
- * `CleanupExpiredOptions` から `maxBatchSize` を解決する。NaN / 負数 / 過大値
- * を防御し、絶対上限で clamp した値を返す。
- */
-function resolveCleanupBatchSize(options?: CleanupExpiredOptions): number {
-  const rawBatch = options?.maxBatchSize;
-  if (typeof rawBatch === "number" && Number.isFinite(rawBatch) && rawBatch > 0) {
-    return Math.min(Math.floor(rawBatch), ABSOLUTE_CLEANUP_BATCH_SIZE);
-  }
-  return DEFAULT_CLEANUP_BATCH_SIZE;
-}
-
-/**
- * Read the Phase 5 directory, tolerating ENOENT (directory not yet created)
- * and logging other readdir errors as non-fatal warnings.
- *
- * Phase 5 ディレクトリを読み取る。ENOENT (未作成) は許容、その他の readdir
- * エラーは non-fatal warn ログを残して空配列を返す。
- */
-async function readPhase5Entries(phase5Dir: string): Promise<string[]> {
-  try {
-    return await fs.readdir(phase5Dir);
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
-    if (code === "ENOENT") return [];
-    logger.warn("[ScreenshotPersistence] Failed to read phase5 directory", {
-      phase5Dir,
-      error: sanitizeErrorMessage(err),
-    });
-    return [];
-  }
-}
-
-/**
- * Iterate Phase 5 directory entries and delete expired `.png` files up to
- * `maxBatchSize`. Path traversal defense (startsWith check) is preserved.
- *
- * Phase 5 ディレクトリのエントリを走査し `.png` の期限切れファイルを
- * `maxBatchSize` 件まで削除する。Path traversal 防御 (startsWith 検証) は保持。
- */
-async function deleteExpiredFilesBatch(
-  phase5Dir: string,
-  entries: string[],
-  cutoffMs: number,
-  maxBatchSize: number
-): Promise<string[]> {
-  const deletedPaths: string[] = [];
-  for (const name of entries) {
-    if (deletedPaths.length >= maxBatchSize) break;
-    if (!name.endsWith(".png")) continue;
-
-    const absPath = path.resolve(phase5Dir, name);
-    if (!isInsidePhase5Dir(absPath, phase5Dir)) continue;
-
-    const deleted = await tryDeleteExpiredFile(absPath, name, cutoffMs);
-    if (deleted) deletedPaths.push(absPath);
-  }
-  return deletedPaths;
-}
-
-/**
- * Path-traversal guard: candidate must reside under `phase5Dir`.
- * パストラバーサル防御: candidate は phase5Dir 配下でなければならない。
- */
-function isInsidePhase5Dir(candidate: string, phase5Dir: string): boolean {
-  return candidate.startsWith(phase5Dir + path.sep) || candidate === phase5Dir;
-}
-
-/**
- * Stat + unlink a single candidate. Returns true if the file was deleted.
- * stat/unlink エラーは non-fatal warn ログのみで吸収する。
- */
-async function tryDeleteExpiredFile(
-  absPath: string,
-  entryName: string,
-  cutoffMs: number
-): Promise<boolean> {
-  try {
-    const stats = await fs.stat(absPath);
-    if (!stats.isFile()) return false;
-    if (stats.mtimeMs > cutoffMs) return false;
-    await fs.unlink(absPath);
-    return true;
-  } catch (err) {
-    logger.warn("[ScreenshotPersistence] Failed to process entry (non-fatal)", {
-      entry: entryName,
-      error: sanitizeErrorMessage(err),
-    });
-    return false;
-  }
-}
-
-/**
- * Dev-only debug log emission. Behaviour-preserving wrapper around the
- * legacy `if (isDevelopment() && deletedCount > 0)` guard.
- *
- * 開発環境限定の debug ログ。従来の `if (isDevelopment() && deletedCount > 0)`
- * ガードを behaviour-preserving に隔離。
- */
-function logCleanupDebugIfDev(
-  deletedCount: number,
-  olderThanMs: number,
-  maxBatchSize: number
-): void {
-  if (!isDevelopment() || deletedCount === 0) return;
-  logger.debug("[ScreenshotPersistence] Cleanup completed", {
-    deletedCount,
-    olderThanMs,
-    maxBatchSize,
-  });
-}
-
-/**
- * v0.4.0 PR7d-3 (LCC MEDIUM-2): emit a GDPR Art.30 audit_logs entry for
- * non-zero deletion runs. Audit failure must never block the cleanup result
- * (caught + swallowed) — preserves the original try/catch contract.
- *
- * v0.4.0 PR7d-3 (LCC MEDIUM-2): 削除件数 0 件超の実行ごとに GDPR Art.30
- * audit_logs エントリを発行する。Audit 失敗は cleanup 結果返却を妨げない
- * (catch + 吸収)。
- */
-async function emitCleanupAuditLogIfDeleted(
-  deletedCount: number,
-  maxBatchSize: number,
-  olderThanMs: number,
-  durationMs: number
-): Promise<void> {
-  if (deletedCount === 0) return;
-  try {
-    await getAuditLogService().log({
-      action: "screenshot_ttl_cleanup",
-      actor: "system:screenshot-cleanup-cron",
-      // batch operation — no single target record; omit targetId.
-      // バッチ処理のため単一レコード対象ではない。
-      targetType: "web_page_screenshot",
-      details: {
-        deletedCount,
-        batchSize: maxBatchSize,
-        olderThanMs,
-        durationMs,
-      },
-      result: "success",
-    });
-  } catch {
-    // Audit log failure must never block the cleanup result.
-    // 監査ログ失敗は cleanup 結果返却を妨げない。
   }
 }
 

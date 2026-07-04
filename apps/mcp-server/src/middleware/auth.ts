@@ -237,6 +237,9 @@ export const TOOL_PERMISSIONS: Record<string, string[]> = {
   "part.inspect": [PERMISSIONS.LAYOUT_READ],
   "part.compare": [PERMISSIONS.LAYOUT_READ],
 
+  // セクション系（セクションハンドル解決、WebUI v1 W6 Issue A PR-1）
+  "section.inspect": [PERMISSIONS.LAYOUT_READ],
+
   // ページ系（統合Web分析）
   "page.analyze": [PERMISSIONS.LAYOUT_READ, PERMISSIONS.MOTION_READ, PERMISSIONS.QUALITY_READ],
   "page.getJobStatus": [PERMISSIONS.LAYOUT_READ],

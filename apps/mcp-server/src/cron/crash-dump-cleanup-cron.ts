@@ -17,7 +17,8 @@
  *      Emit `worker_crash_report_orphaned` for self-healing GDPR Art.30
  *      completeness.
  *
- * **Cron driver**: `setInterval` (consistent with `screenshot-cleanup-cron`).
+ * **Cron driver**: `setInterval` (consistent with the (retired)
+ * `screenshot-cleanup-cron`, which was removed in PR-SS-B / ADR-0041).
  * No BullMQ queue needed — cleanup is filesystem + audit_logs DB only.
  *
  * @module cron/crash-dump-cleanup-cron

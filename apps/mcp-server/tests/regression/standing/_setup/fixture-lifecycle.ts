@@ -9,8 +9,23 @@
  * - Before/During (汚染防止 / contamination prevention):
  *   - testcontainer boot 時に `REFTRIX_SCREENSHOT_ROOT` を `/tmp/reftrix-test-<uuid>/` に
  *     **強制上書き** (production env が漏洩した場合も override)
- *   - production path (`/tmp/reftrix-screenshots/` または `/tmp/reftrix-test-` prefix
+ *   - production path (production default root または `/tmp/reftrix-test-` prefix
  *     以外) を指していた場合 fail-closed (`process.exit(1)`)
+ *
+ * - PR-SS-A (D-1a, safety-critical): production default root は SSOT
+ *   (`resolveDefaultScreenshotRoot()`, XDG data dir = User の実 home 配下) から
+ *   derive する。**テストは production default root に対して mkdir/rmSync を
+ *   一切実行しない** — 破壊的 FS 操作は per-run の `os.tmpdir()` 配下 sandbox
+ *   root のみ。production default root は read-only 検査 (汚染検出) に限定し、
+ *   検出時も削除せず fail-loud 報告のみ。
+ *
+ * - PR-SS-A (D-1a, safety-critical): the production default root derives from
+ *   the SSOT (`resolveDefaultScreenshotRoot()`, an XDG data dir under the
+ *   User's real home). **Tests never mkdir/rmSync the production default
+ *   root** — destructive FS operations target only per-run sandbox roots under
+ *   `os.tmpdir()`. The production default root is limited to read-only
+ *   contamination inspection; on detection the guard fail-loud reports and
+ *   never deletes.
  *
  * - After (削除契約 / deletion contract, GDPR Art.5(1)(e)):
  *   - testcontainer 停止後 `fs.rm({ recursive: true, force: true })` で完全削除
@@ -29,11 +44,22 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+// PR-SS-A D-1a (UB-6): production default root は SSOT export から derive する
+// (bare literal 残置禁止 — UB-1 SSOT sweep と整合)。
+// PR-SS-A D-1a (UB-6): derive the production default root from the SSOT export
+// (no bare-literal residue; consistent with the UB-1 SSOT sweep).
+import { resolveDefaultScreenshotRoot } from "../../../../src/services/screenshot-persistence.service";
+
 /**
- * production default パスのプレフィックス (visual-regression.service.ts と一致)
- * Production-default screenshot root prefix (matches visual-regression.service.ts).
+ * production default の screenshot root (SSOT derive、XDG data dir)。
+ * SEC-M2-01 contamination guard の **read-only 検査対象**であり、テストは
+ * 本パスに対して mkdir/rmSync を一切実行しない (D-1a 設計制約)。
+ *
+ * The production-default screenshot root (SSOT-derived, XDG data dir). It is
+ * the **read-only inspection target** of the SEC-M2-01 contamination guard;
+ * tests never mkdir/rmSync this path (D-1a design constraint).
  */
-export const PRODUCTION_SCREENSHOT_ROOT = "/tmp/reftrix-screenshots" as const;
+export const PRODUCTION_SCREENSHOT_ROOT: string = resolveDefaultScreenshotRoot();
 
 /**
  * テスト専用ルートの prefix。runtime UUID が後続される (`/tmp/reftrix-test-<uuid>/`)。
@@ -93,13 +119,25 @@ export function enforceTestScreenshotRoot(): string {
  *
  * SEC-Plan-05 Amendment: production path への書込検出。before/after 比較は
  * caller が担当する。
+ *
+ * PR-SS-A D-1a: 本関数は **read-only** (existsSync + readdirSync のみ) であり、
+ * 検査対象 path を作成も削除もしない。`rootOverride` は contamination-guard
+ * ロジックの sandbox 検証用 (fixture-lifecycle.test.ts) — production default
+ * root への破壊的操作なしで guard の検出能力をテスト可能にする。
+ *
+ * PR-SS-A D-1a: this function is **read-only** (existsSync + readdirSync only)
+ * and neither creates nor deletes the inspected path. `rootOverride` exists so
+ * the guard logic can be verified against an injected sandbox root
+ * (fixture-lifecycle.test.ts) without any destructive operation on the
+ * production default root.
  */
-export function countProductionScreenshotArtifacts(): number {
+export function countProductionScreenshotArtifacts(rootOverride?: string): number {
+  const inspectedRoot = rootOverride ?? PRODUCTION_SCREENSHOT_ROOT;
   try {
-    if (!fs.existsSync(PRODUCTION_SCREENSHOT_ROOT)) {
+    if (!fs.existsSync(inspectedRoot)) {
       return 0;
     }
-    return fs.readdirSync(PRODUCTION_SCREENSHOT_ROOT, { recursive: true }).length;
+    return fs.readdirSync(inspectedRoot, { recursive: true }).length;
   } catch {
     // 権限エラー等は安全側で 0 として扱う (read 不能 = production 書込発生していないと仮定)
     // Permission errors → safely return 0 (read-failure = no production write).

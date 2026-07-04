@@ -10,6 +10,11 @@ export * from "./types";
 export * from "./constants";
 export * from "./utils";
 export { logger } from "./utils/logger";
+// W6 Issue A PR-2 (F-M-01, SEC `019ef01e`): CSS identifier escape SSOT. Exported
+// explicitly from `./utils/css-identifier` (mirrors the `./utils/logger` pattern)
+// because the file `src/utils.ts` shadows the `src/utils/` directory in Node module
+// resolution, so `export * from "./utils"` reaches `utils.ts`, NOT `utils/index.ts`.
+export { escapeCssIdentifier } from "./utils/css-identifier";
 export * from "./services/description-generator.service";
 export * from "./services/robots-txt.service";
 

@@ -114,6 +114,10 @@ function createMockService(
   overrides?: Partial<IResponsiveSearchService>
 ): IResponsiveSearchService {
   return {
+    // ADR-0043 / plan v4 §4.1: tool は discriminated な resolveQueryEmbeddingResult を呼ぶ。
+    resolveQueryEmbeddingResult: vi
+      .fn()
+      .mockResolvedValue({ status: "ok", embedding: new Array(768).fill(0.1) }),
     generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.1)),
     searchResponsiveAnalyses: vi.fn().mockResolvedValue({
       results: [
@@ -351,7 +355,8 @@ describe("responsive.search MCPツール", () => {
     it("should prepend query: prefix for E5 model", async () => {
       await responsiveSearchHandler({ query: "test query" });
 
-      expect(mockService.generateQueryEmbedding).toHaveBeenCalledWith("query: test query");
+      // ADR-0043 / plan v4 §4.1: tool は discriminated な resolveQueryEmbeddingResult を呼ぶ。
+      expect(mockService.resolveQueryEmbeddingResult).toHaveBeenCalledWith("query: test query");
     });
 
     it("should map result fields correctly", async () => {
@@ -431,10 +436,12 @@ describe("responsive.search MCPツール", () => {
   // Embedding unavailable (graceful degradation)
   // ===================================================
 
-  describe("Embedding unavailable", () => {
-    it("should return empty results when embedding returns null", async () => {
+  // ADR-0043 Decision 1 / plan v4 §4.1: responsive は embedding 必須 leaf。
+  // embedding 失敗を success:true total:0 で偽装せず success:false (fail-loud) を返す (PR-2a-2)。
+  describe("Embedding unavailable (fail-loud)", () => {
+    it("should return success:false + embedding_unavailable when embedding is unavailable", async () => {
       const mockService = createMockService({
-        generateQueryEmbedding: vi.fn().mockResolvedValue(null),
+        resolveQueryEmbeddingResult: vi.fn().mockResolvedValue({ status: "unavailable" }),
       });
       setResponsiveSearchServiceFactory(() => mockService);
 
@@ -442,10 +449,13 @@ describe("responsive.search MCPツール", () => {
         query: "test",
       })) as ResponsiveSearchOutput;
 
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.results).toHaveLength(0);
-        expect(result.data.total).toBe(0);
+      // 検索メソッドは呼ばれない (fail-loud で早期 return)
+      expect(mockService.searchResponsiveAnalyses).not.toHaveBeenCalled();
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe(RESPONSIVE_MCP_ERROR_CODES.SERVICE_UNAVAILABLE);
+        expect(result.error.degradedReason).toBe("embedding_unavailable");
+        expect(result.error.message).not.toContain("test");
       }
     });
   });
@@ -469,9 +479,12 @@ describe("responsive.search MCPツール", () => {
       }
     });
 
-    it("should return EMBEDDING_FAILED for embedding errors", async () => {
+    it("should return EMBEDDING_FAILED + embedding_failed for embedding generation failure", async () => {
+      // ADR-0043 Decision 1: embedding 生成 throw (failed) → success:false + embedding_failed
       const mockService = createMockService({
-        generateQueryEmbedding: vi.fn().mockRejectedValue(new Error("embedding model failed")),
+        resolveQueryEmbeddingResult: vi
+          .fn()
+          .mockResolvedValue({ status: "failed", reason: "Database operation failed" }),
       });
       setResponsiveSearchServiceFactory(() => mockService);
 
@@ -479,9 +492,14 @@ describe("responsive.search MCPツール", () => {
         query: "test",
       })) as ResponsiveSearchOutput;
 
+      expect(mockService.searchResponsiveAnalyses).not.toHaveBeenCalled();
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe(RESPONSIVE_MCP_ERROR_CODES.EMBEDDING_FAILED);
+        expect(result.error.degradedReason).toBe("embedding_failed");
+        // CWE-209: .so / query 本文 非含有
+        expect(result.error.message).not.toContain(".so");
+        expect(result.error.message).not.toContain("test");
       }
     });
 

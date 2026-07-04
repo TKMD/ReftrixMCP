@@ -70,12 +70,10 @@ import {
 } from "../queues/embedding-backfill-queue";
 import type { QueueEvents } from "bullmq";
 import { categorizeByProgress } from "../services/orphaned-job-utils";
-// v0.4.0 PR6: Cron jobs for screenshot TTL + backfill reconciliation
-// v0.4.0 PR6: Screenshot TTL + backfill reconciliation の定期タスク
-import {
-  scheduleScreenshotCleanupCron,
-  type ScreenshotCleanupCronHandle,
-} from "../cron/screenshot-cleanup-cron";
+// v0.4.0 PR6: Cron jobs for backfill reconciliation. (PR-SS-A D-3 / L-01 +
+// PR-SS-B: screenshot TTL cron は構造撤去済 (ADR-0041) — 詳細は下記 scheduling
+// site のコメント参照 / the screenshot TTL cron is structurally removed
+// (ADR-0041); see the scheduling-site comment below for the contract.)
 import {
   scheduleBackfillReconciliationCron,
   type BackfillReconciliationCronHandle,
@@ -93,7 +91,6 @@ import {
   scheduleBackfillRecoveryCron,
   type BackfillRecoveryCronHandle,
 } from "../cron/backfill-recovery-cron";
-import { createScreenshotPersistenceService } from "../services/screenshot-persistence.service";
 import { createPhase0CleanupService } from "../services/phase0-cleanup.service";
 // Plan v4.5 PR1 Track P0 (P0.2 Wave 3 retro wiring + NEW-U-11 L1+L3 + Track 1
 // --force-cpu-provider CLI flag).
@@ -170,9 +167,8 @@ let embeddingBackfillWorker: EmbeddingBackfillWorkerInstance | null = null;
 let pageAnalyzeQueueEvents: QueueEvents | null = null;
 let embeddingBackfillQueueEvents: QueueEvents | null = null;
 let embeddingBackfillDuplicatedDetach: (() => void) | null = null;
-// v0.4.0 PR6: Cron job handles
+// v0.4.0 PR6: Cron job handles (PR-SS-A + PR-SS-B: screenshot TTL cron 構造撤去済、ADR-0041)
 // v0.4.0 PR6: Cron タスクのハンドル
-let screenshotCleanupCron: ScreenshotCleanupCronHandle | null = null;
 let backfillReconciliationCron: BackfillReconciliationCronHandle | null = null;
 // PR-B (v0.4.0 PR7e P4): Phase 0 stale row cleanup cron handle
 let phase0CleanupCron: Phase0CleanupCronHandle | null = null;
@@ -646,41 +642,18 @@ async function startWorkers(mode: StartMode): Promise<void> {
   // v0.4.0 PR6: Schedule periodic maintenance cron jobs alongside workers.
   // v0.4.0 PR6: Worker と並行して定期メンテナンス cron を起動する。
   if (includesBackfill) {
-    try {
-      const screenshotService = createScreenshotPersistenceService({
-        prisma: prisma as unknown as Parameters<
-          typeof createScreenshotPersistenceService
-        >[0]["prisma"],
-      });
-      // exactOptionalPropertyTypes: undefined の明示代入を避けるため、環境変数が
-      // 有効値を持つときだけプロパティを追加する。
-      // exactOptionalPropertyTypes: add each option only when the env var holds
-      // a valid value, to avoid explicit-undefined assignment.
-      // TPA R-2: 起動直後の orphan 回収を有効化（1h 待機せず即時実行）。
-      //          SCREENSHOT_CLEANUP_RUN_ON_START=false で無効化可能。
-      // TPA R-2: Enable orphan recovery immediately on startup (without waiting 1h).
-      //          Disable via SCREENSHOT_CLEANUP_RUN_ON_START=false.
-      const screenshotOpts: Parameters<typeof scheduleScreenshotCleanupCron>[0] = {
-        service: screenshotService,
-        runOnStart: process.env.SCREENSHOT_CLEANUP_RUN_ON_START !== "false",
-      };
-      const screenshotInterval = parseIntEnv(process.env.SCREENSHOT_CLEANUP_INTERVAL_MS);
-      if (screenshotInterval !== undefined) screenshotOpts.intervalMs = screenshotInterval;
-      const screenshotOlderThan = parseIntEnv(process.env.SCREENSHOT_CLEANUP_OLDER_THAN_MS);
-      if (screenshotOlderThan !== undefined) screenshotOpts.olderThanMs = screenshotOlderThan;
-      const screenshotBatch = parseIntEnv(process.env.SCREENSHOT_CLEANUP_MAX_BATCH_SIZE);
-      if (screenshotBatch !== undefined) screenshotOpts.maxBatchSize = screenshotBatch;
-      screenshotCleanupCron = scheduleScreenshotCleanupCron(screenshotOpts);
-      console.log("[WorkerStartup] Screenshot TTL cleanup cron scheduled");
-    } catch (error) {
-      // PR-D-7 Wave 4: sanitize error.message via SSOT mapping (CWE-209 closure).
-      // PR-D-7 Wave 4: SSOT マッピング経由でサニタイズ（CWE-209 対応）。
-      console.warn(
-        "[WorkerStartup] Failed to schedule screenshot cleanup cron (non-fatal):",
-        sanitizeErrorMessage(error)
-      );
-    }
-
+    // PR-SS-A (D-3 / L-01) + PR-SS-B: screenshot TTL cleanup cron は構造撤去済。
+    // PR-SS-A で scheduling を撤去 (挙動停止) し、PR-SS-B で cron モジュール +
+    // cleanupExpired orchestrator を完全削除した (ADR-0041)。screenshot の保持
+    // 契約は「ユーザーが data.delete で明示削除するまで」に再定義済。env vars
+    // SCREENSHOT_CLEANUP_INTERVAL_MS / SCREENSHOT_CLEANUP_OLDER_THAN_MS /
+    // SCREENSHOT_CLEANUP_MAX_BATCH_SIZE / SCREENSHOT_CLEANUP_RUN_ON_START は retire。
+    //
+    // PR-SS-A (D-3 / L-01) + PR-SS-B: the screenshot TTL cleanup cron is
+    // structurally removed. PR-SS-A removed the scheduling (behaviorally
+    // stopped); PR-SS-B deleted the cron module + cleanupExpired orchestrator
+    // entirely (ADR-0041). Screenshot retention is "until the user explicitly
+    // deletes via data.delete"; the 4 SCREENSHOT_CLEANUP_* env vars are retired.
     try {
       const reconcileQueue = createEmbeddingBackfillQueue();
       // TPA R-2: 起動直後の stale backfill job 回収を有効化（1h 待機せず即時実行）。
@@ -723,13 +696,15 @@ async function startWorkers(mode: StartMode): Promise<void> {
 
     // PR-B (v0.4.0 PR7e P4 / LCC-M3-03): Phase 0 stale row cleanup cron.
     // PHASE0_EARLY_INSERT=true で生成される failed row (robots.txt / SSRF /
-    // DNS fail 等) を TTL ベース (default 7d) で掃除する。screenshot cleanup
-    // と同じ cadence (24h) で動作し、runOnStart は default false。
+    // DNS fail 等) を TTL ベース (default 7d) で掃除する。cadence は 24h、
+    // runOnStart は default false。(PR-SS-A + PR-SS-B: 旧 screenshot cleanup
+    // cadence への参照を除去 — TTL cron は構造撤去済、ADR-0041。)
     //
     // PR-B (v0.4.0 PR7e P4 / LCC-M3-03): Phase 0 stale row cleanup. Deletes
     // failed rows generated by PHASE0_EARLY_INSERT=true (robots.txt / SSRF /
-    // DNS failures) on a TTL basis (default 7d). Same cadence as screenshot
-    // cleanup (24h); runOnStart defaults to false.
+    // DNS failures) on a TTL basis (default 7d). Cadence 24h; runOnStart
+    // defaults to false. (PR-SS-A: dropped the stale reference to the removed
+    // screenshot cleanup cadence.)
     try {
       const phase0Service = createPhase0CleanupService({
         prisma: prisma as unknown as Parameters<typeof createPhase0CleanupService>[0]["prisma"],
@@ -864,19 +839,7 @@ async function shutdownWorkers(): Promise<void> {
 
   // v0.4.0 PR6: Stop cron jobs first so they don't fire after worker close.
   // v0.4.0 PR6: Worker close 前に cron を停止して、close 後の発火を防ぐ。
-  if (screenshotCleanupCron) {
-    try {
-      screenshotCleanupCron.stop();
-    } catch (error) {
-      // PR-D-7 Wave 4: sanitize error.message via SSOT mapping (CWE-209 closure).
-      // PR-D-7 Wave 4: SSOT マッピング経由でサニタイズ（CWE-209 対応）。
-      console.warn(
-        "[WorkerStartup] Error stopping screenshot cleanup cron:",
-        sanitizeErrorMessage(error)
-      );
-    }
-    screenshotCleanupCron = null;
-  }
+  // (PR-SS-A D-3 + PR-SS-B: screenshot TTL cron stop は構造撤去済、ADR-0041。)
   if (backfillReconciliationCron) {
     try {
       backfillReconciliationCron.stop();

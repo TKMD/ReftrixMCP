@@ -133,7 +133,17 @@ describe("VisualRegressionService", () => {
     },
   };
 
+  // PR-SS-A D-1/D-2: default root が XDG data dir に移動したため、fixture の
+  // `/tmp/reftrix-screenshots/...` パスが allowlist root と一致するよう env を
+  // test 内で明示固定する (allowlist root = REFTRIX_SCREENSHOT_ROOT env ?? XDG
+  // default — SSOT `resolveScreenshotRootRaw()`)。
+  // PR-SS-A D-1/D-2: the default root moved to an XDG data dir, so pin the env
+  // explicitly in-test to keep the legacy fixture paths inside the allowlist
+  // root (allowlist root = REFTRIX_SCREENSHOT_ROOT env ?? XDG default).
+  const ORIG_SCREENSHOT_ROOT = process.env.REFTRIX_SCREENSHOT_ROOT;
+
   beforeEach(() => {
+    process.env.REFTRIX_SCREENSHOT_ROOT = "/tmp/reftrix-screenshots";
     mockPrisma = {
       designSnapshot: {
         findUnique: vi.fn(),
@@ -146,6 +156,11 @@ describe("VisualRegressionService", () => {
   });
 
   afterEach(() => {
+    if (ORIG_SCREENSHOT_ROOT === undefined) {
+      delete process.env.REFTRIX_SCREENSHOT_ROOT;
+    } else {
+      process.env.REFTRIX_SCREENSHOT_ROOT = ORIG_SCREENSHOT_ROOT;
+    }
     resetVisualRegressionPrismaClientFactory();
     vi.restoreAllMocks();
   });

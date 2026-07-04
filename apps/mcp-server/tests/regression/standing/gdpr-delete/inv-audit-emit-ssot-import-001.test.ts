@@ -137,7 +137,10 @@ const SSOT_DEFINITION_FILE = path.resolve(SRC_ROOT, "services/audit-log.service.
  */
 const KNOWN_AUDIT_EMIT_FILES: readonly string[] = [
   "src/services/audit-log.service.ts",
-  "src/services/screenshot-persistence.service.ts",
+  // PR-SS-B (ADR-0041): screenshot-persistence.service.ts no longer emits
+  // audit_logs — the `screenshot_ttl_cleanup` emit was removed together with
+  // the TTL cleanupExpired orchestrator (TTL structure撤去). Removed from the
+  // baseline accordingly.
   "src/services/phase0-cleanup.service.ts",
   "src/services/backfill-reconciliation.service.ts",
   "src/queues/embedding-backfill-processors.ts",
@@ -426,7 +429,7 @@ describe("INV-AUDIT-EMIT-SSOT-IMPORT-001: audit_logs emit SSOT import / no hardc
     // INV-AUDIT-EMIT-SSOT-IMPORT-001
     expect(
       auditEmitFiles.length,
-      "AST scan must discover at least one audit emit file (KNOWN_AUDIT_EMIT_FILES has 13 entries)"
+      "AST scan must discover at least one audit emit file (KNOWN_AUDIT_EMIT_FILES has 12 entries)"
     ).toBeGreaterThanOrEqual(KNOWN_AUDIT_EMIT_FILES.length);
 
     const violations: Array<{ file: string; reason: string }> = [];
@@ -566,16 +569,19 @@ describe("INV-AUDIT-EMIT-SSOT-IMPORT-001: audit_logs emit SSOT import / no hardc
 
     // 4 actor naming conventions in current production code (cf.
     // `apps/mcp-server/src/audit/audit-actions.ts` + service emit sites):
-    //   - "system:embedding-backfill-worker"   (worker-emitted)
-    //   - "system:phase0-cleanup-cron"         (cron-emitted)
-    //   - "operator:<email>"                   (manual recovery, LCC-04)
-    //   - "system:screenshot-cleanup-cron"     (TTL cron, PR7d-3)
+    //   - "system:embedding-backfill-worker"     (worker-emitted)
+    //   - "system:phase0-cleanup-cron"           (cron-emitted)
+    //   - "operator:<email>"                     (manual recovery, LCC-04)
+    //   - "system:screenshot-storage-migration"  (PR-SS-A migration CLI;
+    //                                             replaces the retired
+    //                                             "system:screenshot-cleanup-cron"
+    //                                             — TTL cron removed in PR-SS-B)
     // For each actor we derive expectations strictly from the SSOT length.
     const actors: readonly string[] = [
       "system:embedding-backfill-worker",
       "system:phase0-cleanup-cron",
       "operator:operator@example.com",
-      "system:screenshot-cleanup-cron",
+      "system:screenshot-storage-migration",
     ];
 
     // 4 input length classes:

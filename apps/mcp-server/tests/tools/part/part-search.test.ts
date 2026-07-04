@@ -241,23 +241,56 @@ describe("part.search MCPツール", () => {
   // Embedding失敗 / Embedding failure
   // =====================================================
 
-  describe("Embedding生成失敗 / Embedding generation failure", () => {
-    it("Embedding生成がnullの場合は空結果を返すこと", async () => {
-      mockEmbeddingService.generateEmbedding = vi.fn().mockResolvedValue(null);
+  // ADR-0043 Decision 1/3 / plan v4 §4.3.2 part 4-state:
+  // embedding 失敗 (failed/unavailable) は visual/hybrid mode で success:false (state 4)、
+  // text mode は fulltext-only fallback で success:true (state 3)。
+  describe("Embedding生成失敗 / Embedding generation failure (ADR-0043 4-state)", () => {
+    it("state 4: embedding 生成 throw + hybrid (default) → success:false (fail-loud)", async () => {
+      mockEmbeddingService.generateEmbedding = vi
+        .fn()
+        .mockRejectedValue(new Error("Embedding boom"));
       setPartSearchEmbeddingServiceFactory(() => mockEmbeddingService);
 
-      // EmbeddingServiceFactoryがnullでない限りgenerateQueryEmbeddingはnullを返さない
-      // ただしgenerateEmbeddingがnullの場合はgenerateQueryEmbeddingもnullを返す
       const result = (await partSearchHandler({
-        query: "test query",
+        query: "embedding fail hybrid q1",
       })) as PartSearchOutput;
 
-      // Embedding失敗時は空結果を返すか、エラーを返す
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.results).toEqual([]);
-        expect(result.data.total).toBe(0);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe(PART_SEARCH_ERROR_CODES.EMBEDDING_FAILED);
+        expect(result.error.degradedReason).toBe("embedding_failed");
       }
+    });
+
+    it("state 4: embedding unavailable (factory 不在) + hybrid → success:false (SERVICE_UNAVAILABLE)", async () => {
+      resetPartSearchEmbeddingServiceFactory();
+      resetPartSearchService();
+
+      const result = (await partSearchHandler({
+        query: "embedding unavailable hybrid q2",
+        search_mode: "hybrid",
+      })) as PartSearchOutput;
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe(PART_SEARCH_ERROR_CODES.SERVICE_UNAVAILABLE);
+        expect(result.error.degradedReason).toBe("embedding_unavailable");
+      }
+    });
+
+    it("state 3: embedding 生成 throw + text mode → fulltext-only fallback (success:true 正当)", async () => {
+      mockEmbeddingService.generateEmbedding = vi
+        .fn()
+        .mockRejectedValue(new Error("Embedding boom"));
+      setPartSearchEmbeddingServiceFactory(() => mockEmbeddingService);
+
+      const result = (await partSearchHandler({
+        query: "embedding fail text q3",
+        search_mode: "text",
+      })) as PartSearchOutput;
+
+      // text-mode は fulltext-only で続行する (障害を 0件偽装でも success:false でもない)
+      expect(result.success).toBe(true);
     });
   });
 
@@ -304,37 +337,33 @@ describe("part.search MCPツール", () => {
       }
     });
 
-    it("EmbeddingServiceが未設定の場合は空結果を返すこと", async () => {
+    it("EmbeddingService 未設定 + hybrid (default) の場合は success:false (fail-loud、ADR-0043)", async () => {
       resetPartSearchEmbeddingServiceFactory();
+      resetPartSearchService();
 
       const result = (await partSearchHandler({
-        query: "test",
+        query: "embedding unset hybrid q4",
       })) as PartSearchOutput;
 
-      // EmbeddingServiceがない場合、generateQueryEmbeddingがnullを返す
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.results).toEqual([]);
-        expect(result.data.total).toBe(0);
+      // ADR-0043: embedding 必須 (hybrid) で未配線 → success:false (空 success:true 偽装撤去)
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe(PART_SEARCH_ERROR_CODES.SERVICE_UNAVAILABLE);
+        expect(result.error.degradedReason).toBe("embedding_unavailable");
       }
     });
 
-    it("サービス取得失敗時にSERVICE_UNAVAILABLEを返すこと", async () => {
-      // PartSearchServiceのシングルトンを破壊して、getPrismaClientで例外を発生させる
-      // 実際にはgetPartSearchServiceはシングルトンを返すので失敗しない
-      // ここではサービスの内部エラーハンドリングのテスト
+    it("EmbeddingService 未設定 + text mode の場合は fulltext-only fallback (success:true 正当)", async () => {
       resetPartSearchEmbeddingServiceFactory();
-      resetPartSearchPrismaClientFactory();
+      resetPartSearchService();
 
       const result = (await partSearchHandler({
-        query: "test",
+        query: "embedding unset text q5",
+        search_mode: "text",
       })) as PartSearchOutput;
 
-      // EmbeddingService未設定 → embedding null → 空結果
+      // text mode は embedding 不要で fulltext-only 続行可能
       expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.results).toEqual([]);
-      }
     });
   });
 });

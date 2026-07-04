@@ -36,11 +36,51 @@ import type {
 } from "../tools/motion/schemas";
 import { assertNonProductionFactory } from "./production-guard";
 import { validateEmbeddingVector, EmbeddingValidationError } from "./embedding-validation.service";
+import { resolveQueryEmbedding } from "./_shared/resolve-query-embedding";
+import type { DegradedReason } from "./_shared/resolve-query-embedding";
 import type {
   JSAnimationSearchService,
   JSAnimationSearchResultItem,
   JSAnimationSearchParams,
 } from "./motion/js-animation-search.service";
+
+// =====================================================
+// エラークラス / Error classes
+// =====================================================
+
+/**
+ * motion embedding 解決不能エラー (ADR-0043 Decision 1 / plan v4 §4.5)
+ *
+ * embedding が `unavailable` (factory 不在) または `failed` (生成 throw) のとき
+ * `search()` / `searchHybrid()` が throw する fail-loud エラー。motion tool catch
+ * (`search.tool.ts:331-347`) が message の `Embedding` substring で `EMBEDDING_ERROR`
+ * に分類するため、message には必ず "Embedding" を含める。
+ *
+ * **CWE-209 + GDPR Art.5(1)(c)**: message は固定の generic 文言のみ。query 本文・
+ * query 由来文字列・`.so` / stack trace を一切 bind しない (reason は
+ * sanitizeErrorMessage 済の SSOT 由来文字列のみ、`details` に格納)。
+ */
+export class MotionEmbeddingUnavailableError extends Error {
+  /** degraded 理由 (embedding_unavailable | embedding_failed) */
+  public readonly degradedReason: DegradedReason;
+  /** sanitizeErrorMessage 済の generic 理由 (failed の場合のみ、PII / .so 非含有) */
+  public readonly details: string | undefined;
+
+  constructor(status: "unavailable" | "failed", sanitizedReason?: string) {
+    // tool catch (search.tool.ts:336) が case-sensitive な "Embedding" substring で
+    // EMBEDDING_ERROR 分類するため、message に大文字 "Embedding" を含める。
+    // query 本文・.so は含めない (CWE-209)。
+    super(
+      status === "unavailable"
+        ? "Embedding service is unavailable for motion search"
+        : "Embedding generation failed for motion search"
+    );
+    this.name = "MotionEmbeddingUnavailableError";
+    this.degradedReason = status === "unavailable" ? "embedding_unavailable" : "embedding_failed";
+    this.details = sanitizedReason;
+    Object.setPrototypeOf(this, MotionEmbeddingUnavailableError.prototype);
+  }
+}
 
 // =====================================================
 // 定数
@@ -599,7 +639,78 @@ export class MotionSearchService implements IMotionSearchService {
   }
 
   /**
+   * クエリテキストを準備 (query/samplePattern 必須チェック)
+   *
+   * ADR-0043 / plan v4 §4.5.1: embedding 解決の前段で queryText を確定する。
+   */
+  private resolveQueryText(params: MotionSearchParams): string {
+    // NOTE: generateEmbedding() が内部で E5 prefix ("query: " / "passage: ") を
+    // 自動付与するため、ここではプレフィックスなしのテキストを渡す。
+    if (params.query) {
+      return params.query;
+    }
+    if (params.samplePattern) {
+      return samplePatternToText(params.samplePattern);
+    }
+    throw new Error("query or samplePattern is required");
+  }
+
+  /**
+   * query embedding を解決し validate する fail-loud helper
+   * (ADR-0043 Decision 1 / plan v4 §4.5.1 R9 design-pin + §4.5.2 選択肢 B)
+   *
+   * **R9 control-flow 設計の中核**: この helper は `search()` / `searchHybrid()` の
+   * **外側 try-catch の前段**で呼ばれる。embedding 解決失敗の throw は外側 catch に
+   * 捕まらず、外側 catch の self-fallback (`return this.search(params)`) で握り潰されない。
+   *
+   * - SSOT `resolveQueryEmbedding` で `ok`/`unavailable`/`failed` を得る (single attempt)。
+   * - `ok` なら validate を SSOT の外で実行し、失敗時 `EmbeddingValidationError` を throw
+   *   (現状の motion 挙動と同一、tool catch の EMBEDDING_ERROR 経路維持)。
+   * - `unavailable`/`failed` は `MotionEmbeddingUnavailableError` を throw (fail-loud)。
+   *
+   * @returns 検証済 query embedding ベクトル
+   * @throws MotionEmbeddingUnavailableError embedding が unavailable / failed の場合
+   * @throws EmbeddingValidationError 生成した embedding が無効ベクトルの場合
+   */
+  private async resolveValidatedQueryEmbedding(queryText: string): Promise<number[]> {
+    const result = await resolveQueryEmbedding(embeddingServiceFactory, (svc) =>
+      svc.generateEmbedding(queryText, "query")
+    );
+
+    if (result.status === "unavailable") {
+      throw new MotionEmbeddingUnavailableError("unavailable");
+    }
+    if (result.status === "failed") {
+      logger.warn("[MotionSearchService] Embedding generation failed (fail-loud)", {
+        // reason は sanitizeErrorMessage 済 (SSOT 由来)。query 本文・.so 非含有 (CWE-209)。
+        reason: result.reason,
+        queryLength: queryText.length,
+      });
+      throw new MotionEmbeddingUnavailableError("failed", result.reason);
+    }
+
+    // §4.5.2 選択肢 B: validate を SSOT の外で実行 (EmbeddingValidationError を別 throw)。
+    const validationResult = validateEmbeddingVector(result.embedding);
+    if (!validationResult.isValid) {
+      const error = validationResult.error;
+      const errorMessage =
+        error?.index !== undefined
+          ? `${error.message} at index ${error.index}`
+          : (error?.message ?? "Unknown validation error");
+      throw new EmbeddingValidationError(
+        error?.code ?? "INVALID_VECTOR",
+        errorMessage,
+        error?.index
+      );
+    }
+    return result.embedding;
+  }
+
+  /**
    * モーションパターンを検索
+   *
+   * plan v4 §4.5.1 R9 design-pin: embedding 解決 + validate + throw を DB try の
+   * 前段に配置し、embedding 失敗の throw が success:true 空結果に握り潰されないようにする。
    */
   async search(params: MotionSearchParams): Promise<MotionSearchResult> {
     const startTime = Date.now();
@@ -619,55 +730,13 @@ export class MotionSearchService implements IMotionSearchService {
       });
     }
 
+    // (A) embedding 解決 + validate + throw を「DB try の前段」に配置する (R9 design-pin)。
+    //     embedding 失敗 (unavailable/failed) はここで throw され、tool catch に直接到達する。
+    const queryText = this.resolveQueryText(params);
+    const queryEmbedding = await this.resolveValidatedQueryEmbedding(queryText);
+
+    // (B) DB/検索実行系のみを try-catch で包む (embedding 失敗はここに到達しない)。
     try {
-      // クエリテキストを準備
-      // NOTE: generateEmbedding() が内部で E5 prefix ("query: " / "passage: ") を
-      // 自動付与するため、ここではプレフィックスなしのテキストを渡す。
-      let queryText: string;
-      if (params.query) {
-        queryText = params.query;
-      } else if (params.samplePattern) {
-        queryText = samplePatternToText(params.samplePattern);
-      } else {
-        throw new Error("query or samplePattern is required");
-      }
-
-      // Embedding生成を試みる
-      let queryEmbedding: number[] | null = null;
-      try {
-        const embeddingService = this.getEmbeddingService();
-        queryEmbedding = await embeddingService.generateEmbedding(queryText, "query");
-
-        // Embedding ベクトルの検証（Phase6-SEC-2対応）
-        // 検索はEmbeddingなしでは不可能なため、検証失敗時はエラーをスロー
-        const validationResult = validateEmbeddingVector(queryEmbedding);
-        if (!validationResult.isValid) {
-          const error = validationResult.error;
-          const errorMessage =
-            error?.index !== undefined
-              ? `${error.message} at index ${error.index}`
-              : (error?.message ?? "Unknown validation error");
-          throw new EmbeddingValidationError(
-            error?.code ?? "INVALID_VECTOR",
-            errorMessage,
-            error?.index
-          );
-        }
-      } catch (embeddingError) {
-        // EmbeddingValidationError は再スロー（検索不可能）
-        if (embeddingError instanceof EmbeddingValidationError) {
-          throw embeddingError;
-        }
-        logger.warn(
-          "[MotionSearchService] Embedding generation failed, falling back to text search",
-          {
-            error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
-          }
-        );
-        // Embedding生成に失敗した場合は空の結果を返す
-        // （テキスト検索フォールバックは将来実装）
-      }
-
       // PrismaClient取得を試みる
       let prisma: IPrismaClient;
       try {
@@ -678,16 +747,14 @@ export class MotionSearchService implements IMotionSearchService {
         return {
           results: [],
           total: 0,
-          query: {
-            text: params.query || samplePatternToText(params.samplePattern!),
-          },
+          query: { text: queryText },
         };
       }
 
       // ベクトル検索を実行
       let results: MotionSearchResultItem[] = [];
 
-      if (queryEmbedding) {
+      {
         const { clause, params: whereParams } = buildWhereClause(params.filters);
         const vectorString = `[${queryEmbedding.join(",")}]`;
         const { sql: query, params: queryParams } = this.buildCSSVectorSearchQuery(
@@ -721,7 +788,7 @@ export class MotionSearchService implements IMotionSearchService {
 
       // v0.1.0: JSAnimation検索を実行
       let jsAnimationResults: JSAnimationSearchResultItem[] = [];
-      if (includeJsAnimations && queryEmbedding) {
+      if (includeJsAnimations) {
         const jsSearchService = this.getJSAnimationSearchService();
         if (jsSearchService) {
           try {
@@ -773,7 +840,7 @@ export class MotionSearchService implements IMotionSearchService {
       }
 
       const queryInfo: MotionSearchQueryInfo = {
-        text: params.query || samplePatternToText(params.samplePattern!),
+        text: queryText,
       };
 
       return {
@@ -782,7 +849,8 @@ export class MotionSearchService implements IMotionSearchService {
         query: queryInfo,
       };
     } catch (error) {
-      logger.warn("[MotionSearchService] Search error", {
+      // DB/検索実行系 error のみここに到達する (embedding 失敗は前段で throw 済)。
+      logger.warn("[MotionSearchService] Search error (DB/execution)", {
         error: error instanceof Error ? error.message : "Unknown error",
       });
       throw error;
@@ -963,7 +1031,12 @@ export class MotionSearchService implements IMotionSearchService {
    *
    * 既存の search() と同じインターフェースで、内部的に全文検索を追加し
    * Reciprocal Rank Fusion で結果をマージする。
-   * 全文検索が失敗した場合はベクトル検索のみにフォールバック。
+   * DB/全文検索が失敗した場合は標準検索 (search()) にフォールバックする。
+   *
+   * plan v4 §4.5.1 R9 design-pin: embedding 解決 + validate + throw を**外側 try の
+   * 前段**に配置する。これにより embedding 失敗の throw が外側 catch (DB-error 用
+   * self-fallback `return this.search(params)`) に捕まらず、`search()` への再委譲
+   * (= 2 回目の generateEmbedding) で空 success:true に握り潰されない (single attempt)。
    */
   async searchHybrid(params: MotionSearchParams): Promise<MotionSearchResult> {
     const startTime = Date.now();
@@ -976,47 +1049,14 @@ export class MotionSearchService implements IMotionSearchService {
       });
     }
 
+    // (A) embedding 解決 + validate + throw を「外側 try の前段」に配置する (R9 design-pin)。
+    //     embedding 失敗 (unavailable/failed) はここで throw され、外側 catch (DB-error
+    //     self-fallback) に捕まらず tool catch に直接到達する → success:false。
+    const queryText = this.resolveQueryText(params);
+    const queryEmbedding = await this.resolveValidatedQueryEmbedding(queryText);
+
+    // (B) DB/検索実行系のみを外側 try-catch で包む。:1136 self-fallback は DB error 専用。
     try {
-      // クエリテキストを準備
-      // NOTE: generateEmbedding() が内部で E5 prefix を自動付与するため、
-      // プレフィックスなしのテキストを渡す。
-      let queryText: string;
-      if (params.query) {
-        queryText = params.query;
-      } else if (params.samplePattern) {
-        queryText = samplePatternToText(params.samplePattern);
-      } else {
-        throw new Error("query or samplePattern is required");
-      }
-
-      // Embedding 生成
-      let queryEmbedding: number[] | null = null;
-      try {
-        const embeddingService = this.getEmbeddingService();
-        queryEmbedding = await embeddingService.generateEmbedding(queryText, "query");
-
-        const validationResult = validateEmbeddingVector(queryEmbedding);
-        if (!validationResult.isValid) {
-          const error = validationResult.error;
-          const errorMessage =
-            error?.index !== undefined
-              ? `${error.message} at index ${error.index}`
-              : (error?.message ?? "Unknown validation error");
-          throw new EmbeddingValidationError(
-            error?.code ?? "INVALID_VECTOR",
-            errorMessage,
-            error?.index
-          );
-        }
-      } catch (embeddingError) {
-        if (embeddingError instanceof EmbeddingValidationError) {
-          throw embeddingError;
-        }
-        logger.warn("[MotionSearchService] Embedding generation failed in hybrid search", {
-          error: embeddingError instanceof Error ? embeddingError.message : "Unknown error",
-        });
-      }
-
       let prisma: IPrismaClient;
       try {
         prisma = this.getPrismaClient();
@@ -1032,7 +1072,7 @@ export class MotionSearchService implements IMotionSearchService {
       // CSS モーション検索: ハイブリッド（ベクトル + 全文）
       let results: MotionSearchResultItem[] = [];
 
-      if (queryEmbedding) {
+      {
         const { clause, params: whereParams } = buildWhereClause(params.filters);
         const vectorString = `[${queryEmbedding.join(",")}]`;
         const fetchLimit = Math.min(params.limit * 3, 150);
@@ -1092,7 +1132,7 @@ export class MotionSearchService implements IMotionSearchService {
 
       // JSAnimation 検索: ハイブリッドモードで実行（tsvector search_vector 使用）
       let jsAnimationResults: JSAnimationSearchResultItem[] = [];
-      if (includeJsAnimations && queryEmbedding) {
+      if (includeJsAnimations) {
         const jsSearchService = this.getJSAnimationSearchService();
         if (jsSearchService) {
           try {
@@ -1132,10 +1172,13 @@ export class MotionSearchService implements IMotionSearchService {
         query: { text: queryText },
       };
     } catch (error) {
-      logger.warn("[MotionSearchService] Hybrid search error, falling back to standard search", {
+      // R9 design-pin: embedding 失敗は前段 (A) で throw 済ゆえここに到達しない。
+      // ここに到達するのは DB/検索実行系 error のみ → 標準検索 (search()) に self-fallback。
+      // search() も embedding を resolveValidatedQueryEmbedding で再解決するが、
+      // この経路は「embedding 成功後の DB error」が前提のため embedding は既に解決済 = 二重 attempt なし。
+      logger.warn("[MotionSearchService] Hybrid DB search error, falling back to standard search", {
         error: error instanceof Error ? error.message : "Unknown error",
       });
-      // フォールバック: 標準検索
       return this.search(params);
     }
   }

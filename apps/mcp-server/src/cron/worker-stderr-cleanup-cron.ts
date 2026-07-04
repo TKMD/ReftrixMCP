@@ -12,8 +12,9 @@
  *         `audit_logs.worker_stderr_disk_pressure_detected` emit +
  *         `REFTRIX_WORKER_STDERR_REDIRECT_ENABLED=false` runtime auto-failover
  *
- * Pattern follows `screenshot-cleanup-cron.ts` (BullMQ Repeatable Job ではなく
- * setInterval、Worker と同プロセスで filesystem + audit_logs のみ touch)。
+ * Pattern follows the (retired) `screenshot-cleanup-cron.ts` (BullMQ Repeatable
+ * Job ではなく setInterval、Worker と同プロセスで filesystem + audit_logs のみ
+ * touch)。screenshot TTL cron 自体は PR-SS-B / ADR-0041 で撤去済。
  *
  * @module cron/worker-stderr-cleanup-cron
  * @see Plan v4.5 V3 §P0.5.runtime (4-layer 防御 L1 + L3)

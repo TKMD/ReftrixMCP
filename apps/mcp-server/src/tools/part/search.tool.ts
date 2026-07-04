@@ -38,6 +38,8 @@ import {
   type PartSearchResultItem,
   type PartSearchOptions,
 } from "../../services/part/part-search.service";
+import type { DegradedReason } from "../../services/_shared/resolve-query-embedding";
+import { buildEmbeddingFailureError } from "../_shared/embedding-failure-response";
 
 // =====================================================
 // 型定義
@@ -80,6 +82,12 @@ export type PartSearchOutput =
       error: {
         code: string;
         message: string;
+        /**
+         * embedding 障害の degraded 理由 (ADR-0043 / plan v4 §4.1)。
+         * embedding_unavailable | embedding_failed。aggregator (search.unified、PR-2b)
+         * が service 単位 degraded 分類に使う。embedding 障害以外の error では undefined。
+         */
+        degradedReason?: DegradedReason;
       };
     };
 
@@ -277,30 +285,44 @@ export async function partSearchHandler(input: unknown): Promise<PartSearchOutpu
     }
 
     if (validated.query) {
-      // テキストまたはハイブリッド検索 / Text or hybrid search
-      const embedding = await searchService.generateQueryEmbedding(validated.query);
+      // ADR-0043 Decision 3 / plan v4 §4.3.2 part 4-state dispatch
+      // (embedding ok/unavailable/failed × search_mode):
+      const embeddingResult = await searchService.resolveQueryEmbeddingResult(validated.query);
 
-      if (embedding && validated.search_mode !== "text") {
-        // ハイブリッド検索: ベクトル + 全文検索 / Hybrid: vector + fulltext
-        result = await searchService.searchPartsHybrid(validated.query, embedding, options);
-      } else if (embedding) {
-        // テキストベクトル検索のみ / Text vector search only
-        result = await searchService.searchParts(embedding, options);
-      } else {
-        // Embedding生成失敗 / Embedding generation failed
+      if (embeddingResult.status === "ok") {
+        if (validated.search_mode !== "text") {
+          // state 1: embedding ok + visual/hybrid → ハイブリッド (vector + fulltext RRF)
+          result = await searchService.searchPartsHybrid(
+            validated.query,
+            embeddingResult.embedding,
+            options
+          );
+        } else {
+          // state 2: embedding ok + text → text-to-vector (現状維持・後方互換)
+          result = await searchService.searchParts(embeddingResult.embedding, options);
+        }
+      } else if (validated.search_mode === "text") {
+        // state 3: embedding failed/unavailable + text → fulltext-only 続行 (success:true 正当)
         if (isDevelopment()) {
           logger.warn(
-            "[MCP Tool] part.search: embedding generation failed, returning empty results"
+            "[MCP Tool] part.search: embedding unavailable, falling back to fulltext-only (text mode)"
           );
         }
-
+        result = await searchService.searchPartsFulltext(validated.query, options);
+      } else {
+        // state 4: embedding failed/unavailable + visual/hybrid → success:false (案A leaf fail-loud)
+        const failure = buildEmbeddingFailureError(embeddingResult.status);
+        logger.warn("[MCP Tool] part.search: embedding required but unavailable (fail-loud)", {
+          code: failure.code,
+          degradedReason: failure.degradedReason,
+          searchMode: validated.search_mode,
+        });
         return {
-          success: true,
-          data: {
-            results: [],
-            total: 0,
-            query: { text: validated.query },
-            searchTimeMs: Date.now() - startTime,
+          success: false,
+          error: {
+            code: failure.code,
+            message: failure.message,
+            degradedReason: failure.degradedReason,
           },
         };
       }

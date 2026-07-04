@@ -32,8 +32,22 @@ import * as path from "node:path";
 
 /** processEmbeddingPhase 全体のスライスサイズ（~73K文字、acquireSectionCropBuffer抽出+動的Fallback追加分を含む） */
 const EMBEDDING_PHASE_SLICE = 75000;
-/** Section Visual Embedding ブロックのスライスサイズ（processEmbeddingPhase内、PII+セクション取得まで。PR-B で backfill section fallback の robots.txt 再評価 + SSRF threading + Disallow terminal 収束ブロックを追加し +~4K 文字拡大） */
-const SECTION_VISUAL_SLICE = 80000;
+/**
+ * Section Visual Embedding ブロックのスライスサイズ（processEmbeddingPhase内、PII+セクション取得まで。PR-B で backfill section fallback の robots.txt 再評価 + SSRF threading + Disallow terminal 収束ブロックを追加し +~4K 文字拡大）
+ *
+ * W6 Issue A PR-3b C5（phase-5-embedding.ts に +33 行）が末尾付近の 3 アサーション
+ * （prisma.sectionPattern.findMany / layoutInfo / highPiiSectionIdSet.size、delta ~80.3-80.9K）を
+ * 80000 窓の外へ押し出した。3 文字列は source に残存（production 挙動は不変）のため、~19K の
+ * margin を持つ 100000 へ拡大する。前例: PR-3a で sibling
+ * section-visual-embedding-fallback.test.ts の SECTION_VISUAL_SLICE を 80000→100000 に拡大。
+ *
+ * W6 Issue A PR-3b C5 (+33 lines in phase-5-embedding.ts) pushed 3 end-of-region assertions
+ * (prisma.sectionPattern.findMany / layoutInfo / highPiiSectionIdSet.size, delta ~80.3-80.9K)
+ * past the 80000 window; strings still exist in source (behavior-invariant); widened to 100000
+ * with ~19K margin. Precedent: PR-3a SECTION_VISUAL_SLICE 80000→100000 (sibling
+ * section-visual-embedding-fallback.test.ts).
+ */
+const SECTION_VISUAL_SLICE = 100000;
 /**
  * processSingleSectionVisualEmbedding サブ関数のスライスサイズ（巨大関数分解で移動したセクション単位処理ロジック。secvisual blank/no-position terminal exit 2件追加で実関数長 ~10992 文字に拡大、result.generated++ は rel offset 10587）。
  *

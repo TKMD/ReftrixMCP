@@ -96,6 +96,19 @@ export const TOOL_TIER_MAP: Record<string, RateLimitTier> = {
   "design.similar_site": "search",
   "design.compare": "search",
   "search.facets": "search",
+  // WebUI v1 W3 (SEC-W3-M1): the internal read HTTP API search routes share the SAME Token
+  // Bucket core + Redis Lua as the MCP tool path (DRY). They are search-class operations, so
+  // they map to the `search` tier (120 RPM default, env-overridable per the RATE_LIMIT_* rule).
+  // The express adapter (`api/internal/rate-limit-middleware.ts`) calls `checkRateLimit(<key>)`
+  // with these keys — no second rate-limit core. CWE-770 DoS prevention at the HTTP boundary.
+  "internal_search.text": "search",
+  "internal_search.image": "search",
+  "internal_search.similar_site": "search",
+  // WebUI v1 W4 (F-PLAN-W4-B): the internal compare route is a search-class operation; it shares the
+  // SAME Token Bucket core + Redis Lua as the search routes (DRY). Mapped to the `search` tier (120
+  // RPM). Auto-inherit does NOT happen — an unmapped key silently falls to the `default` (60 RPM)
+  // tier; this explicit wiring pins the search tier. CWE-770 DoS prevention at the HTTP boundary.
+  internal_compare: "search",
 };
 
 /** Redis key prefix for rate limiter buckets */

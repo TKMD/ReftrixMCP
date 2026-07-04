@@ -445,6 +445,16 @@ export {
   type PartCompareOutput,
 } from "./part/compare.tool";
 
+// section.inspect ツール（セクションハンドル解決、WebUI v1 W6 Issue A PR-1）
+export {
+  sectionInspectHandler,
+  sectionInspectToolDefinition,
+  SECTION_INSPECT_ERROR_CODES,
+  type SectionInspectOutput,
+  type SectionInspectDetail,
+} from "./section/inspect.tool";
+export { sectionInspectInputSchema, type SectionInspectInput } from "./section/schemas";
+
 // search.unified ツール（コンポーネント横断検索）
 export {
   searchUnifiedHandler,
@@ -625,6 +635,7 @@ import {
 import { partSearchToolDefinition } from "./part/search.tool";
 import { partInspectToolDefinition } from "./part/inspect.tool";
 import { partCompareToolDefinition } from "./part/compare.tool";
+import { sectionInspectToolDefinition } from "./section/inspect.tool";
 import { searchUnifiedToolDefinition } from "./search-unified.tool";
 import { searchFacetsToolDefinition } from "./search/facets.tool";
 import { designSearchByImageToolDefinition } from "./design/search-by-image.tool";
@@ -688,6 +699,8 @@ export const allToolDefinitions = [
   partInspectToolDefinition,
   // part.compare（パーツ並列比較）
   partCompareToolDefinition,
+  // section.inspect（セクションハンドル解決、WebUI v1 W6 Issue A PR-1）
+  sectionInspectToolDefinition,
   // search.unified（コンポーネント横断検索）
   searchUnifiedToolDefinition,
   // search.facets（ファセット検索、v0.3.0 T2-FAC）
@@ -757,6 +770,7 @@ import { preferenceHearHandler, preferenceGetHandler, preferenceResetHandler } f
 import { partSearchHandler } from "./part/search.tool";
 import { partInspectHandler } from "./part/inspect.tool";
 import { partCompareHandler } from "./part/compare.tool";
+import { sectionInspectHandler } from "./section/inspect.tool";
 import { searchUnifiedHandler } from "./search-unified.tool";
 import { searchFacetsHandler } from "./search/facets.tool";
 import { designSearchByImageHandler } from "./design/search-by-image.tool";
@@ -820,6 +834,8 @@ export const toolHandlers: Record<string, (input: unknown) => Promise<unknown>> 
   "part.inspect": partInspectHandler,
   // part.compare（パーツ並列比較）
   "part.compare": partCompareHandler,
+  // section.inspect（セクションハンドル解決、WebUI v1 W6 Issue A PR-1）
+  "section.inspect": sectionInspectHandler,
   // search.unified（コンポーネント横断検索）
   "search.unified": searchUnifiedHandler,
   // search.facets（ファセット検索、v0.3.0 T2-FAC）

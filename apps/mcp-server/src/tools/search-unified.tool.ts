@@ -18,6 +18,7 @@
 import { z } from "zod";
 import { logger, isDevelopment } from "../utils/logger";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
+import type { DegradedReason } from "../services/_shared/resolve-query-embedding";
 import { layoutSearchHandler } from "./layout/search.tool";
 import { partSearchHandler } from "./part/search.tool";
 import { motionSearchHandler } from "./motion/search.tool";
@@ -102,6 +103,24 @@ export interface UnifiedSearchResultItem {
 }
 
 /**
+ * degraded service marker / degraded サービスマーカー (ADR-0043 Decision 2 / plan v4 §4.4)
+ *
+ * search.unified が embedding 障害で fail-loud な leaf を silent drop せず surface する
+ * per-service marker。`reason` は `DegradedReason` enum union (free-form string 排除、
+ * UB-V1-5)。query 本文・error message を bind しない (CWE-209 / GDPR Art.5(1)(c))。
+ *
+ * The per-service marker that surfaces an embedding-failed fail-loud leaf instead of
+ * silently dropping it. `reason` binds to the `DegradedReason` enum union; it never
+ * binds the query body or an error message.
+ */
+export interface DegradedServiceMarker {
+  /** degraded した service / the degraded service */
+  service: "layout" | "part" | "motion" | "background" | "narrative";
+  /** degraded 理由 (embedding_unavailable | embedding_failed) / degraded reason */
+  reason: DegradedReason;
+}
+
+/**
  * search.unified 出力型 / search.unified output type
  */
 export type SearchUnifiedOutput =
@@ -120,6 +139,15 @@ export type SearchUnifiedOutput =
           background: number;
           narrative: number;
         };
+        /**
+         * embedding 障害で degraded した service の per-service marker（ADR-0043 Decision 2 /
+         * plan v4 §4.4）。embedding 必須として呼ばれた leaf が `success:false`（embedding
+         * unavailable/failed）を返した場合に additive に surface する。silent drop しない。
+         * degraded service が無い場合は省略（undefined）。
+         * Per-service markers for services degraded by an embedding failure; surfaced
+         * additively, never silently dropped. Omitted when there is no degraded service.
+         */
+        degradedServices?: DegradedServiceMarker[];
         /** セマンティック検索メタデータ / Semantic search metadata */
         semantic?: {
           /** 分類されたクエリタイプ / Classified query type */
@@ -154,6 +182,136 @@ export const UNIFIED_SEARCH_ERROR_CODES = {
   SEARCH_FAILED: "SEARCH_FAILED",
   INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
+
+// ============================================================================
+// ServiceOutcome — per-service degraded classification (ADR-0043 Decision 2)
+// ============================================================================
+
+type ServiceName = "layout" | "part" | "motion" | "background" | "narrative";
+
+/**
+ * 各 leaf helper の結果を 3 区別する discriminated union（ADR-0043 Decision 2 §4.4）。
+ * - ok        : embedding 成功・結果あり（items を merge 対象に算入）
+ * - empty     : embedding 成功・正当な 0 件（degraded でない、全滅判定から除外）
+ * - degraded  : embedding 障害（unavailable | failed）= silent drop しない
+ *
+ * The per-service outcome union: `ok` (embedding success with results), `empty`
+ * (embedding success with a legitimate 0 results — NOT degraded), and `degraded`
+ * (an embedding failure that must not be silently dropped).
+ */
+type ServiceOutcome =
+  | { kind: "ok"; service: ServiceName; items: UnifiedSearchResultItem[] }
+  | { kind: "empty"; service: ServiceName }
+  | { kind: "degraded"; service: ServiceName; reason: DegradedReason };
+
+/**
+ * leaf tool の error から `DegradedReason` を分類する（TPA-IMPL-02 forward-coupling 解消）。
+ *
+ * 4 service（layout/part/background/responsive）は `error.degradedReason` を carry するため
+ * それを使う。motion / narrative は `degradedReason` を破棄するため（motion tool catch の
+ * TPA-IMPL-02）、`error.code` を service 層 status の代理 signal として推論する:
+ *   - `SERVICE_UNAVAILABLE` → embedding_unavailable（factory 不在）
+ *   - `EMBEDDING_ERROR` / `EMBEDDING_FAILED` → embedding_failed（生成 throw）
+ *   - その他（`SEARCH_FAILED` 等 DB error）→ embedding_failed（plan §4.4 default）
+ *
+ * **CWE-209 / GDPR Art.5(1)(c)**: error.message を一切 bind せず、enum 値のみ返す。
+ *
+ * Classifies the `DegradedReason` from a leaf tool error. Services that carry
+ * `error.degradedReason` use it directly; for those that drop it (motion / narrative,
+ * the TPA-IMPL-02 forward-coupling), it infers from `error.code` as a proxy for the
+ * service-layer status. Binds no error message — returns only an enum value.
+ */
+function classifyDegradedReason(error: {
+  code?: string;
+  degradedReason?: DegradedReason;
+}): DegradedReason {
+  // 4 service が carry する degradedReason を最優先（最も正確な service 層 signal）。
+  if (
+    error.degradedReason === "embedding_unavailable" ||
+    error.degradedReason === "embedding_failed"
+  ) {
+    return error.degradedReason;
+  }
+  // motion / narrative は degradedReason を破棄するため code から推論。
+  if (error.code === "SERVICE_UNAVAILABLE") {
+    return "embedding_unavailable";
+  }
+  // EMBEDDING_ERROR (motion) / EMBEDDING_FAILED + その他 DB error は embedding_failed default。
+  return "embedding_failed";
+}
+
+/**
+ * leaf tool の応答（success/error）を ServiceOutcome に変換する共通ロジック。
+ * - success:true + 結果あり → ok / success:true + 0 件 → empty
+ * - success:false          → degraded（error から reason 分類）
+ * 旧実装の `if(!result.success || !result.data) return []` silent drop（経路 1）を置換。
+ *
+ * Converts a leaf tool response into a ServiceOutcome, replacing the old
+ * `if(!result.success || !result.data) return []` silent-drop (path 1).
+ */
+function classifyResponse(
+  service: ServiceName,
+  result: { success: boolean; error?: { code?: string; degradedReason?: DegradedReason } },
+  items: UnifiedSearchResultItem[]
+): ServiceOutcome {
+  if (!result.success) {
+    return { kind: "degraded", service, reason: classifyDegradedReason(result.error ?? {}) };
+  }
+  if (items.length === 0) {
+    return { kind: "empty", service };
+  }
+  return { kind: "ok", service, items };
+}
+
+/**
+ * leaf helper の reject（throw）を degraded marker に変換する共通ロジック。
+ * 旧実装の `catch { logger.warn(raw error.message); return [] }` silent drop（経路 2）を置換。
+ * **CWE-209 (SEC-RE-L-3)**: logger.warn の error を `sanitizeErrorMessage` 経由化。
+ *
+ * Converts a leaf helper rejection into a degraded marker, replacing the old
+ * `catch { return [] }` silent-drop (path 2). The logged error is sanitized (CWE-209).
+ */
+function classifyRejection(service: ServiceName, error: unknown): ServiceOutcome {
+  logger.warn(`[search.unified] ${service} search failed`, {
+    error: sanitizeErrorMessage(error),
+  });
+  return { kind: "degraded", service, reason: "embedding_failed" };
+}
+
+/**
+ * 全 ServiceOutcome から overall success/fail を判定し degradedServices を集約する
+ * （ADR-0043 Decision 2 / plan v4 §4.4 全滅述語、UB-V1-2 退行防止）。
+ *
+ * - `overallFail` は「ok ゼロ かつ 正当な空ゼロ かつ ≥1 が embedding_failed」のみ true。
+ *   `anyEmpty`（embedding 成功・0 件）が 1 つでもあれば全滅でない（退行防止）。
+ *   `embedding_unavailable` のみ（factory 未配線、active 障害でない）では overallFail にしない。
+ * - degradedServices は kind:"degraded" の per-service marker を additive surface。
+ *
+ * Determines overall success/fail and aggregates degradedServices. `overallFail` is
+ * true only when there are zero `ok`, zero `empty`, and ≥1 `embedding_failed`. A single
+ * legitimate empty means it is not all-fail (regression guard, UB-V1-2).
+ */
+function aggregateOutcomes(outcomes: ServiceOutcome[]): {
+  overallFail: boolean;
+  degradedServices: DegradedServiceMarker[];
+} {
+  const anyOk = outcomes.some((o) => o.kind === "ok");
+  const anyEmpty = outcomes.some((o) => o.kind === "empty");
+  const anyFailed = outcomes.some((o) => o.kind === "degraded" && o.reason === "embedding_failed");
+  const overallFail = !anyOk && !anyEmpty && anyFailed;
+  const degradedServices = outcomes
+    .filter((o): o is Extract<ServiceOutcome, { kind: "degraded" }> => o.kind === "degraded")
+    .map((o) => ({ service: o.service, reason: o.reason }));
+  return { overallFail, degradedServices };
+}
+
+/**
+ * ServiceOutcome から merge 対象の items を取り出す（ok のみ items を持つ）。
+ * Extracts the merge items from a ServiceOutcome (only `ok` carries items).
+ */
+function outcomeItems(outcome: ServiceOutcome): UnifiedSearchResultItem[] {
+  return outcome.kind === "ok" ? outcome.items : [];
+}
 
 // ============================================================================
 // Handler
@@ -228,28 +386,30 @@ export async function searchUnifiedHandler(input: unknown): Promise<SearchUnifie
   }
 
   // 3. 並列検索実行 / Execute searches in parallel
+  // 各 helper は ServiceOutcome (ok | empty | degraded) を返す。types に含まれない service は
+  // 「呼ばれていない」= 全滅判定の分母から除外するため null を resolve（empty とは区別）。
+  // Each helper returns a ServiceOutcome; a service not in `types` resolves null and is
+  // excluded from the all-fail denominator (distinct from a legitimate `empty`).
   const layoutPromise = types.includes("layout")
     ? searchLayout(effectiveInput)
-    : Promise.resolve([] as UnifiedSearchResultItem[]);
+    : Promise.resolve(null);
 
-  const partPromise = types.includes("part")
-    ? searchPart(effectiveInput)
-    : Promise.resolve([] as UnifiedSearchResultItem[]);
+  const partPromise = types.includes("part") ? searchPart(effectiveInput) : Promise.resolve(null);
 
   const motionPromise = types.includes("motion")
     ? searchMotion(effectiveInput)
-    : Promise.resolve([] as UnifiedSearchResultItem[]);
+    : Promise.resolve(null);
 
   const backgroundPromise = types.includes("background")
     ? searchBackground(effectiveInput)
-    : Promise.resolve([] as UnifiedSearchResultItem[]);
+    : Promise.resolve(null);
 
   const narrativePromise = types.includes("narrative")
     ? searchNarrative(effectiveInput)
-    : Promise.resolve([] as UnifiedSearchResultItem[]);
+    : Promise.resolve(null);
 
   try {
-    const [layoutResults, partResults, motionResults, backgroundResults, narrativeResults] =
+    const [layoutOutcome, partOutcome, motionOutcome, backgroundOutcome, narrativeOutcome] =
       await Promise.all([
         layoutPromise,
         partPromise,
@@ -257,6 +417,55 @@ export async function searchUnifiedHandler(input: unknown): Promise<SearchUnifie
         backgroundPromise,
         narrativePromise,
       ]);
+
+    // 呼ばれた service のみ（null 除外）= 全滅判定 + degradedServices の分母。
+    // Only the services actually invoked (null excluded) form the all-fail denominator.
+    const invokedOutcomes: ServiceOutcome[] = [
+      layoutOutcome,
+      partOutcome,
+      motionOutcome,
+      backgroundOutcome,
+      narrativeOutcome,
+    ].filter((o): o is ServiceOutcome => o !== null);
+
+    // 全滅判定 + degradedServices 集約（ADR-0043 Decision 2 §4.4、UB-V1-2 退行防止）。
+    const { overallFail, degradedServices } = aggregateOutcomes(invokedOutcomes);
+
+    // embedding 必須 service が全滅（≥1 embedding_failed かつ ok/empty ゼロ）→ success:false。
+    // silent degradation 排除（feedback_no_fake_success）。
+    if (overallFail) {
+      const searchTimeMs = Date.now() - startTime;
+      logger.warn("[search.unified] all embedding-required services degraded (fail-loud)", {
+        degradedCount: degradedServices.length,
+        degradedServices: degradedServices.map((d) => `${d.service}:${d.reason}`).join(","),
+        searchTimeMs,
+      });
+      logSearch({
+        query: validated.query,
+        queryType: queryUnderstanding.queryType,
+        services: types,
+        resultCount: 0,
+        latencyMs: searchTimeMs,
+        cacheHit: false,
+        profileId: validated.profile_id,
+      }).catch(() => {
+        // fire-and-forget
+      });
+      return {
+        success: false,
+        error: {
+          code: UNIFIED_SEARCH_ERROR_CODES.SEARCH_FAILED,
+          message: "All embedding-required search services are degraded",
+        },
+      };
+    }
+
+    // per-service の結果数（breakdown）。degraded/empty は 0、ok のみ件数を持つ。
+    const layoutResults = layoutOutcome ? outcomeItems(layoutOutcome) : [];
+    const partResults = partOutcome ? outcomeItems(partOutcome) : [];
+    const motionResults = motionOutcome ? outcomeItems(motionOutcome) : [];
+    const backgroundResults = backgroundOutcome ? outcomeItems(backgroundOutcome) : [];
+    const narrativeResults = narrativeOutcome ? outcomeItems(narrativeOutcome) : [];
 
     // 4. 結果マージ（similarity降順）/ Merge results by similarity desc
     let allResults = [
@@ -349,6 +558,9 @@ export async function searchUnifiedHandler(input: unknown): Promise<SearchUnifie
           rerankMethod,
         },
         facets,
+        // degraded service があれば additive surface（無ければ undefined）。
+        // Surface degraded services additively (undefined when none).
+        ...(degradedServices.length > 0 ? { degradedServices } : {}),
       },
     };
 
@@ -396,10 +608,10 @@ export async function searchUnifiedHandler(input: unknown): Promise<SearchUnifie
 // ============================================================================
 
 /**
- * layout.search を呼び出して統一形式に変換
- * Call layout.search and convert to unified format
+ * layout.search を呼び出して ServiceOutcome に変換
+ * Call layout.search and classify into a ServiceOutcome
  */
-async function searchLayout(input: SearchUnifiedInput): Promise<UnifiedSearchResultItem[]> {
+async function searchLayout(input: SearchUnifiedInput): Promise<ServiceOutcome> {
   try {
     const filters: Record<string, unknown> = {};
     if (input.webPageId) filters.webPageId = input.webPageId;
@@ -414,6 +626,7 @@ async function searchLayout(input: SearchUnifiedInput): Promise<UnifiedSearchRes
       profile_id: input.profile_id,
     })) as {
       success: boolean;
+      error?: { code?: string; degradedReason?: DegradedReason };
       data?: {
         results: Array<{
           id: string;
@@ -424,9 +637,7 @@ async function searchLayout(input: SearchUnifiedInput): Promise<UnifiedSearchRes
       };
     };
 
-    if (!result.success || !result.data) return [];
-
-    return result.data.results.map((r) => ({
+    const items: UnifiedSearchResultItem[] = (result.data?.results ?? []).map((r) => ({
       type: "layout" as const,
       id: r.id,
       similarity: r.similarity,
@@ -435,19 +646,17 @@ async function searchLayout(input: SearchUnifiedInput): Promise<UnifiedSearchRes
         webPageUrl: r.webPageUrl,
       },
     }));
+    return classifyResponse("layout", result, items);
   } catch (error) {
-    logger.warn("[search.unified] layout search failed", {
-      error: (error as Error).message,
-    });
-    return [];
+    return classifyRejection("layout", error);
   }
 }
 
 /**
- * part.search を呼び出して統一形式に変換
- * Call part.search and convert to unified format
+ * part.search を呼び出して ServiceOutcome に変換
+ * Call part.search and classify into a ServiceOutcome
  */
-async function searchPart(input: SearchUnifiedInput): Promise<UnifiedSearchResultItem[]> {
+async function searchPart(input: SearchUnifiedInput): Promise<ServiceOutcome> {
   try {
     const result = (await partSearchHandler({
       query: input.query,
@@ -459,6 +668,7 @@ async function searchPart(input: SearchUnifiedInput): Promise<UnifiedSearchResul
       tags: input.tags,
     })) as {
       success: boolean;
+      error?: { code?: string; degradedReason?: DegradedReason };
       data?: {
         results: Array<{
           id: string;
@@ -469,9 +679,7 @@ async function searchPart(input: SearchUnifiedInput): Promise<UnifiedSearchResul
       };
     };
 
-    if (!result.success || !result.data) return [];
-
-    return result.data.results.map((r) => ({
+    const items: UnifiedSearchResultItem[] = (result.data?.results ?? []).map((r) => ({
       type: "part" as const,
       id: r.id,
       similarity: r.similarity,
@@ -480,19 +688,22 @@ async function searchPart(input: SearchUnifiedInput): Promise<UnifiedSearchResul
         webPageUrl: r.webPageUrl,
       },
     }));
+    return classifyResponse("part", result, items);
   } catch (error) {
-    logger.warn("[search.unified] part search failed", {
-      error: (error as Error).message,
-    });
-    return [];
+    return classifyRejection("part", error);
   }
 }
 
 /**
- * motion.search を呼び出して統一形式に変換
- * Call motion.search and convert to unified format
+ * motion.search を呼び出して ServiceOutcome に変換
+ * Call motion.search and classify into a ServiceOutcome
+ *
+ * motion tool は error に `degradedReason` を carry しない（TPA-IMPL-02 forward-coupling）。
+ * `classifyResponse` → `classifyDegradedReason` が motion の `error.code`
+ * (`SERVICE_UNAVAILABLE` / `EMBEDDING_ERROR`) を service 層 status の代理 signal として
+ * `embedding_unavailable` / `embedding_failed` に推論する。motion tool/service は非 touch。
  */
-async function searchMotion(input: SearchUnifiedInput): Promise<UnifiedSearchResultItem[]> {
+async function searchMotion(input: SearchUnifiedInput): Promise<ServiceOutcome> {
   try {
     const motionFilters: Record<string, unknown> = {};
     if (input.webPageId) motionFilters.webPageId = input.webPageId;
@@ -508,6 +719,7 @@ async function searchMotion(input: SearchUnifiedInput): Promise<UnifiedSearchRes
       profile_id: input.profile_id,
     })) as {
       success: boolean;
+      error?: { code?: string; degradedReason?: DegradedReason };
       data?: {
         results: Array<{
           pattern: { name?: string; type?: string };
@@ -517,11 +729,9 @@ async function searchMotion(input: SearchUnifiedInput): Promise<UnifiedSearchRes
       };
     };
 
-    if (!result.success || !result.data) return [];
-
     // motion結果はnested structureのため適応変換
     // Motion results have nested structure, adapt accordingly
-    return result.data.results.map((r, idx) => ({
+    const items: UnifiedSearchResultItem[] = (result.data?.results ?? []).map((r, idx) => ({
       type: "motion" as const,
       id: r.source?.pageId ?? `motion-${idx}`,
       similarity: r.similarity,
@@ -531,19 +741,17 @@ async function searchMotion(input: SearchUnifiedInput): Promise<UnifiedSearchRes
         sourceUrl: r.source?.url,
       },
     }));
+    return classifyResponse("motion", result, items);
   } catch (error) {
-    logger.warn("[search.unified] motion search failed", {
-      error: (error as Error).message,
-    });
-    return [];
+    return classifyRejection("motion", error);
   }
 }
 
 /**
- * background.search を呼び出して統一形式に変換
- * Call background.search and convert to unified format
+ * background.search を呼び出して ServiceOutcome に変換
+ * Call background.search and classify into a ServiceOutcome
  */
-async function searchBackground(input: SearchUnifiedInput): Promise<UnifiedSearchResultItem[]> {
+async function searchBackground(input: SearchUnifiedInput): Promise<ServiceOutcome> {
   try {
     const bgFilters: Record<string, unknown> = {};
     if (input.webPageId) bgFilters.webPageId = input.webPageId;
@@ -558,6 +766,7 @@ async function searchBackground(input: SearchUnifiedInput): Promise<UnifiedSearc
       profile_id: input.profile_id,
     })) as {
       success: boolean;
+      error?: { code?: string; degradedReason?: DegradedReason };
       data?: {
         results: Array<{
           id: string;
@@ -569,9 +778,7 @@ async function searchBackground(input: SearchUnifiedInput): Promise<UnifiedSearc
       };
     };
 
-    if (!result.success || !result.data) return [];
-
-    return result.data.results.map((r) => ({
+    const items: UnifiedSearchResultItem[] = (result.data?.results ?? []).map((r) => ({
       type: "background" as const,
       id: r.id,
       similarity: r.similarity,
@@ -581,19 +788,20 @@ async function searchBackground(input: SearchUnifiedInput): Promise<UnifiedSearc
         name: r.name,
       },
     }));
+    return classifyResponse("background", result, items);
   } catch (error) {
-    logger.warn("[search.unified] background search failed", {
-      error: (error as Error).message,
-    });
-    return [];
+    return classifyRejection("background", error);
   }
 }
 
 /**
- * narrative.search を呼び出して統一形式に変換
- * Call narrative.search and convert to unified format
+ * narrative.search を呼び出して ServiceOutcome に変換
+ * Call narrative.search and classify into a ServiceOutcome
+ *
+ * narrative tool も error に `degradedReason` を carry しないため、`classifyDegradedReason`
+ * が `error.code` (`EMBEDDING_FAILED` 等) から推論する（motion と同様、tool/service 非 touch）。
  */
-async function searchNarrative(input: SearchUnifiedInput): Promise<UnifiedSearchResultItem[]> {
+async function searchNarrative(input: SearchUnifiedInput): Promise<ServiceOutcome> {
   try {
     const narrativeFilters: Record<string, unknown> = {};
     if (input.webPageId) narrativeFilters.webPageId = input.webPageId;
@@ -607,6 +815,7 @@ async function searchNarrative(input: SearchUnifiedInput): Promise<UnifiedSearch
       profile_id: input.profile_id,
     })) as {
       success: boolean;
+      error?: { code?: string; degradedReason?: DegradedReason };
       data?: {
         results: Array<{
           id: string;
@@ -618,9 +827,7 @@ async function searchNarrative(input: SearchUnifiedInput): Promise<UnifiedSearch
       };
     };
 
-    if (!result.success || !result.data) return [];
-
-    return result.data.results.map((r) => ({
+    const items: UnifiedSearchResultItem[] = (result.data?.results ?? []).map((r) => ({
       type: "narrative" as const,
       id: r.id,
       similarity: r.similarity,
@@ -631,11 +838,9 @@ async function searchNarrative(input: SearchUnifiedInput): Promise<UnifiedSearch
         moodDescription: r.worldView?.moodDescription,
       },
     }));
+    return classifyResponse("narrative", result, items);
   } catch (error) {
-    logger.warn("[search.unified] narrative search failed", {
-      error: (error as Error).message,
-    });
-    return [];
+    return classifyRejection("narrative", error);
   }
 }
 

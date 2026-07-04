@@ -80,7 +80,7 @@ pnpm start
 }
 ```
 
-## MCPツール一覧（<!-- gen:tool-count -->39<!-- /gen:tool-count -->ツール） / MCP Tool List (<!-- gen:tool-count -->39<!-- /gen:tool-count --> Tools)
+## MCPツール一覧（<!-- gen:tool-count -->40<!-- /gen:tool-count -->ツール） / MCP Tool List (<!-- gen:tool-count -->40<!-- /gen:tool-count --> Tools)
 
 ### Layoutツール（5ツール） / Layout Tools (5 Tools)
 
@@ -738,21 +738,23 @@ pnpm backfill:embeddings
 
 ### レート制限 / Rate Limiting
 
-Token Bucket + Redis Lua（CWE-770 DoS対策）。全<!-- gen:tool-count -->39<!-- /gen:tool-count -->ツールに自動適用。
-Token Bucket + Redis Lua (CWE-770 DoS prevention). Auto-applied to all <!-- gen:tool-count -->39<!-- /gen:tool-count --> tools.
+Token Bucket + Redis Lua（CWE-770 DoS対策）。全<!-- gen:tool-count -->40<!-- /gen:tool-count -->ツールに自動適用。
+Token Bucket + Redis Lua (CWE-770 DoS prevention). Auto-applied to all <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools.
 
-| ティア / Tier | RPM | 対象ツール / Target Tools                                                                                                                                                                     |
-| ------------- | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| analysis      | 10  | page.analyze, page.batch_analyze, layout.ingest, layout.batch_ingest, accessibility.audit, performance.evaluate, design.track_changes, design.regression_test, report.generate                |
-| search        | 120 | layout.search, motion.search, narrative.search, background.search, responsive.search, part.search, search.unified, design.search_by_image, design.similar_site, design.compare, search.facets |
-| default       | 60  | その他すべて / All others                                                                                                                                                                     |
+| ティア / Tier | RPM | 対象ツール / Target Tools                                                                                                                                                                                                                                                                  |
+| ------------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| analysis      | 10  | page.analyze, page.batch_analyze, layout.ingest, layout.batch_ingest, accessibility.audit, performance.evaluate, design.track_changes, design.regression_test, report.generate                                                                                                             |
+| search        | 120 | layout.search, motion.search, narrative.search, background.search, responsive.search, part.search, search.unified, design.search_by_image, design.similar_site, design.compare, search.facets, internal_search.text, internal_search.image, internal_search.similar_site, internal_compare |
+| default       | 60  | その他すべて / All others                                                                                                                                                                                                                                                                  |
+
+> **`internal_search.*` / `internal_compare` は MCP ツールではない / `internal_search.*` and `internal_compare` are NOT MCP tools**: search tier の `internal_search.text` / `internal_search.image` / `internal_search.similar_site` (`/internal/search/*`、ADR-0042 Amendment 5) および `internal_compare` (`/internal/compare`、ADR-0042 Amendment 7) は **WebUI 内部 read API の HTTP route** (127.0.0.1 固定 bind、opt-in `WEBUI_INTERNAL_API_ENABLED` default OFF) であり、MCP protocol 経由の tool ではない。上の prose「全<!-- gen:tool-count -->40<!-- /gen:tool-count -->ツール / all <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools」(= MCP tool 数) には含まれず、上表には rate-limit tier 割当 (search 120 RPM、MCP tool path と同一 Token Bucket core を共有) を示す目的でのみ列挙される。/ The search-tier `internal_search.text` / `internal_search.image` / `internal_search.similar_site` (`/internal/search/*`, ADR-0042 Amendment 5) and `internal_compare` (`/internal/compare`, ADR-0042 Amendment 7) are **HTTP routes of the WebUI internal read API** (fixed 127.0.0.1 bind, opt-in `WEBUI_INTERNAL_API_ENABLED` default OFF), not MCP-protocol tools. They are excluded from the "all <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools" count above and appear only to show their rate-limit tier assignment (search 120 RPM, sharing the same Token Bucket core as the MCP-tool path).
 
 Graceful Degradation: Redis未接続時はインメモリフォールバック / Falls back to in-memory when Redis unavailable
 
 ### エラーメッセージサニタイズ / Error Message Sanitization (CWE-209)
 
-`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。<!-- gen:sanitize-usage-count -->116<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->39<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->108<!-- /gen:sanitize-import-count -->ファイルでインポート）。
-`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to <!-- gen:sanitize-usage-count -->116<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->39<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->108<!-- /gen:sanitize-import-count --> import files).
+`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。<!-- gen:sanitize-usage-count -->126<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->40<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->113<!-- /gen:sanitize-import-count -->ファイルでインポート）。
+`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to <!-- gen:sanitize-usage-count -->126<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->113<!-- /gen:sanitize-import-count --> import files).
 
 ---
 

@@ -145,6 +145,10 @@ const createMockResultWithoutHtml = (id: string, sectionType: string) => ({
  */
 function createMockService(overrides?: Partial<ILayoutSearchService>): ILayoutSearchService {
   return {
+    // ADR-0043 / plan v4 §4.1: tool は discriminated な resolveQueryEmbeddingResult を呼ぶ。
+    resolveQueryEmbeddingResult: vi
+      .fn()
+      .mockResolvedValue({ status: "ok", embedding: new Array(768).fill(0.15) }),
     generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.15)),
     searchSectionPatterns: vi.fn().mockImplementation((_embedding, options) => {
       // MCP-RESP-03: include_html (snake_case) を優先してチェック

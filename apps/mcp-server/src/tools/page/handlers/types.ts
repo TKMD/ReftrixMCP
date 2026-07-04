@@ -247,6 +247,11 @@ export interface LayoutServiceResult {
     confidence: number;
     /** セクションのHTMLスニペット（サニタイズ済み、最大50KB） */
     htmlSnippet?: string;
+    /**
+     * 安定 DOM selector (W6 Issue A PR-2 / F-M-04)。additive。bbox-resolve /
+     * section fallback が live container 再 query 用に消費する。
+     */
+    sectionSelector?: string;
     /** セクションの位置情報（perSectionVision用） */
     position?: {
       startY: number;
