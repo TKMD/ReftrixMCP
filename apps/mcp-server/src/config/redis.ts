@@ -332,16 +332,24 @@ export function createRedisClient(options?: CreateRedisClientOptions): Redis {
     retryStrategy,
   });
 
-  // Log connection events in development
+  // Always attach an `error` listener in every environment. Without a listener,
+  // ioredis falls back to `console.error("[ioredis] Unhandled error event", ...)`
+  // (see ioredis Redis.js `silentEmit`) whenever Redis is unreachable, and that
+  // background console output races vitest's RPC teardown — surfacing as a
+  // spurious `EnvironmentTeardownError` that fails an otherwise-green unit run.
+  // Routed through `logger` (not raw console): silent in test unless
+  // ENABLE_TEST_LOGS=true, and a warning in dev/prod. Only `err.message` is
+  // logged (no connection URL / credentials) to avoid CWE-209 exposure.
+  client.on("error", (err) => {
+    logger.warn(`[Redis] Connection error (purpose=${purpose})`, { message: err.message });
+  });
+
+  // Verbose connect / close logging in development only.
   if (process.env.NODE_ENV === "development") {
     client.on("connect", () => {
       console.warn(
         `[Redis] Connected to ${finalConfig.host}:${finalConfig.port} (purpose=${purpose})`
       );
-    });
-
-    client.on("error", (err) => {
-      console.error(`[Redis] Connection error (purpose=${purpose}):`, err.message);
     });
 
     client.on("close", () => {
