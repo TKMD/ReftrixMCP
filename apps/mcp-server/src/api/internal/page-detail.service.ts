@@ -37,8 +37,15 @@ import {
 } from "../../services/screenshot-persistence.service";
 import { validateCropPath, type CropKind } from "../../services/part/crop-persistence.helper";
 
-/** `pii_risk_level` value that triggers high-PII redaction at the API boundary. */
-const HIGH_PII = "high";
+/**
+ * `pii_risk_level` value that triggers high-PII redaction at the API boundary.
+ *
+ * SSOT (W7c-api / condition 4 / CONV-1): EXPORTED so the cross-page gallery service
+ * (`gallery.service.ts`) derives its PII belt-and-braces READ-sink filter from this ONE
+ * constant instead of an inline `'high'` literal. A single source keeps the gallery listing
+ * belt symmetric with `getHighPiiSectionIds` / `getPageParts` (no drift).
+ */
+export const HIGH_PII = "high";
 
 /** Per-axis design-quality score map (0-100), extracted from `design_quality` JSONB. */
 export type AxisScores = Record<string, number>;

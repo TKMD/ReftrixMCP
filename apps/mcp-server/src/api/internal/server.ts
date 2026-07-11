@@ -49,11 +49,13 @@ import {
   similarSiteQuerySchema,
   compareBodySchema,
   featuredComparisonQuerySchema,
+  galleryQuerySchema,
   MAX_BASE64_CHARS,
   MAX_COMPARE_BODY_BYTES,
 } from "./schemas";
 import { getTextSearch, getImageSearch, getSimilarSiteSearch } from "./search.service";
 import { getCompare } from "./compare.service";
+import { getGallerySections } from "./gallery.service";
 import { internalRateLimit } from "./rate-limit-middleware";
 
 /** Default internal API port (offset 21000 from a base 3006 → 24006). */
@@ -379,6 +381,32 @@ async function handleCompare(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * GET /internal/sections?type=&scope=&page=&pageSize= — cross-page section gallery listing
+ * (W7c-api, ADR-0042 Amendment 13; `scope` + `facets` additive in W7c-api-2). 母集団 = crop-bearing
+ * sections (`crop_storage_path IS NOT NULL`); the optional `type` narrows by sectionType (allowlist
+ * Zod-validated), and `scope="content"` (default `"all"`) excludes chrome types when no explicit
+ * `type` is given (an explicit `type` always wins). Returns `{ page, pageSize, total, items, facets }`;
+ * an empty `items` is honest (no crop-bearing section matches), never a fake. high-PII sections are
+ * excluded by the 3-layer PII belt (structural + count/items-symmetric READ-sink, applied to facets
+ * too). A malformed query → 400 fixed string (CWE-209: no Zod issue leak). This is a LISTING only —
+ * crop bytes reuse the existing serve route (`INV-CROP-SERVE-PII-REDACTION-001` unchanged).
+ */
+async function handleGallerySections(req: Request, res: Response): Promise<void> {
+  const parsed = galleryQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid query parameters" });
+    return;
+  }
+  const result = await getGallerySections(
+    parsed.data.page,
+    parsed.data.pageSize,
+    parsed.data.type,
+    parsed.data.scope
+  );
+  res.json(result);
+}
+
+/**
  * Route wrapper for the binary screenshot handler: maps an unexpected top-level rejection to a
  * status-only 500 (no JSON body) instead of the shared `errorMiddleware` JSON path.
  */
@@ -509,6 +537,18 @@ export function createInternalApiApp(): Express {
     internalRateLimit("internal_compare"),
     express.json({ limit: MAX_COMPARE_BODY_BYTES }),
     asyncRoute(handleCompare)
+  );
+
+  // W7c-api gallery route (ADR-0042 Amendment 13): cross-page section gallery listing. Like the
+  // search/compare routes it is a search-class read, so it is rate-limited via the SAME shared
+  // Token Bucket core + Redis Lua at the `search` tier (condition 9 / CWE-770 DoS prevention). GET
+  // (no body parser); the limiter runs AFTER the auth seam and BEFORE the handler, so an over-limit
+  // request is rejected (429) before any DB work. `/internal/sections` is a distinct top-level path
+  // (never collides with `/internal/pages/:webPageId/sections`, which carries extra segments).
+  app.get(
+    "/internal/sections",
+    internalRateLimit("internal_sections"),
+    asyncRoute(handleGallerySections)
   );
 
   app.use(errorMiddleware);

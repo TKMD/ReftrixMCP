@@ -109,6 +109,12 @@ export const TOOL_TIER_MAP: Record<string, RateLimitTier> = {
   // RPM). Auto-inherit does NOT happen — an unmapped key silently falls to the `default` (60 RPM)
   // tier; this explicit wiring pins the search tier. CWE-770 DoS prevention at the HTTP boundary.
   internal_compare: "search",
+  // WebUI v1 W7c-api (CONV-2 / condition 9 / TPA-P08 = SEC-P01): the internal cross-page section
+  // gallery listing route (`GET /internal/sections`, ADR-0042 Amendment 13) is a search-class read;
+  // it shares the SAME Token Bucket core + Redis Lua as the search/compare routes (DRY). Mapped to
+  // the `search` tier (120 RPM). Wired in `api/internal/server.ts`; the doc tier tables mirror this
+  // (docs-verify Section 4 tier consistency). CWE-770 DoS prevention at the HTTP boundary.
+  internal_sections: "search",
 };
 
 /** Redis key prefix for rate limiter buckets */

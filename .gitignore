@@ -143,3 +143,9 @@ docs/page-analyze-snapshot-*.jsonl
 # .claude/worktrees/agent-*/ are stale subagent worktrees that pollute
 # format:check / docs:verify scans. Excluded defensively for future runs.
 .claude/worktrees/
+
+# Hydlogger MCP local config (contains project-local env; ActraDeck と同型で非追跡)
+.mcp.json
+
+# Stop-hook checkpoint state (transient, .claude/hooks/stop-checkpoint.cjs)
+.claude/.checkpoint-hook-state.json

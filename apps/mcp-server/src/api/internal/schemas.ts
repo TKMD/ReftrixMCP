@@ -85,6 +85,43 @@ export const partsQuerySchema = pagesQuerySchema.extend({
 /** Inferred type for the validated parts query. */
 export type PartsQuery = z.infer<typeof partsQuerySchema>;
 
+/**
+ * Section-type token allowlist for the cross-page gallery `type` filter (W7c-api, ADR-0042
+ * Amendment 13). Unlike `partType` (`/^[a-z_]{1,50}$/`), the real `section_type` data carries
+ * digits, spaces and hyphens (e.g. `call-to-action`), so this allowlist permits `[a-z0-9 _-]`
+ * after a mandatory lowercase-letter head, capped at 50 chars total. It is still an ALLOWLIST
+ * (NOT a free string): no quotes / semicolons / uppercase / control chars can pass, so an
+ * injection-shaped filter value never reaches the Prisma where clause (SQL-injection surface 0).
+ * Enum normalization of the noisy `section_type` values (`cte`, `testimonials`) is tracked
+ * separately as Carryover TDA-P04 (not this PR).
+ */
+export const GALLERY_SECTION_TYPE_RE = /^[a-z][a-z0-9 _-]{0,49}$/;
+
+/**
+ * Query schema for `GET /internal/sections` (cross-page section gallery, W7c-api, ADR-0042
+ * Amendment 13). Inherits the `pagesQuerySchema` bounds (`pageSize ≤ 100`, CWE-770; caller
+ * defaults `pageSize` to 24) and adds an optional `type` sectionType filter bounded to the
+ * `GALLERY_SECTION_TYPE_RE` allowlist. Same rigor as `partsQuerySchema`.
+ *
+ * W7c-api-2 (additive follow-up, plan §3.3 condition 5 = TPA-P01 M) — closes the §4 API
+ * under-specification: the `scope` content-first param. `"all"` is the DEFAULT, so the omit-time
+ * semantics are EXACTLY the audited W7c-api contract (all crop-bearing types are listed).
+ * `scope="content"` excludes the chrome section types (`CHROME_SECTION_TYPES` SSOT in
+ * `gallery.service`) ONLY when no explicit `type` is given; an explicit `type` ALWAYS wins over
+ * scope (a filter chip's `?type=navigation` reaches that chrome type regardless of scope). `scope`
+ * is an ENUM (NOT a free string): an out-of-set value is rejected at the seam (injection surface 0).
+ */
+export const galleryQuerySchema = pagesQuerySchema.extend({
+  type: z
+    .string()
+    .regex(GALLERY_SECTION_TYPE_RE, "type must be a section-type token (≤50 chars, allowlist)")
+    .optional(),
+  scope: z.enum(["all", "content"]).default("all"),
+});
+
+/** Inferred type for the validated gallery query. */
+export type GalleryQuery = z.infer<typeof galleryQuerySchema>;
+
 /** Maximum similar-design result count — CWE-770 unbounded-result DoS prevention. */
 export const MAX_SIMILAR_LIMIT = 12;
 

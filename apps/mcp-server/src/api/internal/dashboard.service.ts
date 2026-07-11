@@ -255,8 +255,12 @@ export async function getDashboardStats(): Promise<DashboardStats> {
  * relation on `WebPage` and cannot ride the recent-pages `_count`/`include`; this dedicated
  * batched query is the N+1-free join. Pages with no evaluation are simply absent from the Map
  * (→ honest `null` score/grade in the caller).
+ *
+ * EXPORTED (W7c-api / condition 10 / TDA-P07): the cross-page gallery service
+ * (`gallery.service.ts`) reuses this batched map to join each section's owning-page quality
+ * grade in ONE query — a per-item quality lookup (N+1) is forbidden.
  */
-async function getLatestQualityByPageIds(
+export async function getLatestQualityByPageIds(
   pageIds: string[]
 ): Promise<Map<string, { score: number; grade: string }>> {
   const result = new Map<string, { score: number; grade: string }>();
