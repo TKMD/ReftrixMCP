@@ -81,10 +81,30 @@ function injectRequestIdIfMissing(result: unknown, requestId: string): unknown {
 
 /**
  * サーバー設定
+ *
+ * `version` は MCP handshake の `serverInfo.version` として返却される
+ * （`createServer()` → `new Server({ name, version })`）。
+ * リリース時は本値を publishable `package.json.version` と一致させること（必須）。
+ *
+ * SSOT-derive（package.json からの静的 import / 実行時読込）は採用していない:
+ * package.json は `rootDir: ./src` の外にあり、静的 JSON import は tsc の
+ * "not under rootDir" で build 契約（`main: ./dist/index.js`）を壊す。実行時
+ * readFileSync は CJS `__dirname` 依存 + 起動パスへの I/O 追加という fragility を
+ * 生む。代わりに drift は `tests/server-version-coherence.test.ts` が本値と
+ * `apps/mcp-server/package.json.version` の equality を CI で毎回検証して検出する。
+ *
+ * The `version` is returned as the MCP handshake `serverInfo.version`
+ * (`createServer()` → `new Server({ name, version })`). On release this MUST be
+ * kept in sync with the publishable `package.json.version`. SSOT-derive (static
+ * JSON import / runtime read) is intentionally NOT used: package.json lives
+ * outside `rootDir: ./src`, so a static JSON import breaks the tsc build
+ * contract, and a runtime read adds `__dirname`/startup-I/O fragility. Instead,
+ * `tests/server-version-coherence.test.ts` asserts equality between this literal
+ * and `apps/mcp-server/package.json.version` on every CI run to catch drift.
  */
 export const SERVER_CONFIG = {
   name: "reftrix-mcp-server",
-  version: "0.3.0",
+  version: "0.6.0",
 } as const;
 
 /**

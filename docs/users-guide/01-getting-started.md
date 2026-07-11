@@ -500,9 +500,9 @@ pnpm build
 >
 > The above lists only the key environment variables. See `.env.example` for the complete list.
 >
-> **onnxruntime-node（optional dependency）**: `onnxruntime-node` は optional dependency のため、インストールに失敗しても `pnpm install` / `npm install` は成功します。ML機能（Embedding生成、DINOv2 visual similarity search）を使用するには `pnpm add onnxruntime-node` で明示的にインストールしてください。非ML機能（`layout.ingest` HTML解析、`quality.evaluate`、`layout.inspect` 等）は onnxruntime-node なしで動作します。
+> **onnxruntime-node（optional dependency）**: `onnxruntime-node` は `optionalDependency` のため、`pnpm install` / `npm install` が既定でインストールします（ML機能 = Embedding生成・DINOv2 visual similarity search を担います）。サポート外プラットフォームでインストールに失敗した場合、または `pnpm install --no-optional` でスキップした場合でも、非ML機能（`layout.ingest` HTML解析、`quality.evaluate`、`layout.inspect` 等）は onnxruntime-node なしで動作します。
 >
-> **onnxruntime-node (optional dependency)**: `onnxruntime-node` is an optional dependency, so `pnpm install` / `npm install` will succeed even if its installation fails. To use ML features (embedding generation, DINOv2 visual similarity search), explicitly install it with `pnpm add onnxruntime-node`. Non-ML features (`layout.ingest` HTML parsing, `quality.evaluate`, `layout.inspect`, etc.) work without onnxruntime-node.
+> **onnxruntime-node (optional dependency)**: `onnxruntime-node` is an `optionalDependency` that `pnpm install` / `npm install` installs by default (it powers the ML features — embedding generation and DINOv2 visual similarity search). If it fails to install on an unsupported platform, or you skip it with `pnpm install --no-optional`, the non-ML features (`layout.ingest` HTML parsing, `quality.evaluate`, `layout.inspect`, etc.) still work without onnxruntime-node.
 >
 > **CUDA GPU アクセラレーション / CUDA GPU Acceleration**: デフォルトではCUDAバイナリのダウンロードはスキップされます（onnxruntime-nodeがCUDA 12をCUDA 11と誤検出するため）。Embeddingは初期状態でCPUで実行されます。CUDA GPUアクセラレーションの有効化手順は [トラブルシューティング: onnxruntime CUDA検出エラー](04-troubleshooting.md#onnxruntime-cuda-detection) を参照してください。
 >

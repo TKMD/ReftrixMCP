@@ -14,6 +14,7 @@
  */
 
 import { createLogger } from "../utils/logger";
+import { SERVER_CONFIG } from "../server";
 
 const healthLogger = createLogger("HealthCheck");
 
@@ -132,7 +133,12 @@ export class HealthCheckService {
   private externalServiceCheckers: ExternalServiceChecker[];
 
   constructor(config?: HealthCheckConfig) {
-    this.version = config?.version ?? "0.1.0";
+    // TPA-DF-L-01: default to the canonical version SSOT (SERVER_CONFIG.version,
+    // pinned to package.json.version by tests/server-version-coherence.test.ts)
+    // instead of a hardcoded literal, so this version surface can never report a
+    // stale release version. / 既定値をハードコードリテラルではなく version SSOT
+    // (SERVER_CONFIG.version) から導出し、stale なリリースバージョンを報告しない。
+    this.version = config?.version ?? SERVER_CONFIG.version;
     this.databaseChecker = config?.databaseChecker ?? new DefaultDatabaseChecker();
     this.redisChecker = config?.redisChecker ?? new DefaultRedisChecker();
     this.externalServiceCheckers = config?.externalServiceCheckers ?? [

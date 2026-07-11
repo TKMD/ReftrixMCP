@@ -137,7 +137,7 @@ pnpm build
 # Playwright Chromiumインストール
 pnpm exec playwright install chromium
 
-# DINOv2 Visual Embeddingモデルダウンロード（約800MB）
+# DINOv2 Visual Embeddingモデルダウンロード（約330MB）
 pnpm --filter @reftrixmcp/ml download:dinov2
 
 # テスト実行
@@ -627,7 +627,7 @@ AGPL-3.0の条件が適合しないユースケース（プロプライエタリ
 - 初回Embedding操作時に約400MBのモデル（multilingual-e5-base）をダウンロード
 - `page.analyze` はWorkerSupervisorが管理する別プロセスで実行されます。`start-workers.ts` の起動が必要です（`pnpm --filter @reftrixmcp/mcp-server worker:start:page`）
 - Vision分析（レイアウト、モーション、ナラティブ）にはOllama + llama3.2-visionが必要（未起動時はGraceful Degradation）
-- DINOv2 visual embeddingモデルは約800MBのダウンロードが必要（ViT-B/14 ONNX）
+- DINOv2 visual embeddingモデルは約330MBのダウンロードが必要（ViT-B/14 ONNX）
 
 ### GPU・Vision関連（v0.1.2）
 
