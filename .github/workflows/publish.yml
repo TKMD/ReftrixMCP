@@ -1,0 +1,320 @@
+# Publish to npm — GitHub Release + Trusted Publishing (OIDC)
+#
+# Triggered by a GitHub Release "published" event (or a workflow_dispatch recovery
+# run for partial-publish recovery, dispatched from a v* tag ref — see the User
+# manual-action checklist §7 in the design plan). Publishes the 5 OSS packages
+# (@reftrixmcp/core, @reftrixmcp/database, @reftrixmcp/ml, @reftrixmcp/webdesign-core,
+# @reftrixmcp/mcp-server) in Tier (dependency) order via npm Trusted Publishing (OIDC).
+# No long-lived NPM_TOKEN secret is stored anywhere — the only credential surface is
+# the `id-token: write` permission on the `publish` job.
+#
+# Design reference (private repo, not synced to OSS):
+#   .claude/specs/plans/npm-publish-automation-plan-v0.md
+#   .claude/specs/plans/npm-publish-automation-finding-registry-v0.md
+#
+# 2-job graph: verify (Node 20, no Environment — build/pack/validate, no human wait)
+#   -> publish (Node 22 scoped to this job only, Environment-gated OIDC publish).
+# Separating the two means a broken version tag fails fast in `verify` with zero
+# human interruption, and the Environment's required-reviewer approval prompt only
+# fires for versions that have already passed every consistency/packaging check.
+
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to (re-)publish, e.g. v0.6.1. MUST be dispatched from a v* tag ref (see the User manual-action checklist) — the Environment's tag restriction evaluates github.ref, independent of this input's string value."
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  # ===========================================================================
+  # verify — Node 20 (product baseline, matches ci.yml). No Environment: runs
+  # immediately, zero human wait. Validates the tag, builds, packs all 5
+  # packages, and validates each tarball before anything is published.
+  # ===========================================================================
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      dist_tag: ${{ steps.tag.outputs.dist_tag }}
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      # Untrusted input hardening (CWE-94/78 script-injection defense): the raw tag
+      # string is passed through `env:` (a real OS environment variable set by the
+      # Actions runtime, NOT text-spliced into the script) and referenced as a
+      # quoted bash variable — never interpolated directly into run: script text.
+      # This step runs BEFORE checkout, so an invalid/malicious tag never reaches
+      # `checkout ref:` or any later step.
+      - name: Validate tag input
+        env:
+          RAW_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          TAG="$RAW_TAG"
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9.]+)?$ ]]; then
+            echo "::error::Invalid tag format: '$TAG' (expected vX.Y.Z or vX.Y.Z-prerelease)"
+            exit 1
+          fi
+
+      # actions/checkout@v4 — `ref:` is a `with:` action-input field, consumed by the
+      # Actions runtime as a plain input (exposed to the action as an env var by the
+      # runtime itself), not spliced into any run: script text this repo controls.
+      # This is why it keeps direct ${{ }} interpolation while every run: block below
+      # routes untrusted values through env: instead.
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - name: Setup Node.js 20 (product baseline — matches ci.yml's NODE_VERSION)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+
+      # Dist-tag derivation unified across BOTH trigger paths via tag-string
+      # suffix-parse (same algorithm scripts/sync-oss.sh already uses locally).
+      # `release.prerelease` is a CROSS-CHECK only (fails loud on disagreement),
+      # never the primary derivation — a workflow_dispatch recovery run (which has
+      # no `prerelease` field at all) derives the identical dist-tag a `release`
+      # trigger for the same tag string would have.
+      - name: Resolve version + dist-tag (suffix-parse; prerelease is a cross-check only)
+        id: tag
+        env:
+          RAW_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          RAW_PRERELEASE: ${{ github.event.release.prerelease }}
+          RAW_EVENT_NAME: ${{ github.event_name }}
+        run: |
+          TAG="$RAW_TAG"
+          VERSION="${TAG#v}"
+          if [[ "$VERSION" == *-* ]]; then
+            DIST_TAG="${VERSION#*-}"; DIST_TAG="${DIST_TAG%%.*}"
+          else
+            DIST_TAG="latest"
+          fi
+          if [ "$RAW_EVENT_NAME" = "release" ]; then
+            IS_PRERELEASE="$RAW_PRERELEASE"
+            if [ "$IS_PRERELEASE" = "true" ] && [ "$DIST_TAG" = "latest" ]; then
+              echo "::error::release.prerelease=true but tag '$TAG' has no dist-tag suffix — refusing to publish a prerelease as latest"
+              exit 1
+            fi
+            if [ "$IS_PRERELEASE" = "false" ] && [ "$DIST_TAG" != "latest" ]; then
+              echo "::error::release.prerelease=false but tag '$TAG' parsed to dist-tag '$DIST_TAG' — mismatch"
+              exit 1
+            fi
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "dist_tag=$DIST_TAG" >> "$GITHUB_OUTPUT"
+
+      # `source` MUST be the first line of the SAME run: block that consumes the
+      # sourced arrays — each `- run:` step is a separate shell process in GitHub
+      # Actions, so a standalone `source` step would leave the arrays empty in
+      # every subsequent step. Version-check, build, pack, and per-tarball
+      # validation (workspace: residual + LICENSE + database Prisma-dist checks)
+      # are combined into ONE step below for exactly this reason.
+      - name: Version-consistency check, build, pack, validate (single shell — source scope)
+        env:
+          TAG_VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          source scripts/publish-targets.sh   # SSOT arrays — same run: block as their only consumer here
+          for pkg in "${PUBLISH_PACKAGES[@]}"; do
+            PKG_VER=$(node -e "console.log(require('./$pkg/package.json').version)")
+            [ "$PKG_VER" = "$TAG_VERSION" ] || { echo "::error::$pkg@$PKG_VER != tag $TAG_VERSION"; exit 1; }
+          done
+
+          pnpm install --frozen-lockfile
+          pnpm build
+
+          mkdir -p /tmp/tarballs
+          for pkg in "${PUBLISH_PACKAGES[@]}"; do
+            PKG_NAME=$(node -e "console.log(require('./$pkg/package.json').name)")
+            pnpm --filter "$PKG_NAME" pack --pack-destination /tmp/tarballs
+
+            # Name-match glob, anchored on a version-delimiter (`-[0-9]`) rather than a
+            # bare substring, so a future package whose name is a substring of another
+            # (e.g. a hypothetical "core" vs "webdesign-core") cannot silently resolve
+            # to the wrong tarball. Asserts EXACTLY 1 match (0 = fail, 2+ = fail) —
+            # this is the tarball-selection fix: the naive alternative of picking the
+            # alphabetically-last tarball in the shared /tmp/tarballs dir would silently
+            # re-validate the same tarball 5 times and never reach apps/mcp-server (the
+            # package with the highest workspace:* leak risk).
+            SAFE_NAME=$(echo "$PKG_NAME" | sed 's/@//;s/\//-/')
+            MATCHES=(/tmp/tarballs/*"$SAFE_NAME"-[0-9]*.tgz)
+            if [ ! -e "${MATCHES[0]}" ] || [ "${#MATCHES[@]}" -ne 1 ]; then
+              # FIND-NPMPUB-MATCHES-MSG-01: without nullglob, a 0-match glob leaves
+              # MATCHES[0] as the literal (unexpanded) pattern string, so
+              # ${#MATCHES[@]} is 1 even on a true 0-match — report the real count
+              # (0 vs 2+) instead of that literal-fallback artifact. The guard
+              # verdict itself (0 = fail, 1 = pass, 2+ = fail) is unchanged.
+              MATCH_COUNT=0
+              [ -e "${MATCHES[0]}" ] && MATCH_COUNT="${#MATCHES[@]}"
+              echo "::error::$pkg: expected exactly 1 tarball matching *${SAFE_NAME}-[0-9]*.tgz, found ${MATCH_COUNT}"
+              exit 1
+            fi
+            TARBALL="${MATCHES[0]}"
+
+            # workspace: residual check (mirrors sync-oss.sh Step 6.5) — pnpm pack
+            # rewrites workspace:* to a real semver range; this asserts it actually did.
+            # (tar || true) absorbs SIGPIPE (exit 141) from grep -q closing the pipe early —
+            # unified tar|pipe guard style, file-wide (see the LICENSE check below and the
+            # Prisma-dist check further down for the same pattern).
+            (tar -xzOf "$TARBALL" package/package.json 2>/dev/null || true) | grep -q 'workspace:' && { echo "::error::$pkg tarball has residual workspace:"; exit 1; }
+
+            # LICENSE presence + AGPL full-text spot-check — pnpm pack copies the
+            # workspace-root LICENSE into every tarball as an (undocumented) side
+            # effect; this assertion makes that dependency explicit rather than
+            # implicit, so a future switch to `npm pack` or a pnpm behavior change
+            # cannot silently drop AGPL §4/§5 conveyance without failing this job.
+            # Exercised for all 5/5 packages, including apps/mcp-server.
+            # (tar || true) absorbs SIGPIPE (exit 141): apps/mcp-server's full file listing
+            # (~2600 files, ~150KB > the 64KB pipe buffer) exceeds a single write(); grep -q's
+            # early-exit on a match near the top of the listing would otherwise make tar
+            # receive SIGPIPE while still writing the rest, and GitHub Actions' default
+            # `-eo pipefail` would surface that as a false "missing LICENSE" failure even
+            # though LICENSE genuinely was found.
+            (tar -tzf "$TARBALL" 2>/dev/null || true) | grep -q '^package/LICENSE$' || { echo "::error::$pkg tarball missing package/LICENSE"; exit 1; }
+            (tar -xzOf "$TARBALL" package/LICENSE 2>/dev/null || true) | grep -qi 'GNU AFFERO GENERAL PUBLIC LICENSE' || { echo "::error::$pkg LICENSE is not AGPL-3.0 full text"; exit 1; }
+
+            # packages/database: generated Prisma client presence check (mirrors
+            # sync-oss.sh Step 6.5). Use (tar || true) to absorb SIGPIPE (exit 141)
+            # from `grep -q` closing the pipe early on large tarballs.
+            if [ "$pkg" = "packages/database" ]; then
+              (tar -tzf "$TARBALL" 2>/dev/null || true) | grep -q 'package/dist/generated/prisma/index.js' || { echo "::error::$pkg tarball missing dist/generated/prisma/index.js"; exit 1; }
+              (tar -tzf "$TARBALL" 2>/dev/null || true) | grep -q 'package/dist/generated/prisma/index.d.ts' || { echo "::error::$pkg tarball missing dist/generated/prisma/index.d.ts"; exit 1; }
+            fi
+          done
+
+          (cd /tmp/tarballs && sha256sum ./*.tgz > checksums.txt)
+
+      - name: Upload verified tarballs + checksum manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: publish-tarballs
+          path: /tmp/tarballs/
+
+  # ===========================================================================
+  # publish — needs: verify. environment: npm-publish (GitHub Environment with
+  # required reviewers + a v* deployment-tag restriction — see the User
+  # manual-action checklist). Node 22 is scoped STRICTLY to this job (OIDC
+  # trusted publishing requires npm CLI >=11.5.1 / Node.js >=22.14.0); `verify`
+  # stays on Node 20 throughout.
+  # ===========================================================================
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: npm-publish # GitHub Environment w/ required reviewers + deployment-tag restriction (User manual-action checklist)
+    permissions:
+      contents: read
+      id-token: write # OIDC — the only credential surface, no NPM_TOKEN
+    steps:
+      # ref is reconstructed from `needs.verify.outputs.version` (a value `verify`
+      # already validated via the regex guard + version-consistency check) rather
+      # than re-reading the raw trigger context a second, independent time in a
+      # different job — a structural guard against a future edit silently
+      # un-coupling `publish`'s ref from `verify`'s validated one. This checkout is
+      # only for scripts/publish-targets.sh (the SSOT list) — the tarballs
+      # themselves come from the verify job's artifact, not this checkout.
+      - name: Checkout (for scripts/publish-targets.sh only)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: v${{ needs.verify.outputs.version }}
+
+      - name: Download verified tarballs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: publish-tarballs
+          path: /tmp/tarballs
+
+      - name: Setup Node.js 22 (OIDC requirement — scoped to this job only)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+
+      # Floor-pinned to the npm@11 line (not `npm@latest`) — `npm@latest` would
+      # itself be an unpinned upstream dependency of a credential-consuming step,
+      # self-contradicting the whole rationale for using `npm publish` (rather
+      # than `pnpm publish`) to decouple OIDC reliability from upstream release
+      # cadence in the first place.
+      - name: Install npm CLI >=11.5.1 (floor-pinned, not npm@latest)
+        run: npm install -g npm@11
+
+      # Checksum re-verification protects TRANSPORT INTEGRITY ONLY (did the
+      # artifact arrive intact between `verify` and `publish`). It does NOT
+      # protect against a compromised `verify` job (e.g. a hijacked third-party
+      # action running inside it), which could generate a malicious tarball AND
+      # a matching checksum for it in the same process — this re-verification
+      # would still pass, because it only checks "does this tarball match this
+      # manifest", not "was this manifest honestly produced".
+      - name: Re-verify checksums, source SSOT, Tier-loop publish (single shell — source scope)
+        env:
+          RELEASE_VERSION: ${{ needs.verify.outputs.version }}
+          RELEASE_DIST_TAG: ${{ needs.verify.outputs.dist_tag }}
+        run: |
+          (cd /tmp/tarballs && sha256sum -c checksums.txt)
+
+          source scripts/publish-targets.sh   # SSOT arrays — same run: block as their only consumer here (mirrors verify job)
+          for pkg in "${PUBLISH_TIER1[@]}" "${PUBLISH_TIER2[@]}" "${PUBLISH_TIER3[@]}"; do
+            PKG_NAME=$(node -e "console.log(require('./$pkg/package.json').name)")
+
+            # Idempotent per-package skip-if-already-published check (mirrors
+            # sync-oss.sh Step 6.2) — makes workflow_dispatch recovery safe to run
+            # any number of times for the same tag: only still-unpublished
+            # packages actually attempt a publish. This is a forward recovery
+            # mechanism for PARTIAL publishes only — it cannot, and does not,
+            # recover from an erroneous-but-fully-successful publish (npm enforces
+            # same-version immutability; the only path there is `npm deprecate`
+            # plus a new patch version). The GitHub Environment required-reviewer
+            # approval is the last reversible checkpoint before a publish.
+            if npm view "${PKG_NAME}@${RELEASE_VERSION}" version >/dev/null 2>&1; then
+              echo "SKIP: ${PKG_NAME}@${RELEASE_VERSION} already published"
+              continue
+            fi
+
+            # Same name-match glob + version-delimiter anchor as the verify job,
+            # asserting exactly 1 match (0 = fail, 2+ = fail).
+            SAFE_NAME=$(echo "$PKG_NAME" | sed 's/@//;s/\//-/')
+            MATCHES=(/tmp/tarballs/*"$SAFE_NAME"-[0-9]*.tgz)
+            if [ ! -e "${MATCHES[0]}" ] || [ "${#MATCHES[@]}" -ne 1 ]; then
+              # FIND-NPMPUB-MATCHES-MSG-01: without nullglob, a 0-match glob leaves
+              # MATCHES[0] as the literal (unexpanded) pattern string, so
+              # ${#MATCHES[@]} is 1 even on a true 0-match — report the real count
+              # (0 vs 2+) instead of that literal-fallback artifact. The guard
+              # verdict itself (0 = fail, 1 = pass, 2+ = fail) is unchanged.
+              MATCH_COUNT=0
+              [ -e "${MATCHES[0]}" ] && MATCH_COUNT="${#MATCHES[@]}"
+              echo "::error::$PKG_NAME: expected exactly 1 tarball matching *${SAFE_NAME}-[0-9]*.tgz, found ${MATCH_COUNT}"
+              exit 1
+            fi
+            TARBALL="${MATCHES[0]}"
+
+            # --provenance is passed explicitly and unconditionally (in addition to
+            # the publishConfig.provenance:true field injected at OSS-sync time) —
+            # npm's docs state provenance is automatic under trusted publishing and
+            # the flag is "no longer needed", while independent practitioner
+            # reports say this did not hold reliably in practice and the flag had
+            # to be passed explicitly. Both mechanisms are included at negligible
+            # cost: redundant-but-harmless if the docs are right, load-bearing if
+            # they are not.
+            npm publish "$TARBALL" --tag "$RELEASE_DIST_TAG" --provenance
+
+            # Registry-propagation wait (mirrors sync-oss.sh's wait_for_registry:
+            # up to 24 attempts x 5s = 120s) before the next Tier proceeds.
+            ATTEMPT=0
+            until npm view "${PKG_NAME}@${RELEASE_VERSION}" version >/dev/null 2>&1; do
+              ATTEMPT=$((ATTEMPT + 1))
+              if [ "$ATTEMPT" -ge 24 ]; then
+                echo "::error::$PKG_NAME: registry propagation timed out after 120s"
+                exit 1
+              fi
+              sleep 5
+            done
+          done

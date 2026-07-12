@@ -55,7 +55,11 @@
     "@prisma/client": "^6.19.2"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
+  },
+  "engines": {
+    "node": ">=20.19.0"
   },
   "repository": {
     "type": "git",

@@ -85,6 +85,57 @@ jobs:
 
 
 
+  # Workflow YAML Lint (actionlint + shellcheck)
+  # 全 .github/workflows/*.yml を静的検証する。publish.yml は OIDC 資格情報を消費し
+  # npm registry へ書き込む supply-chain 感応面のため、YAML/式/shellcheck バグを
+  # 実行前に捕捉する（live dry-run より強い静的ゲート、Plan §6b posture α）。
+  # Statically lints all .github/workflows/*.yml (incl. publish.yml when present).
+  # publish.yml is OIDC-credential-consuming + writes to the npm registry, so catching
+  # YAML/expression/shellcheck bugs BEFORE they run is stronger than a live dry-run.
+  actionlint:
+    name: Workflow Lint (actionlint)
+    runs-on: ubuntu-latest
+    # Explicit job-level permissions (FIND-NPMPUB-ACTIONLINT-PERMS-01, CWE-272
+    # defense-in-depth): pins this job to read-only regardless of any future
+    # top-level `permissions:` widening, instead of relying on implicit
+    # inheritance from the workflow-level block above.
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        # actions/checkout stays @v4 (floating) to match every other job in THIS file;
+        # only the new third-party actionlint action below is SHA-pinned (Plan §4 Action
+        # Pin Policy applies to publish.yml's actions + this new third-party action).
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run actionlint
+        # rhysd/actionlint has NO root action.yml (verified 2026-07-12), so it is NOT
+        # directly usable as `uses: rhysd/actionlint@<sha>`. raven-actions/actionlint is
+        # the standard maintained `uses:` wrapper that downloads + runs rhysd/actionlint.
+        # SHA-pinned + `# vN` semver comment per Plan §4 Action Pin Policy; the trailing
+        # `# v2.2.0` is the exact convention Dependabot's github-actions ecosystem reads
+        # to compute SHA->SHA bumps (.github/dependabot.yml).
+        uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
+        with:
+          version: "1.7.12" # pin the rhysd/actionlint tool version for reproducible lint output
+          shellcheck: "true" # keep the shellcheck security pass ACTIVE (do not disable wholesale)
+          fail-on-error: "true"
+        env:
+          # Scoped shellcheck exclusions (NOT a wholesale shellcheck disable — every
+          # security-relevant check, incl. SC2086 unquoted-variable/injection, stays active):
+          #   SC1091 (info) = "not following: <file>: file not found" — shellcheck cannot
+          #     statically resolve `source scripts/publish-targets.sh` at lint time (no
+          #     runtime $GITHUB_WORKSPACE), a well-known false-positive for a relative
+          #     `source` (Plan §6b, publish.yml SSOT sourcing).
+          #   SC2129 (style) = "consider { cmd1; cmd2; } >> file" — pure STYLE, not a
+          #     security check. Excluded to avoid restructuring pre-existing $GITHUB_OUTPUT
+          #     notify-bash in this file AND regression-standing.yml (which already uses the
+          #     grouped pattern elsewhere). SC2086 is NOT excluded — its pre-existing
+          #     violations in the notify job were fixed (quoted "$GITHUB_OUTPUT") instead.
+          SHELLCHECK_OPTS: "--exclude=SC1091 --exclude=SC2129"
+
   # Smoke Tests - 高速な起動確認テスト
   # MCPツールの登録確認、基本レスポンス確認、型整合性チェック
   test-smoke:
@@ -508,24 +559,34 @@ jobs:
     name: Slack Notification
     runs-on: ubuntu-latest
     needs:
-      [lint, test-smoke, test-unit, test-integration, test-vision-cpu, test-e2e, build, security]
+      [
+        lint,
+        actionlint,
+        test-smoke,
+        test-unit,
+        test-integration,
+        test-vision-cpu,
+        test-e2e,
+        build,
+        security,
+      ]
     if: always()
     steps:
       - name: Determine CI result
         id: result
         run: |
           if [ "${{ contains(needs.*.result, 'failure') }}" = "true" ]; then
-            echo "status=failure" >> $GITHUB_OUTPUT
-            echo "color=#dc3545" >> $GITHUB_OUTPUT
-            echo "emoji=:x:" >> $GITHUB_OUTPUT
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+            echo "color=#dc3545" >> "$GITHUB_OUTPUT"
+            echo "emoji=:x:" >> "$GITHUB_OUTPUT"
           elif [ "${{ contains(needs.*.result, 'cancelled') }}" = "true" ]; then
-            echo "status=cancelled" >> $GITHUB_OUTPUT
-            echo "color=#ffc107" >> $GITHUB_OUTPUT
-            echo "emoji=:warning:" >> $GITHUB_OUTPUT
+            echo "status=cancelled" >> "$GITHUB_OUTPUT"
+            echo "color=#ffc107" >> "$GITHUB_OUTPUT"
+            echo "emoji=:warning:" >> "$GITHUB_OUTPUT"
           else
-            echo "status=success" >> $GITHUB_OUTPUT
-            echo "color=#28a745" >> $GITHUB_OUTPUT
-            echo "emoji=:white_check_mark:" >> $GITHUB_OUTPUT
+            echo "status=success" >> "$GITHUB_OUTPUT"
+            echo "color=#28a745" >> "$GITHUB_OUTPUT"
+            echo "emoji=:white_check_mark:" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Send Slack notification
@@ -550,6 +611,7 @@ jobs:
                       "type": "section",
                       "fields": [
                         { "type": "mrkdwn", "text": "*Lint:* ${{ needs.lint.result }}" },
+                        { "type": "mrkdwn", "text": "*Actionlint:* ${{ needs.actionlint.result }}" },
                         { "type": "mrkdwn", "text": "*Smoke:* ${{ needs.test-smoke.result }}" },
                         { "type": "mrkdwn", "text": "*Unit:* ${{ needs.test-unit.result }}" },
                         { "type": "mrkdwn", "text": "*Integration:* ${{ needs.test-integration.result }}" },

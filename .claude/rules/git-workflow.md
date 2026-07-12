@@ -300,27 +300,44 @@ Direct commits to the OSS repository (`TKMD/ReftrixMCP`) are **prohibited**. All
 
 ### OSS同期フロー / OSS Sync Flow
 
+npm 公開は **2 経路**に分かれる: **primary = CI（Trusted Publishing / OIDC）**、**fallback = ローカル publish（opt-in）**。`sync-oss.sh` は git 同期までを担い、**npm publish を既定で skip** する（publish は CI 側の責務）。
+
+npm publishing has **two paths**: **primary = CI (Trusted Publishing / OIDC)**, **fallback = local publish (opt-in)**. `sync-oss.sh` handles the git sync and **skips npm publish by default** (publishing is CI's responsibility).
+
 ```
 プライベートリポで修正 → pnpm lint/typecheck → コミット → sync-oss.sh
                                                            ↓
                                               prepare-oss.sh (Phase 0-3)
-                                                  ↓ sed変換・SPDX追加
+                                                  ↓ sed変換・SPDX追加 + publish.yml rsync
                                               Prettier format (Step 3.5)
                                                   ↓
                                               rsync → .oss-sync/ReftrixMCP
                                                   ↓ Prettier再整形
-                                              Verification (Phase 4)
+                                              Verification (Phase 4, incl. V34/V35)
                                                   ↓ 全チェックPASS
                                               commit & push → TKMD/ReftrixMCP
                                                   ↓
-                                              Step 6: npm publish (optional)
-                                                  ↓ バージョン比較+確認プロンプト
-                                              npm publish --access public
+                        ┌─────────── primary（既定 / default）───────────┐
+                        │  gh release create vX.Y.Z --repo TKMD/ReftrixMCP │
+                        │            ↓ release: published                  │
+                        │  .github/workflows/publish.yml (verify → publish)│
+                        │            ↓ npm-publish Environment 承認         │
+                        │  npm Trusted Publishing (OIDC) + --provenance     │
+                        └──────────────────────────────────────────────────┘
+                        ┌──────── fallback（opt-in、CI/OIDC 障害時のみ）────┐
+                        │  sync-oss.sh --local-publish                      │
+                        │            ↓ Environment 承認 gate を bypass       │
+                        │  ローカル npm publish --access public              │
+                        └──────────────────────────────────────────────────┘
 ```
 
-**`--skip-publish` オプション / `--skip-publish` option**: `sync-oss.sh --skip-publish` でnpm publish ステップをスキップ可能。
+**Primary（CI / OIDC）**: OSS リポで `v*` タグの GitHub Release を作成すると `.github/workflows/publish.yml` が起動し、5 パッケージを Tier 順に npm Trusted Publishing (OIDC) + `--provenance` で公開する（`NPM_TOKEN` 不使用、`npm-publish` Environment の required-reviewer 承認が最後の可逆ゲート）。**recovery の `workflow_dispatch` は `v*` タグ ref から dispatch すること**（Environment のタグ制限は `github.ref` を評価する）。
 
-Skip the npm publish step with `sync-oss.sh --skip-publish`.
+When you create a GitHub Release for a `v*` tag in the OSS repo, `.github/workflows/publish.yml` publishes the 5 packages in Tier order via npm Trusted Publishing (OIDC) + `--provenance` (no `NPM_TOKEN`; the `npm-publish` Environment's required-reviewer approval is the last reversible gate). A recovery `workflow_dispatch` MUST be dispatched from a `v*` tag ref (the Environment's tag restriction evaluates `github.ref`).
+
+**Fallback（`--local-publish`、opt-in）/ Fallback (`--local-publish`, opt-in)**: CI/OIDC が使えない場合に限り `sync-oss.sh --local-publish` で従来のローカル npm publish を明示 opt-in できる（Environment 承認 gate を bypass するため通常経路では使わない）。/ Only when CI/OIDC is unavailable, `sync-oss.sh --local-publish` explicitly opts into the legacy local npm publish (bypasses the Environment-approval gate — not for the normal flow).
+
+**`--skip-publish` は no-op（後方互換）/ `--skip-publish` is a no-op (backward-compatible)**: publish はもはや既定で skip されるため、`sync-oss.sh --skip-publish` は **no-op + `[DEPRECATION]` warn** になった（後方互換のため残置、review checkpoint 2026-07-13 refresh-on-elapse）。/ Because publish is now skipped by default, `sync-oss.sh --skip-publish` is a **no-op + a `[DEPRECATION]` warn** (kept for backward compatibility; review checkpoint 2026-07-13, refresh-on-elapse).
 
 ### CI修正が必要な場合 / When CI Fix is Needed
 

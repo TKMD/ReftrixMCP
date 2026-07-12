@@ -60,27 +60,14 @@ describe("MCP Server", () => {
       // TDD Red: 実装がないため失敗
     });
 
-    it("バージョン情報が正しく設定されること", () => {
-      // Arrange
-      const expectedVersion = "0.1.0";
-
-      // Act
-      const server = new Server(
-        {
-          name: "reftrix-mcp-server",
-          version: expectedVersion,
-        },
-        {
-          capabilities: {
-            tools: {},
-          },
-        }
-      );
-
-      // Assert
-      expect(server).toBeDefined();
-      // TDD Red: バージョン検証の実装がないため失敗
-    });
+    // TDA-L-2: 空虚な version テスト（`expect(server).toBeDefined()` のみで
+    // version を実際には検証していなかった）を削除。version の真の guard は
+    // `tests/server-version-coherence.test.ts`（SERVER_CONFIG.version ↔
+    // package.json.version equality、毎 CI 実行）。
+    // TDA-L-2: removed the vacuous version test (asserted only
+    // `expect(server).toBeDefined()`, never checking the version). The real
+    // version guard is `tests/server-version-coherence.test.ts`
+    // (SERVER_CONFIG.version ↔ package.json.version equality, every CI run).
   });
 
   describe("capabilities設定", () => {

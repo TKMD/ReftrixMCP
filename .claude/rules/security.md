@@ -103,6 +103,14 @@ npx license-checker --production \
 - EU CRA 2026/9/11脆弱性報告義務対応 / EU CRA vulnerability reporting compliance
 - CI: GitHub Artifacts 90日保持 / CI: GitHub Artifacts 90-day retention
 
+### CI ツールの GPL 互換性 — shellcheck (FIND-NPMPUB-SHELLCHECK-GPL-NOTE-01) / CI-tool GPL compatibility — shellcheck
+
+**JP**: `.github/workflows/ci.yml` の `actionlint` job は内蔵の **shellcheck**（`raven-actions/actionlint` wrapper 経由、`shellcheck: "true"` で ACTIVE）を用いて workflow の `run:` bash を静的検証する。shellcheck は **GPL-3.0-or-later** ライセンスだが、これは **CI-only invoke**（GitHub Actions runner 上で lint 実行するのみ）であり、成果物（公開される npm tarball / OSS ソース）に **非配布・非リンク**であるため、AGPL-3.0-only（自プロジェクト）との copyleft 衝突を **trigger しない**（build-time / CI-time の tool 利用であって conveyed work への組込みではない）。したがって shellcheck は `license-checker` の依存関係 allowlist（`## 品質ゲート` の許可リスト）には**追加されない** — CI tool として利用されるのみで project の dependency graph には入らない。
+
+**EN**: The `actionlint` job in `.github/workflows/ci.yml` statically lints the workflows' `run:` bash via the bundled **shellcheck** (through the `raven-actions/actionlint` wrapper, kept ACTIVE with `shellcheck: "true"`). shellcheck is **GPL-3.0-or-later**, but this is a **CI-only invocation** (it merely runs the lint on the GitHub Actions runner) and is **NOT distributed with, nor linked into, any conveyed artifact** (the published npm tarballs / OSS source), so it does **NOT trigger** a copyleft conflict with AGPL-3.0-only (this project) — it is a build-/CI-time tool use, not incorporation into a conveyed work. shellcheck is therefore **NOT added** to the `license-checker` dependency allowlist (the policy list under `## Quality Gate`) — it is used only as a CI tool and never enters the project's dependency graph.
+
+**Cross-ref**: FIND-NPMPUB-SHELLCHECK-GPL-NOTE-01 (Phase 3 docs-sync landing; required landing = "ci.yml comment or security.md" → the `.claude/rules/security.md` leg, since the `ci.yml` actionlint comment carries no GPL note) / `.github/workflows/ci.yml` `actionlint` job (`SHELLCHECK_OPTS=--exclude=SC1091 --exclude=SC2129`, security checks incl. SC2086 kept active) / Finding Registry `(IO Impl Decision V1 = APPROVE`019f5346-7542-7243-9e7a-bc57376f3d8d`).
+
 ## 品質ゲート（CI必須） / Quality Gate (CI Required)
 
 ### ✅ PASS基準（pass^3: 3回連続成功必須） / PASS Criteria (pass^3: must pass 3 consecutive times)
@@ -771,7 +779,7 @@ export function sectionVisualPendingExclusionPredicate(alias: string = "se"): st
 
 **EN**: W7b-0 (the webui-local UUID/handle SSOT chore PR) consolidated the webui-local UUID regex into `WEBUI_UUID_REGEX` in `apps/webui/src/lib/validation/uuid.ts` exactly per the documented defense-in-depth candidate. The **3 sites** (crop / screenshot / compare) import the same SSOT, leaving **0 inline UUID literals**; `INV-WEBUI-CROP-TILE-HANDLE-SSOT` (`apps/webui/tests/security/crop-tile-handle-ssot.test.ts`) pins the 0-inline-residue. `WEBUI_UUID_REGEX` is **byte-identical** to the retired inline literals, so the early-reject defense is not weakened and the authoritative validation stays at 24006 (`cropParamsSchema` + `validateCropPath` + high-PII fail-closed) — the webui SSOT purifies only the defense-in-depth pre-pin. SEC originator sign-off = **GRANTED**.
 
-**後継 tracked / Successor tracked**: **CONV-MARKER-ROBUSTNESS** (L, owner test-qa-engineer + security-engineer, deadline 2026-07-05 = T+1d): `INV-WEBUI-CROP-TILE-HANDLE-SSOT` の marker は現状 form-specific (inline literal の特定形に依存) ゆえ、AST-based sweep 化して form drift に頑健化する候補 / the `INV-WEBUI-CROP-TILE-HANDLE-SSOT` marker is currently form-specific (depends on the specific inline-literal form); AST-ifying it to be robust to form drift is a candidate.
+**後継 tracked / Successor tracked**: **CONV-MARKER-ROBUSTNESS** (L, owner test-qa-engineer + security-engineer, deadline 2026-07-12 = T+1d; deadline 2026-07-05 経過につき refresh、post-release L-tracked bundle PR (fixture/test/script/LP コメントのみ) で本 surface 非接触ゆえ悪化なし / refreshed because the 2026-07-05 deadline elapsed; the post-release L-tracked bundle PR (fixtures/tests/scripts/LP comments only) does not touch this surface, so there is no worsening): `INV-WEBUI-CROP-TILE-HANDLE-SSOT` の marker は現状 form-specific (inline literal の特定形に依存) ゆえ、AST-based sweep 化して form drift に頑健化する候補 / the `INV-WEBUI-CROP-TILE-HANDLE-SSOT` marker is currently form-specific (depends on the specific inline-literal form); AST-ifying it to be robust to form drift is a candidate.
 
 **Cross-ref (W7b-0 status update)**: `apps/webui/src/lib/validation/uuid.ts` (`WEBUI_UUID_REGEX` SSOT) / `apps/webui/tests/security/crop-tile-handle-ssot.test.ts` (`INV-WEBUI-CROP-TILE-HANDLE-SSOT`) / Finding Registry `(Conflict 2 / 条件3 / §7.1 INV) / IO Impl Decision = APPROVE`019f2b92-7df1`.
 

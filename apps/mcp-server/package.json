@@ -111,7 +111,11 @@
     "vitest": "^4.1.0"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
+  },
+  "engines": {
+    "node": ">=20.19.0"
   },
   "mcpName": "io.github.TKMD/reftrixmcp",
   "repository": {

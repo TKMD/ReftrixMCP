@@ -492,6 +492,22 @@ main: A ─ B ─ C ─ D ─ E
 
 ---
 
+## リリースプロセス（npm 公開）
+
+npm への公開は CI 駆動です（Trusted Publishing / OIDC、`NPM_TOKEN` 不使用）。以下の順序を守ってください:
+
+1. プライベートリポでバージョンを bump → `bash scripts/sync-oss.sh` で OSS リポ（`TKMD/ReftrixMCP`）へ git 同期する。**`sync-oss.sh` は既定で npm publish を skip します**（publish は CI 側の責務）。
+2. OSS リポで `v*` タグの GitHub Release を手動作成する: `gh release create vX.Y.Z --repo TKMD/ReftrixMCP`（prerelease は `--prerelease` を付与し、タグを `vX.Y.Z-beta.N` 形式にする）。
+3. `release: published` イベントが `.github/workflows/publish.yml` を起動する。`verify` job（Node 20、Environment gate なし）がタグ検証・build・全 tarball 検証を行う。
+4. `publish` job（Node 22）は **`npm-publish` GitHub Environment の required-reviewer 承認 1 回**の後にのみ実行され、5 パッケージ（`@reftrixmcp/core` → `database` → `ml` → `webdesign-core` → `mcp-server`）を Tier 順に **npm Trusted Publishing (OIDC)** + `--provenance` で公開する。再実行は冪等（公開済バージョンは skip）。
+5. **Fallback（CI/OIDC 障害時のみ）**: どうしても CI 経由で公開できない場合に限り、`bash scripts/sync-oss.sh --local-publish` でローカル npm publish を明示 opt-in できる（Environment 承認 gate を bypass するため通常経路では使わない）。旧 `--skip-publish` は現在 no-op（skip は既定）で、後方互換のために残されている。
+
+**maintainer の初回 cutover 前提（agent 実行不可、手動作業）**: (a) npmjs.com で 5 パッケージそれぞれに **Trusted Publisher 登録**（publish workflow = `.github/workflows/publish.yml`、environment = `npm-publish`）、(b) GitHub の **`npm-publish` Environment 作成** + required reviewers + `v*` deployment-branch/tag 制限の設定。**recovery の `workflow_dispatch` は `v*` タグ ref から dispatch すること**（Environment のタグ制限は `github.ref` を評価するため、branch から dispatch すると block される）。OIDC trust chain の end-to-end 検証は初回実 cutover でのみ可能。
+
+CHANGELOG は 3 系統（root OSS-facing / `内部完全版 /`apps/mcp-server/CHANGELOG.md` パッケージレベル）を bilingual JP/EN で同期する（` §CHANGELOG管理ルール 参照）。
+
+---
+
 ## GitHub設定チェックリスト（管理者向け）
 
 ### Settings → General → Pull Requests
@@ -1065,6 +1081,22 @@ main: A - B - C - D - E
          ^       ^
       Squash  Squash
 ```
+
+---
+
+## Release Process (npm Publish) (EN)
+
+npm publishing is CI-driven (Trusted Publishing / OIDC, no `NPM_TOKEN`). Follow this order:
+
+1. Bump the version in the private repo, then run `bash scripts/sync-oss.sh` to git-sync to the OSS repo (`TKMD/ReftrixMCP`). **`sync-oss.sh` skips npm publish by default** (publishing is CI's responsibility).
+2. Manually create a GitHub Release for a `v*` tag in the OSS repo: `gh release create vX.Y.Z --repo TKMD/ReftrixMCP` (for a prerelease, add `--prerelease` and use a `vX.Y.Z-beta.N` tag).
+3. The `release: published` event triggers `.github/workflows/publish.yml`. The `verify` job (Node 20, no Environment gate) validates the tag, builds, and validates every tarball.
+4. The `publish` job (Node 22) runs only after **one required-reviewer approval of the `npm-publish` GitHub Environment**, publishing the 5 packages (`@reftrixmcp/core` → `database` → `ml` → `webdesign-core` → `mcp-server`) in Tier order via **npm Trusted Publishing (OIDC)** + `--provenance`. Re-runs are idempotent (already-published versions are skipped).
+5. **Fallback (CI/OIDC failure only)**: only when publishing via CI is genuinely impossible, `bash scripts/sync-oss.sh --local-publish` explicitly opts into a local npm publish (do NOT use it in the normal flow — it bypasses the Environment-approval gate). The former `--skip-publish` is now a no-op (skip is the default), kept for backward compatibility.
+
+**Maintainer first-cutover prerequisites (manual, not agent-executable)**: (a) register a **Trusted Publisher** for each of the 5 packages on npmjs.com (publish workflow = `.github/workflows/publish.yml`, environment = `npm-publish`); (b) create the **`npm-publish` GitHub Environment** with required reviewers + a `v*` deployment-branch/tag restriction. A recovery `workflow_dispatch` MUST be dispatched from a `v*` tag ref (the Environment's tag restriction evaluates `github.ref`, so dispatching from a branch is blocked). The OIDC trust chain is verifiable end-to-end only at the first real cutover.
+
+Keep the 3 CHANGELOGs (root OSS-facing / `internal full /`apps/mcp-server/CHANGELOG.md`package-level) in sync, bilingual JP/EN (see` §CHANGELOG Management Rules).
 
 ---
 
