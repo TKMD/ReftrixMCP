@@ -440,6 +440,41 @@ export function maskPiiInAttributes(attributes: Record<string, string>): Record<
 }
 
 /**
+ * クロップ領域を画像範囲内にクランプする（leaf helper、単一定義）
+ * Clamp a crop region within the image bounds (leaf helper, single definition)
+ *
+ * `cropAndResizePart()` 内にインラインで書かれていた 4 式を behaviour-invariant な
+ * code motion で切り出したものであり、**production の唯一の定義**である。
+ * `INV-SHARP-PIPELINE-PARITY-001` の Layer A guard はこの helper を import して
+ * 「実効 extract 寸法」を得る — guard 側で clamp 式を複製すると production 側の
+ * clamp 変更で guard が silent に stale 化し、BI-16 が Layer A assert に課した
+ * 「チェーン再実装禁止」と同 class の drift surface を guard 層に新設するため。
+ *
+ * Extracted from the four inline expressions inside `cropAndResizePart()` by a
+ * behaviour-invariant code motion; this is the **single production definition**.
+ * The `INV-SHARP-PIPELINE-PARITY-001` Layer A guard imports it to derive the
+ * "effective extract dimensions" rather than re-implementing the clamp, which
+ * would create the same class of drift surface that BI-16 forbids for the
+ * Layer A assert chain.
+ *
+ * @param boundingBox - クロップ領域（非整数・負座標・画像外はみ出しを許容） / Crop region (non-integer, negative and out-of-bounds values allowed)
+ * @param imgWidth - 元画像の幅 / Source image width
+ * @param imgHeight - 元画像の高さ / Source image height
+ * @returns sharp `.extract()` に渡せるクランプ済み領域 / Clamped region suitable for sharp `.extract()`
+ */
+export function clampExtractRegion(
+  boundingBox: BoundingBox,
+  imgWidth: number,
+  imgHeight: number
+): { left: number; top: number; width: number; height: number } {
+  const left = Math.max(0, Math.round(boundingBox.x));
+  const top = Math.max(0, Math.round(boundingBox.y));
+  const width = Math.min(Math.round(boundingBox.width), Math.max(1, imgWidth - left));
+  const height = Math.min(Math.round(boundingBox.height), Math.max(1, imgHeight - top));
+  return { left, top, width, height };
+}
+
+/**
  * 画像をクロップしてリサイズする
  * Crop and resize image
  *
@@ -464,10 +499,7 @@ export async function cropAndResizePart(
   const imgHeight = metadata.height ?? 0;
 
   // クロップ領域を画像範囲内にクランプ / Clamp crop region within image bounds
-  const left = Math.max(0, Math.round(boundingBox.x));
-  const top = Math.max(0, Math.round(boundingBox.y));
-  const width = Math.min(Math.round(boundingBox.width), Math.max(1, imgWidth - left));
-  const height = Math.min(Math.round(boundingBox.height), Math.max(1, imgHeight - top));
+  const { left, top, width, height } = clampExtractRegion(boundingBox, imgWidth, imgHeight);
 
   return sharp(fullScreenshot)
     .extract({ left, top, width, height })

@@ -27,6 +27,7 @@ export {
   identifyPartType,
   classifyPiiRisk,
   maskPiiInAttributes,
+  clampExtractRegion,
   cropAndResizePart,
   computeVisualSignature,
   isLogoElement,

@@ -89,7 +89,7 @@
     "lru-cache": "^11.2.7",
     "pixelmatch": "^6.0.0",
     "pngjs": "^7.0.0",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.3",
     "ws": "^8.18.0",
     "zod": "^3.24.0"
   },
@@ -102,7 +102,6 @@
     "@types/jsdom": "^27.0.0",
     "@types/node": "^22.0.0",
     "@types/pixelmatch": "^5.2.6",
-    "@types/sharp": "^0.32.0",
     "jscpd": "^4.0.5",
     "playwright": "^1.57.0",
     "testcontainers": "^11.14.0",

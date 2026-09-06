@@ -36,9 +36,24 @@ coverage
 # (`pnpm-lock.yaml`) is the single source of truth for the production dependency tree;
 # any stale entry observed in a locally-cached `sbom.cdx.json` (e.g. an outdated
 # `hono@4.12.16` row after a `4.12.18` bump in `package.json` `pnpm.overrides`) is
-# acceptable because (i) the artifact is not committed, (ii) CI / release flows
-# regenerate the SBOM from the current lockfile state, and (iii) EU CRA Art.13(8)/14(2)
-# transparency is fulfilled by SBOM-on-demand semantics, not by tracked artifacts.
+# acceptable because (i) the artifact is not committed and (ii) CI / release flows
+# regenerate the SBOM from the current lockfile state.
+# EU CRA note (corrected 2026-09-03, PR-S1 / DRIFT-S1-01): the Art.14 paragraph
+# citation that used to stand here was wrong and has been removed -- CRA Art.14 is
+# the reporting obligation for actively exploited vulnerabilities and severe incidents
+# (24h / 72h / 14d, applicable 2026-09-11), not an SBOM-transparency provision. Art.13(8) does
+# exist, but it is the vulnerability-handling obligation (incorporating Annex I
+# Part II by reference) and does NOT directly legislate SBOM transparency; the
+# substantive SBOM provision is Annex I Part II point (1), applicable 2027-12-11.
+# This file is inside the `scripts/prepare-oss.sh` rsync allowlist and is therefore
+# OSS-conveyed, so a misquote here would ship to recipients. Whether the CRA applies
+# to this project at all (manufacturer / OSS-steward Art.24 / Recital 18) is still
+# undetermined and is tracked as [prevailing view] under `CO-SECDEPS-06`.
+# JP: 旧 Art.14 の項番引用は誤りにつき削除 (Art.14 は現に悪用されている脆弱性・重大
+# インシデントの報告義務、適用 2026-09-11)。Art.13(8) は実在するが脆弱性処理義務で
+# あり SBOM 透明性の直接規定ではない。SBOM の実体規定は Annex I Part II point (1)
+# (適用 2027-12-11)。本ファイルは rsync allowlist 内で OSS 配布されるため誤引用は
+# 公開配布物に載る。CRA 該当性自体は `CO-SECDEPS-06` で [有力説] に留める。
 sbom.cdx.json
 sbom.cdx.xml
 

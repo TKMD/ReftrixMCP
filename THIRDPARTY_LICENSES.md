@@ -52,7 +52,7 @@ MPL-2.0およびLGPL-3.0-or-laterの依存関係は、AGPL-3.0との互換性が
 | ioredis                   | 5.x     | MIT                                                                | https://github.com/redis/ioredis                       |
 | jsdom                     | 27.x    | MIT                                                                | https://github.com/jsdom/jsdom                         |
 | ws                        | 8.x     | MIT                                                                | https://github.com/websockets/ws                       |
-| sharp                     | 0.34.x  | Apache-2.0 (npm pkg); libvips: LGPL-3.0-or-later (dynamic linking) | https://github.com/lovell/sharp                        |
+| sharp                     | 0.35.x  | Apache-2.0 (npm pkg); libvips: LGPL-3.0-or-later (dynamic linking) | https://github.com/lovell/sharp                        |
 | pixelmatch                | 6.0.x   | MIT                                                                | https://github.com/mapbox/pixelmatch                   |
 | pngjs                     | 7.x     | MIT                                                                | https://github.com/lukeapage/pngjs                     |
 | dompurify                 | 3.3.x   | MPL-2.0 OR Apache-2.0                                              | https://github.com/cure53/DOMPurify                    |
