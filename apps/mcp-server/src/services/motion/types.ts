@@ -777,7 +777,8 @@ export type PathValidationErrorCode =
   | "FILE_NOT_FOUND"
   | "FILE_TOO_LARGE"
   | "NOT_A_FILE"
-  | "PERMISSION_DENIED";
+  | "PERMISSION_DENIED"
+  | "UNSUPPORTED_FORMAT";
 
 /**
  * パス検証結果

@@ -39,7 +39,7 @@ import type { SaveBackgroundDesignsResult } from "../../services/background/back
 import type { SaveScrollVisionResult } from "../../services/vision/scroll-vision-persistence.service";
 import type { ScrollVisionResult } from "../../services/vision/scroll-vision.analyzer";
 import type { Browser } from "playwright";
-import sharp from "sharp";
+import sharp from "../../utils/sharp-safe";
 import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { emitSupervisorAuditLog } from "../../services/worker-supervisor-helpers";
 import { isCropPersistenceEnabled } from "../../services/part/crop-persistence.helper";

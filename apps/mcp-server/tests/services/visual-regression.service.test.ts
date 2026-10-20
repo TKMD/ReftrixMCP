@@ -44,7 +44,7 @@ const mockSharpInstance = {
   png: vi.fn().mockReturnThis(),
 };
 
-vi.mock("sharp", () => ({
+vi.mock("../../src/utils/sharp-safe", () => ({
   default: vi.fn(() => mockSharpInstance),
 }));
 

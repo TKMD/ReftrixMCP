@@ -16,13 +16,13 @@
  * @module tests/services/page/css-animation-parser.service.test
  */
 
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   CssAnimationParser,
   type KeyframeStep,
   type EasingConfig,
-  type ParsedAnimation,
-  type ParsedTransition,
   CSS_PARSER_LIMITS,
 } from "../../../src/services/page/css-animation-parser.service";
 
@@ -66,6 +66,33 @@ const REDOS_TEST_STARTUP_OVERHEAD_MS = 200;
  */
 function expectedMaxMsForReDoS(inputLength: number): number {
   return inputLength / REDOS_TEST_THROUGHPUT_CHARS_PER_MS + REDOS_TEST_STARTUP_OVERHEAD_MS;
+}
+
+/**
+ * Fixed, grep-able prefix of the ReDoS ratio log line (R61-L-03).
+ * ReDoS 比ログ行の固定 prefix (R61-L-03、CI ログから grep で拾う)。
+ */
+const REDOS_RATIO_LOG_PREFIX = "[REDOS_RATIO]";
+
+interface RedosRatioMeasurement {
+  ratio: number;
+  baseLength: number;
+  scaleFactor: number;
+  smallMedianMs: number;
+  largeMedianMs: number;
+}
+
+/**
+ * Format the single-line ReDoS ratio record. Logging only: it does not take
+ * part in the pass/fail decision.
+ * ReDoS 比を 1 行に整形する。記録用であり、判定には関与しない。
+ */
+function formatRedosRatioLine(m: RedosRatioMeasurement): string {
+  return (
+    `${REDOS_RATIO_LOG_PREFIX} ratio=${m.ratio.toFixed(2)} n=${m.baseLength}` +
+    ` scale=${m.scaleFactor} median_n_ms=${m.smallMedianMs.toFixed(3)}` +
+    ` median_4n_ms=${m.largeMedianMs.toFixed(3)}`
+  );
 }
 
 describe("CssAnimationParser", () => {
@@ -740,21 +767,156 @@ describe("CssAnimationParser", () => {
         expect(result.size).toBeGreaterThanOrEqual(0);
       });
 
+      // SEC-R61-01: the ReDoS defense of extractStyleRules IS the length bound
+      // of `ruleRegex`. Loosening it (e.g. {0,1000} -> {0,5000}) keeps scaling
+      // linear, so the timing-ratio test below cannot detect it. Pin the bounds
+      // deterministically from the source (no timing involved). Declared before
+      // the ratio test. The pin RED is deterministic when this test runs alone
+      // (vitest -t); in a whole-file run an exponential rewrite hangs the ratio
+      // test synchronously and no pin result is reported before the hang
+      // (CO-R2-67 / CO-R2-70).
+      // extractStyleRules の ReDoS 防御は ruleRegex の量化子上限そのもの。
+      // 上限を緩めても線形のままなので比では検出できない。source から決定的に固定する。
+      // pin の RED が確実に観測できるのは単独実行時。file 全体では指数形で比 test が
+      // 先に hang し、pin の結果は報告されない（CO-R2-67 / CO-R2-70）。
+      it("should keep the ruleRegex quantifier bounds pinned (selector 1000 / block 50000)", () => {
+        const sourcePath = path.resolve(
+          __dirname,
+          "../../../src/services/page/css-animation-parser.service.ts"
+        );
+        const source = fs.readFileSync(sourcePath, "utf8");
+        const declarations = [...source.matchAll(/const ruleRegex = (\/.+\/[a-z]*);/g)];
+        // Locator guard: exactly one ruleRegex literal must be found (non-vacuous).
+        expect(declarations).toHaveLength(1);
+        const literal = declarations[0]?.[1] ?? "";
+        const bounds = [...literal.matchAll(/\{0,(\d+)\}/g)].map((m) => Number(m[1]));
+        // Selector bound 1000 == CSS_PARSER_LIMITS.MAX_SELECTOR_LENGTH;
+        // declaration-block bound 50000.
+        expect(bounds).toEqual([CSS_PARSER_LIMITS.MAX_SELECTOR_LENGTH, 50000]);
+        // No unbounded quantifier ({n,} included) may appear in the pattern.
+        expect(literal).not.toMatch(/[*+]|\{\d+,\}/);
+        // R61-M-01: bounds alone miss a bound-preserving exponential rewrite
+        // (e.g. duplicated alternation inside {0,1000}). Pin the whole literal.
+        // 上限を保った指数化 (alternation 重複等) は bounds では見えないため literal 全体を固定する。
+        expect(literal).toBe(String.raw`/([^@{}\s][^{]{0,1000})\{([^}]{0,50000})\}/g`);
+      });
+
+      // R61-L-03: the ratio line is emitted on pass AND fail so main CI runs
+      // leave a grep-able record. This pins its fixed prefix and fields.
+      // R61-L-03: 比の行は pass / fail 両方で出力し、main CI に記録を残す。
+      // ここでは固定 prefix と各フィールドの形式を固定する。
+      it("should format the ReDoS ratio log line with a fixed prefix", () => {
+        const line = formatRedosRatioLine({
+          ratio: 4.23456,
+          baseLength: 10_000,
+          scaleFactor: 4,
+          smallMedianMs: 1.23456,
+          largeMedianMs: 5.4321,
+        });
+
+        expect(line).toBe(
+          `${REDOS_RATIO_LOG_PREFIX} ratio=4.23 n=10000 scale=4 median_n_ms=1.235 median_4n_ms=5.432`
+        );
+        expect(line.startsWith("[REDOS_RATIO] ")).toBe(true);
+      });
+
+      // CO-R2-61 (2) / TEST-REDOS-WALLCLOCK-01:
+      //   絶対 wall-clock 閾値 (input-size 比例式) は CI runner 速度の分散
+      //   (実測 333〜820 ms) で flaky だったため、同一 process 内の
+      //   入力サイズ n と 4n の時間比で判定する形に組み替えた。ReDoS の
+      //   検出目的は「線形か超線形か」の判別であり、比は runner の絶対速度に
+      //   依存しない (env var `REDOS_TEST_THROUGHPUT_CHARS_PER_MS` にも非依存)。
+      // Replaced the absolute wall-clock budget (flaky under CI runner speed
+      //   variance, 333-820 ms observed) with a same-process time RATIO
+      //   between input sizes n and 4n. ReDoS detection only needs to tell
+      //   linear from super-linear scaling, and the ratio is independent of
+      //   absolute runner speed and of any env var.
       it("should handle long declaration value without hanging", () => {
-        // Attack vector: long value without semicolon triggers [^;]+ backtracking
-        const longValue = "a".repeat(50000);
-        const css = `.button { background: ${longValue}; }`;
+        // Attack vector: a long declaration value with no closing brace forces
+        // ruleRegex to fail-and-retry at every start position (worst case).
+        const makeCss = (valueLength: number): string =>
+          `.button { background: ${"a".repeat(valueLength)};`;
+        // n と 4n はいずれも ruleRegex の宣言ブロック上限 (50000) 未満、かつ
+        // セレクタ上限 (1000) を十分に超えるため、同一の探索パスを通る。
+        // Both sizes stay below the 50000-char declaration bound and well above
+        // the 1000-char selector bound, so they exercise the same search path.
+        const baseLength = 10_000;
+        const scaleFactor = 4;
+        const smallCss = makeCss(baseLength);
+        const largeCss = makeCss(baseLength * scaleFactor);
+        expect(largeCss.length).toBeLessThan(50000);
 
-        const start = performance.now();
-        const result = parser.extractStyleRules(css);
-        const elapsed = performance.now() - start;
+        const timeOnce = (css: string): number => {
+          const start = performance.now();
+          const result = parser.extractStyleRules(css);
+          const elapsed = performance.now() - start;
+          // Unterminated rule -> no rule is extracted (functional contract).
+          expect(result.size).toBe(0);
+          return elapsed;
+        };
+        const median = (values: number[]): number => {
+          const sorted = [...values].sort((a, b) => a - b);
+          return sorted[Math.floor(sorted.length / 2)] ?? Number.NaN;
+        };
 
-        // v0.5.1 CO-PR21-REVIEW-01 (ADR-0020 Decision 5):
-        //   af17e5c5 (PR #21 hotfix) で固定化した 1000 ms threshold を、
-        //   input-size proportional formula に置換。
-        // Replaces PR #21 (af17e5c5) fixed 1000 ms with input-size proportional.
-        expect(elapsed).toBeLessThan(expectedMaxMsForReDoS(css.length));
-        expect(result.size).toBeGreaterThanOrEqual(0);
+        // Warm-up: V8 irregexp の tier-up (interpreter -> native) と JIT を
+        // 計測前に済ませ、初回だけ遅い run が比を歪めないようにする。
+        // Warm-up so regexp tier-up / JIT happens before measurement.
+        const warmupRuns = 2;
+        for (let i = 0; i < warmupRuns; i++) {
+          timeOnce(smallCss);
+          timeOnce(largeCss);
+        }
+
+        // n と 4n を交互に計測し、runner の一時的な減速が両方に等しく効く
+        // ようにする。中央値で GC pause 等の外れ値を除く。
+        // Interleave n / 4n so transient runner slowdowns hit both sides;
+        // the median discards outliers such as GC pauses.
+        const measuredRuns = 5;
+        const smallTimes: number[] = [];
+        const largeTimes: number[] = [];
+        for (let i = 0; i < measuredRuns; i++) {
+          smallTimes.push(timeOnce(smallCss));
+          largeTimes.push(timeOnce(largeCss));
+        }
+        const smallMedianMs = median(smallTimes);
+        const largeMedianMs = median(largeTimes);
+        const ratio = largeMedianMs / Math.max(smallMedianMs, 0.001);
+
+        // 閾値 8 の根拠 / Rationale for the ratio threshold 8:
+        //   - 線形 O(L): 理論比は約 4.2 (末尾 1000 文字は探索が短いため 4 を
+        //     わずかに超える)。ローカル実測 3.5〜5.0、CPU 過負荷下で最大 ~5.8。
+        //   - 二乗 O(L^2) の多項式バックトラック: 期待比 = 16 (mutation 実測 16.1)。
+        //   - 指数バックトラック: 比は 16 を桁違いに超える (または完了しない)。
+        //   8 = sqrt(4 * 16) は線形と二乗の対数中点。実測上の余裕は線形側で
+        //   最小約 1.38 倍 (8 / 5.8)、二乗側で約 1.7〜2 倍 (二乗の実測 13.7〜17.8)。
+        //   - Linear O(L): theoretical ratio ~4.2 (the last 1000 positions scan
+        //     less, nudging it above 4); observed 3.5-5.0 locally, up to ~5.8 under
+        //     CPU overload (2 cores, 3 busy loops).
+        //   - Quadratic O(L^2) polynomial backtracking: ~16 (mutation: 16.1).
+        //   - Exponential backtracking: far beyond 16 (or never completes).
+        //   8 = sqrt(4 * 16) is the log-midpoint of linear and quadratic; the
+        //   observed margin is >= ~1.38x on the linear side (8 / 5.8) and ~1.7-2x
+        //   on the quadratic side (observed 13.7-17.8).
+        //   NOTE: a ratio cannot see a linear-but-larger-constant regression
+        //   (e.g. loosening the `{0,1000}` bound); the deterministic literal pin
+        //   above covers that (SEC-R61-01).
+        const maxLinearRatio = 8;
+        // Medians in the message keep a future failure diagnosable (TPA-R61-03).
+        const timingDetail = `n=${smallMedianMs.toFixed(1)}ms 4n=${largeMedianMs.toFixed(1)}ms`;
+        // R61-L-03: record the ratio BEFORE the assertion so it is printed on
+        // pass and fail alike (main CI first-3-run record). No effect on the verdict.
+        // R61-L-03: 判定の前に出力し、pass / fail どちらでも比が残るようにする。
+        console.info(
+          formatRedosRatioLine({ ratio, baseLength, scaleFactor, smallMedianMs, largeMedianMs })
+        );
+        expect(ratio, timingDetail).toBeLessThan(maxLinearRatio);
+
+        // Hang backstop only (NOT the detection criterion): catches a linear
+        // but pathologically slow regression that a ratio cannot see.
+        // ローカル ~0.1 s / CI 推定 ~0.7 s に対し約 7 倍の余裕を持つ backstop。
+        const hangBackstopMs = 5000;
+        expect(largeMedianMs, timingDetail).toBeLessThan(hangBackstopMs);
       });
 
       it("should reject CSS exceeding size limit", () => {

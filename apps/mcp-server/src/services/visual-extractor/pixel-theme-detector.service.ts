@@ -30,7 +30,7 @@
  */
 
 import { logger } from "../../utils/logger";
-import sharp from "sharp";
+import sharp from "../../utils/sharp-safe";
 import {
   parseAndValidateImageInput,
   withTimeout,

@@ -21,9 +21,9 @@
  *
  * | leg | 対象 / target                                | 契約 / contract                                                              |
  * | --- | -------------------------------------------- | ---------------------------------------------------------------------------- |
- * | (a) | `apps/mcp-server/package.json` `dependencies` | 宣言レンジの floor >= 0.35.0 **かつ 0.34.x を 1 つも admit しない**          |
- * | (b) | root `package.json` `pnpm.overrides.sharp`   | 宣言が存在し floor >= 0.35.0                                                 |
- * | (c) | `pnpm-lock.yaml`                             | `^  sharp@` package 行の版が **1 種類だけ** で、その版が >= 0.35.0           |
+ * | (a) | `apps/mcp-server/package.json` `dependencies` | 宣言レンジの floor >= 0.35.5 **かつ 0.35.5 未満を 1 つも admit しない**      |
+ * | (b) | root `package.json` `pnpm.overrides.sharp`   | 宣言が存在し floor >= 0.35.5                                                 |
+ * | (c) | `pnpm-lock.yaml`                             | `^  sharp@` package 行の版が **1 種類だけ** で、その版が >= 0.35.5           |
  *
  * leg (c) は plan §3 Stage 2 の手動 grep (「lockfile に sharp が 1 版だけ」) の機械化であり、
  * TPA-M-01 の代替 landing (lockfile 単一版 assert) を兼ねる。
@@ -34,23 +34,30 @@
  *
  * - **sharp を import / 実行しない** — 本 INV は宣言 (manifest / lockfile) の静的契約のみを見る。
  *   画像変換出力の parity は sibling の `INV-SHARP-PIPELINE-PARITY-001` が担当する (直交)。
- * - **新規依存を足さない** — `semver` package は本 repo の **どの package.json にも宣言されておらず**
- *   (`node_modules/.pnpm/semver@7.7.4/...` に解決される hoisted transitive = phantom dependency)、
+ * - **新規依存を足さない** — `semver` package は本 repo の **どの package.json にも宣言されていない**
+ *   hoisted transitive (phantom dependency) であり、
  *   「依存宣言の drift を守る test が未宣言 phantom dep に依存する」のは自己矛盾であり、
  *   Registry F-S3B-M-02 も「手書き parse または既存 declared dep のみ」を要求している。
- *   したがって `^` / `~` / `>=` / 完全一致だけを扱う **最小 range parser を手書き**する
- *   (未対応形は `null` を返し fail-closed = loud RED)。
+ *   したがって **最小 range parser を手書き**する (未対応形は `null` を返し fail-closed = loud RED)。
+ *   leg (b) は `parseRange` (bounded 形 `>=X <Y` + simple 形) を使い、leg (a) は公開 manifest の
+ *   宣言形として `parseSimpleRange` (`^` / `~` / `>=` / 完全一致) のまま (意図的な非対称、R2-SH E-135)。
+ *   既知 fail-open: leg (c) の `parseVersionPrefix` は prerelease 接尾辞を落として読む
+ *   (`sharp@0.35.5-rc.1` は GHSA-wq5f の affects だが 0.35.5 と読む)。strict 化は CO-R2-60 の範囲。
  *
  * - It never imports or executes `sharp`: this INV only inspects the static manifest /
  *   lockfile contract. Image-transform parity is the orthogonal sibling
  *   `INV-SHARP-PIPELINE-PARITY-001`.
  * - It adds **no dependency**. The `semver` package is declared in **no** package.json of
- *   this repo (it resolves to `node_modules/.pnpm/semver@7.7.4/...`, i.e. a hoisted
- *   transitive = phantom dependency); a test that guards *dependency declaration drift*
- *   depending on an undeclared phantom dep would be self-contradictory, and Registry
- *   F-S3B-M-02 requires "hand-written parse or an already-declared dep only". A minimal
- *   range parser covering `^` / `~` / `>=` / exact is therefore hand-written; unsupported
- *   forms return `null` and fail closed (loud RED).
+ *   this repo (a hoisted transitive = phantom dependency); a test that guards *dependency
+ *   declaration drift* depending on an undeclared phantom dep would be self-contradictory, and
+ *   Registry F-S3B-M-02 requires "hand-written parse or an already-declared dep only". A minimal
+ *   range parser is therefore hand-written; unsupported forms return `null` and fail closed
+ *   (loud RED). Leg (b) uses `parseRange` (bounded `>=X <Y` + simple forms) while leg (a) keeps
+ *   `parseSimpleRange` (`^` / `~` / `>=` / exact) for the published manifest's declared form —
+ *   an intentional asymmetry (R2-SH E-135).
+ *   Known fail-open: leg (c) reads versions with `parseVersionPrefix`, which drops a prerelease
+ *   suffix (`sharp@0.35.5-rc.1` is affected by GHSA-wq5f but reads as 0.35.5); strict parsing is
+ *   in scope of CO-R2-60.
  *
  * ## 非空虚性 / Non-vacuity
  *
@@ -74,102 +81,46 @@
 
 // INV-SHARP-DECLARED-RANGE-001
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import {
+  type SemVer,
+  compareVersion,
+  formatVersion,
+  parseRange,
+  parseSimpleRange,
+  parseVersionPrefix,
+  rangeAdmits,
+  readJson,
+  readLock,
+  REPO_ROOT,
+} from "../_shared/semver-lockfile";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-
-/** repo root。large-page → standing → regression → tests → mcp-server → apps → root (6 段) */
-const REPO_ROOT = join(HERE, "..", "..", "..", "..", "..", "..");
-
-/** patched floor。GHSA-f88m (sharp) 修正版の下限 / patched floor for the sharp advisory */
-const PATCHED_FLOOR: SemVer = { major: 0, minor: 35, patch: 0 };
+/** patched floor。GHSA-wq5f-xc86-pv6w (`< 0.35.5`、rgj7 / f88m を包含) / patched floor (wq5f) */
+const PATCHED_FLOOR: SemVer = { major: 0, minor: 35, patch: 5 };
 
 /** 宣言レンジが 1 つも admit してはならない脆弱系列の代表点 / must-not-admit probes */
-const VULNERABLE_PROBES = ["0.34.0", "0.34.5", "0.34.9", "0.34.99"] as const;
+const VULNERABLE_PROBES = [
+  "0.34.0",
+  "0.34.5",
+  "0.34.9",
+  "0.34.99",
+  "0.35.0",
+  "0.35.3",
+  "0.35.4",
+] as const;
 
-// ---------------------------------------------------------------------------
-// 最小 semver / range parser (手書き、依存 0)
-// Minimal hand-written semver / range parser (zero dependencies)
-// ---------------------------------------------------------------------------
-
-interface SemVer {
-  major: number;
-  minor: number;
-  patch: number;
-}
-
-/** `0.35.4` / `0.35.4-rc.1` → `{0,35,4}`。数値 3 組で始まらなければ `null` */
-function parseVersion(raw: string): SemVer | null {
-  const m = /^(\d+)\.(\d+)\.(\d+)/.exec(raw.trim());
-  if (!m) return null;
-  return { major: Number(m[1]), minor: Number(m[2]), patch: Number(m[3]) };
-}
-
-/** a < b → 負 / a === b → 0 / a > b → 正 */
-function compareVersion(a: SemVer, b: SemVer): number {
-  return a.major - b.major || a.minor - b.minor || a.patch - b.patch;
-}
-
-function formatVersion(v: SemVer): string {
-  return `${v.major}.${v.minor}.${v.patch}`;
-}
-
-interface RangeSpec {
-  /** 下限 (inclusive) / inclusive floor */
-  floor: SemVer;
-  /** 上限 (exclusive)。`>=` は上限なし = `null` / exclusive ceiling; `null` for `>=` */
-  ceiling: SemVer | null;
-}
-
-/**
- * `^x.y.z` / `~x.y.z` / `>=x.y.z` / `x.y.z` (完全一致) のみを解釈する。
- * それ以外 (`||` / スペース区切り複合 / `*` / `latest` / workspace 記法 等) は
- * **`null` を返して fail-closed** にする — 未知形を「たぶん安全」と黙認しない。
- *
- * Parses only `^x.y.z` / `~x.y.z` / `>=x.y.z` / exact `x.y.z`. Anything else
- * (`||`, space-joined compounds, `*`, `latest`, workspace protocols, …) returns
- * `null` and fails closed — an unknown form is never silently assumed safe.
- */
-function parseSimpleRange(raw: string): RangeSpec | null {
-  const range = raw.trim();
-  const m = /^(\^|~|>=|=)?\s*(\d+)\.(\d+)\.(\d+)$/.exec(range);
-  if (!m) return null;
-
-  const operator = m[1] ?? "=";
-  const floor: SemVer = { major: Number(m[2]), minor: Number(m[3]), patch: Number(m[4]) };
-
-  if (operator === ">=") return { floor, ceiling: null };
-  if (operator === "=") {
-    return { floor, ceiling: { major: floor.major, minor: floor.minor, patch: floor.patch + 1 } };
-  }
-  if (operator === "~") {
-    return { floor, ceiling: { major: floor.major, minor: floor.minor + 1, patch: 0 } };
-  }
-  // caret: npm semver の 0.x 特例 — ^0.35.3 := >=0.35.3 <0.36.0 / ^0.0.z := その patch のみ
-  if (floor.major > 0) return { floor, ceiling: { major: floor.major + 1, minor: 0, patch: 0 } };
-  if (floor.minor > 0) return { floor, ceiling: { major: 0, minor: floor.minor + 1, patch: 0 } };
-  return { floor, ceiling: { major: 0, minor: 0, patch: floor.patch + 1 } };
-}
-
-/** `spec` が `version` を admit するか / whether `spec` admits `version` */
-function rangeAdmits(spec: RangeSpec, version: SemVer): boolean {
-  if (compareVersion(version, spec.floor) < 0) return false;
-  if (spec.ceiling === null) return true;
-  return compareVersion(version, spec.ceiling) < 0;
-}
+// semver / range parser は `../_shared/semver-lockfile` (CO-R2-36)。sharp precedent は prerelease
+// suffix を落として比較する `parseVersionPrefix` を使う (抽出前と同一の挙動)。
+// The parser lives in `../_shared/semver-lockfile` (CO-R2-36); this precedent keeps its
+// prefix-reading version parser (`parseVersionPrefix`), unchanged behaviour.
 
 // ---------------------------------------------------------------------------
 // 3 leg の判定 (repo root 可変 = mutation control から再利用できる純関数)
 // The three legs as pure functions over a repo root (reused by the controls)
 // ---------------------------------------------------------------------------
-
-function readJson(path: string): Record<string, unknown> {
-  return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
-}
 
 /** leg (a): `apps/mcp-server/package.json` の sharp 宣言レンジ */
 function checkDeclaredRange(repoRoot: string = REPO_ROOT): string[] {
@@ -198,7 +149,7 @@ function checkDeclaredRange(repoRoot: string = REPO_ROOT): string[] {
   }
 
   for (const probe of VULNERABLE_PROBES) {
-    const version = parseVersion(probe);
+    const version = parseVersionPrefix(probe);
     if (version !== null && rangeAdmits(spec, version)) {
       violations.push(
         `apps/mcp-server/package.json: sharp レンジ "${declared}" が脆弱版 ${probe} を admit する`
@@ -221,10 +172,10 @@ function checkRootOverride(repoRoot: string = REPO_ROOT): string[] {
     return violations;
   }
 
-  const spec = parseSimpleRange(override);
+  const spec = parseRange(override);
   if (spec === null) {
     violations.push(
-      `package.json: pnpm.overrides.sharp "${override}" は本 guard の対応形 (^ / ~ / >= / 完全一致) ではない`
+      `package.json: pnpm.overrides.sharp "${override}" は本 guard の対応形 (>=X <Y / ^ / ~ / >= / 完全一致) ではない`
     );
     return violations;
   }
@@ -244,7 +195,7 @@ function checkRootOverride(repoRoot: string = REPO_ROOT): string[] {
  * `  @img/sharp-libvips-…@…:` は prefix が異なるため一致しない。
  */
 function collectLockfileSharpVersions(repoRoot: string): string[] {
-  const lock = readFileSync(join(repoRoot, "pnpm-lock.yaml"), "utf8");
+  const lock = readLock(repoRoot);
   const versions = new Set<string>();
 
   for (const line of lock.split("\n")) {
@@ -272,7 +223,7 @@ function checkLockfileSingleVersion(repoRoot: string = REPO_ROOT): string[] {
   }
 
   for (const raw of versions) {
-    const version = parseVersion(raw);
+    const version = parseVersionPrefix(raw);
     if (version === null) {
       violations.push(`pnpm-lock.yaml: sharp@${raw} の版を解釈できない`);
       continue;
@@ -304,7 +255,7 @@ interface FixtureOptions {
 }
 
 function writeFixtureRoot(options: FixtureOptions = {}): string {
-  const { declared = "^0.35.3", override = ">=0.35.0", lockVersions = ["0.35.4"] } = options;
+  const { declared = "^0.35.5", override = ">=0.35.5 <0.36", lockVersions = ["0.35.5"] } = options;
 
   const root = mkdtempSync(join(tmpdir(), "inv-sharp-declared-range-"));
   fixtureRoots.push(root);
@@ -348,19 +299,19 @@ afterAll(() => {
 
 describe("INV-SHARP-DECLARED-RANGE-001 (large-page)", () => {
   describe("(a) apps/mcp-server の sharp 宣言レンジ / declared range", () => {
-    it("floor が patched floor (>= 0.35.0) 以上で、0.34.x を 1 つも admit しない", () => {
+    it("floor が patched floor (>= 0.35.5) 以上で、0.35.5 未満を 1 つも admit しない", () => {
       expect(checkDeclaredRange()).toEqual([]);
     });
   });
 
   describe("(b) root pnpm.overrides.sharp", () => {
-    it("override が宣言され、floor が patched floor (>= 0.35.0) 以上である", () => {
+    it("override が宣言され、floor が patched floor (>= 0.35.5) 以上である", () => {
       expect(checkRootOverride()).toEqual([]);
     });
   });
 
   describe("(c) pnpm-lock.yaml の sharp 解決版 / resolved version", () => {
-    it("sharp@ package 行の版が 1 種類だけで、patched floor (>= 0.35.0) 以上である", () => {
+    it("sharp@ package 行の版が 1 種類だけで、patched floor (>= 0.35.5) 以上である", () => {
       expect(checkLockfileSingleVersion()).toEqual([]);
     });
 
@@ -390,6 +341,13 @@ describe("INV-SHARP-DECLARED-RANGE-001 (large-page)", () => {
       expect(violations.some((v) => v.includes("admit"))).toBe(true);
     });
 
+    it("(a) 宣言 ^0.35.3 は 0.35.3 / 0.35.4 を admit するので RED (R2-SH)", () => {
+      const root = writeFixtureRoot({ declared: "^0.35.3" });
+      const violations = checkDeclaredRange(root);
+      expect(violations.some((v) => v.includes("0.35.3") && v.includes("admit"))).toBe(true);
+      expect(violations.some((v) => v.includes("0.35.4") && v.includes("admit"))).toBe(true);
+    });
+
     it("(a) 宣言 >=0.34.0 は floor を満たしても 0.34.x を admit するので RED", () => {
       const root = writeFixtureRoot({ declared: ">=0.34.0" });
       expect(checkDeclaredRange(root).some((v) => v.includes("admit"))).toBe(true);
@@ -405,9 +363,17 @@ describe("INV-SHARP-DECLARED-RANGE-001 (large-page)", () => {
       expect(checkRootOverride(root).length).toBeGreaterThan(0);
     });
 
-    it("(b) override floor が 0.35.0 未満なら RED", () => {
+    it("(b) override floor が 0.35.5 未満なら RED", () => {
       const root = writeFixtureRoot({ override: ">=0.34.0" });
       expect(checkRootOverride(root).length).toBeGreaterThan(0);
+    });
+
+    it("(b) bounded override >=0.35.4 <0.36 は floor 不足で RED (対応形として解釈される、R2-SH)", () => {
+      const root = writeFixtureRoot({ override: ">=0.35.4 <0.36" });
+      const violations = checkRootOverride(root);
+      // parser が parseSimpleRange に戻ると「対応形ではない」で RED になり、floor 判定を通らない
+      expect(violations.some((v) => v.includes("floor 0.35.4"))).toBe(true);
+      expect(violations.some((v) => v.includes("対応形"))).toBe(false);
     });
 
     it("(c) lockfile に sharp が 2 版あると RED", () => {
@@ -416,9 +382,18 @@ describe("INV-SHARP-DECLARED-RANGE-001 (large-page)", () => {
       expect(violations.some((v) => v.includes("複数版"))).toBe(true);
     });
 
-    it("(c) lockfile の解決版が 0.35.0 未満なら RED", () => {
+    it("(c) lockfile の解決版が 0.35.5 未満なら RED", () => {
       const root = writeFixtureRoot({ lockVersions: ["0.34.5"] });
       expect(checkLockfileSingleVersion(root).length).toBeGreaterThan(0);
+    });
+
+    it("(c) lockfile の解決版が GHSA-wq5f 区間の 0.35.4 なら RED (R2-SH)", () => {
+      const root = writeFixtureRoot({ lockVersions: ["0.35.4"] });
+      expect(
+        checkLockfileSingleVersion(root).some(
+          (v) => v.includes("sharp@0.35.4") && v.includes("0.35.5")
+        )
+      ).toBe(true);
     });
   });
 
@@ -430,7 +405,7 @@ describe("INV-SHARP-DECLARED-RANGE-001 (large-page)", () => {
     /** 判定を 1 行で書くための薄いヘルパー / thin helper: does `range` admit `version`? */
     function admits(range: string, version: string): boolean {
       const spec = parseSimpleRange(range);
-      const parsed = parseVersion(version);
+      const parsed = parseVersionPrefix(version);
       if (spec === null || parsed === null) {
         throw new Error(`parser 契約の破綻: range="${range}" version="${version}"`);
       }
@@ -451,6 +426,16 @@ describe("INV-SHARP-DECLARED-RANGE-001 (large-page)", () => {
     it("未対応形 (複合 / ワイルドカード / workspace) は null で fail-closed", () => {
       for (const raw of ["*", "latest", ">=0.35.0 <1.0.0", "^0.35.3 || ^1.0.0", "workspace:*"]) {
         expect(parseSimpleRange(raw)).toBeNull();
+      }
+    });
+
+    it("leg (b) の parseRange: >=0.35.5 <0.36 は floor 0.35.5 / ceiling 0.36.0、|| と 3 項は null", () => {
+      expect(parseRange(">=0.35.5 <0.36")).toEqual({
+        floor: { major: 0, minor: 35, patch: 5 },
+        ceiling: { major: 0, minor: 36, patch: 0 },
+      });
+      for (const raw of ["^0.35.3 || ^1.0.0", ">=0.35.5 <0.36 <1"]) {
+        expect(parseRange(raw)).toBeNull();
       }
     });
   });

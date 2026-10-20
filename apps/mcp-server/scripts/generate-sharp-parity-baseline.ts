@@ -31,7 +31,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import sharp from "sharp";
+import sharp from "../src/utils/sharp-safe";
 import { cropAndResizePart } from "../src/services/part/part-extraction.service.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));

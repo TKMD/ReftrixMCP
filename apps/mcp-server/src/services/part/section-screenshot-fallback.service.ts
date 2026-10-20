@@ -39,7 +39,7 @@
 
 import type { Browser, BrowserContext, Page } from "playwright";
 import { chromium } from "playwright";
-import sharp from "sharp";
+import sharp from "../../utils/sharp-safe";
 import { ROBOTS_TXT, isUrlAllowedByRobotsTxt } from "@reftrixmcp/core";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { logger, isDevelopment } from "../../utils/logger";

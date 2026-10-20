@@ -524,11 +524,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run npm audit
-        # audit-level=high: High/Critical 脆弱性を検出。
-        # セキュリティ要件: High/Critical 0件でないとマージ不可。
-        run: pnpm audit --audit-level=high
-
       - name: Check licenses
         # license-checker が AGPL-3.0-only SPDX ID を認識しないため、ルートパッケージを除外。
         # ルートパッケージのライセンスは LICENSE ファイルと package.json で AGPL-3.0-only を明示済み。
@@ -552,6 +547,11 @@ jobs:
           name: sbom-cyclonedx
           path: sbom.cdx.json
           retention-days: 90
+
+      - name: Run npm audit
+        # audit-level=high: High/Critical 脆弱性を検出。
+        # セキュリティ要件: High/Critical 0件でないとマージ不可。
+        run: pnpm audit --audit-level=high
 
   # Slack Notification - CI結果をSlackに通知
   # 全ジョブ完了後に成功/失敗を通知（buildジョブが最終ゲート）
@@ -589,49 +589,62 @@ jobs:
             echo "emoji=:white_check_mark:" >> "$GITHUB_OUTPUT"
           fi
 
+      # CO-R2-53: build the Slack payload as a JSON file with jq instead of an
+      # inline `payload:` template. Interpolating free text (commit message / PR
+      # title) into the inline template broke the action's JSON/YAML parse whenever
+      # the text held an ASCII double quote (runs 36412126150 / 37226367199).
+      # Every dynamic value reaches jq only through env (no expression inside
+      # `run:`), so jq does the escaping and the text cannot change the payload
+      # structure or the shell. The send step reads the file via payload-file-path
+      # (`.json` extension = plain JSON.parse in slack-github-action v2.1.0).
+      - name: Build Slack payload
+        id: slack-payload
+        env:
+          SLACK_TITLE: Reftrix CI
+          SLACK_STATUS: ${{ steps.result.outputs.status }}
+          SLACK_COLOR: ${{ steps.result.outputs.color }}
+          SLACK_EMOJI: ${{ steps.result.outputs.emoji }}
+          SLACK_BRANCH: ${{ github.ref_name }}
+          SLACK_COMMIT: ${{ github.event.head_commit.message || github.event.pull_request.title || 'N/A' }}
+          SLACK_COMMIT_FENCE: "`"
+          SLACK_ACTOR: ${{ github.actor }}
+          SLACK_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_FIELDS: |
+            *Lint:* ${{ needs.lint.result }}
+            *Actionlint:* ${{ needs.actionlint.result }}
+            *Smoke:* ${{ needs.test-smoke.result }}
+            *Unit:* ${{ needs.test-unit.result }}
+            *Integration:* ${{ needs.test-integration.result }}
+            *Vision CPU:* ${{ needs.test-vision-cpu.result }}
+            *E2E:* ${{ needs.test-e2e.result }}
+            *Security:* ${{ needs.security.result }}
+            *Build:* ${{ needs.build.result }}
+        run: |
+          payload_file="${RUNNER_TEMP}/slack-payload.json"
+          jq -n '{
+            attachments: [{
+              color: env.SLACK_COLOR,
+              blocks: [
+                {type: "section", text: {type: "mrkdwn", text: (
+                  env.SLACK_EMOJI + " *" + env.SLACK_TITLE + " " + env.SLACK_STATUS + "*\n"
+                  + "*Branch:* `" + env.SLACK_BRANCH + "`\n"
+                  + "*Commit:* " + env.SLACK_COMMIT_FENCE + env.SLACK_COMMIT + env.SLACK_COMMIT_FENCE + "\n"
+                  + "*Author:* " + env.SLACK_ACTOR
+                )}},
+                {type: "section", fields: [
+                  env.SLACK_FIELDS | split("\n")[] | select(length > 0) | {type: "mrkdwn", text: .}
+                ]},
+                {type: "actions", elements: [
+                  {type: "button", text: {type: "plain_text", text: "View Run"}, url: env.SLACK_RUN_URL}
+                ]}
+              ]
+            }]
+          }' > "$payload_file"
+          echo "path=${payload_file}" >> "$GITHUB_OUTPUT"
+
       - name: Send Slack notification
         uses: slackapi/slack-github-action@v2.1.0
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
-          payload: |
-            {
-              "attachments": [
-                {
-                  "color": "${{ steps.result.outputs.color }}",
-                  "blocks": [
-                    {
-                      "type": "section",
-                      "text": {
-                        "type": "mrkdwn",
-                        "text": "${{ steps.result.outputs.emoji }} *Reftrix CI ${{ steps.result.outputs.status }}*\n*Branch:* `${{ github.ref_name }}`\n*Commit:* `${{ github.event.head_commit.message || github.event.pull_request.title || 'N/A' }}`\n*Author:* ${{ github.actor }}"
-                      }
-                    },
-                    {
-                      "type": "section",
-                      "fields": [
-                        { "type": "mrkdwn", "text": "*Lint:* ${{ needs.lint.result }}" },
-                        { "type": "mrkdwn", "text": "*Actionlint:* ${{ needs.actionlint.result }}" },
-                        { "type": "mrkdwn", "text": "*Smoke:* ${{ needs.test-smoke.result }}" },
-                        { "type": "mrkdwn", "text": "*Unit:* ${{ needs.test-unit.result }}" },
-                        { "type": "mrkdwn", "text": "*Integration:* ${{ needs.test-integration.result }}" },
-                        { "type": "mrkdwn", "text": "*Vision CPU:* ${{ needs.test-vision-cpu.result }}" },
-                        { "type": "mrkdwn", "text": "*E2E:* ${{ needs.test-e2e.result }}" },
-                        { "type": "mrkdwn", "text": "*Security:* ${{ needs.security.result }}" },
-                        { "type": "mrkdwn", "text": "*Build:* ${{ needs.build.result }}" }
-                      ]
-                    },
-                    {
-                      "type": "actions",
-                      "elements": [
-                        {
-                          "type": "button",
-                          "text": { "type": "plain_text", "text": "View Run" },
-                          "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
+          payload-file-path: ${{ steps.slack-payload.outputs.path }}

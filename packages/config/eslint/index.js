@@ -617,6 +617,28 @@ export const baseConfig = [
       complexity: ["error", 10],
     },
   },
+  // SVG input block lane layer 1 (INV-SEC-SHARP-SVG-BLOCK-001): the sharp-safe
+  // wrapper is the only sharp entry point in mcp-server src and is CC-gated.
+  // 層 1: mcp-server src の sharp 取得は wrapper 経由に限る（wrapper 自身は除外）。
+  {
+    files: ["apps/mcp-server/src/**/*.ts"],
+    ignores: ["apps/mcp-server/src/utils/sharp-safe.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { paths: [{ name: "sharp", message: "Import sharp via src/utils/sharp-safe." }] },
+      ],
+    },
+  },
+  // Layer 2 (INV-SEC-IMAGE-INPUT-GATE-001): the image-format gate util is a new pure-function
+  // file, CC-gated. 層 2: 入口 gate util（新規の純関数 file）を CC 10 で machine-enforce。
+  {
+    files: [
+      "apps/mcp-server/src/utils/sharp-safe.ts",
+      "apps/mcp-server/src/utils/image-format-gate.ts",
+    ],
+    rules: { complexity: ["error", 10] },
+  },
   {
     ignores: [
       "**/node_modules/**",

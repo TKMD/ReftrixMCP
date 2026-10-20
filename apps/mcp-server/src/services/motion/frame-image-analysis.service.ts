@@ -37,7 +37,14 @@ import type {
   IFrameImageAnalysisService,
   FrameAnalysisErrorCode,
 } from "./types";
-import { FrameAnalysisError, FrameAnalysisErrorCodes, DEFAULTS, LIMITS } from "./types";
+import {
+  FrameAnalysisError,
+  FrameAnalysisErrorCodes,
+  FrameLoaderError,
+  DEFAULTS,
+  LIMITS,
+} from "./types";
+import { logger } from "../../utils/logger";
 
 // ============================================================================
 // 設定インターフェース
@@ -324,10 +331,11 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
           );
         }
       } catch (error) {
-        // ファイル読み込みエラーはスキップして続行（エラーログ出力）
-        if (process.env.NODE_ENV === "development") {
-          console.warn(`[FrameImageAnalysisService] Failed to load frame: ${framePath}`, error);
-        }
+        // ファイル読み込みエラーはスキップして続行（全環境で出す。path 全文は出さない）
+        logger.warn("[FrameImageAnalysisService] Frame skipped", {
+          frame: path.basename(framePath),
+          reason: error instanceof FrameLoaderError ? error.code : "LOAD_FAILED",
+        });
       }
     }
 

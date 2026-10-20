@@ -19,7 +19,7 @@
 
 import * as fs from "node:fs";
 import pixelmatch from "pixelmatch";
-import sharp from "sharp";
+import sharp from "../../../utils/sharp-safe";
 import { logger, isDevelopment } from "../../../utils/logger";
 
 // =====================================================

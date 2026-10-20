@@ -16,7 +16,7 @@
 
 import { JSDOM } from "jsdom";
 import createDOMPurify from "dompurify";
-import sharp from "sharp";
+import sharp from "../../utils/sharp-safe";
 import { createHash } from "crypto";
 
 import {

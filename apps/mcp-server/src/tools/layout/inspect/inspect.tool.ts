@@ -41,6 +41,10 @@ import {
 import { createLogger, isDevelopment } from "../../../utils/logger";
 import { getToolErrorMessage } from "../../../utils/error-messages";
 import { sanitizeErrorMessage } from "../../../utils/sanitize-error";
+import {
+  normalizeScreenshotBase64,
+  rejectNonRasterScreenshot,
+} from "../../../utils/image-format-gate";
 import { sanitizeHtml } from "../../../utils/html-sanitizer";
 import type {
   VisionAnalysisResult,
@@ -210,6 +214,16 @@ export async function layoutInspectHandler(input: unknown): Promise<LayoutInspec
   // Vision CPU完走保証 Phase 3: HardwareDetector, TimeoutCalculator, ImageOptimizer 統合
   // =====================================================
   if (validated.screenshot) {
+    // 入口 gate: decode より前に先頭 byte で PNG / JPEG / WebP 以外を拒否する（ADR-0049）
+    // Entry gate: reject anything but PNG / JPEG / WebP by leading bytes, before any decode.
+    const rejected = rejectNonRasterScreenshot(validated.screenshot.base64, (info) =>
+      logger.warn("layout.inspect rejected an unsupported screenshot format", {
+        tool: "layout.inspect",
+        ...info,
+      })
+    );
+    if (rejected) return rejected;
+
     if (isDevelopment()) {
       logger.info("Screenshot mode: analyzing with Vision API", {
         mimeType: validated.screenshot.mimeType,
@@ -266,7 +280,7 @@ export async function layoutInspectHandler(input: unknown): Promise<LayoutInspec
       }
 
       // 画像サイズ取得（Base64からバイトサイズを推定）
-      const base64Data = validated.screenshot.base64;
+      const base64Data = normalizeScreenshotBase64(validated.screenshot.base64);
       const imageSizeBytes = Math.ceil((base64Data.length * 3) / 4);
 
       // 画像最適化（CPU推論時）

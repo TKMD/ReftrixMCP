@@ -20,7 +20,13 @@
  */
 
 import { z } from "zod";
-import sharp from "sharp";
+import sharp from "../../utils/sharp-safe";
+import {
+  assertAllowedRaster,
+  P1_RASTER_ALLOW,
+  UNSUPPORTED_IMAGE_FORMAT_MESSAGE,
+  UnsupportedImageFormatError,
+} from "../../utils/image-format-gate";
 import { createDIFactory } from "../../utils/di-factory";
 import { logger } from "../../utils/logger";
 import { sanitizeErrorMessage } from "../../utils/sanitize-error";
@@ -140,6 +146,7 @@ export const DESIGN_SEARCH_ERROR_CODES = {
   SSRF_BLOCKED: "SSRF_BLOCKED",
   IMAGE_FETCH_FAILED: "IMAGE_FETCH_FAILED",
   IMAGE_DECODE_FAILED: "IMAGE_DECODE_FAILED",
+  UNSUPPORTED_IMAGE_FORMAT: "UNSUPPORTED_IMAGE_FORMAT",
   EMBEDDING_FAILED: "EMBEDDING_FAILED",
   SEARCH_FAILED: "SEARCH_FAILED",
   SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
@@ -341,6 +348,7 @@ async function fetchImageFromUrl(url: string): Promise<Buffer> {
  * 画像バッファをDINOv2入力形式（224x224x3 RGB）にリサイズ
  */
 async function preprocessImageForDINOv2(imageBuffer: Buffer): Promise<Buffer> {
+  assertAllowedRaster(imageBuffer, P1_RASTER_ALLOW);
   const resized = await sharp(imageBuffer)
     .resize(DINOV2_INPUT_SIZE, DINOV2_INPUT_SIZE, {
       fit: "fill",
@@ -743,6 +751,21 @@ export async function designSearchByImageHandler(
     try {
       preprocessedBuffer = await preprocessImageForDINOv2(imageBuffer);
     } catch (error) {
+      if (error instanceof UnsupportedImageFormatError) {
+        // 検出形式と長さのみ記録（本文・内容は出さない）/ log the detected format and length only
+        logger.warn("design.search_by_image rejected an unsupported image format", {
+          tool: "design.search_by_image",
+          detected: error.detected,
+          byteLength: imageBuffer.length,
+        });
+        return {
+          success: false,
+          results: [],
+          total: 0,
+          searchMode: "vision_only",
+          error: `${DESIGN_SEARCH_ERROR_CODES.UNSUPPORTED_IMAGE_FORMAT}: ${UNSUPPORTED_IMAGE_FORMAT_MESSAGE}`,
+        };
+      }
       return {
         success: false,
         results: [],
@@ -933,7 +956,7 @@ export const designSearchByImageToolDefinition = {
       image: {
         type: "string",
         description:
-          "Base64エンコードされた画像データ（data:image/...;base64,... 形式も可）またはHTTPS画像URL",
+          "Base64エンコードされた画像データ（data:image/...;base64,... 形式も可）またはHTTPS画像URL。受理形式は PNG / JPEG / WebP（先頭バイトで判定）。それ以外は UNSUPPORTED_IMAGE_FORMAT で拒否",
       },
       query: {
         type: "string",

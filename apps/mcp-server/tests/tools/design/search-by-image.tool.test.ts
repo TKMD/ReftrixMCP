@@ -48,21 +48,20 @@ import {
 
 import { validateExternalUrl } from "../../../src/utils/url-validator";
 import { invalidateCache } from "../../../src/services/search-cache.service";
+import {
+  VALID_BASE64_PNG,
+  MOCK_VISION_EMBEDDING,
+  createMockDINOv2Service,
+  createMockEmbeddingService,
+  createMockPrismaClient,
+} from "./_helpers/design-search-mocks";
 
 // =====================================================
 // テストデータ
 // =====================================================
 
-/** 1x1 赤ピクセルのPNG画像（Base64） */
-const VALID_BASE64_PNG =
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==";
-
 /** data URI形式のBase64 PNG */
 const VALID_DATA_URI = `data:image/png;base64,${VALID_BASE64_PNG}`;
-
-/** テスト用768次元のembeddingベクトル */
-const MOCK_VISION_EMBEDDING = Array.from({ length: 768 }, (_, i) => Math.sin(i) * 0.01);
-const MOCK_TEXT_EMBEDDING = Array.from({ length: 768 }, (_, i) => Math.cos(i) * 0.01);
 
 /** テスト用検索結果レコード */
 function createMockSearchRecord(
@@ -118,41 +117,10 @@ function createMockResult(
 }
 
 // =====================================================
-// モックサービス
-// =====================================================
-
-function createMockDINOv2Service(
-  overrides: Partial<IDesignSearchDINOv2Service> = {}
-): IDesignSearchDINOv2Service {
-  return {
-    initialized: true,
-    initialize: vi.fn().mockResolvedValue(undefined),
-    generateEmbedding: vi.fn().mockResolvedValue(MOCK_VISION_EMBEDDING),
-    dispose: vi.fn().mockResolvedValue(undefined),
-    ...overrides,
-  };
-}
-
-function createMockEmbeddingService(
-  overrides: Partial<IDesignSearchEmbeddingService> = {}
-): IDesignSearchEmbeddingService {
-  return {
-    generateEmbedding: vi.fn().mockResolvedValue(MOCK_TEXT_EMBEDDING),
-    ...overrides,
-  };
-}
-
-function createMockPrismaClient(queryResults: unknown[] = []): IDesignSearchPrismaClient {
-  return {
-    $queryRawUnsafe: vi.fn().mockResolvedValue(queryResults),
-  };
-}
-
-// =====================================================
 // sharp モック
 // =====================================================
 
-vi.mock("sharp", () => {
+vi.mock("../../../src/utils/sharp-safe", () => {
   const mockSharp = vi.fn().mockReturnValue({
     resize: vi.fn().mockReturnThis(),
     removeAlpha: vi.fn().mockReturnThis(),

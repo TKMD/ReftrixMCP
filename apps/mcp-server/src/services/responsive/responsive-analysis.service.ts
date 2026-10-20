@@ -13,7 +13,7 @@ import { logger, isDevelopment } from "../../utils/logger";
 import { multiViewportCaptureService, DEFAULT_VIEWPORTS } from "./multi-viewport-capture.service";
 import { differenceDetectorService } from "./difference-detector.service";
 import { viewportDiffService } from "./viewport-diff.service";
-import sharp from "sharp";
+import sharp from "../../utils/sharp-safe";
 import type {
   ResponsiveViewport,
   ResponsiveAnalysisResult,

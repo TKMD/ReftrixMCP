@@ -37,7 +37,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import sharp from "sharp";
+import sharp from "../../utils/sharp-safe";
 
 import { isBlankImage } from "../../utils/blank-image-detector";
 import { logger } from "../../utils/logger";

@@ -17,7 +17,7 @@ import { logger, isDevelopment } from "../../utils/logger";
 // leaf module so cyclomatic complexity is machine-enforced via the scoped
 // eslint `complexity` override.
 import { isScreenshotTruncated } from "./screenshot-truncation";
-import sharp from "sharp";
+import sharp from "../../utils/sharp-safe";
 import path from "path";
 import * as os from "node:os";
 import * as fs from "node:fs";

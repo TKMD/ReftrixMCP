@@ -77,3 +77,4 @@ CI requires both standing and existing tests to be green. Both failing → P0; o
 - `CLAUDE.md` § 常設 Regression Suite / Standing Regression Suite — 4 ドメインの不変条件カテゴリ表 / 4-domain invariant category table
 - ` § Standing Regression Suite — 運用ルール、CI-failing 要件、P0 incident 対応 / operational rules, CI-failing requirements, P0 incident response
 - `tests/regression/standing/_setup/` — testcontainers / global-setup / per-file-setup / fixture-lifecycle / inv-assert helper
+- `tests/regression/standing/_shared/semver-lockfile.ts` — semver / lockfile 共有 helper（INV から import、`*.test.ts` でないため収集外）/ shared semver and lockfile helpers imported by INVs (not collected: not a `*.test.ts`)。同 dir の `_shared/semver-lockfile.test.ts`（shared helper の pin test、INV ではない）は収集される / the sibling `_shared/semver-lockfile.test.ts` (pin test for the shared helper, not an INV) is collected

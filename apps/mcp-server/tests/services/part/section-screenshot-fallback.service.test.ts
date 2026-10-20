@@ -57,7 +57,7 @@ const mockValidateExternalUrl = vi.mocked(validateExternalUrl);
 // sharp モック / Sharp mock
 // vi.mock のファクトリは hoisted されるため、内部で完結する必要がある
 // vi.mock factory is hoisted so it must be self-contained
-vi.mock("sharp", () => {
+vi.mock("../../../src/utils/sharp-safe", () => {
   const composite = vi.fn().mockReturnThis();
   const png = vi.fn().mockReturnThis();
   const toBuffer = vi.fn().mockResolvedValue(Buffer.from("stitched-png", "utf-8"));
@@ -67,7 +67,7 @@ vi.mock("sharp", () => {
   return { default: sharpFn };
 });
 
-import sharp from "sharp";
+import sharp from "../../../src/utils/sharp-safe";
 const mockSharp = vi.mocked(sharp);
 
 // テストから sharp mock の内部メソッドにアクセスするヘルパー

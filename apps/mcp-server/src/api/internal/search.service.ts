@@ -195,7 +195,12 @@ function classifyImageFailureCode(error: string | undefined): ImageSearchFailure
   const code = (error ?? "").split(":")[0]?.trim() ?? "";
   if (code === "SERVICE_UNAVAILABLE") return "service_unavailable";
   if (code === "INVALID_INPUT") return "invalid_input";
-  if (code === "SSRF_BLOCKED" || code === "IMAGE_FETCH_FAILED" || code === "IMAGE_DECODE_FAILED") {
+  if (
+    code === "SSRF_BLOCKED" ||
+    code === "IMAGE_FETCH_FAILED" ||
+    code === "IMAGE_DECODE_FAILED" ||
+    code === "UNSUPPORTED_IMAGE_FORMAT"
+  ) {
     return "image_rejected";
   }
   // EMBEDDING_FAILED / SEARCH_FAILED / INTERNAL_ERROR / unknown → active failure (fail-loud).

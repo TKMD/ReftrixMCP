@@ -15,7 +15,8 @@
  * @see apps/mcp-server/tests/services/vision/image-optimizer.test.ts
  */
 
-import sharp from "sharp";
+import sharp from "../../utils/sharp-safe";
+import { normalizeScreenshotBase64 } from "../../utils/image-format-gate";
 import { HardwareType } from "./hardware-detector.js";
 
 // =============================================================================
@@ -297,7 +298,7 @@ export class ImageOptimizer {
 
     // Base64文字列として解釈
     // data:image/...;base64, プレフィックスを除去
-    const base64Data = input.replace(/^data:image\/[a-z]+;base64,/, "");
+    const base64Data = normalizeScreenshotBase64(input);
     return Buffer.from(base64Data, "base64");
   }
 

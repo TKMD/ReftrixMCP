@@ -16,7 +16,7 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 import pixelmatch from "pixelmatch";
-import sharp from "sharp";
+import sharp from "../utils/sharp-safe";
 import { logger } from "../utils/logger";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
 import { createDIFactory } from "../utils/di-factory";

@@ -15,7 +15,7 @@
  * @module @reftrixmcp/mcp-server/services/section-screenshot.service
  */
 
-import sharp from "sharp";
+import sharp from "../utils/sharp-safe";
 import { createLogger, type ILogger } from "../utils/logger";
 
 // ============================================================================

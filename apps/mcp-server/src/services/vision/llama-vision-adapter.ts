@@ -17,6 +17,7 @@
  * @see apps/mcp-server/tests/services/vision/llama-vision-adapter.test.ts
  */
 
+import { normalizeScreenshotBase64 } from "../../utils/image-format-gate";
 import { HardwareDetector, HardwareType, type HardwareInfo } from "./hardware-detector.js";
 import { ImageOptimizer, type OptimizeResult } from "./image-optimizer.js";
 import { OllamaVisionClient, type HardwareDetectorLike } from "./ollama-vision-client.js";
@@ -317,7 +318,7 @@ export class LlamaVisionAdapter {
 
     // Base64文字列の場合、デコードしてサイズを計算
     // data:image/...;base64, プレフィックスがある場合は除去
-    const base64Data = image.replace(/^data:image\/[a-z]+;base64,/, "");
+    const base64Data = normalizeScreenshotBase64(image);
     const sizeBytes = Math.ceil((base64Data.length * 3) / 4);
 
     return {

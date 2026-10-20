@@ -24,8 +24,13 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { spawn } from "node:child_process";
-import sharp from "sharp";
+import sharp from "../../utils/sharp-safe";
 import { logger, isDevelopment } from "../../utils/logger";
+import {
+  FRAME_RASTER_ALLOW,
+  VIDEO_FRAME_SNAPSHOT_MAX_BYTES,
+  readRasterFileSnapshot,
+} from "../../utils/image-format-gate";
 
 // =====================================================
 // 型定義
@@ -276,6 +281,9 @@ async function extractWithFfmpeg(
       args.push("-s", `${opts.outputSize.width}x${opts.outputSize.height}`);
     }
 
+    // rgb24（3 channel）に固定。snapshot 上限の導出式の前提
+    args.push("-pix_fmt", "rgb24");
+
     // 出力ファイル
     const ext = opts.format === "jpeg" ? "jpg" : "png";
     const outputPattern = path.join(outputDir, `frame_%05d.${ext}`);
@@ -319,10 +327,20 @@ async function compareImages(
   imagePath1: string,
   imagePath2: string
 ): Promise<{ changedPixels: number; totalPixels: number; changeRatio: number }> {
-  // 画像を読み込み
+  // 逐次に snapshot してから decode
+  const snapshot1 = await readRasterFileSnapshot(
+    imagePath1,
+    FRAME_RASTER_ALLOW,
+    VIDEO_FRAME_SNAPSHOT_MAX_BYTES
+  );
+  const snapshot2 = await readRasterFileSnapshot(
+    imagePath2,
+    FRAME_RASTER_ALLOW,
+    VIDEO_FRAME_SNAPSHOT_MAX_BYTES
+  );
   const [img1, img2] = await Promise.all([
-    sharp(imagePath1).raw().toBuffer({ resolveWithObject: true }),
-    sharp(imagePath2).raw().toBuffer({ resolveWithObject: true }),
+    sharp(snapshot1).raw().toBuffer({ resolveWithObject: true }),
+    sharp(snapshot2).raw().toBuffer({ resolveWithObject: true }),
   ]);
 
   const { data: data1, info: info1 } = img1;

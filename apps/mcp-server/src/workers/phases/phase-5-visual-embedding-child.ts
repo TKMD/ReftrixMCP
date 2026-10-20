@@ -31,7 +31,7 @@
  */
 
 import * as fs from "node:fs";
-import sharp from "sharp";
+import sharp from "../../utils/sharp-safe";
 import { prisma } from "@reftrixmcp/database";
 import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import {

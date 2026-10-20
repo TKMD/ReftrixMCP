@@ -14,7 +14,7 @@
  */
 
 import fs from "node:fs";
-import sharp from "sharp";
+import sharp from "../../utils/sharp-safe";
 import { logger, isDevelopment } from "../../utils/logger";
 import type { LayoutServiceResult } from "../../tools/page/handlers/types";
 import type {

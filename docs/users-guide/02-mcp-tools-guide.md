@@ -277,6 +277,10 @@ const result = await layout.inspect({
 });
 ```
 
+**スクリーンショットから解析 / From a screenshot**
+
+`screenshot.base64` は PNG / JPEG / WebP のみ受け付けます（先頭バイトで判定）。それ以外は `VALIDATION_ERROR` で拒否されます。data URI 接頭辞（`data:image/png;base64,` など）は除去して処理されます。 / `screenshot.base64` accepts only PNG / JPEG / WebP, judged by the leading bytes; anything else is rejected with `VALIDATION_ERROR`. A data URI prefix is stripped before processing.
+
 **ユースケース**
 
 - デザインシステムのグリッド仕様を抽出
@@ -1823,6 +1827,8 @@ const results = await design.search_by_image({
   limit: 5,
 });
 ```
+
+**受理形式 / Accepted formats**: PNG / JPEG / WebP のみ（先頭バイトで判定し、content-type や拡張子は見ません）。GIF / AVIF / HEIF / TIFF / SVG は `UNSUPPORTED_IMAGE_FORMAT` で拒否されます（後方非互換の変更）。 / PNG / JPEG / WebP only, judged by the leading bytes (not the content-type or extension). GIF / AVIF / HEIF / TIFF / SVG are rejected with `UNSUPPORTED_IMAGE_FORMAT` (a backward-incompatible change). `@reftrixmcp/mcp-server` の 0.6.1 より前の全ての公開版（0.6.0、0.6.1-beta.1 を含む）には含まれません。0.6.1（非 prerelease）から適用。 / Not included in any `@reftrixmcp/mcp-server` release before 0.6.1 (including 0.6.0 and 0.6.1-beta.1); applied from 0.6.1 (non-prerelease).
 
 ---
 

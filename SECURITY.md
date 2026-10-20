@@ -120,7 +120,7 @@ Reftrixプロジェクトでは、以下のセキュリティ対策を実施し�
 - **静的解析**: ESLint、TypeScriptによるコード品質チェック
 - **SSRF対策**: プライベートIP・メタデータサービスへのアクセスをブロック
 - **入力検証**: Zodによる厳格な入力検証
-- **HTMLサニタイズ**: DOMPurify v3.3によるXSS対策
+- **HTMLサニタイズ**: DOMPurify v3.4によるXSS対策
 - **認証**: APIキー認証（実装済み、`MCP_AUTH_ENABLED=true` で有効化）
 - **CSP**: Content Security Policyの適用（将来的な実装目標、現在未実装）
 - **レート制限**: Token BucketアルゴリズムによるAPI Rate Limiting（v0.2.0実装済み。3ティア: analysis 10RPM / search 120RPM / default 60RPM。Redis Luaアトミック制御 + インメモリフォールバック。`RATE_LIMIT_ENABLED=false` で無効化可能）
@@ -146,7 +146,7 @@ Reftrixプロジェクトでは、以下のセキュリティ対策を実施し�
 
 ## DOMPurify設定
 
-Reftrixでは、Webページクロール時に取得したHTMLをDOMPurify v3.3.xでサニタイズしています。
+Reftrixでは、Webページクロール時に取得したHTMLをDOMPurify v3.4.xでサニタイズしています。
 
 ### 設定概要
 
@@ -365,7 +365,7 @@ ReftrixMCP implements the following security measures:
 - **Static analysis**: ESLint, TypeScript code quality checks
 - **SSRF protection**: Block access to private IPs and metadata services
 - **Input validation**: Strict validation with Zod
-- **HTML sanitization**: XSS protection with DOMPurify v3.3
+- **HTML sanitization**: XSS protection with DOMPurify v3.4
 - **Authentication**: API key authentication (Implemented, enable with `MCP_AUTH_ENABLED=true`)
 - **CSP**: Content Security Policy (planned, not yet implemented)
 - **Rate limiting**: Token Bucket API rate limiting (implemented in v0.2.0. 3 tiers: analysis 10RPM / search 120RPM / default 60RPM. Atomic Redis Lua scripts + in-memory fallback. Disable with `RATE_LIMIT_ENABLED=false`)
@@ -391,7 +391,7 @@ ReftrixMCP implements the following security measures:
 
 ## DOMPurify Configuration
 
-Reftrix sanitizes HTML content from web page crawling using DOMPurify v3.3.x.
+Reftrix sanitizes HTML content from web page crawling using DOMPurify v3.4.x.
 
 ### Configuration Overview
 

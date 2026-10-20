@@ -17,7 +17,7 @@
  * @module @reftrixmcp/mcp-server/services/motion/analyzers/motion-vector.estimator
  */
 
-import sharp from "sharp";
+import sharp from "../../../utils/sharp-safe";
 import type { IMotionVectorEstimator, MotionVectorResult, MotionType } from "../types.js";
 
 // ============================================================================

@@ -45,7 +45,7 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import sharp from "sharp";
+import sharp from "../../utils/sharp-safe";
 import { logger } from "../../utils/logger";
 import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { truncateId } from "../../utils/truncate-id";

@@ -30,7 +30,7 @@ import type { PartType, PartExtractionConfig, BoundingBox } from "../../../src/s
 import { DEFAULT_PART_EXTRACTION_CONFIG } from "../../../src/services/part/types";
 
 // Sharp mock setup
-vi.mock("sharp", () => {
+vi.mock("../../../src/utils/sharp-safe", () => {
   const mockSharpInstance = {
     extract: vi.fn().mockReturnThis(),
     resize: vi.fn().mockReturnThis(),

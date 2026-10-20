@@ -17,7 +17,7 @@
  * @see docs/plans/webdesign/00-overview.md
  */
 
-import sharp from "sharp";
+import sharp from "../../utils/sharp-safe";
 import { Logger } from "../../utils/logger";
 
 const logger = new Logger("LocalVisionAdapter");

@@ -124,8 +124,14 @@ HTMLを解析し、セクション構成・グリッド・タイポグラフィ�
     analyzeTypography?: boolean;
     extractColors?: boolean;
   };
+  screenshot?: {            // スクリーンショット解析モード
+    base64: string;         // PNG / JPEG / WebP のみ（先頭バイトで判定）。data URI 接頭辞は除去して処理
+    mimeType?: 'image/png' | 'image/jpeg' | 'image/webp';
+  };
 }
 ```
+
+`screenshot` は先頭バイトで PNG / JPEG / WebP を確認し、それ以外（SVG を含む）は `VALIDATION_ERROR` で拒否します。 / `screenshot` is checked by its leading bytes; anything other than PNG / JPEG / WebP (SVG included) is rejected with `VALIDATION_ERROR`.
 
 #### `layout.search` - レイアウトパターン検索 / Layout Pattern Search
 
@@ -197,6 +203,7 @@ Webページからモーション/アニメーションパターンを検出・�
 {
   pageId?: string;          // WebページID（htmlと排他、detection_mode='css'時に使用）
   html?: string;            // HTMLコンテンツ（最大10MB、detection_mode='css'時に使用）
+                            // ※ stdio では 1 message（JSON escape 後の byte 数）が 10 MiB を超えると transport が読取を停止し、実行中の request も中断される。error 応答は返らない
   css?: string;             // 追加CSSコンテンツ
   url?: string;             // 対象URL（detection_mode='video'/'runtime'/'hybrid'時に必須）
   detection_mode?: 'css' | 'runtime' | 'hybrid' | 'video' | 'library_only';
@@ -279,6 +286,7 @@ Webデザインの品質を3軸（独自性・技巧・文脈適合性）で評�
                             // - 'suggest_improvements': 評価結果に基づく改善提案生成
   pageId?: string;          // WebページID（htmlと排他）
   html?: string;            // HTMLコンテンツ（最大10MB）
+                            // ※ stdio では 1 message（JSON escape 後の byte 数）が 10 MiB を超えると transport が読取を停止し、実行中の request も中断される。error 応答は返らない
   weights?: {
     originality?: number;   // 独自性の重み（0-1、デフォルト0.35）
     craftsmanship?: number; // 技巧の重み（0-1、デフォルト0.4）
@@ -612,6 +620,8 @@ Cross-service unified search integrating 5 search services (Layout, Part, Motion
 DINOv2 visual embeddingによる画像ベースのデザイン類似検索。Base64画像またはURLから類似デザインを検索。
 Image-based design similarity search using DINOv2 visual embeddings. Search similar designs from Base64 images or URLs.
 
+受理形式は PNG / JPEG / WebP（先頭バイトで判定し、content-type や拡張子は見ません）。GIF / AVIF / HEIF / TIFF / SVG は `UNSUPPORTED_IMAGE_FORMAT` で拒否されます。 / Accepted formats are PNG / JPEG / WebP, judged by the leading bytes (not the content-type or extension). GIF / AVIF / HEIF / TIFF / SVG are rejected with `UNSUPPORTED_IMAGE_FORMAT`.
+
 ---
 
 ## Worker Architecture / ワーカーアーキテクチャ
@@ -723,6 +733,8 @@ pnpm backfill:embeddings
 ---
 
 ## セキュリティガイドライン / Security Guidelines
+
+- 画像 decode: sharp は `src/utils/sharp-safe.ts` 経由に限り、SVG / Magick（IM6 / IM7）/ PDF loader を process 全体で block（Magick / PDF は prebuilt では no-op、global libvips build は best-effort・未検証）/ Image decode: sharp only via `sharp-safe`, which blocks the SVG / Magick (IM6 / IM7) / PDF loaders process-wide (Magick / PDF are no-ops on prebuilt sharp; best-effort and unverified on a global libvips build)
 
 ### HTMLサニタイズ / HTML Sanitization
 

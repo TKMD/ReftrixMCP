@@ -23,7 +23,6 @@
     "@typescript-eslint/parser": "^8.0.0",
     "@vitest/eslint-plugin": "^1.6.16",
     "eslint": "^9.0.0",
-    "eslint-config-next": "^16.0.0",
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-react": "^7.37.0",
     "eslint-plugin-react-hooks": "^5.0.0",

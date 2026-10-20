@@ -38,15 +38,15 @@
     ],
     "overrides": {
       "express": ">=5.2.0",
-      "qs": ">=6.15.2",
+      "qs": ">=6.16.0 <7",
       "ws": ">=8.20.1",
-      "undici": ">=7.29.0 <8",
+      "undici": ">=7.29.1 <8",
       "uuid": ">=11.1.1",
-      "brace-expansion": ">=5.0.9",
+      "brace-expansion": ">=5.0.12 <6",
       "jsdom": "27.2.0",
-      "hono": ">=4.12.21",
-      "@hono/node-server": ">=1.19.14",
-      "dompurify": ">=3.4.1",
+      "hono": ">=4.13.7 <5",
+      "@hono/node-server": ">=2.0.10 <3",
+      "dompurify": ">=3.4.16 <4",
       "tar": ">=7.5.21",
       "tmp": ">=0.2.6",
       "minimatch": ">=10.2.3",
@@ -59,17 +59,35 @@
       "lodash": ">=4.18.0",
       "defu": ">=6.1.5",
       "protobufjs": ">=8.4.1",
-      "@grpc/grpc-js": ">=1.14.4",
+      "@grpc/grpc-js": ">=1.14.5 <2",
       "vite": "8.0.16",
       "postcss": ">=8.5.18",
-      "ip-address": ">=10.3.1",
+      "ip-address": ">=10.7.1 <11",
       "@cyclonedx/cdxgen>uuid": ">=13.0.1",
       "jsonata": ">=2.2.0",
       "eslint>ajv": ">=6.14.0 <7",
       "@eslint/eslintrc>ajv": ">=6.14.0 <7",
-      "fast-uri": ">=3.1.6 <4",
-      "sharp": ">=0.35.0",
-      "deepmerge-ts": ">=8.0.2"
+      "fast-uri": ">=3.1.8 <4",
+      "sharp": ">=0.35.5 <0.36",
+      "deepmerge-ts": ">=8.0.2",
+      "browserslist": ">=4.28.7 <5",
+      "baseline-browser-mapping": ">=2.11.0 <3",
+      "@humanfs/node": ">=0.16.8 <0.17",
+      "@babel/core": ">=7.29.6 <8",
+      "vitest": ">=4.1.11 <5",
+      "@vitest/mocker": ">=4.1.11 <5",
+      "@vitest/coverage-v8": ">=4.1.11 <5",
+      "body-parser": ">=2.3.0 <3",
+      "proxy-addr": ">=2.0.8 <3",
+      "compression": ">=1.8.2 <2",
+      "source-map-js": ">=1.2.2 <2",
+      "handlebars": ">=4.7.10 <5",
+      "@modelcontextprotocol/sdk": ">=1.31.0 <1.32"
+    },
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-vfj7-8cjw-p6xm"
+      ]
     }
   },
   "engines": {
@@ -109,7 +127,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@cyclonedx/cdxgen": "^12.3.3",
+    "@cyclonedx/cdxgen": ">=12.4.3 <12.8.3",
     "@types/js-yaml": "^4.0.9",
     "husky": "^9.1.0",
     "js-yaml": "^4.3.1",

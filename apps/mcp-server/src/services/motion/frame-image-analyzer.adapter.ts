@@ -16,8 +16,15 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import sharp from "sharp";
+import sharp from "../../utils/sharp-safe";
 import pixelmatch from "pixelmatch";
+import {
+  FRAME_CAPTURE_SNAPSHOT_MAX_BYTES,
+  FRAME_RASTER_ALLOW,
+  describeSnapshotFailure,
+  readRasterFileSnapshot,
+} from "../../utils/image-format-gate";
+import { logger } from "../../utils/logger";
 
 // ============================================================================
 // 型定義（detect.tool.ts の FrameImageAnalysisOutput と互換）
@@ -347,12 +354,12 @@ export class FrameImageAnalyzerAdapter {
           }
         }
       } catch (err) {
-        if (process.env.NODE_ENV === "development") {
-          console.error(
-            `[FrameImageAnalyzerAdapter] Error analyzing ${frame1Name} vs ${frame2Name}:`,
-            err
-          );
-        }
+        // 全環境で出す。basename は data にだけ入れ、message へ補間しない（CWE-117）
+        logger.warn("[FrameImageAnalyzerAdapter] Frame pair skipped", {
+          frame1: frame1Name,
+          frame2: frame2Name,
+          reason: describeSnapshotFailure(err),
+        });
       }
     }
 
@@ -438,7 +445,12 @@ export class FrameImageAnalyzerAdapter {
   private async loadFrameAsRawPixels(
     framePath: string
   ): Promise<{ data: Buffer; width: number; height: number }> {
-    const { data, info } = await sharp(framePath)
+    const snapshot = await readRasterFileSnapshot(
+      framePath,
+      FRAME_RASTER_ALLOW,
+      FRAME_CAPTURE_SNAPSHOT_MAX_BYTES
+    );
+    const { data, info } = await sharp(snapshot)
       .raw()
       .ensureAlpha()
       .toBuffer({ resolveWithObject: true });

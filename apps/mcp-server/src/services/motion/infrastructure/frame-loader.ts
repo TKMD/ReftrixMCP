@@ -15,7 +15,13 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import sharp from "sharp";
+import sharp from "../../../utils/sharp-safe";
+import {
+  FRAME_RASTER_ALLOW,
+  FrameSnapshotError,
+  UNSUPPORTED_IMAGE_FORMAT_MESSAGE,
+  readRasterFileSnapshot,
+} from "../../../utils/image-format-gate";
 import {
   FrameLoaderError,
   type FrameLoaderData,
@@ -35,6 +41,31 @@ const DEFAULT_MAX_FILE_SIZE = LIMITS.MAX_FILE_SIZE;
 
 /** 許可された拡張子 */
 const ALLOWED_EXTENSIONS = LIMITS.ALLOWED_EXTENSIONS;
+
+/** snapshot の失敗を固定文の FrameLoaderError に写像 / Maps a snapshot failure to fixed-text FrameLoaderError */
+function mapSnapshotError(error: FrameSnapshotError): FrameLoaderError {
+  const reason = error.reason;
+  switch (reason) {
+    case "unsupported_image_format":
+      return new FrameLoaderError("UNSUPPORTED_FORMAT", UNSUPPORTED_IMAGE_FORMAT_MESSAGE);
+    case "file_too_large":
+      return new FrameLoaderError("FILE_TOO_LARGE", "File size exceeds limit");
+    case "not_a_regular_file":
+      return new FrameLoaderError("NOT_A_FILE", "Path is not a file");
+    case "open_failed":
+      if (error.fsCode === "ENOENT")
+        return new FrameLoaderError("FILE_NOT_FOUND", "File not found");
+      if (error.fsCode === "EACCES" || error.fsCode === "EPERM") {
+        return new FrameLoaderError("PERMISSION_DENIED", "Permission denied");
+      }
+      return new FrameLoaderError("LOAD_FAILED", "Failed to read frame");
+    default: {
+      const unreachable: never = reason;
+      void unreachable;
+      return new FrameLoaderError("LOAD_FAILED", "Failed to read frame");
+    }
+  }
+}
 
 // ============================================================================
 // FrameLoader クラス
@@ -171,7 +202,8 @@ export class FrameLoader {
   }
 
   /**
-   * フレームパスを検証
+   * フレームパスを検証。内容形式は検査しない（decode は loadFrame / getFrameMetadata 経由のみ）
+   * Validates the path; content format is not inspected (decode only via loadFrame / getFrameMetadata)
    * @param filePath - 検証するファイルパス
    * @returns 検証結果
    */
@@ -267,11 +299,10 @@ export class FrameLoader {
     }
 
     try {
-      // ファイルサイズを取得
-      const stats = await fs.promises.stat(filePath);
+      const snapshot = await readRasterFileSnapshot(filePath, FRAME_RASTER_ALLOW, this.maxFileSize);
 
       // Sharp でメタデータを取得
-      const sharpMetadata = await sharp(filePath).metadata();
+      const sharpMetadata = await sharp(snapshot).metadata();
 
       // フォーマットを判定
       let format: "png" | "jpeg";
@@ -294,12 +325,15 @@ export class FrameLoader {
         width: sharpMetadata.width!,
         height: sharpMetadata.height!,
         channels,
-        fileSize: stats.size,
+        fileSize: snapshot.length,
         format,
       };
     } catch (error) {
       if (error instanceof FrameLoaderError) {
         throw error;
+      }
+      if (error instanceof FrameSnapshotError) {
+        throw mapSnapshotError(error);
       }
       throw new FrameLoaderError("LOAD_FAILED", `Failed to read metadata: ${error}`, {
         originalError: String(error),
@@ -325,11 +359,10 @@ export class FrameLoader {
     }
 
     try {
-      // ファイルサイズを取得
-      const stats = await fs.promises.stat(filePath);
+      const snapshot = await readRasterFileSnapshot(filePath, FRAME_RASTER_ALLOW, this.maxFileSize);
 
       // Sharp パイプラインを構築
-      let sharpInstance = sharp(filePath);
+      let sharpInstance = sharp(snapshot);
 
       // メモリ最適化: リサイズ
       if (this.optimizeMemory && (this.maxWidth || this.maxHeight)) {
@@ -346,7 +379,7 @@ export class FrameLoader {
         .toBuffer({ resolveWithObject: true });
 
       // フォーマットを判定
-      const sharpMetadata = await sharp(filePath).metadata();
+      const sharpMetadata = await sharp(snapshot).metadata();
       let format: "png" | "jpeg";
       if (sharpMetadata.format === "png") {
         format = "png";
@@ -361,7 +394,7 @@ export class FrameLoader {
         width: info.width,
         height: info.height,
         channels: info.channels as 3 | 4,
-        fileSize: stats.size,
+        fileSize: snapshot.length,
         format,
       };
 
@@ -382,6 +415,9 @@ export class FrameLoader {
     } catch (error) {
       if (error instanceof FrameLoaderError) {
         throw error;
+      }
+      if (error instanceof FrameSnapshotError) {
+        throw mapSnapshotError(error);
       }
       throw new FrameLoaderError("LOAD_FAILED", `Failed to load frame: ${error}`, {
         path: filePath,

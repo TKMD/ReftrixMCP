@@ -24,7 +24,7 @@
  * @module utils/blank-image-detector
  */
 
-import sharp from "sharp";
+import sharp from "./sharp-safe";
 
 /**
  * デフォルトの stddev 閾値 / Default stddev threshold
