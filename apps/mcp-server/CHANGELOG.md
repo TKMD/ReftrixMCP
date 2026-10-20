@@ -18,6 +18,8 @@ This package-level CHANGELOG was added in v0.4.0 PR-D-9 per Phase 3 docs-sync OB
 
 ## [Unreleased] / [Unreleased]
 
+## [0.6.1] — 2026-10-20 / [0.6.1] — 2026-10-20
+
 ### Added / 追加
 
 - **`INV-SHARP-PIPELINE-PARITY-001` + pre-bump baselines + `clampExtractRegion` leaf-helper extraction (package-level; OSS-synced production source + standing regression; PR-S3a = Stage 1 of the `sharp` remediation; branch `fix/security-deps`; IO Impl Decision `01a0601f-7b0a-725d-b645-cdc606a005b4`) — 2026-09-02** / **`INV-SHARP-PIPELINE-PARITY-001` + bump 前 baseline + `clampExtractRegion` leaf helper 抽出（パッケージレベル; OSS-synced production source + 常設 regression; PR-S3a = `sharp` remediation の Stage 1; branch `fix/security-deps`; IO Impl Decision `01a0601f-7b0a-725d-b645-cdc606a005b4`）— 2026-09-02**:

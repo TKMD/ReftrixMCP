@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] / [Unreleased]
 
+## [0.6.1] — 2026-10-20 / [0.6.1] — 2026-10-20
+
 ### Added / 追加
 
 - **`clampExtractRegion` leaf-helper extraction (behaviour-invariant) + `INV-SHARP-PIPELINE-PARITY-001` — a 7-path / 2-layer sharp-pipeline parity standing regression captured on the pre-bump tree (PR-S3a = Stage 1 of the `sharp` dependency remediation; branch `fix/security-deps`; IO Impl Decision `01a0601f-7b0a-725d-b645-cdc606a005b4`) — 2026-09-02** / **`clampExtractRegion` leaf helper の抽出（behaviour-invariant）+ `INV-SHARP-PIPELINE-PARITY-001` — bump 前 tree で baseline を採取した 7 経路 / 2 層の sharp パイプライン parity 常設 regression（PR-S3a = `sharp` 依存 remediation の Stage 1; branch `fix/security-deps`; IO Impl Decision `01a0601f-7b0a-725d-b645-cdc606a005b4`）— 2026-09-02**:
