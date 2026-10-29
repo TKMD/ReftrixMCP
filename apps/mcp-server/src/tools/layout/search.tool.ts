@@ -61,6 +61,7 @@ import {
 
 // 検索実行関数（search-executor.ts から）
 import { executeVisionSearch, executeMultimodalSearch } from "./search-executor";
+import { formatIssueLine } from "../../utils/issue-path";
 
 // =====================================================
 // Re-exports（後方互換性維持）
@@ -169,7 +170,7 @@ export async function layoutSearchHandler(input: unknown): Promise<LayoutSearchO
     validated = layoutSearchInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      const errorMessage = error.issues.map((e) => `${formatIssueLine(e)}`).join(", ");
 
       logger.warn("[MCP Tool] layout.search validation error", { error: (error as Error).message });
 
@@ -767,6 +768,7 @@ export const layoutSearchToolDefinition = {
               theme: { type: "string", description: "テーマ（light/dark/mixed）" },
               colors: {
                 type: "array",
+                maxItems: 10,
                 items: { type: "string" },
                 description: "色指定（HEX形式配列）",
               },

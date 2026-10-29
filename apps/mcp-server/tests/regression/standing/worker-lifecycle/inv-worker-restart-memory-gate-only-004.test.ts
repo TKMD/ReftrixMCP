@@ -407,7 +407,7 @@ describe("INV-WORKER-PRERETURN-PAUSE-FAILURE-PATH-004", () => {
       const txSpy = vi.spyOn(prismaStub, "$transaction");
 
       const result = await markFailedAndAuditAtomic(prismaStub, {
-        webPageId: "00000000-0000-0000-0000-000000000001",
+        webPageId: "00000000-0000-4000-9000-000000000001",
         normalizedUrl: "https://example.com/memory-gate-atomic",
         errorMessage: "phase 5 fork OOM",
         phaseN: "5",
@@ -418,7 +418,7 @@ describe("INV-WORKER-PRERETURN-PAUSE-FAILURE-PATH-004", () => {
       expect(result.committed).toBe(true);
       if (result.committed) {
         expect(result.failedReason).toBe(failedKnownReasonForPhaseN("5"));
-        expect(result.webPageId).toBe("00000000-0000-0000-0000-000000000001");
+        expect(result.webPageId).toBe("00000000-0000-4000-9000-000000000001");
       }
 
       // Atomicity contract: exactly ONE $transaction invocation containing
@@ -438,7 +438,7 @@ describe("INV-WORKER-PRERETURN-PAUSE-FAILURE-PATH-004", () => {
       for (const phaseN of phases) {
         recordedTxOps = [];
         const result = await markFailedAndAuditAtomic(prismaStub, {
-          webPageId: "00000000-0000-0000-0000-000000000002",
+          webPageId: "00000000-0000-4000-9000-000000000002",
           normalizedUrl: `https://example.com/memory-gate-phase-${phaseN}`,
           errorMessage: "x",
           phaseN,
@@ -508,7 +508,7 @@ describe("INV-WORKER-PRERETURN-PAUSE-FAILURE-PATH-004", () => {
       };
 
       const result = await markFailedAndAuditAtomic(prismaStub, {
-        webPageId: "00000000-0000-0000-0000-000000000003",
+        webPageId: "00000000-0000-4000-9000-000000000003",
         normalizedUrl: "https://example.com/memory-gate-abort",
         errorMessage: "x",
         phaseN: "5",
@@ -528,7 +528,7 @@ describe("INV-WORKER-PRERETURN-PAUSE-FAILURE-PATH-004", () => {
       );
       const prismaStub = makeFailurePathPrismaStub();
       await markFailedAndAuditAtomic(prismaStub, {
-        webPageId: "00000000-0000-0000-0000-000000000004",
+        webPageId: "00000000-0000-4000-9000-000000000004",
         normalizedUrl: "https://example.com/memory-gate-metadata",
         errorMessage: "x",
         phaseN: "1",
@@ -620,7 +620,7 @@ describe("INV-WORKER-PRERETURN-PAUSE-FAILURE-PATH-004", () => {
       const txSpy = vi.spyOn(prismaStub, "$transaction");
 
       await backfillOrphanWebPageRow(prismaStub, {
-        webPageId: "00000000-0000-0000-0000-000000000005",
+        webPageId: "00000000-0000-4000-9000-000000000005",
         phaseN: "2_5",
         reconstruction: "best_effort",
         childPid: 9999,
@@ -653,7 +653,7 @@ describe("INV-WORKER-PRERETURN-PAUSE-FAILURE-PATH-004", () => {
       const orphans = [
         {
           id: "lc-1",
-          webPageId: "00000000-0000-0000-0000-0000000000A1",
+          webPageId: "00000000-0000-4000-8000-0000000000A1",
           workerPid: exitedChildPid,
           workerSpawnTime: exitedChildSpawnTime,
           eventType: "spawn",
@@ -661,7 +661,7 @@ describe("INV-WORKER-PRERETURN-PAUSE-FAILURE-PATH-004", () => {
         },
         {
           id: "lc-2",
-          webPageId: "00000000-0000-0000-0000-0000000000A2",
+          webPageId: "00000000-0000-4000-8000-0000000000A2",
           workerPid: exitedChildPid,
           workerSpawnTime: exitedChildSpawnTime,
           eventType: "spawn",
@@ -686,8 +686,8 @@ describe("INV-WORKER-PRERETURN-PAUSE-FAILURE-PATH-004", () => {
           exitedChildPid,
           exitedChildSpawnTime,
           lastAnalyzedPhases: new Map<string, string | null>([
-            ["00000000-0000-0000-0000-0000000000A1", "ingest"],
-            ["00000000-0000-0000-0000-0000000000A2", "layout"],
+            ["00000000-0000-4000-8000-0000000000A1", "ingest"],
+            ["00000000-0000-4000-8000-0000000000A2", "layout"],
           ]),
           exitSignal: "SIGKILL",
         },
@@ -704,8 +704,8 @@ describe("INV-WORKER-PRERETURN-PAUSE-FAILURE-PATH-004", () => {
       // Both orphan webPageIds appear as targets.
       const updatedIds = updateOps.map((o) => (o.args as { where: { id: string } }).where.id);
       expect(updatedIds.sort()).toEqual([
-        "00000000-0000-0000-0000-0000000000A1",
-        "00000000-0000-0000-0000-0000000000A2",
+        "00000000-0000-4000-8000-0000000000A1",
+        "00000000-0000-4000-8000-0000000000A2",
       ]);
     });
 

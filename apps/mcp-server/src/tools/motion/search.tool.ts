@@ -582,6 +582,7 @@ export const motionSearchToolDefinition = {
           },
           properties: {
             type: "array",
+            maxItems: 50,
             items: { type: "string" },
             description: "アニメーション対象プロパティ",
           },
@@ -762,6 +763,7 @@ export const motionSearchToolDefinition = {
           properties: {
             type: "array",
             minItems: 1,
+            maxItems: 50,
             description: "アニメーション対象プロパティ",
             items: {
               type: "object",
@@ -771,6 +773,7 @@ export const motionSearchToolDefinition = {
                 to: { type: "string", description: "終了値" },
                 keyframes: {
                   type: "array",
+                  maxItems: 100,
                   description: "中間キーフレーム（オプション）",
                   items: {
                     type: "object",

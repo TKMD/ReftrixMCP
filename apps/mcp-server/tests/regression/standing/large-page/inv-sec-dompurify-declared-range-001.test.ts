@@ -5,12 +5,12 @@
  * Standing Regression Suite — INV-SEC-DOMPURIFY-DECLARED-RANGE-001 (M), public half
  *
  * 公開側 (OSS 同期される) の半分: `apps/mcp-server/package.json` の `dependencies.dompurify` 宣言だけを読む。
- * `apps/cli` / `apps/webui` の宣言は OSS 配布物に含まれないため、private 専用の兄弟 file
+ * `apps/cli` の宣言は OSS 配布物に含まれないため、private 専用の兄弟 file
  * (`inv-sec-dompurify-declared-range-001-private-manifests.test.ts`、`.ossfilter` で除外) が読む。
- * 2 file に分ける理由: 1 file に cli / webui を入れると OSS tree で ENOENT になり、
+ * 2 file に分ける理由: 1 file に cli を入れると OSS tree で ENOENT になり、
  * 「private かどうか」を実行時に判定する分岐が要る (fail-open の面になる)。分けると分岐が無い。
- * Public half (synced to OSS): reads only the `apps/mcp-server` declaration. The `apps/cli` and
- * `apps/webui` declarations are not shipped to OSS, so a private-only sibling file (excluded by
+ * Public half (synced to OSS): reads only the `apps/mcp-server` declaration. The `apps/cli`
+ * declaration is not shipped to OSS, so a private-only sibling file (excluded by
  * `.ossfilter`) reads them. Splitting avoids a run-time "is this private?" branch (a fail-open surface).
  *
  * 命題 / Proposition (each manifest):

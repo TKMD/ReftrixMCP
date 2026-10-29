@@ -14,7 +14,10 @@
  * @module @reftrixmcp/mcp-server/utils/error-messages
  */
 
-import { ZodError, type ZodIssue, ZodIssueCode } from "zod";
+import { ZodError, type ZodIssue } from "zod";
+import { UNRECOGNIZED_KEYS_TEXT, formatIssuePath } from "./issue-path";
+
+export { formatIssuePath };
 
 // ============================================================================
 // 型定義
@@ -72,17 +75,19 @@ const englishMessages = {
   INVALID_UUID: (_field: string): string =>
     `Invalid UUID format. Expected: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`,
   REQUIRED_FIELD: (field: string): string => `Required field '${field}' is missing`,
-  OUT_OF_RANGE: (value: number, min?: number, max?: number): string => {
+  // The offending value is not available from a size issue (only the limit is), so the message
+  // states the limit and never presents it as the value.
+  OUT_OF_RANGE: (min?: number, max?: number): string => {
     if (min !== undefined && max !== undefined) {
-      return `Value ${value} is out of range (min: ${min}, max: ${max})`;
+      return `Value is out of range (min: ${min}, max: ${max})`;
     }
     if (min !== undefined) {
-      return `Value ${value} is too small (min: ${min})`;
+      return `Value is too small (min: ${min})`;
     }
     if (max !== undefined) {
-      return `Value ${value} is too large (max: ${max})`;
+      return `Value is too large (max: ${max})`;
     }
-    return `Value ${value} is out of range`;
+    return `Value is out of range`;
   },
   INVALID_ENUM: (value: string, options: string[]): string =>
     `Invalid value '${value}'. Expected one of: ${options.join(", ")}`,
@@ -109,17 +114,17 @@ const japaneseMessages = {
   INVALID_UUID: (_field: string): string =>
     `UUID形式が無効です。期待される形式: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`,
   REQUIRED_FIELD: (field: string): string => `必須フィールド '${field}' が指定されていません`,
-  OUT_OF_RANGE: (value: number, min?: number, max?: number): string => {
+  OUT_OF_RANGE: (min?: number, max?: number): string => {
     if (min !== undefined && max !== undefined) {
-      return `値 ${value} は範囲外です (最小: ${min}, 最大: ${max})`;
+      return `値は範囲外です (最小: ${min}, 最大: ${max})`;
     }
     if (min !== undefined) {
-      return `値 ${value} は小さすぎます (最小: ${min})`;
+      return `値は小さすぎます (最小: ${min})`;
     }
     if (max !== undefined) {
-      return `値 ${value} は大きすぎます (最大: ${max})`;
+      return `値は大きすぎます (最大: ${max})`;
     }
-    return `値 ${value} は範囲外です`;
+    return `値は範囲外です`;
   },
   INVALID_ENUM: (value: string, options: string[]): string =>
     `値 '${value}' は無効です。次のいずれかを指定してください: ${options.join(", ")}`,
@@ -212,7 +217,8 @@ function getMessages(): typeof englishMessages {
  * ZodIssueからフィールドパスを取得
  */
 function getFieldPath(issue: ZodIssue): string {
-  return issue.path.join(".");
+  // zod 4 の path は symbol を含みうる（join は symbol で TypeError になる）
+  return formatIssuePath(issue.path);
 }
 
 /**
@@ -236,159 +242,273 @@ function createMcpToolError(
 }
 
 /**
+ * zod 3 / zod 4 の両方の issue 形に対応するための正規化。
+ * - zod 3: invalid_string(validation) / invalid_enum_value(options, received) / too_small(type) / invalid_type(received)
+ * - zod 4: invalid_format(format) / invalid_value(values) / too_small(origin) / invalid_type(received なし)
+ * クライアントに返す文言と分類は、どちらの形でも同じになるようにする。
+ *
+ * Normalizes zod 3 and zod 4 issue shapes so that classification and client-facing text
+ * are identical for both.
+ */
+type IssueRecord = Readonly<Record<string, unknown>>;
+
+type NormalizedIssue =
+  | { kind: "format"; format: unknown }
+  | { kind: "type"; expected: string; received: string; missing: boolean }
+  | { kind: "size"; bound: "min" | "max"; subject: string | undefined; limit: unknown }
+  | { kind: "enum"; options: unknown[] }
+  | { kind: "custom" }
+  | { kind: "other" };
+
+function toNumber(value: unknown): number {
+  if (typeof value === "number") return value;
+  if (typeof value === "bigint") return Number(value);
+  return Number.NaN;
+}
+
+/** zod 4 の invalid_type は received を持たない。型名はメッセージ末尾（"received <type>"）から読む。入力値は読まない。 */
+// Assumes zod's default English error map: the type name is parsed from the message text. With a locale or custom errorMap
+// the text differs and REQUIRED_FIELD (undefined input) degrades to INVALID_TYPE.
+function receivedTypeName(record: IssueRecord, message: string): string {
+  if ("input" in record) {
+    const input = record["input"];
+    if (input === null) return "null";
+    if (Array.isArray(input)) return "array";
+    return typeof input;
+  }
+  const match = /received ([A-Za-z]+)\s*$/.exec(message);
+  // SEC-B1-03: only a known type name is passed on; anything else read from the text is "unknown"
+  return match?.[1] !== undefined && RECEIVED_TYPE_NAMES.has(match[1]) ? match[1] : "unknown";
+}
+
+/** Type names zod 4 prints after "received " (parsedType of the default English error map). */
+const RECEIVED_TYPE_NAMES: ReadonlySet<string> = new Set([
+  "string",
+  "number",
+  "boolean",
+  "bigint",
+  "symbol",
+  "undefined",
+  "null",
+  "object",
+  "array",
+  "function",
+  "date",
+  "map",
+  "set",
+  "promise",
+  "file",
+  "nan",
+  "Date",
+  "Map",
+  "Set",
+  "Promise",
+  "File",
+  "NaN",
+]);
+
+type RawNormalizer = (record: IssueRecord, issue: ZodIssue) => NormalizedIssue;
+
+function normalizeInvalidType(record: IssueRecord, issue: ZodIssue): NormalizedIssue {
+  const expected = String(record["expected"]);
+  const receivedField = record["received"]; // zod 3 only
+  if (typeof receivedField === "string") {
+    return {
+      kind: "type",
+      expected,
+      received: receivedField,
+      missing: receivedField === "undefined",
+    };
+  }
+  const received = receivedTypeName(record, issue.message);
+  return { kind: "type", expected, received, missing: received === "undefined" };
+}
+
+function normalizeSize(record: IssueRecord, issue: ZodIssue): NormalizedIssue {
+  const isMin = String(issue.code) === "too_small";
+  const subjectField = record["type"] ?? record["origin"]; // zod 3: type / zod 4: origin
+  const subject = typeof subjectField === "string" ? subjectField : undefined;
+  return {
+    kind: "size",
+    bound: isMin ? "min" : "max",
+    subject: subject === "int" ? "number" : subject,
+    limit: isMin ? record["minimum"] : record["maximum"],
+  };
+}
+
+function normalizeEnum(record: IssueRecord): NormalizedIssue {
+  const list = Array.isArray(record["options"]) ? record["options"] : record["values"];
+  return {
+    kind: "enum",
+    options: Array.isArray(list) ? (list as unknown[]) : [],
+  };
+}
+
+/** issue code -> normalizer. A code that is not listed is "other" (UNKNOWN_ERROR downstream). */
+const NORMALIZERS: ReadonlyMap<string, RawNormalizer> = new Map<string, RawNormalizer>([
+  ["invalid_string", (r): NormalizedIssue => ({ kind: "format", format: r["validation"] })], // zod 3
+  ["invalid_format", (r): NormalizedIssue => ({ kind: "format", format: r["format"] })], // zod 4
+  ["invalid_type", normalizeInvalidType],
+  ["too_small", normalizeSize],
+  ["too_big", normalizeSize],
+  ["invalid_enum_value", normalizeEnum], // zod 3
+  ["invalid_value", normalizeEnum], // zod 4
+  ["custom", (): NormalizedIssue => ({ kind: "custom" })],
+]);
+
+function normalizeIssue(issue: ZodIssue): NormalizedIssue {
+  const record: IssueRecord = { ...issue };
+  const normalizer = NORMALIZERS.get(String(record["code"]));
+  return normalizer ? normalizer(record, issue) : { kind: "other" };
+}
+
+/** enum の受信値はクライアントに返さない（message にも details にも出さない）。固定文字列を使う。 */
+const ENUM_VALUE_HIDDEN = "(hidden)";
+
+type IssueOf<K extends NormalizedIssue["kind"]> = Extract<NormalizedIssue, { kind: K }>;
+
+interface ConvertContext {
+  messages: ReturnType<typeof getMessages>;
+  field: string;
+  issue: ZodIssue;
+}
+
+/** Size codes shared by convert and detailed extraction: subject -> bound -> code. */
+const SIZE_CODES: ReadonlyMap<string, Readonly<Record<"min" | "max", string>>> = new Map([
+  ["number", { min: ERROR_CODES.OUT_OF_RANGE, max: ERROR_CODES.OUT_OF_RANGE }],
+  ["string", { min: ERROR_CODES.STRING_TOO_SHORT, max: ERROR_CODES.STRING_TOO_LONG }],
+  ["array", { min: ERROR_CODES.ARRAY_TOO_SHORT, max: ERROR_CODES.ARRAY_TOO_LONG }],
+]);
+
+function sizeCode(subject: string | undefined, bound: "min" | "max"): string | undefined {
+  return subject === undefined ? undefined : SIZE_CODES.get(subject)?.[bound];
+}
+
+function convertFormat(n: IssueOf<"format">, ctx: ConvertContext): McpToolError {
+  // UUID形式エラーを検出
+  if (n.format === "uuid") {
+    return createMcpToolError(
+      ERROR_CODES.INVALID_UUID,
+      ctx.messages.INVALID_UUID(ctx.field),
+      ctx.field
+    );
+  }
+  // その他の文字列フォーマットエラー
+  return createMcpToolError(
+    ERROR_CODES.INVALID_FORMAT,
+    ctx.messages.INVALID_FORMAT(ctx.field, typeof n.format === "string" ? n.format : "unknown"),
+    ctx.field
+  );
+}
+
+function convertType(n: IssueOf<"type">, ctx: ConvertContext): McpToolError {
+  // 必須フィールド欠落（undefined）
+  if (n.missing) {
+    return createMcpToolError(
+      ERROR_CODES.REQUIRED_FIELD,
+      ctx.messages.REQUIRED_FIELD(ctx.field),
+      ctx.field
+    );
+  }
+  // 型の不一致
+  return createMcpToolError(
+    ERROR_CODES.INVALID_TYPE,
+    ctx.messages.INVALID_TYPE(n.expected, n.received),
+    ctx.field,
+    { expected: n.expected, received: n.received }
+  );
+}
+
+type SizeTextKey = "STRING_TOO_SHORT" | "STRING_TOO_LONG" | "ARRAY_TOO_SHORT" | "ARRAY_TOO_LONG";
+
+const STRING_SIZE_TEXTS: Readonly<Record<"min" | "max", SizeTextKey>> = {
+  min: "STRING_TOO_SHORT",
+  max: "STRING_TOO_LONG",
+};
+
+const ARRAY_SIZE_TEXTS: Readonly<Record<"min" | "max", SizeTextKey>> = {
+  min: "ARRAY_TOO_SHORT",
+  max: "ARRAY_TOO_LONG",
+};
+
+function sizeMessage(n: IssueOf<"size">, ctx: ConvertContext, limit: number): string {
+  const isMin = n.bound === "min";
+  if (n.subject === "number") {
+    // issue にはもう一方の境界がないため、片側のみ返す
+    return ctx.messages.OUT_OF_RANGE(isMin ? limit : undefined, isMin ? undefined : limit);
+  }
+  // number is handled above; convertSize only passes string / array otherwise
+  const texts = n.subject === "string" ? STRING_SIZE_TEXTS : ARRAY_SIZE_TEXTS;
+  return ctx.messages[texts[n.bound]](ctx.field, limit);
+}
+
+/** number / string / array only; any other subject falls back to UNKNOWN_ERROR. */
+function convertSize(n: IssueOf<"size">, ctx: ConvertContext): McpToolError | undefined {
+  const code = sizeCode(n.subject, n.bound);
+  if (code === undefined) return undefined;
+  return createMcpToolError(code, sizeMessage(n, ctx, toNumber(n.limit)), ctx.field, {
+    [n.bound]: n.limit,
+  });
+}
+
+function convertEnum(n: IssueOf<"enum">, ctx: ConvertContext): McpToolError {
+  // The received value is never returned (SEC-B1-01): neither in the message nor in details.
+  return createMcpToolError(
+    ERROR_CODES.INVALID_ENUM,
+    ctx.messages.INVALID_ENUM(ENUM_VALUE_HIDDEN, n.options.map(String)),
+    ctx.field,
+    { options: n.options }
+  );
+}
+
+function convertCustom(_n: IssueOf<"custom">, ctx: ConvertContext): McpToolError {
+  return createMcpToolError(
+    ERROR_CODES.CUSTOM_ERROR,
+    ctx.messages.CUSTOM_ERROR(ctx.issue.message ?? "Custom validation failed"),
+    ctx.field
+  );
+}
+
+type IssueHandlers<R> = {
+  [K in NormalizedIssue["kind"]]: (n: IssueOf<K>, ctx: ConvertContext) => R;
+};
+
+/** One handler per normalized kind; "other" has none and falls back to UNKNOWN_ERROR. */
+const CONVERT_HANDLERS: IssueHandlers<McpToolError | undefined> = {
+  format: convertFormat,
+  type: convertType,
+  size: convertSize,
+  enum: convertEnum,
+  custom: convertCustom,
+  other: () => undefined,
+};
+
+/**
+ * Fallback for an issue with no dedicated code. The default message of `unrecognized_keys` carries
+ * the key names the client sent (SEC-B1-01), so that issue gets a fixed text instead.
+ */
+function convertUnknown(issue: ZodIssue, ctx: ConvertContext): McpToolError {
+  const text = String(issue.code) === "unrecognized_keys" ? UNRECOGNIZED_KEYS_TEXT : issue.message;
+  return createMcpToolError(ERROR_CODES.UNKNOWN_ERROR, ctx.messages.UNKNOWN_ERROR(text), ctx.field);
+}
+
+/** Looks up the handler for the normalized kind; the single cast of the handler tables. */
+function dispatch<R>(table: IssueHandlers<R>, n: NormalizedIssue, ctx: ConvertContext): R {
+  return (table[n.kind] as (n: NormalizedIssue, c: ConvertContext) => R)(n, ctx);
+}
+
+/** Converts an already-normalized issue (normalize runs once per issue in the callers). */
+function convertNormalized(normalized: NormalizedIssue, ctx: ConvertContext): McpToolError {
+  // 未知のエラータイプ・未対応の size subject はフォールバック
+  return dispatch(CONVERT_HANDLERS, normalized, ctx) ?? convertUnknown(ctx.issue, ctx);
+}
+
+/**
  * ZodIssueを個別のMcpToolErrorに変換
  */
 function convertIssueToError(issue: ZodIssue): McpToolError {
-  const messages = getMessages();
-  const field = getFieldPath(issue);
-
-  switch (issue.code) {
-    case ZodIssueCode.invalid_string: {
-      // UUID形式エラーを検出
-      if (issue.validation === "uuid") {
-        return createMcpToolError(ERROR_CODES.INVALID_UUID, messages.INVALID_UUID(field), field);
-      }
-      // その他の文字列フォーマットエラー
-      return createMcpToolError(
-        ERROR_CODES.INVALID_FORMAT,
-        messages.INVALID_FORMAT(
-          field,
-          typeof issue.validation === "string" ? issue.validation : "unknown"
-        ),
-        field
-      );
-    }
-
-    case ZodIssueCode.invalid_type: {
-      // 必須フィールド欠落（undefined）
-      if (issue.received === "undefined") {
-        return createMcpToolError(
-          ERROR_CODES.REQUIRED_FIELD,
-          messages.REQUIRED_FIELD(field),
-          field
-        );
-      }
-      // 型の不一致
-      return createMcpToolError(
-        ERROR_CODES.INVALID_TYPE,
-        messages.INVALID_TYPE(issue.expected, issue.received),
-        field,
-        {
-          expected: issue.expected,
-          received: issue.received,
-        }
-      );
-    }
-
-    case ZodIssueCode.too_small: {
-      // 数値の範囲チェック
-      if (issue.type === "number") {
-        // minimum値を検出するためにパス情報を使用
-        // issueにはmin/maxの完全な情報がないため、minimumのみ返す
-        return createMcpToolError(
-          ERROR_CODES.OUT_OF_RANGE,
-          messages.OUT_OF_RANGE(
-            (issue as unknown as { received?: number }).received ?? (issue.minimum as number),
-            issue.minimum as number,
-            undefined // maxはこのissueからは取得できない
-          ),
-          field,
-          {
-            value: (issue as unknown as { received?: number }).received,
-            min: issue.minimum,
-          }
-        );
-      }
-      // 文字列の最小長
-      if (issue.type === "string") {
-        return createMcpToolError(
-          ERROR_CODES.STRING_TOO_SHORT,
-          messages.STRING_TOO_SHORT(field, issue.minimum as number),
-          field,
-          { min: issue.minimum }
-        );
-      }
-      // 配列の最小長
-      if (issue.type === "array") {
-        return createMcpToolError(
-          ERROR_CODES.ARRAY_TOO_SHORT,
-          messages.ARRAY_TOO_SHORT(field, issue.minimum as number),
-          field,
-          { min: issue.minimum }
-        );
-      }
-      break;
-    }
-
-    case ZodIssueCode.too_big: {
-      // 数値の範囲チェック
-      if (issue.type === "number") {
-        return createMcpToolError(
-          ERROR_CODES.OUT_OF_RANGE,
-          messages.OUT_OF_RANGE(
-            (issue as unknown as { received?: number }).received ?? (issue.maximum as number),
-            undefined,
-            issue.maximum as number
-          ),
-          field,
-          {
-            value: (issue as unknown as { received?: number }).received,
-            max: issue.maximum,
-          }
-        );
-      }
-      // 文字列の最大長
-      if (issue.type === "string") {
-        return createMcpToolError(
-          ERROR_CODES.STRING_TOO_LONG,
-          messages.STRING_TOO_LONG(field, issue.maximum as number),
-          field,
-          { max: issue.maximum }
-        );
-      }
-      // 配列の最大長
-      if (issue.type === "array") {
-        return createMcpToolError(
-          ERROR_CODES.ARRAY_TOO_LONG,
-          messages.ARRAY_TOO_LONG(field, issue.maximum as number),
-          field,
-          { max: issue.maximum }
-        );
-      }
-      break;
-    }
-
-    case ZodIssueCode.invalid_enum_value: {
-      return createMcpToolError(
-        ERROR_CODES.INVALID_ENUM,
-        messages.INVALID_ENUM(String(issue.received), issue.options.map(String)),
-        field,
-        {
-          received: issue.received,
-          options: issue.options,
-        }
-      );
-    }
-
-    case ZodIssueCode.custom: {
-      return createMcpToolError(
-        ERROR_CODES.CUSTOM_ERROR,
-        messages.CUSTOM_ERROR(issue.message ?? "Custom validation failed"),
-        field
-      );
-    }
-
-    default:
-      // 未知のエラータイプはデフォルトメッセージで処理
-      break;
-  }
-
-  // フォールバック
-  return createMcpToolError(
-    ERROR_CODES.UNKNOWN_ERROR,
-    messages.UNKNOWN_ERROR(issue.message),
-    field
-  );
+  const ctx: ConvertContext = { messages: getMessages(), field: getFieldPath(issue), issue };
+  return convertNormalized(normalizeIssue(issue), ctx);
 }
 
 /**
@@ -441,9 +561,8 @@ export function formatZodError(zodError: ZodError): McpToolError[] {
         };
         const min = mergedDetails.min as number | undefined;
         const max = mergedDetails.max as number | undefined;
-        const value = mergedDetails.value as number | undefined;
         const messages = getMessages();
-        existing.message = messages.OUT_OF_RANGE(value ?? 0, min, max);
+        existing.message = messages.OUT_OF_RANGE(min, max);
         existing.details = mergedDetails;
       }
     }
@@ -691,98 +810,69 @@ function generateToolSpecificHint(
   return generateHintForField(field, code, locale);
 }
 
+interface DetailParts {
+  code: string;
+  expected?: string;
+  received?: string;
+}
+
+const FORMAT_EXPECTED: ReadonlyMap<string, string> = new Map([
+  ["uuid", "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"],
+  ["url", "https://example.com"],
+]);
+
+function detailFormat(n: IssueOf<"format">): DetailParts {
+  const code = n.format === "uuid" ? ERROR_CODES.INVALID_UUID : ERROR_CODES.INVALID_FORMAT;
+  const known = typeof n.format === "string" ? FORMAT_EXPECTED.get(n.format) : undefined;
+  return { code, expected: known ?? String(n.format) };
+}
+
+const DETAIL_HANDLERS: IssueHandlers<DetailParts> = {
+  type: (n) => ({
+    code: n.missing ? ERROR_CODES.REQUIRED_FIELD : ERROR_CODES.INVALID_TYPE,
+    expected: n.expected,
+    received: n.received,
+  }),
+  format: detailFormat,
+  // too_small / too_big は受信値を持たない（zod 3 / 4 共通）
+  size: (n) => ({
+    code: sizeCode(n.subject, n.bound) ?? ERROR_CODES.OUT_OF_RANGE,
+    expected: `${n.bound === "min" ? ">=" : "<="} ${String(n.limit)}`,
+  }),
+  enum: (n) => ({
+    code: ERROR_CODES.INVALID_ENUM,
+    expected: n.options.map(String).join(", "),
+  }),
+  custom: () => ({ code: ERROR_CODES.CUSTOM_ERROR }),
+  other: () => ({ code: ERROR_CODES.UNKNOWN_ERROR }),
+};
+
 /**
  * ZodIssueから詳細なエラー情報を抽出
  */
 function extractDetailedError(issue: ZodIssue): DetailedValidationError {
   const field = getFieldPath(issue);
-  const locale = currentLocale;
+  const normalized = normalizeIssue(issue);
+  const ctx: ConvertContext = { messages: getMessages(), field, issue };
+  const detail = dispatch(DETAIL_HANDLERS, normalized, ctx);
 
-  // 期待値と受信値を抽出
-  let expected: string | undefined;
-  let received: string | undefined;
-  // codeを文字列型として宣言（ERROR_CODESの値を動的に代入するため）
-  let code: string = ERROR_CODES.UNKNOWN_ERROR;
-  let message = issue.message;
-
-  switch (issue.code) {
-    case ZodIssueCode.invalid_type: {
-      code = issue.received === "undefined" ? ERROR_CODES.REQUIRED_FIELD : ERROR_CODES.INVALID_TYPE;
-      expected = issue.expected;
-      received = issue.received;
-      break;
-    }
-    case ZodIssueCode.invalid_string: {
-      if (issue.validation === "uuid") {
-        code = ERROR_CODES.INVALID_UUID;
-        expected = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx";
-      } else if (issue.validation === "url") {
-        code = ERROR_CODES.INVALID_FORMAT;
-        expected = "https://example.com";
-      } else {
-        code = ERROR_CODES.INVALID_FORMAT;
-        expected = String(issue.validation);
-      }
-      break;
-    }
-    case ZodIssueCode.too_small: {
-      code =
-        issue.type === "string"
-          ? ERROR_CODES.STRING_TOO_SHORT
-          : issue.type === "array"
-            ? ERROR_CODES.ARRAY_TOO_SHORT
-            : ERROR_CODES.OUT_OF_RANGE;
-      expected = `>= ${issue.minimum}`;
-      // Zodのtoo_smallにはreceivedが含まれないが、入力値から推測
-      // issueのmessageに値が含まれていることがある
-      break;
-    }
-    case ZodIssueCode.too_big: {
-      code =
-        issue.type === "string"
-          ? ERROR_CODES.STRING_TOO_LONG
-          : issue.type === "array"
-            ? ERROR_CODES.ARRAY_TOO_LONG
-            : ERROR_CODES.OUT_OF_RANGE;
-      expected = `<= ${issue.maximum}`;
-      break;
-    }
-    case ZodIssueCode.invalid_enum_value: {
-      code = ERROR_CODES.INVALID_ENUM;
-      expected = issue.options.map(String).join(", ");
-      received = String(issue.received);
-      break;
-    }
-    case ZodIssueCode.custom: {
-      code = ERROR_CODES.CUSTOM_ERROR;
-      message = issue.message ?? "Custom validation failed";
-      break;
-    }
-  }
-
-  // ローカライズされたメッセージを生成
-  const mcpError = convertIssueToError(issue);
-  message = mcpError.message;
-
-  // ヒントを生成
-  const hint = generateHintForField(field || "root", code, locale);
+  // ローカライズされたメッセージとヒントを生成
+  const message = convertNormalized(normalized, ctx).message;
+  const hint = generateHintForField(field || "root", detail.code, currentLocale);
 
   // exactOptionalPropertyTypes対応: undefinedを明示的に除外
   const result: DetailedValidationError = {
     field: field || "root",
-    code,
+    code: detail.code,
     message,
     hint,
   };
-
-  // 値が存在する場合のみプロパティを追加
-  if (expected !== undefined) {
-    result.expected = expected;
+  if (detail.expected !== undefined) {
+    result.expected = detail.expected;
   }
-  if (received !== undefined) {
-    result.received = received;
+  if (detail.received !== undefined) {
+    result.received = detail.received;
   }
-
   return result;
 }
 

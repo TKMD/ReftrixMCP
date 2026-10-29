@@ -38,23 +38,18 @@ import {
   getCachedResult,
   setCachedResult,
 } from "../../services/search-cache.service";
+import { formatIssueLine } from "../../utils/issue-path";
 
 // =====================================================
 // 定数
 // =====================================================
 
 /**
- * Base64入力の最大デコード後バイトサイズ（10MB）。
- * SEC-W3-M2: 内部 read API の `imageSearchBodySchema` がこの値を import し、char-level の
- * Zod 上限 (`MAX_BASE64_CHARS = ceil(bytes*4/3)`) を導出する単一の真実の源泉 (SSOT)。
- * MCP tool 経路 (本ファイル) と内部 API 経路が同一 cap を共有する (magic number 二重定義の排除)。
+ * Base64入力の最大デコード後バイトサイズ（10MB）。この file 内だけで使う。
  *
- * Decoded-byte cap for base64 image input (10MB). SEC-W3-M2: the internal read API's
- * `imageSearchBodySchema` imports this value as the single source of truth, deriving its
- * char-level Zod cap (`MAX_BASE64_CHARS`). The MCP-tool path (this file) and the internal-API
- * path share ONE cap (no duplicated magic number).
+ * Decoded-byte cap for base64 image input (10MB). Used only inside this file.
  */
-export const MAX_BASE64_BYTES = 10 * 1024 * 1024;
+const MAX_BASE64_BYTES = 10 * 1024 * 1024;
 
 /** RRFのkパラメータ（既存設定と統一） */
 const RRF_K = 60;
@@ -673,7 +668,7 @@ export async function designSearchByImageHandler(
   } catch (error) {
     const message =
       error instanceof z.ZodError
-        ? error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ")
+        ? error.issues.map((e) => `${formatIssueLine(e)}`).join("; ")
         : "Invalid input";
     return {
       success: false,

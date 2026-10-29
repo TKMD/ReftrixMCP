@@ -218,7 +218,7 @@ export const sectionPatternDataSchema = z.object({
   sectionType: sectionTypeSchema,
   sectionIndex: z.number().int().nonnegative(),
   htmlFragment: z.string().optional(),
-  cssStyles: z.record(z.string()).optional(),
+  cssStyles: z.record(z.string(), z.string()).optional(),
   gridStructure: gridStructureSchema.optional(),
   componentTree: componentNodeSchema.optional(),
   textRepresentation: z.string().optional(),
@@ -302,14 +302,14 @@ export const webPageCreateInputSchema = z.object({
   description: z.string().optional(),
   sourceType: sourceTypeSchema,
   sourcePlatform: z.string().optional(),
-  awardInfo: z.record(z.unknown()).optional(),
+  awardInfo: z.record(z.string(), z.unknown()).optional(),
   usageScope: usageScopeSchema,
   licenseNote: z.string().optional(),
   htmlContent: z.string().optional(),
   screenshotDesktopUrl: z.string().url().optional(),
   screenshotMobileUrl: z.string().url().optional(),
   screenshotFullUrl: z.string().url().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 export type WebPageCreateInput = z.infer<typeof webPageCreateInputSchema>;
 
@@ -321,14 +321,14 @@ export const sectionPatternCreateInputSchema = z.object({
   sectionType: sectionTypeSchema,
   sectionName: z.string().optional(),
   positionIndex: z.number().int().nonnegative(),
-  layoutInfo: z.record(z.unknown()),
-  components: z.array(z.record(z.unknown())).optional(),
-  visualFeatures: z.record(z.unknown()).optional(),
+  layoutInfo: z.record(z.string(), z.unknown()),
+  components: z.array(z.record(z.string(), z.unknown())).optional(),
+  visualFeatures: z.record(z.string(), z.unknown()).optional(),
   htmlSnippet: z.string().optional(),
   cssSnippet: z.string().optional(),
-  qualityScore: z.record(z.unknown()).optional(),
+  qualityScore: z.record(z.string(), z.unknown()).optional(),
   tags: z.array(z.string()).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 export type SectionPatternCreateInput = z.infer<typeof sectionPatternCreateInputSchema>;
 
@@ -340,16 +340,16 @@ export const motionPatternCreateInputSchema = z.object({
   name: z.string().min(1),
   category: z.string().min(1),
   triggerType: z.string().min(1),
-  triggerConfig: z.record(z.unknown()).optional(),
-  animation: z.record(z.unknown()),
-  properties: z.array(z.record(z.unknown())).optional(),
-  implementation: z.record(z.unknown()),
-  accessibility: z.record(z.unknown()).optional(),
-  performance: z.record(z.unknown()).optional(),
+  triggerConfig: z.record(z.string(), z.unknown()).optional(),
+  animation: z.record(z.string(), z.unknown()),
+  properties: z.array(z.record(z.string(), z.unknown())).optional(),
+  implementation: z.record(z.string(), z.unknown()),
+  accessibility: z.record(z.string(), z.unknown()).optional(),
+  performance: z.record(z.string(), z.unknown()).optional(),
   sourceUrl: z.string().url().optional(),
   usageScope: usageScopeSchema.optional(),
   tags: z.array(z.string()).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 export type MotionPatternCreateInput = z.infer<typeof motionPatternCreateInputSchema>;
 
@@ -365,11 +365,11 @@ export const generatedCodeCreateInputSchema = z.object({
   codeHash: z.string(),
   productionReady: z.boolean().optional(),
   qualityNotes: z.string().optional(),
-  qualityScore: z.record(z.unknown()).optional(),
-  sourceAttribution: z.record(z.unknown()),
-  generationParams: z.record(z.unknown()).optional(),
+  qualityScore: z.record(z.string(), z.unknown()).optional(),
+  sourceAttribution: z.record(z.string(), z.unknown()),
+  generationParams: z.record(z.string(), z.unknown()).optional(),
   tags: z.array(z.string()).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 export type GeneratedCodeCreateInput = z.infer<typeof generatedCodeCreateInputSchema>;
 

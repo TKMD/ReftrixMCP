@@ -26,7 +26,7 @@
     "test": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "vitest.config.*"],
-      "env": ["REDOS_TEST_THROUGHPUT_CHARS_PER_MS"]
+      "env": ["REDOS_TEST_THROUGHPUT_CHARS_PER_MS", "DATABASE_URL"]
     },
     "test:watch": {
       "cache": false,
@@ -35,11 +35,28 @@
     "test:coverage": {
       "dependsOn": ["^build"],
       "outputs": ["coverage/**"],
-      "env": ["REDOS_TEST_THROUGHPUT_CHARS_PER_MS"]
+      "env": ["REDOS_TEST_THROUGHPUT_CHARS_PER_MS", "DATABASE_URL"]
     },
     "test:unit": {
       "dependsOn": ["^build"],
       "env": ["REDOS_TEST_THROUGHPUT_CHARS_PER_MS"]
+    },
+    "@reftrixmcp/mcp-server#test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "vitest.config.*"],
+      "env": ["REDOS_TEST_THROUGHPUT_CHARS_PER_MS", "DATABASE_URL"],
+      "cache": false
+    },
+    "@reftrixmcp/mcp-server#test:coverage": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "env": ["REDOS_TEST_THROUGHPUT_CHARS_PER_MS", "DATABASE_URL"],
+      "cache": false
+    },
+    "@reftrixmcp/mcp-server#test:unit": {
+      "dependsOn": ["^build"],
+      "env": ["REDOS_TEST_THROUGHPUT_CHARS_PER_MS"],
+      "cache": false
     },
     "test:integration": {
       "dependsOn": ["^build"],

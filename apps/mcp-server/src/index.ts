@@ -44,7 +44,7 @@ import {
 } from "./services/service-initializer";
 import { getWorkerSupervisor } from "./services/worker-supervisor.service";
 import { getBullBoardConfig, startBullBoard } from "./admin/bull-board";
-import { startInternalApi } from "./api/internal/server";
+import { warnIfRemovedInternalApiEnv } from "./utils/removed-env-warning";
 import type { Server } from "http";
 
 /**
@@ -178,15 +178,9 @@ async function main(): Promise<void> {
       }
     }
 
-    // =====================================================
-    // WebUI 内部 read HTTP API（オプション、O-1 Option A / ADR-0042）
-    // WebUI internal read HTTP API (opt-in, O-1 Option A / ADR-0042)
-    // =====================================================
-    // WEBUI_INTERNAL_API_ENABLED=true のときのみ起動。127.0.0.1 bind 限定。
-    let internalApiServer: Server | null = null;
-    if (process.env.WEBUI_INTERNAL_API_ENABLED === "true") {
-      internalApiServer = await startInternalApi();
-    }
+    // 撤去済みの WebUI 内部 read HTTP API の env が残っていれば [DEPRECATION] を 1 本出す
+    // Warn once if the env of the removed WebUI internal read HTTP API is still set
+    warnIfRemovedInternalApiEnv();
 
     // プロセス終了シグナルのハンドリング
     const handleShutdown = async (): Promise<void> => {
@@ -213,14 +207,6 @@ async function main(): Promise<void> {
             bullBoardServer!.close(() => resolve());
           });
           logger.info("BullBoard UI shutdown complete");
-        }
-
-        // WebUI 内部 read API を停止 / Stop WebUI internal read API
-        if (internalApiServer) {
-          await new Promise<void>((resolve) => {
-            internalApiServer!.close(() => resolve());
-          });
-          logger.info("WebUI internal read API shutdown complete");
         }
 
         // StdIO Serverを停止

@@ -42,6 +42,7 @@ import type {
 } from "../../services/narrative/types/narrative.types";
 import { applyPreferenceReranking } from "../../services/preference-rerank.helper";
 import type { IPrismaClient } from "../../services/preference-profile.service";
+import { formatIssuePath, formatIssueMessage } from "../../utils/issue-path";
 
 // ============================================================================
 // Types
@@ -347,9 +348,9 @@ export async function narrativeSearchHandler(input: unknown): Promise<NarrativeS
   } catch (error) {
     // エラーハンドリング
     if (error instanceof ZodError) {
-      const details = error.errors.map((e) => ({
-        path: e.path.join("."),
-        message: e.message,
+      const details = error.issues.map((e) => ({
+        path: formatIssuePath(e.path),
+        message: formatIssueMessage(e),
       }));
 
       logger.warn("[narrative.search] Validation error", { details });

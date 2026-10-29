@@ -19,6 +19,8 @@ import {
   createValidationErrorWithHints,
   formatSingleError,
   formatMultipleErrors,
+  formatDetailedError,
+  formatMultipleDetailedErrors,
   ERROR_CODES,
   type DetailedValidationError,
 } from "../../src/utils/error-messages";
@@ -199,18 +201,20 @@ describe("Error Messages Utility", () => {
   });
 
   // 列挙値エラーテスト（パラメータ化・重複削減）
+  // zod 4: 不正な入力値はクライアントに返さず "(hidden)" になる (BREAKING, INV-ZOD-CLIENT-NO-INPUT-ECHO-001)
   describe.each([
     {
       locale: "en" as const,
       input: { style: "invalid", purpose: "icon" },
       field: "style",
-      expected: "Invalid value 'invalid'. Expected one of: flat, line, filled, gradient",
+      expected: "Invalid value '(hidden)'. Expected one of: flat, line, filled, gradient",
     },
     {
       locale: "ja" as const,
       input: { style: "flat", purpose: "wrong" },
       field: "purpose",
-      expected: "値 'wrong' は無効です。次のいずれかを指定してください: icon, illustration, mascot",
+      expected:
+        "値 '(hidden)' は無効です。次のいずれかを指定してください: icon, illustration, mascot",
     },
   ])("formatZodError - 不正な列挙値 ($locale)", ({ locale, input, field, expected }) => {
     it(`不正な列挙値に対して読みやすいエラーメッセージを返すこと`, () => {
@@ -570,7 +574,10 @@ describe("DetailedValidationError type", () => {
 describe("refine によるカスタムバリデーションエラー", () => {
   it("refine エラーを処理する", () => {
     const schema = z
-      .object({ colors: z.record(z.string()).optional(), apply_palette: z.boolean().optional() })
+      .object({
+        colors: z.record(z.string(), z.string()).optional(),
+        apply_palette: z.boolean().optional(),
+      })
       .refine((d) => (d.colors && Object.keys(d.colors).length > 0) || d.apply_palette === true, {
         message: "colorsまたはapply_palette=trueのいずれかが必要です",
       });
@@ -579,5 +586,62 @@ describe("refine によるカスタムバリデーションエラー", () => {
 
     expect(detailed.errors.length).toBeGreaterThan(0);
     expect(detailed.errors[0].message).toContain("colors");
+  });
+});
+
+describe("formatDetailedError / formatMultipleDetailedErrors / formatSingleError (no field)", () => {
+  afterEach(resetLocale);
+
+  const full: DetailedValidationError = {
+    field: "html",
+    code: ERROR_CODES.REQUIRED_FIELD,
+    message: "html is required",
+    expected: "non-empty string",
+    received: "undefined",
+    hint: "Provide html",
+  };
+
+  it("formats every part in English", () => {
+    setErrorMessageLocale("en");
+    expect(formatDetailedError(full)).toBe(
+      [
+        "Validation Error: html is required",
+        "  Field: html",
+        "  Expected: non-empty string",
+        "  Received: undefined",
+        "  Hint: Provide html",
+      ].join("\n")
+    );
+  });
+
+  it("formats every part in Japanese", () => {
+    setErrorMessageLocale("ja");
+    const text = formatDetailedError(full);
+    expect(text).toContain("バリデーションエラー: html is required");
+    expect(text).toContain("  フィールド: html");
+    expect(text).toContain("  期待値: non-empty string");
+    expect(text).toContain("  受信値: undefined");
+    expect(text).toContain("  ヒント: Provide html");
+  });
+
+  it("omits the optional parts that are absent", () => {
+    setErrorMessageLocale("en");
+    expect(formatDetailedError({ field: "", code: "X", message: "bad" })).toBe(
+      "Validation Error: bad"
+    );
+  });
+
+  it("joins several errors with the separator", () => {
+    setErrorMessageLocale("en");
+    const a: DetailedValidationError = { field: "", code: "X", message: "a" };
+    const b: DetailedValidationError = { field: "", code: "X", message: "b" };
+    expect(formatMultipleDetailedErrors([a, b])).toBe("Validation Error: a\n\nValidation Error: b");
+    expect(formatMultipleDetailedErrors([a, b], " | ")).toBe(
+      "Validation Error: a | Validation Error: b"
+    );
+  });
+
+  it("formatSingleError omits the field prefix when there is no field", () => {
+    expect(formatSingleError({ code: ERROR_CODES.UNKNOWN_ERROR, message: "oops" })).toBe("oops");
   });
 });

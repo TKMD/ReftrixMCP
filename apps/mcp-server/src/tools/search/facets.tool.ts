@@ -35,7 +35,7 @@ import { logSearch } from "../../services/search-log.service";
 /**
  * ファセットフィールドスキーマ / Facet field schema
  */
-const facetFieldSchema = z.enum(["sectionType", "industry", "audience", "tags"]);
+export const facetFieldSchema = z.enum(["sectionType", "industry", "audience", "tags"]);
 
 /**
  * search.facets 入力スキーマ / search.facets input schema
@@ -44,7 +44,7 @@ export const searchFacetsInputSchema = z.object({
   /** 検索クエリ（自然言語、1-500文字） / Search query (natural language, 1-500 chars) */
   query: z.string().min(1).max(500),
   /** ファセットフィールド（デフォルト: 全フィールド） / Facet fields (default: all) */
-  facet_fields: z.array(facetFieldSchema).min(1).optional(),
+  facet_fields: z.array(facetFieldSchema).min(1).max(4).optional(),
   /** 取得件数（1-50、デフォルト: 50） / Result limit for facet computation (1-50, default: 50) */
   limit: z.number().int().min(1).max(50).default(50),
   /** WebページIDでフィルター / Filter by web page ID */
@@ -257,6 +257,7 @@ export const searchFacetsToolDefinition = {
           type: "string",
           enum: ["sectionType", "industry", "audience", "tags"],
         },
+        maxItems: 4,
         description:
           "ファセットフィールド（デフォルト: 全フィールド） / Facet fields (default: all). " +
           "sectionType: セクション/パーツタイプ, industry: 業種, audience: ターゲット, tags: タグ",

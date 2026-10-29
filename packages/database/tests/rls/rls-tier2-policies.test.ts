@@ -28,8 +28,8 @@ describe.skipIf(!DATABASE_URL || !ADMIN_DATABASE_URL)("RLS Policies - Tier 2 Tab
   let prisma: PrismaClient;
 
   // Test users
-  const userAId = "00000000-0000-0000-0000-000000000011";
-  const userBId = "00000000-0000-0000-0000-000000000012";
+  const userAId = "00000000-0000-4000-8000-000000000011";
+  const userBId = "00000000-0000-4000-8000-000000000012";
 
   // Test data IDs (will be populated in beforeAll)
   let userAProjectId: string;

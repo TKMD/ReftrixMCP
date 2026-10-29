@@ -853,11 +853,11 @@ describe("ResponsiveProcessor diagnostic log (PR-D-9 Wave 3 / FIND-PLAN-LCC-02)"
     const { ResponsiveProcessor } = await import("../../src/queues/embedding-backfill-processors");
     const processor = new ResponsiveProcessor();
     const ctx = {
-      webPageId: "01234567-aaaa-bbbb-cccc-ddddeeeeffff",
+      webPageId: "01234567-aaaa-4bbb-8ccc-ddddeeeeffff",
       job: {
         id: "test-job-id",
         data: {
-          webPageId: "01234567-aaaa-bbbb-cccc-ddddeeeeffff",
+          webPageId: "01234567-aaaa-4bbb-8ccc-ddddeeeeffff",
           category: "responsive" as const,
           createdAt: "2026-04-26T00:00:00.000Z",
         },
@@ -915,11 +915,11 @@ describe("ResponsiveProcessor diagnostic log (PR-D-9 Wave 3 / FIND-PLAN-LCC-02)"
     const { ResponsiveProcessor } = await import("../../src/queues/embedding-backfill-processors");
     const processor = new ResponsiveProcessor();
     await processor.process({
-      webPageId: "01234567-aaaa-bbbb-cccc-ddddeeeeffff",
+      webPageId: "01234567-aaaa-4bbb-8ccc-ddddeeeeffff",
       job: {
         id: "test-job-id",
         data: {
-          webPageId: "01234567-aaaa-bbbb-cccc-ddddeeeeffff",
+          webPageId: "01234567-aaaa-4bbb-8ccc-ddddeeeeffff",
           category: "responsive" as const,
           createdAt: "2026-04-26T00:00:00.000Z",
         },

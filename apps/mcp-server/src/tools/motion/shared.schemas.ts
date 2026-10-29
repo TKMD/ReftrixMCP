@@ -311,7 +311,7 @@ export const motionWarningSchema = z.object({
   pattern: z.string().optional(),
   suggestion: z.string().optional(),
   /** Phase1: Video mode context (URL, duration, etc.) */
-  context: z.record(z.unknown()).optional(),
+  context: z.record(z.string(), z.unknown()).optional(),
 });
 export type MotionWarning = z.infer<typeof motionWarningSchema>;
 
@@ -330,9 +330,9 @@ export type PerspectiveStats = z.infer<typeof perspectiveStatsSchema>;
  */
 export const motionSummarySchema = z.object({
   totalPatterns: z.number().int().nonnegative(),
-  byType: z.record(motionTypeSchema, z.number().int().nonnegative()),
-  byTrigger: z.record(triggerTypeSchema, z.number().int().nonnegative()),
-  byCategory: z.record(motionCategorySchema, z.number().int().nonnegative()).optional(),
+  byType: z.partialRecord(motionTypeSchema, z.number().int().nonnegative()),
+  byTrigger: z.partialRecord(triggerTypeSchema, z.number().int().nonnegative()),
+  byCategory: z.partialRecord(motionCategorySchema, z.number().int().nonnegative()).optional(),
   averageDuration: z.number().min(0),
   hasInfiniteAnimations: z.boolean(),
   complexityScore: z.number().min(0).max(100),

@@ -1,0 +1,14 @@
+{
+  "cc0_rights_held": true,
+  "publishing_entity": "TKMD",
+  "tos_effective": "2025-09-02",
+  "attested_on": "2026-10-23",
+  "decision_ref": "01a15b75-b214-7757-a721-a6fd0b96771e",
+  "conditions": ["condition-2", "condition-3"],
+  "attested_content_sha256": [
+    {
+      "sha256": "e013e0b9cdc6098ce94b014c80d4af1b483fac3db73d7e89ea1291b215847246",
+      "attested_on": "2026-10-23"
+    }
+  ]
+}

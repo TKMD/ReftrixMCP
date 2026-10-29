@@ -72,7 +72,7 @@
   "dependencies": {
     "@bull-board/api": "^6.20.6",
     "@bull-board/express": "^6.20.6",
-    "@modelcontextprotocol/sdk": "^1.31.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@prisma/client": "^6.19.2",
     "@reftrixmcp/core": "workspace:*",
     "@reftrixmcp/database": "workspace:*",
@@ -91,7 +91,7 @@
     "pngjs": "^7.0.0",
     "sharp": "^0.35.5",
     "ws": "^8.18.0",
-    "zod": "^3.24.0"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.0",

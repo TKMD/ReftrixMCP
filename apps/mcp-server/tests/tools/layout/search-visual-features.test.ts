@@ -49,8 +49,8 @@ import {
 
 const mockSectionPatternsWithVisualFeatures = [
   {
-    id: "11111111-1111-1111-1111-111111111111",
-    webPageId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    id: "11111111-1111-4111-9111-111111111111",
+    webPageId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     sectionType: "hero",
     sectionName: "Light Hero Section",
     positionIndex: 0,
@@ -89,7 +89,7 @@ const mockSectionPatternsWithVisualFeatures = [
     },
     textRepresentation: "Light hero section with blue accent, high whitespace",
     webPage: {
-      id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
       url: "https://example.com/light-hero",
       title: "Light Hero Page",
       sourceType: "award_gallery",
@@ -101,8 +101,8 @@ const mockSectionPatternsWithVisualFeatures = [
     },
   },
   {
-    id: "22222222-2222-2222-2222-222222222222",
-    webPageId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    id: "22222222-2222-4222-9222-222222222222",
+    webPageId: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
     sectionType: "hero",
     sectionName: "Dark Hero Section",
     positionIndex: 0,
@@ -141,7 +141,7 @@ const mockSectionPatternsWithVisualFeatures = [
     },
     textRepresentation: "Dark hero section with purple accent, medium density",
     webPage: {
-      id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      id: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
       url: "https://example.com/dark-hero",
       title: "Dark Hero Page",
       sourceType: "user_provided",
@@ -153,8 +153,8 @@ const mockSectionPatternsWithVisualFeatures = [
     },
   },
   {
-    id: "33333333-3333-3333-3333-333333333333",
-    webPageId: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+    id: "33333333-3333-4333-8333-333333333333",
+    webPageId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
     sectionType: "feature",
     sectionName: "Mixed Theme Feature",
     positionIndex: 1,
@@ -193,7 +193,7 @@ const mockSectionPatternsWithVisualFeatures = [
     },
     textRepresentation: "Mixed theme feature grid with red accent, high density",
     webPage: {
-      id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
       url: "https://example.com/feature",
       title: "Feature Page",
       sourceType: "award_gallery",
@@ -205,8 +205,8 @@ const mockSectionPatternsWithVisualFeatures = [
     },
   },
   {
-    id: "44444444-4444-4444-4444-444444444444",
-    webPageId: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+    id: "44444444-4444-4444-8444-444444444444",
+    webPageId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
     sectionType: "cta",
     sectionName: "High Contrast CTA",
     positionIndex: 2,
@@ -245,7 +245,7 @@ const mockSectionPatternsWithVisualFeatures = [
     },
     textRepresentation: "Dark CTA with green accent, minimal content density",
     webPage: {
-      id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+      id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
       url: "https://example.com/cta",
       title: "CTA Page",
       sourceType: "user_provided",
@@ -616,11 +616,12 @@ describe("visualFeaturesFilter Schema Validation", () => {
       const result = layoutSearchInputSchema.safeParse(input);
       expect(result.success).toBe(true);
       if (result.success) {
-        // スキーマでは.default(15).optional()の順序により、
-        // 未指定時はundefinedになる。フィルタリングロジック側で
-        // colorTolerance ?? 15 としてデフォルト値を適用する。
-        // そのため、スキーマパース結果はundefinedになる。
-        expect(result.data.filters?.visualFeatures?.colors?.colorTolerance).toBeUndefined();
+        // zod 4 prep (INV-ZOD-DEFAULT-OPTIONAL-GOLDEN-001): the schema is now
+        // .optional().default(15). zod 3 returned no key for the old
+        // .default(15).optional() order, zod 4 returns the default; the reorder makes both
+        // versions agree, so the parse output now carries the default. The reader
+        // (layout-search.service.ts: colorTolerance ?? 15) sees the same effective value.
+        expect(result.data.filters?.visualFeatures?.colors?.colorTolerance).toBe(15);
       }
     });
 
@@ -1499,7 +1500,7 @@ describe("layoutSearchHandler - visualFeaturesパフォーマンス", () => {
     // 大量のパターンを生成
     const largeResults = Array.from({ length: 100 }, (_, i) => ({
       ...mockSectionPatternsWithVisualFeatures[i % 4],
-      id: `${i}`.padStart(8, "0") + "-1111-1111-1111-111111111111",
+      id: `${i}`.padStart(8, "0") + "-1111-4111-8111-111111111111",
       similarity: 0.99 - i * 0.005,
     }));
 

@@ -245,8 +245,8 @@ export const runtimeOptionsSchema = z.object({
     .number()
     .min(0, { message: "wait_for_animationsは0以上である必要があります" })
     .max(30000, { message: "wait_for_animationsは30000ms以下にしてください" })
-    .default(3000)
-    .optional(),
+    .optional()
+    .default(3000),
   scroll_positions: z
     .array(
       z
@@ -276,28 +276,28 @@ export const frameAnalysisOptionsSchema = z.object({
     .int()
     .min(1, { message: "fpsは1以上である必要があります" })
     .max(30, { message: "fpsは30以下にしてください" })
-    .default(10)
-    .optional(),
+    .optional()
+    .default(10),
   change_threshold: z
     .number()
     .min(0, { message: "change_thresholdは0以上である必要があります" })
     .max(1, { message: "change_thresholdは1以下である必要があります" })
-    .default(0.01)
-    .optional(),
+    .optional()
+    .default(0.01),
   min_motion_duration_ms: z
     .number()
     .int()
     .min(0, { message: "min_motion_duration_msは0以上である必要があります" })
     .max(10000, { message: "min_motion_duration_msは10000以下にしてください" })
-    .default(100)
-    .optional(),
+    .optional()
+    .default(100),
   gap_tolerance_ms: z
     .number()
     .int()
     .min(0, { message: "gap_tolerance_msは0以上である必要があります" })
     .max(1000, { message: "gap_tolerance_msは1000以下にしてください" })
-    .default(50)
-    .optional(),
+    .optional()
+    .default(50),
 });
 export type FrameAnalysisOptions = z.infer<typeof frameAnalysisOptionsSchema>;
 
@@ -317,15 +317,15 @@ export const videoOptionsSchema = z.object({
     .int()
     .min(1000, { message: "timeoutは1000ms以上である必要があります" })
     .max(120000, { message: "timeoutは120000ms以下にしてください" })
-    .default(30000)
-    .optional(),
+    .optional()
+    .default(30000),
   record_duration: z
     .number()
     .int()
     .min(1000, { message: "record_durationは1000ms以上である必要があります" })
     .max(60000, { message: "record_durationは60000ms以下にしてください" })
-    .default(5000)
-    .optional(),
+    .optional()
+    .default(5000),
   viewport: z
     .object({
       width: z
@@ -340,9 +340,12 @@ export const videoOptionsSchema = z.object({
         .max(4096, { message: "viewport.heightは4096以下にしてください" }),
     })
     .optional(),
-  scroll_page: z.boolean().default(true).optional(),
-  move_mouse: z.boolean().default(true).optional(),
-  wait_until: z.enum(["load", "domcontentloaded", "networkidle"]).default("load").optional(),
+  scroll_page: z.boolean().optional().default(true),
+  move_mouse: z.boolean().optional().default(true),
+  wait_until: z
+    .enum(["load", "domcontentloaded", "networkidle"])
+    .optional()
+    .default("domcontentloaded"),
   frame_analysis: frameAnalysisOptionsSchema.optional(),
 });
 export type VideoOptions = z.infer<typeof videoOptionsSchema>;
@@ -618,16 +621,22 @@ export type LighthouseCategory = z.infer<typeof lighthouseCategorySchema>;
  */
 export const lighthouseOptionsSchema = z.object({
   enabled: z.boolean().default(false),
-  categories: z.array(lighthouseCategorySchema).default(["performance"]).optional(),
-  throttling: z.boolean().default(false).optional(),
+  categories: z
+    .array(lighthouseCategorySchema)
+    .max(4, {
+      message: "categoriesは4個以下にしてください",
+    })
+    .optional()
+    .default((): LighthouseCategory[] => ["performance"]),
+  throttling: z.boolean().optional().default(false),
   timeout: z
     .number()
     .int()
     .min(30000, { message: "timeoutは30000ms以上である必要があります" })
     .max(120000, { message: "timeoutは120000ms以下にしてください" })
-    .default(60000)
-    .optional(),
-  save_to_db: z.boolean().default(false).optional(),
+    .optional()
+    .default(60000),
+  save_to_db: z.boolean().optional().default(false),
 });
 export type LighthouseOptions = z.infer<typeof lighthouseOptionsSchema>;
 
@@ -677,15 +686,15 @@ export type LighthouseMetrics = z.infer<typeof lighthouseMetricsSchema>;
  * @property timeout - 分析タイムアウト (1000-60000ms, default: 30000)
  */
 export const analyzeMetricsOptionsSchema = z.object({
-  include_recommendations: z.boolean().default(true).optional(),
-  include_cls_contributors: z.boolean().default(true).optional(),
+  include_recommendations: z.boolean().optional().default(true),
+  include_cls_contributors: z.boolean().optional().default(true),
   timeout: z
     .number()
     .int()
     .min(1000, { message: "timeoutは1000ms以上である必要があります" })
     .max(60000, { message: "timeoutは60000ms以下にしてください" })
-    .default(30000)
-    .optional(),
+    .optional()
+    .default(30000),
 });
 export type AnalyzeMetricsOptions = z.infer<typeof analyzeMetricsOptionsSchema>;
 
@@ -712,7 +721,7 @@ export const animationImpactScoreSchema = z.object({
   /** 影響カテゴリ */
   severity: z.enum(["low", "medium", "high", "critical"]),
   /** 詳細情報 */
-  details: z.record(z.unknown()).optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
 });
 export type AnimationImpactScore = z.infer<typeof animationImpactScoreSchema>;
 

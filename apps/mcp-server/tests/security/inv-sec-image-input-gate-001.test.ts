@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * INV-SEC-IMAGE-INPUT-GATE-001 — 画像入力の許可形式 gate（層 2、入口 P1 / P1' / P2）
- * INV-SEC-IMAGE-INPUT-GATE-001 — image input format allowlist gate (layer 2, entries P1 / P1' / P2)
+ * INV-SEC-IMAGE-INPUT-GATE-001 — 画像入力の許可形式 gate（層 2、入口 P1 / P2）
+ * INV-SEC-IMAGE-INPUT-GATE-001 — image input format allowlist gate (layer 2, entries P1 / P2)
  *
  * 命題: allowlist 外の入力は、wrapper の default export（sharp）を一度も呼ばずに拒否される。
  * spy = 0 は INV-SEC-SHARP-SVG-BLOCK-001 (d)（sharp の取得が wrapper 経由）を前提とする。
  * Proposition: input outside the allowlist is rejected without ever calling the wrapper's
  * default export (sharp). "spy = 0" relies on INV-SEC-SHARP-SVG-BLOCK-001 (d).
  *
- * (a) P1 base64  (b) P1 URL  (c) P1' classifier  (d)(d') P2  (e) CWE-209 message
+ * (a) P1 base64  (b) P1 URL  (c) removed (internal API P1' classifier; API removed)  (d)(d') P2  (e) CWE-209 message
  * (f) unit: detectRasterFormat / allowlist sets / head-decode limit  (g) AST (P1, P2, P3)
  * (h) P3 buffer snapshot (P3a / P3b / P3c + helper)  (i) P2 data URI normalization
  * (j) lives in a separate file (webui accept)  (k) pinned snapshot caps
@@ -73,8 +73,6 @@ import {
   setLayoutInspectServiceFactory,
 } from "../../src/tools/layout/inspect/inspect.tool";
 import { screenshotInputSchema } from "../../src/tools/layout/inspect/inspect.schemas";
-import { getImageSearch } from "../../src/api/internal/search.service";
-import { imageSearchBodySchema } from "../../src/api/internal/schemas";
 import { ImageOptimizer } from "../../src/services/vision/image-optimizer";
 import { FrameLoaderError, LIMITS } from "../../src/services/motion/types";
 import { FrameImageAnalyzerAdapter } from "../../src/services/motion/frame-image-analyzer.adapter";
@@ -83,6 +81,7 @@ import { FrameLoader } from "../../src/services/motion/infrastructure/frame-load
 import { FrameAnalyzerService } from "../../src/services/page/frame-analyzer.service";
 import { videoOptionsSchema } from "../../src/tools/motion/detect.schemas";
 import { motionOptionsSchema } from "../../src/tools/page/input.schemas";
+import { zodObjectShape, zodUnwrap } from "../utils/support/zod-introspect";
 import { logger } from "../../src/utils/logger";
 import { invalidateCache } from "../../src/services/search-cache.service";
 import {
@@ -222,23 +221,6 @@ describe("INV-SEC-IMAGE-INPUT-GATE-001", () => {
     it("positive control: image/png + PNG body reaches sharp", async () => {
       stubFetch("image/png", Buffer.from(VALID_BASE64_PNG, "base64"));
       await designSearchByImageHandler({ image: "https://example.com/a.png" });
-      expect(sharpSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
-    });
-  });
-
-  describe("(c) P1': the internal API maps the gate rejection to image_rejected", () => {
-    it("SVG -> ok:false / image_rejected / sharp spy 0", async () => {
-      const body = imageSearchBodySchema.parse({ image_base64: SVG_B64 });
-      const res = await getImageSearch(body);
-      expect(res.ok).toBe(false);
-      expect(res.ok === false && res.code).toBe("image_rejected");
-      expect(sharpSpy).toHaveBeenCalledTimes(0);
-    });
-
-    it("positive control: a PNG proceeds past the classifier", async () => {
-      const body = imageSearchBodySchema.parse({ image_base64: VALID_BASE64_PNG });
-      const res = await getImageSearch(body);
-      expect(res.ok).toBe(true);
       expect(sharpSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
     });
   });
@@ -808,10 +790,7 @@ describe("INV-SEC-IMAGE-INPUT-GATE-001", () => {
   describe("(k) pinned snapshot caps (formula, values, Zod bounds, ffmpeg rgb24, NaN)", () => {
     /** Zod の optional / default を外す / unwrap optional / default */
     function inner(schema: unknown): { shape: Record<string, unknown> } {
-      let cur = schema as { _def?: Record<string, unknown>; shape?: unknown };
-      while (cur.shape === undefined && cur._def?.["innerType"])
-        cur = cur._def["innerType"] as typeof cur;
-      return cur as { shape: Record<string, unknown> };
+      return { shape: zodObjectShape(zodUnwrap(schema)) };
     }
     const viewportMax = (videoOptions: unknown): number[] => {
       const dims = inner(inner(videoOptions).shape["viewport"]).shape as Record<

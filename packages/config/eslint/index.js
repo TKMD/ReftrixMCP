@@ -267,6 +267,15 @@ export const baseConfig = [
       complexity: ["error", 10],
     },
   },
+  // PR-B2c (TDA-B1-04): error-messages.ts zod issue normalize / convert / detail stay table-driven;
+  // `complexity: ["error", 10]` keeps a future issue kind from growing a branch ladder again.
+  // PR-B2c (TDA-B1-04): error-messages.ts の zod issue 変換は表駆動のまま保つ。
+  {
+    files: ["apps/mcp-server/src/utils/error-messages.ts"],
+    rules: {
+      complexity: ["error", 10],
+    },
+  },
   // L-tracked defense-in-depth bundle (TDA-IMPL-L-01, PR-L3 successor):
   // url-normalizer.ts is the URL dedup correctness SSOT (`normalizeUrlCore`,
   // PR #54 same-URL race fix core). `normalizeUrlCore` measured CC ~12; after
@@ -292,17 +301,6 @@ export const baseConfig = [
   // `off` monorepo-wide). url-normalizer.ts canonical pattern.
   {
     files: ["apps/mcp-server/src/services/part/crop-persistence.helper.ts"],
-    rules: {
-      complexity: ["error", 10],
-    },
-  },
-  // W6 Issue A PR-4a (TDA-M-01 / F-M-03): the one-shot crop-backfill operator
-  // script must stay ≤ CC 10 per-function so a future per-page branch addition is
-  // machine-gated (the cut logic lives in the gated crop-persistence.helper SSOT,
-  // so the script stays thin). Scope-limited override (base rule is `off`
-  // monorepo-wide); canonical pattern (cf. `_worker-spawn-helper.ts`).
-  {
-    files: ["apps/mcp-server/scripts/backfill-crops.ts"],
     rules: {
       complexity: ["error", 10],
     },
@@ -554,17 +552,18 @@ export const baseConfig = [
     },
   },
   // WebUI v1 W1 (UB-6 / FIND-IO-PLAN-M-07): scope-limited
-  // `complexity: ["error", 10]` machine-enforcement for the mcp-server internal
-  // read HTTP API (`/internal/*`, O-1 Option A / ADR-0042 Decision 1). These are
-  // NEW files (no pre-existing CC>10 violations under the base `complexity: "off"`),
-  // so the override makes a green `pnpm lint` a real complexity guarantee for the
-  // new read-API code path. The `apps/webui` side enforces CC≤10 by default via its
-  // own clean-slate eslint config. Follows the url-normalizer / GPU-COORD pattern.
+  // `complexity: ["error", 10]` machine-enforcement for
+  // `services/section-detail.service.ts` (the section-detail read service behind
+  // `section.inspect`). The file has no pre-existing CC>10 violations under the base
+  // `complexity: "off"`, so the override makes a green `pnpm lint` a real complexity
+  // guarantee for this read code path. Follows the url-normalizer / GPU-COORD pattern.
+  // (The internal read HTTP API files that shared this block were removed with the API.)
   //
-  // WebUI v1 W1 (UB-6): mcp-server の内部 read API (`/internal/*`、新規 file) に
+  // WebUI v1 W1 (UB-6): section.inspect の section 詳細 read service に
   // `complexity: ["error", 10]` を machine-enforce (base rule は `off`)。
+  // 同じ block にいた内部 read API の file は API ごと撤去済み。
   {
-    files: ["apps/mcp-server/src/api/internal/**/*.ts"],
+    files: ["apps/mcp-server/src/services/section-detail.service.ts"],
     rules: {
       complexity: ["error", 10],
     },

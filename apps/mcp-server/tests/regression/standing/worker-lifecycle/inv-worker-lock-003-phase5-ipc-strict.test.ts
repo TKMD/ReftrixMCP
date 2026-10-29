@@ -14,6 +14,11 @@
  * the SEC H-2 `.strict()` unknown-key-reject contract already enforced on
  * `embedding-backfill-ipc.ts`.
  *
+ * **zod 4 prep (PR-C1b)**: the schemas are now written as `z.strictObject({...})` (zod 3 and 4 both
+ * reject unknown keys with it). The contract is unchanged; the runtime reject cases below are
+ * untouched, and the source gate (case 7) counts `z.strictObject` calls by AST with the same
+ * floor (>= 10). Where this header says `.strict()`, read it as the strict-object contract.
+ *
  * **IO flag (Plan Decision V1 / FIND-PLAN-DOC-01)**: ADR-0038 / master-plan prose
  * claiming "the existing `.strict()` is unchanged" is a known doc-error
  * (Phase 3 docs-sync correction). The authoritative instruction is THIS Registry
@@ -39,7 +44,7 @@
  * | 4 | childHeartbeat / childLockRequest / childProgress reject unknown key               |
  * | 5 | childTextResult / childVisualResult / childError reject unknown key                |
  * | 6 | validateParentMessage / validateChildMessage return null on unknown-key injection  |
- * | 7 | AST/source gate: ≥ 10 `.strict()` calls present (no schema left non-strict)         |
+ * | 7 | AST/source gate: ≥ 10 `z.strictObject` calls present (no schema left non-strict)    |
  *
  * @see ADR-0038 §1.6 / Security section (FIND-PLAN-M-02 / SEC-M-1 / SEC H-2)
  * @see CONTRIBUTING.md §"Embedding backfill IPC unconstrained-string surfaces" (SEC H-2 sibling)
@@ -47,9 +52,9 @@
  */
 
 import path from "node:path";
-import fs from "node:fs";
 import { describe, it, expect, beforeEach } from "vitest";
 import { assertInvName } from "../_setup/inv-assert";
+import { scanFile } from "../_setup/z-strict-object-scan";
 import {
   parentInitTextSchema,
   parentInitVisualSchema,
@@ -72,7 +77,7 @@ const IPC_SRC = path.resolve(__dirname, "../../../../src/workers/phases/phase-5-
 const validBodies = {
   initText: {
     type: "init-text" as const,
-    webPageId: "11111111-1111-1111-1111-111111111111",
+    webPageId: "11111111-1111-4111-9111-111111111111",
     url: "https://example.com",
     sectionIdMapping: null,
     motionIdMapping: null,
@@ -86,7 +91,7 @@ const validBodies = {
   },
   initVisual: {
     type: "init-visual" as const,
-    webPageId: "11111111-1111-1111-1111-111111111111",
+    webPageId: "11111111-1111-4111-9111-111111111111",
     url: "https://example.com",
     screenshotPngPath: "/tmp/x.png",
     sectionIdMapping: null,
@@ -171,12 +176,18 @@ describe(`${INV}: Phase 5 child IPC schemas reject unknown keys (.strict() parit
     expect(validateChildMessage(validBodies.textResult)).not.toBeNull();
   });
 
-  it(`${INV}: source gate — at least 10 .strict() calls present (no schema left non-strict)`, () => {
-    const src = fs.readFileSync(IPC_SRC, "utf-8");
-    const strictCount = (src.match(/\.strict\(\)/g) ?? []).length;
+  it(`${INV}: source gate — at least 10 z.strictObject calls present (no schema left non-strict)`, () => {
+    // zod 4 prep (PR-C1b): the schemas are `z.strictObject({...})`, so the old `.strict()` text
+    // count would be 0. Count the call structure instead (receiver `z`, member `strictObject`):
+    // that also counts the newline form (`z\n  .strictObject`) that prettier produces for nested
+    // chains. The floor (>= 10, one per IPC object schema, FIND-PLAN-M-02) is unchanged.
+    const scanned = scanFile(IPC_SRC);
     expect(
-      strictCount,
-      `phase-5-child-ipc.ts MUST have >= 10 .strict() calls (one per IPC object schema, FIND-PLAN-M-02). Found ${strictCount}.`
+      scanned.strictObject,
+      `phase-5-child-ipc.ts MUST have >= 10 z.strictObject calls (one per IPC object schema, FIND-PLAN-M-02). Found ${scanned.strictObject}.`
     ).toBeGreaterThanOrEqual(10);
+    expect(scanned.nonStrictObject, "no non-strict z.object left in phase-5-child-ipc.ts").toEqual(
+      []
+    );
   });
 });

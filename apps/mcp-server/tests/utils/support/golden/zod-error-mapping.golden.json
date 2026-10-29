@@ -1,0 +1,1413 @@
+{
+  "required-missing": {
+    "en": [
+      {
+        "code": "REQUIRED_FIELD",
+        "message": "Required field 'query' is missing",
+        "field": "query"
+      }
+    ],
+    "ja": [
+      {
+        "code": "REQUIRED_FIELD",
+        "message": "必須フィールド 'query' が指定されていません",
+        "field": "query"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "query",
+          "code": "REQUIRED_FIELD",
+          "message": "Required field 'query' is missing",
+          "hint": "Provide a value for 'query'.",
+          "expected": "string",
+          "received": "undefined"
+        }
+      ]
+    }
+  },
+  "required-nested-missing": {
+    "en": [
+      {
+        "code": "REQUIRED_FIELD",
+        "message": "Required field 'options.depth' is missing",
+        "field": "options.depth"
+      }
+    ],
+    "ja": [
+      {
+        "code": "REQUIRED_FIELD",
+        "message": "必須フィールド 'options.depth' が指定されていません",
+        "field": "options.depth"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "options.depth",
+          "code": "REQUIRED_FIELD",
+          "message": "Required field 'options.depth' is missing",
+          "hint": "Provide a value for 'depth'.",
+          "expected": "number",
+          "received": "undefined"
+        }
+      ]
+    }
+  },
+  "type-number-for-string": {
+    "en": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "Expected string, but received number",
+        "field": "query",
+        "details": {
+          "expected": "string",
+          "received": "number"
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "stringが期待されましたが、numberが渡されました",
+        "field": "query",
+        "details": {
+          "expected": "string",
+          "received": "number"
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "query",
+          "code": "INVALID_TYPE",
+          "message": "Expected string, but received number",
+          "hint": "Provide the correct type for 'query'.",
+          "expected": "string",
+          "received": "number"
+        }
+      ]
+    }
+  },
+  "type-null-for-string": {
+    "en": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "Expected string, but received null",
+        "field": "query",
+        "details": {
+          "expected": "string",
+          "received": "null"
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "stringが期待されましたが、nullが渡されました",
+        "field": "query",
+        "details": {
+          "expected": "string",
+          "received": "null"
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "query",
+          "code": "INVALID_TYPE",
+          "message": "Expected string, but received null",
+          "hint": "Provide the correct type for 'query'.",
+          "expected": "string",
+          "received": "null"
+        }
+      ]
+    }
+  },
+  "type-string-for-number-sentinel": {
+    "en": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "Expected number, but received string",
+        "field": "limit",
+        "details": {
+          "expected": "number",
+          "received": "string"
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "numberが期待されましたが、stringが渡されました",
+        "field": "limit",
+        "details": {
+          "expected": "number",
+          "received": "string"
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "limit",
+          "code": "INVALID_TYPE",
+          "message": "Expected number, but received string",
+          "hint": "Provide the correct type for 'limit'.",
+          "expected": "number",
+          "received": "string"
+        }
+      ]
+    }
+  },
+  "type-array-for-boolean": {
+    "en": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "Expected boolean, but received array",
+        "field": "flag",
+        "details": {
+          "expected": "boolean",
+          "received": "array"
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "booleanが期待されましたが、arrayが渡されました",
+        "field": "flag",
+        "details": {
+          "expected": "boolean",
+          "received": "array"
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "flag",
+          "code": "INVALID_TYPE",
+          "message": "Expected boolean, but received array",
+          "hint": "Provide the correct type for 'flag'.",
+          "expected": "boolean",
+          "received": "array"
+        }
+      ]
+    }
+  },
+  "uuid-invalid-sentinel": {
+    "en": [
+      {
+        "code": "INVALID_UUID",
+        "message": "Invalid UUID format. Expected: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        "field": "id"
+      }
+    ],
+    "ja": [
+      {
+        "code": "INVALID_UUID",
+        "message": "UUID形式が無効です。期待される形式: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        "field": "id"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "id",
+          "code": "INVALID_UUID",
+          "message": "Invalid UUID format. Expected: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+          "hint": "Provide a valid UUID in format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+          "expected": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        }
+      ]
+    }
+  },
+  "uuid-valid-other-field-invalid": {
+    "en": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "Expected number, but received string",
+        "field": "n",
+        "details": {
+          "expected": "number",
+          "received": "string"
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "numberが期待されましたが、stringが渡されました",
+        "field": "n",
+        "details": {
+          "expected": "number",
+          "received": "string"
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "n",
+          "code": "INVALID_TYPE",
+          "message": "Expected number, but received string",
+          "hint": "Provide the correct type for 'n'.",
+          "expected": "number",
+          "received": "string"
+        }
+      ]
+    }
+  },
+  "url-invalid-sentinel": {
+    "en": [
+      {
+        "code": "INVALID_FORMAT",
+        "message": "Field 'url' does not match the required format: url",
+        "field": "url"
+      }
+    ],
+    "ja": [
+      {
+        "code": "INVALID_FORMAT",
+        "message": "フィールド 'url' は指定された形式に一致しません: url",
+        "field": "url"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "url",
+          "code": "INVALID_FORMAT",
+          "message": "Field 'url' does not match the required format: url",
+          "hint": "Provide a valid URL starting with https://, e.g., 'https://example.com'",
+          "expected": "https://example.com"
+        }
+      ]
+    }
+  },
+  "email-invalid-sentinel": {
+    "en": [
+      {
+        "code": "INVALID_FORMAT",
+        "message": "Field 'mail' does not match the required format: email",
+        "field": "mail"
+      }
+    ],
+    "ja": [
+      {
+        "code": "INVALID_FORMAT",
+        "message": "フィールド 'mail' は指定された形式に一致しません: email",
+        "field": "mail"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "mail",
+          "code": "INVALID_FORMAT",
+          "message": "Field 'mail' does not match the required format: email",
+          "hint": "Check the format of 'mail'.",
+          "expected": "email"
+        }
+      ]
+    }
+  },
+  "regex-invalid-sentinel": {
+    "en": [
+      {
+        "code": "INVALID_FORMAT",
+        "message": "Field 'code' does not match the required format: regex",
+        "field": "code"
+      }
+    ],
+    "ja": [
+      {
+        "code": "INVALID_FORMAT",
+        "message": "フィールド 'code' は指定された形式に一致しません: regex",
+        "field": "code"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "code",
+          "code": "INVALID_FORMAT",
+          "message": "Field 'code' does not match the required format: regex",
+          "hint": "Check the format of 'code'.",
+          "expected": "regex"
+        }
+      ]
+    }
+  },
+  "enum-invalid-sentinel": {
+    "en": [
+      {
+        "code": "INVALID_ENUM",
+        "message": "Invalid value 'SECRET_SENTINEL_9f3a'. Expected one of: fast, slow",
+        "field": "mode",
+        "details": {
+          "received": "SECRET_SENTINEL_9f3a",
+          "options": ["fast", "slow"]
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "INVALID_ENUM",
+        "message": "値 'SECRET_SENTINEL_9f3a' は無効です。次のいずれかを指定してください: fast, slow",
+        "field": "mode",
+        "details": {
+          "received": "SECRET_SENTINEL_9f3a",
+          "options": ["fast", "slow"]
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "mode",
+          "code": "INVALID_ENUM",
+          "message": "Invalid value 'SECRET_SENTINEL_9f3a'. Expected one of: fast, slow",
+          "hint": "Choose a valid option for 'mode'.",
+          "expected": "fast, slow",
+          "received": "SECRET_SENTINEL_9f3a"
+        }
+      ]
+    }
+  },
+  "enum-invalid-number": {
+    "en": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "Expected 'fast' | 'slow', but received number",
+        "field": "mode",
+        "details": {
+          "expected": "'fast' | 'slow'",
+          "received": "number"
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "'fast' | 'slow'が期待されましたが、numberが渡されました",
+        "field": "mode",
+        "details": {
+          "expected": "'fast' | 'slow'",
+          "received": "number"
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "mode",
+          "code": "INVALID_TYPE",
+          "message": "Expected 'fast' | 'slow', but received number",
+          "hint": "Provide the correct type for 'mode'.",
+          "expected": "'fast' | 'slow'",
+          "received": "number"
+        }
+      ]
+    }
+  },
+  "number-too-small": {
+    "en": [
+      {
+        "code": "OUT_OF_RANGE",
+        "message": "Value 1 is too small (min: 1)",
+        "field": "limit",
+        "details": {
+          "min": 1
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "OUT_OF_RANGE",
+        "message": "値 1 は小さすぎます (最小: 1)",
+        "field": "limit",
+        "details": {
+          "min": 1
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "limit",
+          "code": "OUT_OF_RANGE",
+          "message": "Value 1 is too small (min: 1)",
+          "hint": "Adjust the value of 'limit' to be within the allowed range.",
+          "expected": ">= 1"
+        }
+      ]
+    }
+  },
+  "number-too-big": {
+    "en": [
+      {
+        "code": "OUT_OF_RANGE",
+        "message": "Value 10 is too large (max: 10)",
+        "field": "limit",
+        "details": {
+          "max": 10
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "OUT_OF_RANGE",
+        "message": "値 10 は大きすぎます (最大: 10)",
+        "field": "limit",
+        "details": {
+          "max": 10
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "limit",
+          "code": "OUT_OF_RANGE",
+          "message": "Value 10 is too large (max: 10)",
+          "hint": "Adjust the value of 'limit' to be within the allowed range.",
+          "expected": "<= 10"
+        }
+      ]
+    }
+  },
+  "number-too-small-and-too-big-merge": {
+    "en": [
+      {
+        "code": "OUT_OF_RANGE",
+        "message": "Value 0 is out of range (min: 5, max: 3)",
+        "field": "limit",
+        "details": {
+          "min": 5,
+          "max": 3
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "OUT_OF_RANGE",
+        "message": "値 0 は範囲外です (最小: 5, 最大: 3)",
+        "field": "limit",
+        "details": {
+          "min": 5,
+          "max": 3
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "limit",
+          "code": "OUT_OF_RANGE",
+          "message": "Value 5 is too small (min: 5)",
+          "hint": "Adjust the value of 'limit' to be within the allowed range.",
+          "expected": ">= 5"
+        },
+        {
+          "field": "limit",
+          "code": "OUT_OF_RANGE",
+          "message": "Value 3 is too large (max: 3)",
+          "hint": "Adjust the value of 'limit' to be within the allowed range.",
+          "expected": "<= 3"
+        }
+      ]
+    }
+  },
+  "number-not-int": {
+    "en": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "Expected integer, but received float",
+        "field": "limit",
+        "details": {
+          "expected": "integer",
+          "received": "float"
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "integerが期待されましたが、floatが渡されました",
+        "field": "limit",
+        "details": {
+          "expected": "integer",
+          "received": "float"
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "limit",
+          "code": "INVALID_TYPE",
+          "message": "Expected integer, but received float",
+          "hint": "Provide the correct type for 'limit'.",
+          "expected": "integer",
+          "received": "float"
+        }
+      ]
+    }
+  },
+  "string-too-short": {
+    "en": [
+      {
+        "code": "STRING_TOO_SHORT",
+        "message": "Field 'query' must have at least 3 characters",
+        "field": "query",
+        "details": {
+          "min": 3
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "STRING_TOO_SHORT",
+        "message": "フィールド 'query' は3文字以上で入力してください",
+        "field": "query",
+        "details": {
+          "min": 3
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "query",
+          "code": "STRING_TOO_SHORT",
+          "message": "Field 'query' must have at least 3 characters",
+          "hint": "Provide a longer value for 'query'.",
+          "expected": ">= 3"
+        }
+      ]
+    }
+  },
+  "string-too-long-sentinel": {
+    "en": [
+      {
+        "code": "STRING_TOO_LONG",
+        "message": "Field 'query' must have at most 5 characters",
+        "field": "query",
+        "details": {
+          "max": 5
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "STRING_TOO_LONG",
+        "message": "フィールド 'query' は5文字以下で入力してください",
+        "field": "query",
+        "details": {
+          "max": 5
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "query",
+          "code": "STRING_TOO_LONG",
+          "message": "Field 'query' must have at most 5 characters",
+          "hint": "Shorten the value of 'query'.",
+          "expected": "<= 5"
+        }
+      ]
+    }
+  },
+  "array-too-short": {
+    "en": [
+      {
+        "code": "ARRAY_TOO_SHORT",
+        "message": "Array 'ids' must have at least 2 items",
+        "field": "ids",
+        "details": {
+          "min": 2
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "ARRAY_TOO_SHORT",
+        "message": "配列 'ids' は2個以上の要素が必要です",
+        "field": "ids",
+        "details": {
+          "min": 2
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "ids",
+          "code": "ARRAY_TOO_SHORT",
+          "message": "Array 'ids' must have at least 2 items",
+          "hint": "Add more items to 'ids'.",
+          "expected": ">= 2"
+        }
+      ]
+    }
+  },
+  "array-too-long": {
+    "en": [
+      {
+        "code": "ARRAY_TOO_LONG",
+        "message": "Array 'ids' must have at most 1 item",
+        "field": "ids",
+        "details": {
+          "max": 1
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "ARRAY_TOO_LONG",
+        "message": "配列 'ids' は1個以下の要素にしてください",
+        "field": "ids",
+        "details": {
+          "max": 1
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "ids",
+          "code": "ARRAY_TOO_LONG",
+          "message": "Array 'ids' must have at most 1 item",
+          "hint": "Reduce the number of items in 'ids'.",
+          "expected": "<= 1"
+        }
+      ]
+    }
+  },
+  "array-element-type": {
+    "en": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "Expected string, but received number",
+        "field": "ids.1",
+        "details": {
+          "expected": "string",
+          "received": "number"
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "stringが期待されましたが、numberが渡されました",
+        "field": "ids.1",
+        "details": {
+          "expected": "string",
+          "received": "number"
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "ids.1",
+          "code": "INVALID_TYPE",
+          "message": "Expected string, but received number",
+          "hint": "Provide the correct type for '1'.",
+          "expected": "string",
+          "received": "number"
+        }
+      ]
+    }
+  },
+  "custom-refine": {
+    "en": [
+      {
+        "code": "CUSTOM_ERROR",
+        "message": "custom rule failed",
+        "field": "a"
+      }
+    ],
+    "ja": [
+      {
+        "code": "CUSTOM_ERROR",
+        "message": "custom rule failed",
+        "field": "a"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "a",
+          "code": "CUSTOM_ERROR",
+          "message": "custom rule failed",
+          "hint": "Check the validation requirements for 'a'."
+        }
+      ]
+    }
+  },
+  "custom-refine-default-message": {
+    "en": [
+      {
+        "code": "CUSTOM_ERROR",
+        "message": "Invalid input"
+      }
+    ],
+    "ja": [
+      {
+        "code": "CUSTOM_ERROR",
+        "message": "Invalid input"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "root",
+          "code": "CUSTOM_ERROR",
+          "message": "Invalid input",
+          "hint": "Check the validation requirements for 'root'."
+        }
+      ]
+    }
+  },
+  "strict-unrecognized-key-sentinel": {
+    "en": [
+      {
+        "code": "UNKNOWN_ERROR",
+        "message": "Validation error: Unrecognized key(s) in object: 'SECRET_SENTINEL_9f3a'"
+      }
+    ],
+    "ja": [
+      {
+        "code": "UNKNOWN_ERROR",
+        "message": "バリデーションエラー: Unrecognized key(s) in object: 'SECRET_SENTINEL_9f3a'"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "root",
+          "code": "UNKNOWN_ERROR",
+          "message": "Validation error: Unrecognized key(s) in object: 'SECRET_SENTINEL_9f3a'",
+          "hint": "Check the validation requirements for 'root'."
+        }
+      ]
+    }
+  },
+  "union-no-match-sentinel": {
+    "en": [
+      {
+        "code": "UNKNOWN_ERROR",
+        "message": "Validation error: Invalid input",
+        "field": "v"
+      }
+    ],
+    "ja": [
+      {
+        "code": "UNKNOWN_ERROR",
+        "message": "バリデーションエラー: Invalid input",
+        "field": "v"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "v",
+          "code": "UNKNOWN_ERROR",
+          "message": "Validation error: Invalid input",
+          "hint": "Check the validation requirements for 'v'."
+        }
+      ]
+    }
+  },
+  "literal-mismatch-sentinel": {
+    "en": [
+      {
+        "code": "UNKNOWN_ERROR",
+        "message": "Validation error: Invalid literal value, expected \"on\"",
+        "field": "v"
+      }
+    ],
+    "ja": [
+      {
+        "code": "UNKNOWN_ERROR",
+        "message": "バリデーションエラー: Invalid literal value, expected \"on\"",
+        "field": "v"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "v",
+          "code": "UNKNOWN_ERROR",
+          "message": "Validation error: Invalid literal value, expected \"on\"",
+          "hint": "Check the validation requirements for 'v'."
+        }
+      ]
+    }
+  },
+  "multiple-issues-order": {
+    "en": [
+      {
+        "code": "REQUIRED_FIELD",
+        "message": "Required field 'a' is missing",
+        "field": "a"
+      },
+      {
+        "code": "OUT_OF_RANGE",
+        "message": "Value 1 is too small (min: 1)",
+        "field": "b",
+        "details": {
+          "min": 1
+        }
+      },
+      {
+        "code": "INVALID_TYPE",
+        "message": "Expected 'x' | 'y', but received number",
+        "field": "c",
+        "details": {
+          "expected": "'x' | 'y'",
+          "received": "number"
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "REQUIRED_FIELD",
+        "message": "必須フィールド 'a' が指定されていません",
+        "field": "a"
+      },
+      {
+        "code": "OUT_OF_RANGE",
+        "message": "値 1 は小さすぎます (最小: 1)",
+        "field": "b",
+        "details": {
+          "min": 1
+        }
+      },
+      {
+        "code": "INVALID_TYPE",
+        "message": "'x' | 'y'が期待されましたが、numberが渡されました",
+        "field": "c",
+        "details": {
+          "expected": "'x' | 'y'",
+          "received": "number"
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "a",
+          "code": "REQUIRED_FIELD",
+          "message": "Required field 'a' is missing",
+          "hint": "Provide a value for 'a'.",
+          "expected": "string",
+          "received": "undefined"
+        },
+        {
+          "field": "b",
+          "code": "OUT_OF_RANGE",
+          "message": "Value 1 is too small (min: 1)",
+          "hint": "Adjust the value of 'b' to be within the allowed range.",
+          "expected": ">= 1"
+        },
+        {
+          "field": "c",
+          "code": "INVALID_TYPE",
+          "message": "Expected 'x' | 'y', but received number",
+          "hint": "Provide the correct type for 'c'.",
+          "expected": "'x' | 'y'",
+          "received": "number"
+        }
+      ]
+    }
+  },
+  "discriminated-union-no-match-sentinel": {
+    "en": [
+      {
+        "code": "UNKNOWN_ERROR",
+        "message": "Validation error: Invalid discriminator value. Expected 'a' | 'b'",
+        "field": "v.kind"
+      }
+    ],
+    "ja": [
+      {
+        "code": "UNKNOWN_ERROR",
+        "message": "バリデーションエラー: Invalid discriminator value. Expected 'a' | 'b'",
+        "field": "v.kind"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "v.kind",
+          "code": "UNKNOWN_ERROR",
+          "message": "Validation error: Invalid discriminator value. Expected 'a' | 'b'",
+          "hint": "Check the validation requirements for 'kind'."
+        }
+      ]
+    }
+  },
+  "record-value-type": {
+    "en": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "Expected number, but received string",
+        "field": "m.k",
+        "details": {
+          "expected": "number",
+          "received": "string"
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "INVALID_TYPE",
+        "message": "numberが期待されましたが、stringが渡されました",
+        "field": "m.k",
+        "details": {
+          "expected": "number",
+          "received": "string"
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "m.k",
+          "code": "INVALID_TYPE",
+          "message": "Expected number, but received string",
+          "hint": "Provide the correct type for 'k'.",
+          "expected": "number",
+          "received": "string"
+        }
+      ]
+    }
+  },
+  "tuple-element-type-and-length": {
+    "en": [
+      {
+        "code": "ARRAY_TOO_SHORT",
+        "message": "Array 't' must have at least 2 items",
+        "field": "t",
+        "details": {
+          "min": 2
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "ARRAY_TOO_SHORT",
+        "message": "配列 't' は2個以上の要素が必要です",
+        "field": "t",
+        "details": {
+          "min": 2
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "t",
+          "code": "ARRAY_TOO_SHORT",
+          "message": "Array 't' must have at least 2 items",
+          "hint": "Add more items to 't'.",
+          "expected": ">= 2"
+        }
+      ]
+    }
+  },
+  "number-not-nonnegative": {
+    "en": [
+      {
+        "code": "OUT_OF_RANGE",
+        "message": "Value 0 is too small (min: 0)",
+        "field": "n",
+        "details": {
+          "min": 0
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "OUT_OF_RANGE",
+        "message": "値 0 は小さすぎます (最小: 0)",
+        "field": "n",
+        "details": {
+          "min": 0
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "n",
+          "code": "OUT_OF_RANGE",
+          "message": "Value 0 is too small (min: 0)",
+          "hint": "Adjust the value of 'n' to be within the allowed range.",
+          "expected": ">= 0"
+        }
+      ]
+    }
+  },
+  "number-not-positive": {
+    "en": [
+      {
+        "code": "OUT_OF_RANGE",
+        "message": "Value 0 is too small (min: 0)",
+        "field": "n",
+        "details": {
+          "min": 0
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "OUT_OF_RANGE",
+        "message": "値 0 は小さすぎます (最小: 0)",
+        "field": "n",
+        "details": {
+          "min": 0
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "n",
+          "code": "OUT_OF_RANGE",
+          "message": "Value 0 is too small (min: 0)",
+          "hint": "Adjust the value of 'n' to be within the allowed range.",
+          "expected": ">= 0"
+        }
+      ]
+    }
+  },
+  "number-not-finite": {
+    "en": [
+      {
+        "code": "UNKNOWN_ERROR",
+        "message": "Validation error: Number must be finite",
+        "field": "n"
+      }
+    ],
+    "ja": [
+      {
+        "code": "UNKNOWN_ERROR",
+        "message": "バリデーションエラー: Number must be finite",
+        "field": "n"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "n",
+          "code": "UNKNOWN_ERROR",
+          "message": "Validation error: Number must be finite",
+          "hint": "Check the validation requirements for 'n'."
+        }
+      ]
+    }
+  },
+  "number-int-below-min": {
+    "en": [
+      {
+        "code": "OUT_OF_RANGE",
+        "message": "Value 1 is too small (min: 1)",
+        "field": "limit",
+        "details": {
+          "min": 1
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "OUT_OF_RANGE",
+        "message": "値 1 は小さすぎます (最小: 1)",
+        "field": "limit",
+        "details": {
+          "min": 1
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "limit",
+          "code": "OUT_OF_RANGE",
+          "message": "Value 1 is too small (min: 1)",
+          "hint": "Adjust the value of 'limit' to be within the allowed range.",
+          "expected": ">= 1"
+        }
+      ]
+    }
+  },
+  "number-int-above-max": {
+    "en": [
+      {
+        "code": "OUT_OF_RANGE",
+        "message": "Value 10 is too large (max: 10)",
+        "field": "limit",
+        "details": {
+          "max": 10
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "OUT_OF_RANGE",
+        "message": "値 10 は大きすぎます (最大: 10)",
+        "field": "limit",
+        "details": {
+          "max": 10
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "limit",
+          "code": "OUT_OF_RANGE",
+          "message": "Value 10 is too large (max: 10)",
+          "hint": "Adjust the value of 'limit' to be within the allowed range.",
+          "expected": "<= 10"
+        }
+      ]
+    }
+  },
+  "string-not-datetime-sentinel": {
+    "en": [
+      {
+        "code": "INVALID_FORMAT",
+        "message": "Field 'at' does not match the required format: datetime",
+        "field": "at"
+      }
+    ],
+    "ja": [
+      {
+        "code": "INVALID_FORMAT",
+        "message": "フィールド 'at' は指定された形式に一致しません: datetime",
+        "field": "at"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "at",
+          "code": "INVALID_FORMAT",
+          "message": "Field 'at' does not match the required format: datetime",
+          "hint": "Check the format of 'at'.",
+          "expected": "datetime"
+        }
+      ]
+    }
+  },
+  "string-not-startswith-sentinel": {
+    "en": [
+      {
+        "code": "INVALID_FORMAT",
+        "message": "Field 'u' does not match the required format: unknown",
+        "field": "u"
+      }
+    ],
+    "ja": [
+      {
+        "code": "INVALID_FORMAT",
+        "message": "フィールド 'u' は指定された形式に一致しません: unknown",
+        "field": "u"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "u",
+          "code": "INVALID_FORMAT",
+          "message": "Field 'u' does not match the required format: unknown",
+          "hint": "Check the format of 'u'.",
+          "expected": "[object Object]"
+        }
+      ]
+    }
+  },
+  "string-not-endswith-sentinel": {
+    "en": [
+      {
+        "code": "INVALID_FORMAT",
+        "message": "Field 'f' does not match the required format: unknown",
+        "field": "f"
+      }
+    ],
+    "ja": [
+      {
+        "code": "INVALID_FORMAT",
+        "message": "フィールド 'f' は指定された形式に一致しません: unknown",
+        "field": "f"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "f",
+          "code": "INVALID_FORMAT",
+          "message": "Field 'f' does not match the required format: unknown",
+          "hint": "Check the format of 'f'.",
+          "expected": "[object Object]"
+        }
+      ]
+    }
+  },
+  "string-length-exact-sentinel": {
+    "en": [
+      {
+        "code": "STRING_TOO_LONG",
+        "message": "Field 'code' must have at most 3 characters",
+        "field": "code",
+        "details": {
+          "max": 3
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "STRING_TOO_LONG",
+        "message": "フィールド 'code' は3文字以下で入力してください",
+        "field": "code",
+        "details": {
+          "max": 3
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "code",
+          "code": "STRING_TOO_LONG",
+          "message": "Field 'code' must have at most 3 characters",
+          "hint": "Shorten the value of 'code'.",
+          "expected": "<= 3"
+        }
+      ]
+    }
+  },
+  "array-length-exact": {
+    "en": [
+      {
+        "code": "ARRAY_TOO_SHORT",
+        "message": "Array 'pair' must have at least 2 items",
+        "field": "pair",
+        "details": {
+          "min": 2
+        }
+      }
+    ],
+    "ja": [
+      {
+        "code": "ARRAY_TOO_SHORT",
+        "message": "配列 'pair' は2個以上の要素が必要です",
+        "field": "pair",
+        "details": {
+          "min": 2
+        }
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "pair",
+          "code": "ARRAY_TOO_SHORT",
+          "message": "Array 'pair' must have at least 2 items",
+          "hint": "Add more items to 'pair'.",
+          "expected": ">= 2"
+        }
+      ]
+    }
+  },
+  "instanceof-mismatch-sentinel": {
+    "en": [
+      {
+        "code": "CUSTOM_ERROR",
+        "message": "Input not instance of Date",
+        "field": "d"
+      }
+    ],
+    "ja": [
+      {
+        "code": "CUSTOM_ERROR",
+        "message": "Input not instance of Date",
+        "field": "d"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "d",
+          "code": "CUSTOM_ERROR",
+          "message": "Input not instance of Date",
+          "hint": "Check the validation requirements for 'd'."
+        }
+      ]
+    }
+  },
+  "size-bigint-too-small": {
+    "en": [
+      {
+        "code": "UNKNOWN_ERROR",
+        "message": "Validation error: Number must be greater than or equal to 5",
+        "field": "n"
+      }
+    ],
+    "ja": [
+      {
+        "code": "UNKNOWN_ERROR",
+        "message": "バリデーションエラー: Number must be greater than or equal to 5",
+        "field": "n"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "n",
+          "code": "OUT_OF_RANGE",
+          "message": "Validation error: Number must be greater than or equal to 5",
+          "hint": "Adjust the value of 'n' to be within the allowed range.",
+          "expected": ">= 5"
+        }
+      ]
+    }
+  },
+  "size-set-too-small": {
+    "en": [
+      {
+        "code": "UNKNOWN_ERROR",
+        "message": "Validation error: Invalid input",
+        "field": "s"
+      }
+    ],
+    "ja": [
+      {
+        "code": "UNKNOWN_ERROR",
+        "message": "バリデーションエラー: Invalid input",
+        "field": "s"
+      }
+    ],
+    "detailed": {
+      "errors": [
+        {
+          "field": "s",
+          "code": "OUT_OF_RANGE",
+          "message": "Validation error: Invalid input",
+          "hint": "Adjust the value of 's' to be within the allowed range.",
+          "expected": ">= 2"
+        }
+      ]
+    }
+  }
+}

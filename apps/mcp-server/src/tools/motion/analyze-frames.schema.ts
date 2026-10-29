@@ -159,7 +159,7 @@ export const analyzeFramesInputSchema = z.object({
   analysis_types: z
     .array(analysisTypeSchema)
     .min(1, { message: "最低1つの解析タイプが必要です" })
-    .default(["frame_diff", "layout_shift"]),
+    .default((): Array<z.infer<typeof analysisTypeSchema>> => ["frame_diff", "layout_shift"]),
   /** 解析オプション */
   options: analyzeOptionsSchema.optional(),
 });

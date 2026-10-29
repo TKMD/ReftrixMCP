@@ -28,6 +28,7 @@ import { createLogger, isDevelopment } from "../utils/logger";
 import { McpError, ErrorCode } from "../utils/errors";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
 import { prisma } from "@reftrixmcp/database";
+import { formatIssueLine } from "../utils/issue-path";
 
 // =============================================================================
 // サービスインターフェース（テスト用依存性注入）
@@ -151,11 +152,11 @@ export async function styleGetPaletteHandler(input: unknown): Promise<StyleGetPa
     validated = styleGetPaletteInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const firstError = error.errors[0];
+      const firstError = error.issues[0];
 
       // IDの形式エラー
       if (firstError?.path.includes("id")) {
-        logger.warn("Invalid palette ID format", { errors: error.errors });
+        logger.warn("Invalid palette ID format", { errors: error.issues });
         return createErrorResponse(
           "CREATIVE_INVALID_PALETTE_ID",
           `無効なパレットID形式です: ${firstError.message}`,
@@ -164,9 +165,9 @@ export async function styleGetPaletteHandler(input: unknown): Promise<StyleGetPa
       }
 
       // その他のバリデーションエラー
-      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      const errorMessage = error.issues.map((e) => `${formatIssueLine(e)}`).join(", ");
 
-      logger.warn("Validation error", { errors: error.errors });
+      logger.warn("Validation error", { errors: error.issues });
 
       return createErrorResponse("VALIDATION_ERROR", `入力バリデーションエラー: ${errorMessage}`);
     }
@@ -295,6 +296,7 @@ export const styleGetPaletteToolDefinition = {
           },
           token_pairs: {
             type: "array",
+            maxItems: 20,
             items: {
               type: "array",
               items: { type: "string" },

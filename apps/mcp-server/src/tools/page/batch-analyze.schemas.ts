@@ -115,7 +115,7 @@ export const batchAnalyzeInputSchema = z.object({
       quality: z.boolean().optional().default(true),
     })
     .optional()
-    .default({ layout: true, motion: true, quality: true }),
+    .default(() => ({ layout: true, motion: true, quality: true })),
 
   /** 全URL共通のレイアウトオプション / Shared layout options */
   layoutOptions: z
@@ -207,7 +207,7 @@ export const batchAnalyzeAsyncOutputSchema = z.object({
     /** メッセージ / Message */
     message: z.string(),
   }),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type BatchAnalyzeAsyncOutput = z.infer<typeof batchAnalyzeAsyncOutputSchema>;
@@ -219,7 +219,7 @@ export const batchAnalyzeErrorOutputSchema = z.object({
     code: z.string(),
     message: z.string(),
   }),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type BatchAnalyzeErrorOutput = z.infer<typeof batchAnalyzeErrorOutputSchema>;
@@ -248,7 +248,7 @@ export const getBatchStatusOutputSchema = z.object({
     /** 経過時間（ms）/ Elapsed time */
     elapsedMs: z.number().optional(),
   }),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type GetBatchStatusOutput = z.infer<typeof getBatchStatusOutputSchema>;

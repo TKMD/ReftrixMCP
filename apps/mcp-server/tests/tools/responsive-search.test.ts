@@ -270,7 +270,7 @@ describe("responsive.search MCPツール", () => {
     it("should accept valid webPageId (UUID)", () => {
       const input = {
         query: "test",
-        filters: { webPageId: "11111111-1111-1111-1111-111111111111" },
+        filters: { webPageId: "11111111-1111-4111-9111-111111111111" },
       };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(true);
@@ -401,7 +401,7 @@ describe("responsive.search MCPツール", () => {
           viewportPair: "desktop-mobile",
           breakpointRange: { min: 320, max: 1024 },
           minDiffPercentage: 25,
-          webPageId: "11111111-1111-1111-1111-111111111111",
+          webPageId: "11111111-1111-4111-9111-111111111111",
         },
       });
 
@@ -412,7 +412,7 @@ describe("responsive.search MCPツール", () => {
             diffCategory: "navigation",
             viewportPair: "desktop-mobile",
             minDiffPercentage: 25,
-            webPageId: "11111111-1111-1111-1111-111111111111",
+            webPageId: "11111111-1111-4111-9111-111111111111",
           }),
         })
       );
@@ -559,7 +559,7 @@ describe("responsive.search MCPツール", () => {
   // ===================================================
 
   describe("嗜好プロファイルリランキング", () => {
-    const PROFILE_ID = "11111111-2222-3333-4444-555555555555";
+    const PROFILE_ID = "11111111-2222-4333-9444-555555555555";
 
     /**
      * モックPrismaClientを作成
@@ -727,7 +727,7 @@ describe("responsive.search MCPツール", () => {
     it("profile_idスキーマバリデーション: 有効なUUIDを受け付ける", () => {
       const input = {
         query: "hamburger menu",
-        profile_id: "11111111-2222-3333-4444-555555555555",
+        profile_id: "11111111-2222-4333-9444-555555555555",
       };
       const result = responsiveSearchInputSchema.safeParse(input);
       expect(result.success).toBe(true);

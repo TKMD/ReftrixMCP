@@ -39,7 +39,10 @@ export const paletteModeSchema = z.enum(["light", "dark", "both"]);
 export const gradientAutoGenerateOptionsSchema = z.object({
   type: z.enum(["linear", "radial"]).optional().default("linear"),
   angle: z.number().min(0).max(360).optional().default(135),
-  token_pairs: z.array(z.tuple([z.string(), z.string()])).optional(),
+  token_pairs: z
+    .array(z.tuple([z.string(), z.string()]))
+    .max(20, { message: "token_pairsは20組以下にしてください" })
+    .optional(),
   include_complementary: z.boolean().optional().default(false),
   include_analogous: z.boolean().optional().default(false),
 });

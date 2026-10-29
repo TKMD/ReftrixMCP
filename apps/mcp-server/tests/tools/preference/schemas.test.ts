@@ -36,7 +36,7 @@ describe("preferenceHearInputSchema", () => {
 
     it("profile_id のみで有効（既存プロファイル使用）", () => {
       const input = {
-        profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+        profile_id: "01234567-89ab-4def-9123-456789abcdef",
       };
       const result = preferenceHearInputSchema.safeParse(input);
       expect(result.success).toBe(true);
@@ -54,15 +54,15 @@ describe("preferenceHearInputSchema", () => {
   describe("モードB: フィードバック受信（feedback あり）", () => {
     it("有効なフィードバック入力", () => {
       const input = {
-        profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+        profile_id: "01234567-89ab-4def-9123-456789abcdef",
         feedback: [
           {
-            sample_id: "11111111-1111-1111-1111-111111111111",
+            sample_id: "11111111-1111-4111-9111-111111111111",
             rating: "positive",
             comment: "ミニマルで美しいデザイン",
           },
           {
-            sample_id: "22222222-2222-2222-2222-222222222222",
+            sample_id: "22222222-2222-4222-9222-222222222222",
             rating: "negative",
           },
         ],
@@ -75,10 +75,10 @@ describe("preferenceHearInputSchema", () => {
 
     it("feedbackのratingが無効値でバリデーションエラー", () => {
       const input = {
-        profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+        profile_id: "01234567-89ab-4def-9123-456789abcdef",
         feedback: [
           {
-            sample_id: "11111111-1111-1111-1111-111111111111",
+            sample_id: "11111111-1111-4111-9111-111111111111",
             rating: "love", // 無効値
           },
         ],
@@ -90,7 +90,7 @@ describe("preferenceHearInputSchema", () => {
 
     it("feedbackのsample_idが無効なUUIDでバリデーションエラー", () => {
       const input = {
-        profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+        profile_id: "01234567-89ab-4def-9123-456789abcdef",
         feedback: [
           {
             sample_id: "invalid-uuid",
@@ -105,10 +105,10 @@ describe("preferenceHearInputSchema", () => {
 
     it("preference_textが10文字未満でバリデーションエラー", () => {
       const input = {
-        profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+        profile_id: "01234567-89ab-4def-9123-456789abcdef",
         feedback: [
           {
-            sample_id: "11111111-1111-1111-1111-111111111111",
+            sample_id: "11111111-1111-4111-9111-111111111111",
             rating: "positive",
           },
         ],
@@ -120,10 +120,10 @@ describe("preferenceHearInputSchema", () => {
 
     it("preference_textが1000文字超でバリデーションエラー", () => {
       const input = {
-        profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+        profile_id: "01234567-89ab-4def-9123-456789abcdef",
         feedback: [
           {
-            sample_id: "11111111-1111-1111-1111-111111111111",
+            sample_id: "11111111-1111-4111-9111-111111111111",
             rating: "positive",
           },
         ],
@@ -135,10 +135,10 @@ describe("preferenceHearInputSchema", () => {
 
     it("commentが500文字超でバリデーションエラー", () => {
       const input = {
-        profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+        profile_id: "01234567-89ab-4def-9123-456789abcdef",
         feedback: [
           {
-            sample_id: "11111111-1111-1111-1111-111111111111",
+            sample_id: "11111111-1111-4111-9111-111111111111",
             rating: "positive",
             comment: "a".repeat(501),
           },
@@ -151,10 +151,10 @@ describe("preferenceHearInputSchema", () => {
 
     it("neutralのratingが有効", () => {
       const input = {
-        profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+        profile_id: "01234567-89ab-4def-9123-456789abcdef",
         feedback: [
           {
-            sample_id: "11111111-1111-1111-1111-111111111111",
+            sample_id: "11111111-1111-4111-9111-111111111111",
             rating: "neutral",
           },
         ],
@@ -166,7 +166,7 @@ describe("preferenceHearInputSchema", () => {
 
     it("feedbackが空配列でも有効", () => {
       const input = {
-        profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+        profile_id: "01234567-89ab-4def-9123-456789abcdef",
         feedback: [],
         preference_text: "テストテキストです。少なくとも10文字必要。",
       };
@@ -236,10 +236,10 @@ describe("preferenceHearInputSchema", () => {
       const result = preferenceHearInputSchema.safeParse(input);
       expect(result.success).toBe(true);
       if (result.success) {
-        // .default(1).optional() の挙動: 省略時はundefined
-        // ただしZodの挙動上、.default(1) は明示的にundefined以外の値が来た時に適用
-        // optional()がdefault()の後なので、省略時はundefinedになる
-        expect(result.data.limit === undefined || result.data.limit === 1).toBe(true);
+        // zod 4 prep (INV-ZOD-DEFAULT-OPTIONAL-GOLDEN-001): limit is now
+        // .optional().default(1), so an omitted limit parses to 1 on zod 3 and zod 4 alike.
+        // The old assertion accepted undefined because the old order dropped the key on zod 3.
+        expect(result.data.limit).toBe(1);
       }
     });
   });
@@ -297,8 +297,8 @@ describe("preferenceHearInputSchema", () => {
     it("有効なUUID配列で成功", () => {
       const input = {
         exclude_ids: [
-          "11111111-1111-1111-1111-111111111111",
-          "22222222-2222-2222-2222-222222222222",
+          "11111111-1111-4111-9111-111111111111",
+          "22222222-2222-4222-9222-222222222222",
         ],
       };
       const result = preferenceHearInputSchema.safeParse(input);
@@ -320,7 +320,7 @@ describe("preferenceHearInputSchema", () => {
     it("50件のUUIDで有効（上限）", () => {
       const uuids = Array.from(
         { length: 50 },
-        (_, i) => `${String(i).padStart(8, "0")}-0000-0000-0000-000000000000`
+        (_, i) => `${String(i).padStart(8, "0")}-0000-4000-8000-000000000000`
       );
       const input = { exclude_ids: uuids };
       const result = preferenceHearInputSchema.safeParse(input);
@@ -333,7 +333,7 @@ describe("preferenceHearInputSchema", () => {
     it("51件のUUIDでバリデーションエラー（上限超過）", () => {
       const uuids = Array.from(
         { length: 51 },
-        (_, i) => `${String(i).padStart(8, "0")}-0000-0000-0000-000000000000`
+        (_, i) => `${String(i).padStart(8, "0")}-0000-4000-8000-000000000000`
       );
       const input = { exclude_ids: uuids };
       const result = preferenceHearInputSchema.safeParse(input);
@@ -342,7 +342,7 @@ describe("preferenceHearInputSchema", () => {
 
     it("不正なUUIDを含む配列でバリデーションエラー", () => {
       const input = {
-        exclude_ids: ["11111111-1111-1111-1111-111111111111", "not-a-valid-uuid"],
+        exclude_ids: ["11111111-1111-4111-9111-111111111111", "not-a-valid-uuid"],
       };
       const result = preferenceHearInputSchema.safeParse(input);
       expect(result.success).toBe(false);
@@ -365,12 +365,12 @@ describe("preferenceHearInputSchema", () => {
   describe("後方互換性: 新パラメータ省略", () => {
     it("limit/offset/exclude_ids すべて省略で有効", () => {
       const input = {
-        profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+        profile_id: "01234567-89ab-4def-9123-456789abcdef",
       };
       const result = preferenceHearInputSchema.safeParse(input);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.profile_id).toBe("01234567-89ab-cdef-0123-456789abcdef");
+        expect(result.data.profile_id).toBe("01234567-89ab-4def-9123-456789abcdef");
         // limit/offsetはdefault付きoptionalなので、undefinedまたはデフォルト値
         expect(result.data.exclude_ids).toBeUndefined();
       }
@@ -378,10 +378,10 @@ describe("preferenceHearInputSchema", () => {
 
     it("feedbackモードでも limit/offset/exclude_ids 省略で有効", () => {
       const input = {
-        profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+        profile_id: "01234567-89ab-4def-9123-456789abcdef",
         feedback: [
           {
-            sample_id: "11111111-1111-1111-1111-111111111111",
+            sample_id: "11111111-1111-4111-9111-111111111111",
             rating: "positive",
           },
         ],
@@ -393,12 +393,12 @@ describe("preferenceHearInputSchema", () => {
 
     it("全パラメータ指定で有効", () => {
       const input = {
-        profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+        profile_id: "01234567-89ab-4def-9123-456789abcdef",
         limit: 3,
         offset: 5,
         exclude_ids: [
-          "11111111-1111-1111-1111-111111111111",
-          "22222222-2222-2222-2222-222222222222",
+          "11111111-1111-4111-9111-111111111111",
+          "22222222-2222-4222-9222-222222222222",
         ],
       };
       const result = preferenceHearInputSchema.safeParse(input);
@@ -425,7 +425,7 @@ describe("preferenceGetInputSchema", () => {
 
   it("profile_id指定で有効", () => {
     const input = {
-      profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+      profile_id: "01234567-89ab-4def-9123-456789abcdef",
     };
     const result = preferenceGetInputSchema.safeParse(input);
     expect(result.success).toBe(true);
@@ -441,7 +441,7 @@ describe("preferenceGetInputSchema", () => {
 
   it("include_signals: true で有効", () => {
     const input = {
-      profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+      profile_id: "01234567-89ab-4def-9123-456789abcdef",
       include_signals: true,
     };
     const result = preferenceGetInputSchema.safeParse(input);
@@ -450,7 +450,7 @@ describe("preferenceGetInputSchema", () => {
 
   it("include_signals省略で有効", () => {
     const input = {
-      profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+      profile_id: "01234567-89ab-4def-9123-456789abcdef",
     };
     const result = preferenceGetInputSchema.safeParse(input);
     expect(result.success).toBe(true);
@@ -464,7 +464,7 @@ describe("preferenceGetInputSchema", () => {
 describe("preferenceResetInputSchema", () => {
   it("有効なリセット入力", () => {
     const input = {
-      profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+      profile_id: "01234567-89ab-4def-9123-456789abcdef",
       confirm: true,
     };
     const result = preferenceResetInputSchema.safeParse(input);
@@ -481,7 +481,7 @@ describe("preferenceResetInputSchema", () => {
 
   it("confirmが必須", () => {
     const input = {
-      profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+      profile_id: "01234567-89ab-4def-9123-456789abcdef",
     };
     const result = preferenceResetInputSchema.safeParse(input);
     expect(result.success).toBe(false);
@@ -489,7 +489,7 @@ describe("preferenceResetInputSchema", () => {
 
   it("confirmがfalseでも有効（ハンドラー側で制御）", () => {
     const input = {
-      profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+      profile_id: "01234567-89ab-4def-9123-456789abcdef",
       confirm: false,
     };
     const result = preferenceResetInputSchema.safeParse(input);
@@ -507,7 +507,7 @@ describe("preferenceResetInputSchema", () => {
 
   it("hard_delete: true で有効", () => {
     const input = {
-      profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+      profile_id: "01234567-89ab-4def-9123-456789abcdef",
       confirm: true,
       hard_delete: true,
     };
@@ -517,7 +517,7 @@ describe("preferenceResetInputSchema", () => {
 
   it("hard_delete省略で有効", () => {
     const input = {
-      profile_id: "01234567-89ab-cdef-0123-456789abcdef",
+      profile_id: "01234567-89ab-4def-9123-456789abcdef",
       confirm: true,
     };
     const result = preferenceResetInputSchema.safeParse(input);

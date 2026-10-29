@@ -78,8 +78,8 @@ export type Reference = z.infer<typeof referenceSchema>;
  * Must-have and must-avoid constraints for the design
  */
 export const constraintsSchema = z.object({
-  mustHave: z.array(z.string()).optional(),
-  mustAvoid: z.array(z.string()).optional(),
+  mustHave: z.array(z.string()).max(20).optional(),
+  mustAvoid: z.array(z.string()).max(20).optional(),
 });
 export type Constraints = z.infer<typeof constraintsSchema>;
 
@@ -114,7 +114,7 @@ export const briefSchema = z.object({
     .max(500, { message: "Target audience must be 500 characters or less" })
     .optional(),
   industry: z.string().max(100, { message: "Industry must be 100 characters or less" }).optional(),
-  tone: z.array(toneSchema).optional(),
+  tone: z.array(toneSchema).max(8).optional(),
   colorPreferences: colorPreferencesSchema.optional(),
   references: z
     .array(referenceSchema)

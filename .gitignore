@@ -164,3 +164,6 @@ docs/page-analyze-snapshot-*.jsonl
 
 # Stop-hook checkpoint state (transient, .claude/hooks/stop-checkpoint.cjs)
 .claude/.checkpoint-hook-state.json
+
+# zod golden regeneration scratch files (killed GOLDEN_UPDATE runs)
+.regen-*.json

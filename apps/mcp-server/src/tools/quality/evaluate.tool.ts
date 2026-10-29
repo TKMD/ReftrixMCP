@@ -852,6 +852,7 @@ export const qualityEvaluateToolDefinition = {
           },
           viewports: {
             type: "array",
+            maxItems: 10,
             description: "Viewports to evaluate (default: desktop/tablet/mobile)",
             items: {
               type: "object",

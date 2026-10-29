@@ -32,7 +32,7 @@ Reftrix MCP Server provides web design layout analysis, motion detection, and qu
 | MCP SDK           | 1.26.x               | Model Context Protocol実装                        |
 | Node.js           | 20.x LTS             | ランタイム                                        |
 | TypeScript        | 5.x                  | 型安全な開発                                      |
-| Zod               | 3.24.x               | 入力バリデーション                                |
+| Zod               | 4.6.x                | 入力バリデーション                                |
 | BullMQ            | 5.66.x               | 非同期ジョブキュー（page.analyze）                |
 | Redis             | -                    | BullMQジョブキューのバックエンド（ポート: 27379） |
 | ONNX Runtime      | 1.21.x               | ML推論（Embedding生成、Worker Thread化）          |
@@ -753,20 +753,23 @@ pnpm backfill:embeddings
 Token Bucket + Redis Lua（CWE-770 DoS対策）。全<!-- gen:tool-count -->40<!-- /gen:tool-count -->ツールに自動適用。
 Token Bucket + Redis Lua (CWE-770 DoS prevention). Auto-applied to all <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools.
 
-| ティア / Tier | RPM | 対象ツール / Target Tools                                                                                                                                                                                                                                                                                     |
-| ------------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| analysis      | 10  | page.analyze, page.batch_analyze, layout.ingest, layout.batch_ingest, accessibility.audit, performance.evaluate, design.track_changes, design.regression_test, report.generate                                                                                                                                |
-| search        | 120 | layout.search, motion.search, narrative.search, background.search, responsive.search, part.search, search.unified, design.search_by_image, design.similar_site, design.compare, search.facets, internal_search.text, internal_search.image, internal_search.similar_site, internal_compare, internal_sections |
-| default       | 60  | その他すべて / All others                                                                                                                                                                                                                                                                                     |
-
-> **`internal_search.*` / `internal_compare` は MCP ツールではない / `internal_search.*` and `internal_compare` are NOT MCP tools**: search tier の `internal_search.text` / `internal_search.image` / `internal_search.similar_site` (`/internal/search/*`、ADR-0042 Amendment 5) `internal_compare` (`/internal/compare`、ADR-0042 Amendment 7) および `internal_sections` (`/internal/sections`、ADR-0042 Amendment 13) は **WebUI 内部 read API の HTTP route** (127.0.0.1 固定 bind、opt-in `WEBUI_INTERNAL_API_ENABLED` default OFF) であり、MCP protocol 経由の tool ではない。上の prose「全<!-- gen:tool-count -->40<!-- /gen:tool-count -->ツール / all <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools」(= MCP tool 数) には含まれず、上表には rate-limit tier 割当 (search 120 RPM、MCP tool path と同一 Token Bucket core を共有) を示す目的でのみ列挙される。/ The search-tier `internal_search.text` / `internal_search.image` / `internal_search.similar_site` (`/internal/search/*`, ADR-0042 Amendment 5) `internal_compare` (`/internal/compare`, ADR-0042 Amendment 7) and `internal_sections` (`/internal/sections`, ADR-0042 Amendment 13) are **HTTP routes of the WebUI internal read API** (fixed 127.0.0.1 bind, opt-in `WEBUI_INTERNAL_API_ENABLED` default OFF), not MCP-protocol tools. They are excluded from the "all <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools" count above and appear only to show their rate-limit tier assignment (search 120 RPM, sharing the same Token Bucket core as the MCP-tool path).
+| ティア / Tier | RPM | 対象ツール / Target Tools                                                                                                                                                                     |
+| ------------- | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| analysis      | 10  | page.analyze, page.batch_analyze, layout.ingest, layout.batch_ingest, accessibility.audit, performance.evaluate, design.track_changes, design.regression_test, report.generate                |
+| search        | 120 | layout.search, motion.search, narrative.search, background.search, responsive.search, part.search, search.unified, design.search_by_image, design.similar_site, design.compare, search.facets |
+| default       | 60  | その他すべて / All others                                                                                                                                                                     |
 
 Graceful Degradation: Redis未接続時はインメモリフォールバック / Falls back to in-memory when Redis unavailable
 
+### 依存関係の下限 / Dependency Floors
+
+npm で `@reftrixmcp/mcp-server` を利用する場合、リポジトリ root の `pnpm.overrides` は利用側のインストールには効きません。次の下限以上の版を解決するよう、利用側で固定してください: `body-parser` `>=2.4.0`（圧縮リクエストの後続バイトでプロセスが落ちる問題 GHSA-27r3-jxmh-p828）、`qs` `>=6.16.1`、`undici` `>=7.30.1`（GHSA-xjj6-f33q-929c）。
+`pnpm.overrides` at the repository root does not apply to installs of `@reftrixmcp/mcp-server` from npm. Pin your own install to resolve at least these versions: `body-parser` `>=2.4.0` (a process-crash on extra bytes after a compressed request frame, GHSA-27r3-jxmh-p828), `qs` `>=6.16.1`, and `undici` `>=7.30.1` (GHSA-xjj6-f33q-929c).
+
 ### エラーメッセージサニタイズ / Error Message Sanitization (CWE-209)
 
-`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。<!-- gen:sanitize-usage-count -->126<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->40<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->113<!-- /gen:sanitize-import-count -->ファイルでインポート）。
-`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to <!-- gen:sanitize-usage-count -->126<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->113<!-- /gen:sanitize-import-count --> import files).
+`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。<!-- gen:sanitize-usage-count -->122<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->40<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->109<!-- /gen:sanitize-import-count -->ファイルでインポート）。
+`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to <!-- gen:sanitize-usage-count -->122<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->109<!-- /gen:sanitize-import-count --> import files).
 
 ---
 

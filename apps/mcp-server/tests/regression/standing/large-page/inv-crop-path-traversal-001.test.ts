@@ -6,7 +6,7 @@
  *
  * Context / 背景:
  *   PR-3a adds a NEW allowlist root `<screenshotRoot>/crops/<webPageId>/` and a
- *   `buildSafeCropPath(webPageId, kind, entityId)` helper that persists per-section
+ *   `buildSafeCropPath(webPageId, kind, entityId)` helper (now removed; `buildSafeCropDir` remains) that persisted per-section
  *   / per-part viewable PNG crops. The canonical hardened path defense lives in
  *   `screenshot-persistence.service.ts` (`validateScreenshotPath` 5-stage realpath
  *   chain; `buildSafeScreenshotPath` resolve+startsWith). A crops/ sibling dir is
@@ -25,19 +25,25 @@
  *     resolver and does NOT re-declare 0o600 / 0o700 literals.
  *   - surface 3: the crop helper validates webPageId AND entityId via UUID_REGEX
  *     (no bare UUID literal, no path.resolve+startsWith without realpath).
- *   - surface 4 (runtime): a symlink-escape candidate resolves to null via the
- *     shared validator (real defense exercised, not just source-pinned).
+ *
+ * Removed surfaces (2026-10-27, internal read API removal): the former surface 4
+ * (runtime symlink-escape via `validateCropPath`) and surfaces 5/5b (the crop serve
+ * path `getCropStream`) pinned a reader that no longer exists. The symlink-escape
+ * runtime defense of the shared core stays covered by
+ * `screenshot-persistence.service.test.ts` ("should reject symlinks pointing outside
+ * phase5 directory") and surfaces 1/1b here. If a sink that reads crops is ever
+ * re-introduced, restore a runtime validator and a symlink-escape test in the same PR
+ * (ADR-0052).
  *
  * This is a P0 standing regression (large-page domain). CI-failing executable
  * invariant. `.skip()` / `.todo()` / `describe.skip` are prohibited.
  *
- * @see apps/mcp-server/src/services/part/crop-persistence.helper.ts (buildSafeCropPath)
+ * @see apps/mcp-server/src/services/part/crop-persistence.helper.ts (buildSafeCropDir)
  * @see apps/mcp-server/src/services/screenshot-persistence.service.ts (shared core)
  */
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { assertInvName } from "../_setup/inv-assert";
 
 const MCP_SERVER_SRC_ROOT = path.resolve(__dirname, "../../../../src");
@@ -119,8 +125,8 @@ describe("INV-CROP-PATH-TRAVERSAL-001: crop path traversal shares the screenshot
       "crop helper must import from screenshot-persistence.service (shared SSOT core)"
     ).toBe(true);
     expect(
-      /\bbuildSafePathWithinRoot\b/.test(helper) || /\bvalidatePathWithinRoot\b/.test(helper),
-      "crop helper must use the shared buildSafePathWithinRoot / validatePathWithinRoot core (no inline resolver)"
+      /\bbuildSafePathWithinRoot\b/.test(helper),
+      "crop helper must use the shared buildSafePathWithinRoot core (no inline resolver)"
     ).toBe(true);
   });
 
@@ -150,103 +156,25 @@ describe("INV-CROP-PATH-TRAVERSAL-001: crop path traversal shares the screenshot
   });
 
   // ==========================================================================
-  // Surface 3 — webPageId AND entityId validated via UUID_REGEX
+  // Surface 3 — webPageId validated via UUID_REGEX
   // ==========================================================================
 
-  it("INV-CROP-PATH-TRAVERSAL-001: surface 3 — buildSafeCropPath validates webPageId and entityId via the exported UUID_REGEX (SEC-M-02)", () => {
+  it("INV-CROP-PATH-TRAVERSAL-001: surface 3 — buildSafeCropDir validates webPageId via the exported UUID_REGEX (SEC-M-02)", () => {
     const helper = stripLineComments(readSrc(CROP_HELPER_REL));
     expect(
-      /\bbuildSafeCropPath\b/.test(helper),
-      "crop helper must define buildSafeCropPath(webPageId, kind, entityId)"
+      /\bbuildSafeCropDir\b/.test(helper),
+      "crop helper must define buildSafeCropDir(webPageId) (the data.delete cascade path builder)"
     ).toBe(true);
     // UUID_REGEX must be imported from the screenshot SSOT and used to validate
-    // BOTH webPageId and entityId (no bare /^[0-9a-f]{8}.../ literal re-declaration).
+    // webPageId (no bare /^[0-9a-f]{8}.../ literal re-declaration).
     expect(
       /\bUUID_REGEX\b/.test(helper),
-      "crop helper must validate webPageId/entityId via the exported UUID_REGEX (SEC-M-02)"
+      "crop helper must validate webPageId via the exported UUID_REGEX (SEC-M-02)"
     ).toBe(true);
     // Drift guard: no bare RFC-4122 UUID regex literal re-declared in the helper.
     expect(
       /\[0-9a-f\]\{8\}-\[0-9a-f\]\{4\}/.test(helper),
       "crop helper must NOT re-declare a bare UUID regex literal (use imported UUID_REGEX)"
-    ).toBe(false);
-  });
-
-  // ==========================================================================
-  // Surface 4 — runtime symlink-escape resolves to null (real defense)
-  // ==========================================================================
-
-  describe("runtime symlink-escape via the shared crop validator", () => {
-    let tmpRoot: string;
-    let outsideTarget: string;
-
-    beforeEach(async () => {
-      tmpRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), "inv-crop-traversal-"));
-      process.env.REFTRIX_SCREENSHOT_ROOT = tmpRoot;
-      outsideTarget = path.join(tmpRoot, "outside-secret.png");
-      await fs.promises.writeFile(outsideTarget, Buffer.from("secret"));
-    });
-
-    afterEach(async () => {
-      delete process.env.REFTRIX_SCREENSHOT_ROOT;
-      const mod = await import("../../../../src/services/screenshot-persistence.service");
-      mod.clearResolvedRootCache();
-      await fs.promises.rm(tmpRoot, { recursive: true, force: true });
-    });
-
-    it("INV-CROP-PATH-TRAVERSAL-001: surface 4 — a symlink inside the crop dir pointing outside the crop root resolves to null via validateCropPath", async () => {
-      const cropMod = await import("../../../../src/services/part/crop-persistence.helper");
-      const webPageId = "0193b1e2-7c3a-7def-8a01-0123456789ab";
-      const cropRoot = await cropMod.resolveCropRoot();
-      const perPageDir = path.join(cropRoot, webPageId);
-      await fs.promises.mkdir(perPageDir, { recursive: true });
-      const symlinkPath = path.join(perPageDir, "section-escape.png");
-      // symlink escapes the crop root → must resolve to null (realpath re-check)
-      await fs.promises.symlink(outsideTarget, symlinkPath);
-
-      const resolved = await cropMod.validateCropPath(symlinkPath);
-      expect(
-        resolved,
-        "a symlink escaping the crop root MUST resolve to null (realpath re-check, not a weak resolver)"
-      ).toBeNull();
-    });
-  });
-
-  // ==========================================================================
-  // Surface 5 — crop SERVE route source-pin (W6 Issue A PR-4a, F-H-01, F-L-05)
-  //
-  // The PR-4 serve route (`getCropStream` in page-detail.service.ts) reads the
-  // DB-first `crop_storage_path` then chains `validateCropPath` BEFORE
-  // `createReadStream`. This surface CI-RED's if the serve path lets a raw DB
-  // crop path reach the filesystem without the realpath validator (raw-path→fs
-  // callsite=0 AST-pin), or if the validator is dropped. This EXTENDS the
-  // existing file's surfaces 1-4 (NOT a new file, F-L-05).
-  // ==========================================================================
-
-  const PAGE_DETAIL_REL = "api/internal/page-detail.service.ts";
-
-  it("INV-CROP-PATH-TRAVERSAL-001: surface 5 — the crop serve path (getCropStream) chains validateCropPath before createReadStream (no weak 2nd resolver)", () => {
-    const pageDetail = stripLineComments(readSrc(PAGE_DETAIL_REL));
-    // getCropStream must exist and must reference the crop realpath validator SSOT.
-    expect(
-      /export\s+async\s+function\s+getCropStream\s*\(/.test(pageDetail),
-      "page-detail.service.ts must export getCropStream (the crop serve resolver)"
-    ).toBe(true);
-    expect(
-      /\bvalidateCropPath\s*\(/.test(pageDetail),
-      "getCropStream must chain validateCropPath (realpath+isFile+startsWith SSOT) before reading"
-    ).toBe(true);
-  });
-
-  it("INV-CROP-PATH-TRAVERSAL-001: surface 5b — 0 raw crop_storage_path → fs/createReadStream callsites in the crop serve path (source-pin)", () => {
-    const pageDetail = stripLineComments(readSrc(PAGE_DETAIL_REL));
-    // No raw DB column value may flow directly into a filesystem read. The crop
-    // serve must only feed createReadStream the validated `safe`/`validated` local,
-    // never a raw `crop_storage_path` / `cropStoragePath` row value.
-    const RAW_PATH_TO_FS_RE = /createReadStream\s*\(\s*[^)]*(?:crop_storage_path|cropStoragePath)/;
-    expect(
-      RAW_PATH_TO_FS_RE.test(pageDetail),
-      "raw crop_storage_path must NOT flow directly into createReadStream (route through validateCropPath)"
     ).toBe(false);
   });
 });

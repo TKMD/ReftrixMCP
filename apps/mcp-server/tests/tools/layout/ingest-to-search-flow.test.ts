@@ -172,7 +172,7 @@ const createMockSearchService = (
 
 // 共通検索結果パターン生成（重複削減）
 const createMockSearchResult = (sectionType: string, overrides: Record<string, unknown> = {}) => ({
-  id: "11111111-1111-1111-1111-111111111111",
+  id: "11111111-1111-4111-9111-111111111111",
   webPageId: SAMPLE_WEB_PAGE_ID,
   sectionType,
   sectionName: `${sectionType} Section`,

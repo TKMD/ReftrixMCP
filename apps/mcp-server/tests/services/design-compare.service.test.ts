@@ -393,8 +393,8 @@ describe("compareDesigns", () => {
   // ---------------------------------------------------
 
   it("正常系: 2ページの品質比較", async () => {
-    const pageId1 = "aaaaaaaa-1111-1111-1111-111111111111";
-    const pageId2 = "bbbbbbbb-2222-2222-2222-222222222222";
+    const pageId1 = "aaaaaaaa-1111-4111-8111-111111111111";
+    const pageId2 = "bbbbbbbb-2222-4222-8222-222222222222";
 
     // fetchPageInfo
     (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
@@ -431,8 +431,8 @@ describe("compareDesigns", () => {
   // ---------------------------------------------------
 
   it("正常系: layout次元（embedding cosine類似度）", async () => {
-    const pageId1 = "aaaaaaaa-1111-1111-1111-111111111111";
-    const pageId2 = "bbbbbbbb-2222-2222-2222-222222222222";
+    const pageId1 = "aaaaaaaa-1111-4111-8111-111111111111";
+    const pageId2 = "bbbbbbbb-2222-4222-8222-222222222222";
 
     // fetchPageInfo
     (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
@@ -474,8 +474,8 @@ describe("compareDesigns", () => {
   // ---------------------------------------------------
 
   it("正常系: color次元（パレット距離）", async () => {
-    const pageId1 = "aaaaaaaa-1111-1111-1111-111111111111";
-    const pageId2 = "bbbbbbbb-2222-2222-2222-222222222222";
+    const pageId1 = "aaaaaaaa-1111-4111-8111-111111111111";
+    const pageId2 = "bbbbbbbb-2222-4222-8222-222222222222";
 
     // fetchPageInfo
     (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
@@ -509,8 +509,8 @@ describe("compareDesigns", () => {
   // ---------------------------------------------------
 
   it("include_details=trueでcommon_patternsとkey_differencesが生成される", async () => {
-    const pageId1 = "aaaaaaaa-1111-1111-1111-111111111111";
-    const pageId2 = "bbbbbbbb-2222-2222-2222-222222222222";
+    const pageId1 = "aaaaaaaa-1111-4111-8111-111111111111";
+    const pageId2 = "bbbbbbbb-2222-4222-8222-222222222222";
 
     // fetchPageInfo
     (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
@@ -539,8 +539,8 @@ describe("compareDesigns", () => {
   });
 
   it("include_details=falseではcommon_patternsとkey_differencesは空", async () => {
-    const pageId1 = "aaaaaaaa-1111-1111-1111-111111111111";
-    const pageId2 = "bbbbbbbb-2222-2222-2222-222222222222";
+    const pageId1 = "aaaaaaaa-1111-4111-8111-111111111111";
+    const pageId2 = "bbbbbbbb-2222-4222-8222-222222222222";
 
     // fetchPageInfo
     (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
@@ -572,9 +572,9 @@ describe("compareDesigns", () => {
 
   it("正常系: 3ページ比較で3組のペアが生成される", async () => {
     const ids = [
-      "aaaaaaaa-1111-1111-1111-111111111111",
-      "bbbbbbbb-2222-2222-2222-222222222222",
-      "cccccccc-3333-3333-3333-333333333333",
+      "aaaaaaaa-1111-4111-8111-111111111111",
+      "bbbbbbbb-2222-4222-8222-222222222222",
+      "cccccccc-3333-4333-8333-333333333333",
     ];
 
     // fetchPageInfo
@@ -613,8 +613,8 @@ describe("compareDesigns", () => {
   // ---------------------------------------------------
 
   it("embeddingデータがない場合もエラーにならない", async () => {
-    const pageId1 = "aaaaaaaa-1111-1111-1111-111111111111";
-    const pageId2 = "bbbbbbbb-2222-2222-2222-222222222222";
+    const pageId1 = "aaaaaaaa-1111-4111-8111-111111111111";
+    const pageId2 = "bbbbbbbb-2222-4222-8222-222222222222";
 
     // fetchPageInfo
     (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
@@ -661,8 +661,8 @@ describe("compareDesigns", () => {
   // ---------------------------------------------------
 
   it("正常系: 全4次元を同時に比較する", async () => {
-    const pageId1 = "aaaaaaaa-1111-1111-1111-111111111111";
-    const pageId2 = "bbbbbbbb-2222-2222-2222-222222222222";
+    const pageId1 = "aaaaaaaa-1111-4111-8111-111111111111";
+    const pageId2 = "bbbbbbbb-2222-4222-8222-222222222222";
 
     // fetchPageInfo
     (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
@@ -727,8 +727,8 @@ describe("compareDesigns", () => {
   // ---------------------------------------------------
 
   it("titleがnullのページはundefinedに変換される", async () => {
-    const pageId1 = "aaaaaaaa-1111-1111-1111-111111111111";
-    const pageId2 = "bbbbbbbb-2222-2222-2222-222222222222";
+    const pageId1 = "aaaaaaaa-1111-4111-8111-111111111111";
+    const pageId2 = "bbbbbbbb-2222-4222-8222-222222222222";
 
     // fetchPageInfo — title: null
     (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
@@ -759,8 +759,8 @@ describe("compareDesigns", () => {
   // ---------------------------------------------------
 
   it("低類似度ペアがある場合はkey_differencesが生成される", async () => {
-    const pageId1 = "aaaaaaaa-1111-1111-1111-111111111111";
-    const pageId2 = "bbbbbbbb-2222-2222-2222-222222222222";
+    const pageId1 = "aaaaaaaa-1111-4111-8111-111111111111";
+    const pageId2 = "bbbbbbbb-2222-4222-8222-222222222222";
 
     // fetchPageInfo
     (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValueOnce([

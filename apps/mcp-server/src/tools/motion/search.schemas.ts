@@ -52,7 +52,10 @@ export const samplePatternSchema = z.object({
   type: motionSearchTypeSchema.optional(),
   duration: z.number().min(0).optional(),
   easing: z.string().optional(),
-  properties: z.array(z.string()).optional(),
+  properties: z
+    .array(z.string())
+    .max(50, { message: "propertiesは50個以下にしてください" })
+    .optional(),
 });
 export type SamplePattern = z.infer<typeof samplePatternSchema>;
 
@@ -136,7 +139,7 @@ export const jsAnimationInfoSchema = z.object({
   /** ライブラリバージョン */
   libraryVersion: z.string().optional(),
   /** 追加メタデータ */
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 export type JSAnimationInfo = z.infer<typeof jsAnimationInfoSchema>;
 
@@ -248,7 +251,10 @@ export const implementationPropertySchema = z.object({
   name: z.string().min(1),
   from: z.string(),
   to: z.string(),
-  keyframes: z.array(keyframeOffsetSchema).optional(),
+  keyframes: z
+    .array(keyframeOffsetSchema)
+    .max(100, { message: "keyframesは100個以下にしてください" })
+    .optional(),
 });
 export type ImplementationProperty = z.infer<typeof implementationPropertySchema>;
 
@@ -264,7 +270,10 @@ export const motionPatternInputSchema = z.object({
   iterations: z.union([z.number().min(1), z.literal("infinite")]).default(1),
   direction: z.enum(["normal", "reverse", "alternate", "alternate-reverse"]).default("normal"),
   fillMode: z.enum(["none", "forwards", "backwards", "both"]).default("none"),
-  properties: z.array(implementationPropertySchema).min(1),
+  properties: z
+    .array(implementationPropertySchema)
+    .min(1)
+    .max(50, { message: "propertiesは50個以下にしてください" }),
 });
 export type MotionPatternInput = z.infer<typeof motionPatternInputSchema>;
 
@@ -310,6 +319,7 @@ export const generationOptionsSchema = z.object({
   /** プロジェクトのCSSファイルパス（複数） */
   project_css_paths: z
     .array(z.string())
+    .max(20, { message: "project_css_pathsは20個以下にしてください" })
     .optional()
     .describe("Paths to multiple project CSS files to scan"),
   /** 類似度しきい値（0-1、デフォルト: 0.8） */

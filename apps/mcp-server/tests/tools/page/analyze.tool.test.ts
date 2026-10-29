@@ -100,7 +100,7 @@ function createMockLayoutService() {
   return {
     ingest: vi.fn().mockResolvedValue({
       success: true,
-      pageId: "01941234-5678-7abc-def0-987654321fed",
+      pageId: "01941234-5678-7abc-8ef0-987654321fed",
       sectionCount: 5,
       sectionTypes: { hero: 1, feature: 2, cta: 1, footer: 1 },
       processingTimeMs: 1250,
@@ -203,7 +203,7 @@ function createMockPageAnalyzeService(): IPageAnalyzeService {
       };
 
       if (options?.saveToDb) {
-        (result as { pageId?: string }).pageId = "01941234-5678-7abc-def0-987654321fed";
+        (result as { pageId?: string }).pageId = "01941234-5678-7abc-8ef0-987654321fed";
       }
       // MCP-RESP-03: snake_case (include_html) を優先、camelCase (includeHtml) はフォールバック
       const shouldIncludeHtml = options?.include_html ?? options?.includeHtml;
@@ -236,34 +236,34 @@ function createMockPageAnalyzeService(): IPageAnalyzeService {
         }
       ).sections = [
         {
-          id: "01941234-0001-7abc-def0-000000000001",
+          id: "01941234-0001-7abc-8ef0-000000000001",
           type: "navigation",
           positionIndex: 0,
           confidence: 0.95,
         },
         {
-          id: "01941234-0002-7abc-def0-000000000002",
+          id: "01941234-0002-7abc-8ef0-000000000002",
           type: "hero",
           positionIndex: 1,
           heading: "Hero Section",
           confidence: 0.98,
         },
         {
-          id: "01941234-0003-7abc-def0-000000000003",
+          id: "01941234-0003-7abc-8ef0-000000000003",
           type: "features",
           positionIndex: 2,
           heading: "Features",
           confidence: 0.92,
         },
         {
-          id: "01941234-0004-7abc-def0-000000000004",
+          id: "01941234-0004-7abc-8ef0-000000000004",
           type: "cta",
           positionIndex: 3,
           heading: "Call to Action",
           confidence: 0.88,
         },
         {
-          id: "01941234-0005-7abc-def0-000000000005",
+          id: "01941234-0005-7abc-8ef0-000000000005",
           type: "footer",
           positionIndex: 4,
           confidence: 0.96,
@@ -398,7 +398,7 @@ const ipv6Localhost = "http://[::1]/";
 const ipv6LinkLocal = "http://[fe80::1]/";
 const ipv6UniqueLocal = "http://[fd00::1]/";
 
-const validUUID = "01941234-5678-7abc-def0-123456789abc";
+const validUUID = "01941234-5678-7abc-8ef0-123456789abc";
 
 // サンプルHTML（テスト用）
 const sampleHtml = `<!DOCTYPE html>
@@ -2126,6 +2126,10 @@ describe("パフォーマンス（基本）", () => {
   });
 
   it("totalProcessingTimeMs が各分析の合計より小さい（並列効果）", async () => {
+    // 実時間に依存しない: Date.now を 1 呼び出し 1ms 進む時計に置換する
+    // (full run の並列負荷での経過時間の揺れで落ちていた)
+    let tick = 1_800_000_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => (tick += 1));
     const input = { url: validUrl, responsiveOptions: { enabled: false } };
     const result = await pageAnalyzeHandler(input);
     expect(result.success).toBe(true);

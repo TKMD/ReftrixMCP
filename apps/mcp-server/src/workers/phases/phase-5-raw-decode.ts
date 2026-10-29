@@ -103,16 +103,6 @@ export interface RawCropResult {
   rawCropBuffer: Buffer | null;
   /** 白画像として検出されたか / Whether detected as blank image */
   isBlank: boolean;
-  /**
-   * 永続化用 viewable PNG crop バッファ（W6 Issue A PR-3a、C2 save-only）。
-   * RAW decode in-range path は既に `croppedPngBuffer` を生成済 → 冗長な `.png()` を
-   * 足さず流用する（L-TPA-01）。crop が生成されない exit では undefined。
-   *
-   * Viewable PNG crop buffer for persistence (W6 Issue A PR-3a, C2 save-only). The
-   * RAW-decode in-range path already builds `croppedPngBuffer`, so it is reused
-   * without a redundant `.png()` (L-TPA-01). undefined on no-crop exits.
-   */
-  viewablePngBuffer?: Buffer | undefined;
 }
 
 // ============================================================================
@@ -430,9 +420,5 @@ export async function acquireSectionCropBufferFromRaw(
     .raw()
     .toBuffer();
 
-  // C2 (W6 Issue A PR-3a): in-range raw path は既に viewable PNG (`croppedPngBuffer`)
-  // を生成済 → save-only で流用（冗長な `.png()` を足さない、L-TPA-01）。
-  // C2 (W6 Issue A PR-3a): the in-range raw path already built a viewable PNG
-  // (`croppedPngBuffer`) → reuse it save-only (no redundant `.png()`, L-TPA-01).
-  return { rawCropBuffer, isBlank: false, viewablePngBuffer: croppedPngBuffer };
+  return { rawCropBuffer, isBlank: false };
 }

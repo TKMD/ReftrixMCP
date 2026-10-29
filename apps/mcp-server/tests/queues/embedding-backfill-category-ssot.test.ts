@@ -47,9 +47,15 @@ describe("EmbeddingBackfillCategory SSOT (v0.4.0 PR7a-2)", () => {
   it("should be defined as readonly const assertion (compile-time immutability)", () => {
     // `as const` により readonly tuple として扱われる。push / pop / splice は型エラー。
     // The `as const` assertion makes it a readonly tuple — push/pop/splice are type errors.
-    // Runtime immutability is guaranteed via Object.isFrozen in strict mode.
-    // @ts-expect-error — readonly array should reject mutation at compile time
-    EMBEDDING_BACKFILL_CATEGORIES.push("foo");
+    // The mutation is only type-checked, never run: the array is not frozen at runtime, so a real
+    // `push` would add "foo" to the SSOT for every later test in this file (zod 3 `z.enum` shares the
+    // array and accepts it, zod 4 copies the values and rejects it).
+    const typeOnlyMutation = (): void => {
+      // @ts-expect-error — readonly array should reject mutation at compile time
+      EMBEDDING_BACKFILL_CATEGORIES.push("foo");
+    };
+    void typeOnlyMutation;
+    expect(EMBEDDING_BACKFILL_CATEGORIES).toEqual(EXPECTED_CATEGORIES);
   });
 
   it("should have no duplicate categories", () => {

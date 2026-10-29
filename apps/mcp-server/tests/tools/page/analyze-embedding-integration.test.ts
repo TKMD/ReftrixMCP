@@ -135,21 +135,21 @@ function createMockPrismaClient() {
   const mockClient = {
     // layout-embedding.service.ts用
     sectionPattern: {
-      create: vi.fn().mockResolvedValue({ id: "01941234-0001-7abc-def0-000000000001" }),
+      create: vi.fn().mockResolvedValue({ id: "01941234-0001-7abc-8ef0-000000000001" }),
       createMany: vi.fn().mockResolvedValue({ count: 4 }),
       // deleteMany: 再分析時に既存のSectionPatternを削除
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
     sectionEmbedding: {
-      create: vi.fn().mockResolvedValue({ id: "01941234-0002-7abc-def0-000000000002" }),
+      create: vi.fn().mockResolvedValue({ id: "01941234-0002-7abc-8ef0-000000000002" }),
     },
     // motion-persistence.service.ts用
     motionPattern: {
-      create: vi.fn().mockResolvedValue({ id: "01941234-0003-7abc-def0-000000000003" }),
+      create: vi.fn().mockResolvedValue({ id: "01941234-0003-7abc-8ef0-000000000003" }),
       createMany: vi.fn().mockResolvedValue({ count: 2 }),
     },
     motionEmbedding: {
-      create: vi.fn().mockResolvedValue({ id: "01941234-0004-7abc-def0-000000000004" }),
+      create: vi.fn().mockResolvedValue({ id: "01941234-0004-7abc-8ef0-000000000004" }),
     },
     // pageAnalyzeHandler内saveToDatabase用
     webPage: {
@@ -184,28 +184,28 @@ function createMockPageAnalyzeService(): IPageAnalyzeService {
       pageId: "01941234-page-7abc-def0-000000000001",
       sections: [
         {
-          id: "01941234-0001-7abc-def0-000000000001",
+          id: "01941234-0001-7abc-8ef0-000000000001",
           type: "hero",
           positionIndex: 0,
           heading: "Welcome to Our Platform",
           confidence: 0.98,
         },
         {
-          id: "01941234-0002-7abc-def0-000000000002",
+          id: "01941234-0002-7abc-8ef0-000000000002",
           type: "features",
           positionIndex: 1,
           heading: "Features",
           confidence: 0.92,
         },
         {
-          id: "01941234-0003-7abc-def0-000000000003",
+          id: "01941234-0003-7abc-8ef0-000000000003",
           type: "cta",
           positionIndex: 2,
           heading: "Call to Action",
           confidence: 0.85,
         },
         {
-          id: "01941234-0004-7abc-def0-000000000004",
+          id: "01941234-0004-7abc-8ef0-000000000004",
           type: "footer",
           positionIndex: 3,
           confidence: 0.9,
@@ -937,7 +937,7 @@ describe("page.analyze - SectionPattern ID Mapping", () => {
     const generatedSectionIds: string[] = [];
     const mockPrismaClient = {
       sectionPattern: {
-        create: vi.fn().mockResolvedValue({ id: "01941234-0001-7abc-def0-000000000001" }),
+        create: vi.fn().mockResolvedValue({ id: "01941234-0001-7abc-8ef0-000000000001" }),
         createMany: vi.fn().mockImplementation((args: { data: Array<{ id: string }> }) => {
           // createMany呼び出し時に渡されたIDを記録
           for (const item of args.data) {
@@ -948,14 +948,14 @@ describe("page.analyze - SectionPattern ID Mapping", () => {
         deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
       sectionEmbedding: {
-        create: vi.fn().mockResolvedValue({ id: "01941234-0002-7abc-def0-000000000002" }),
+        create: vi.fn().mockResolvedValue({ id: "01941234-0002-7abc-8ef0-000000000002" }),
       },
       motionPattern: {
-        create: vi.fn().mockResolvedValue({ id: "01941234-0003-7abc-def0-000000000003" }),
+        create: vi.fn().mockResolvedValue({ id: "01941234-0003-7abc-8ef0-000000000003" }),
         createMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
       motionEmbedding: {
-        create: vi.fn().mockResolvedValue({ id: "01941234-0004-7abc-def0-000000000004" }),
+        create: vi.fn().mockResolvedValue({ id: "01941234-0004-7abc-8ef0-000000000004" }),
       },
       webPage: {
         create: vi.fn().mockResolvedValue({ id: "01941234-page-7abc-def0-000000000001" }),

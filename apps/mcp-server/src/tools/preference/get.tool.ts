@@ -34,6 +34,7 @@ export type { IPreferenceService };
  * preference.get output type
  */
 import type { SignalData } from "./hear.tool";
+import { formatIssueLine } from "../../utils/issue-path";
 
 export type PreferenceGetOutput =
   | {
@@ -92,10 +93,10 @@ export async function preferenceGetHandler(input: unknown): Promise<PreferenceGe
     validated = preferenceGetInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      const errorMessage = error.issues.map((e) => `${formatIssueLine(e)}`).join(", ");
 
       logger.warn("[MCP Tool] preference.get validation error", {
-        errors: error.errors,
+        errors: error.issues,
       });
 
       return {

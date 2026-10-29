@@ -1,0 +1,185 @@
+{
+  "required-missing": {
+    "joined": "query: Required",
+    "messages": ["Required"]
+  },
+  "required-nested-missing": {
+    "joined": "options.depth: Required",
+    "messages": ["Required"]
+  },
+  "type-number-for-string": {
+    "joined": "query: Expected string, received number",
+    "messages": ["Expected string, received number"]
+  },
+  "type-null-for-string": {
+    "joined": "query: Expected string, received null",
+    "messages": ["Expected string, received null"]
+  },
+  "type-string-for-number-sentinel": {
+    "joined": "limit: Expected number, received string",
+    "messages": ["Expected number, received string"]
+  },
+  "type-array-for-boolean": {
+    "joined": "flag: Expected boolean, received array",
+    "messages": ["Expected boolean, received array"]
+  },
+  "uuid-invalid-sentinel": {
+    "joined": "id: Invalid uuid",
+    "messages": ["Invalid uuid"]
+  },
+  "uuid-valid-other-field-invalid": {
+    "joined": "n: Expected number, received string",
+    "messages": ["Expected number, received string"]
+  },
+  "url-invalid-sentinel": {
+    "joined": "url: Invalid url",
+    "messages": ["Invalid url"]
+  },
+  "email-invalid-sentinel": {
+    "joined": "mail: Invalid email",
+    "messages": ["Invalid email"]
+  },
+  "regex-invalid-sentinel": {
+    "joined": "code: Invalid",
+    "messages": ["Invalid"]
+  },
+  "enum-invalid-sentinel": {
+    "joined": "mode: Invalid enum value. Expected 'fast' | 'slow', received 'SECRET_SENTINEL_9f3a'",
+    "messages": ["Invalid enum value. Expected 'fast' | 'slow', received 'SECRET_SENTINEL_9f3a'"]
+  },
+  "enum-invalid-number": {
+    "joined": "mode: Expected 'fast' | 'slow', received number",
+    "messages": ["Expected 'fast' | 'slow', received number"]
+  },
+  "number-too-small": {
+    "joined": "limit: Number must be greater than or equal to 1",
+    "messages": ["Number must be greater than or equal to 1"]
+  },
+  "number-too-big": {
+    "joined": "limit: Number must be less than or equal to 10",
+    "messages": ["Number must be less than or equal to 10"]
+  },
+  "number-too-small-and-too-big-merge": {
+    "joined": "limit: Number must be greater than or equal to 5, limit: Number must be less than or equal to 3",
+    "messages": [
+      "Number must be greater than or equal to 5",
+      "Number must be less than or equal to 3"
+    ]
+  },
+  "number-not-int": {
+    "joined": "limit: Expected integer, received float",
+    "messages": ["Expected integer, received float"]
+  },
+  "string-too-short": {
+    "joined": "query: String must contain at least 3 character(s)",
+    "messages": ["String must contain at least 3 character(s)"]
+  },
+  "string-too-long-sentinel": {
+    "joined": "query: String must contain at most 5 character(s)",
+    "messages": ["String must contain at most 5 character(s)"]
+  },
+  "array-too-short": {
+    "joined": "ids: Array must contain at least 2 element(s)",
+    "messages": ["Array must contain at least 2 element(s)"]
+  },
+  "array-too-long": {
+    "joined": "ids: Array must contain at most 1 element(s)",
+    "messages": ["Array must contain at most 1 element(s)"]
+  },
+  "array-element-type": {
+    "joined": "ids.1: Expected string, received number",
+    "messages": ["Expected string, received number"]
+  },
+  "custom-refine": {
+    "joined": "a: custom rule failed",
+    "messages": ["custom rule failed"]
+  },
+  "custom-refine-default-message": {
+    "joined": ": Invalid input",
+    "messages": ["Invalid input"]
+  },
+  "strict-unrecognized-key-sentinel": {
+    "joined": ": Unrecognized key(s) in object: 'SECRET_SENTINEL_9f3a'",
+    "messages": ["Unrecognized key(s) in object: 'SECRET_SENTINEL_9f3a'"]
+  },
+  "union-no-match-sentinel": {
+    "joined": "v: Invalid input",
+    "messages": ["Invalid input"]
+  },
+  "literal-mismatch-sentinel": {
+    "joined": "v: Invalid literal value, expected \"on\"",
+    "messages": ["Invalid literal value, expected \"on\""]
+  },
+  "multiple-issues-order": {
+    "joined": "a: Required, b: Number must be greater than or equal to 1, c: Expected 'x' | 'y', received number",
+    "messages": [
+      "Required",
+      "Number must be greater than or equal to 1",
+      "Expected 'x' | 'y', received number"
+    ]
+  },
+  "discriminated-union-no-match-sentinel": {
+    "joined": "v.kind: Invalid discriminator value. Expected 'a' | 'b'",
+    "messages": ["Invalid discriminator value. Expected 'a' | 'b'"]
+  },
+  "record-value-type": {
+    "joined": "m.k: Expected number, received string",
+    "messages": ["Expected number, received string"]
+  },
+  "tuple-element-type-and-length": {
+    "joined": "t: Array must contain at least 2 element(s)",
+    "messages": ["Array must contain at least 2 element(s)"]
+  },
+  "number-not-nonnegative": {
+    "joined": "n: Number must be greater than or equal to 0",
+    "messages": ["Number must be greater than or equal to 0"]
+  },
+  "number-not-positive": {
+    "joined": "n: Number must be greater than 0",
+    "messages": ["Number must be greater than 0"]
+  },
+  "number-not-finite": {
+    "joined": "n: Number must be finite",
+    "messages": ["Number must be finite"]
+  },
+  "number-int-below-min": {
+    "joined": "limit: Number must be greater than or equal to 1",
+    "messages": ["Number must be greater than or equal to 1"]
+  },
+  "number-int-above-max": {
+    "joined": "limit: Number must be less than or equal to 10",
+    "messages": ["Number must be less than or equal to 10"]
+  },
+  "string-not-datetime-sentinel": {
+    "joined": "at: Invalid datetime",
+    "messages": ["Invalid datetime"]
+  },
+  "string-not-startswith-sentinel": {
+    "joined": "u: Invalid input: must start with \"https://\"",
+    "messages": ["Invalid input: must start with \"https://\""]
+  },
+  "string-not-endswith-sentinel": {
+    "joined": "f: Invalid input: must end with \".png\"",
+    "messages": ["Invalid input: must end with \".png\""]
+  },
+  "string-length-exact-sentinel": {
+    "joined": "code: String must contain exactly 3 character(s)",
+    "messages": ["String must contain exactly 3 character(s)"]
+  },
+  "array-length-exact": {
+    "joined": "pair: Array must contain exactly 2 element(s)",
+    "messages": ["Array must contain exactly 2 element(s)"]
+  },
+  "instanceof-mismatch-sentinel": {
+    "joined": "d: Input not instance of Date",
+    "messages": ["Input not instance of Date"]
+  },
+  "size-bigint-too-small": {
+    "joined": "n: Number must be greater than or equal to 5",
+    "messages": ["Number must be greater than or equal to 5"]
+  },
+  "size-set-too-small": {
+    "joined": "s: Invalid input",
+    "messages": ["Invalid input"]
+  }
+}

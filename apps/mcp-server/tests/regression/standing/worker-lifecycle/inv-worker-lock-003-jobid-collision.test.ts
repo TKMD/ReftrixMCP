@@ -41,6 +41,7 @@ import * as crypto from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import type { Queue } from "bullmq";
 import { assertInvName } from "../_setup/inv-assert";
+import { scanText } from "../_setup/z-strict-object-scan";
 import { addMcpServerSourceFile, createAstProject } from "../schema-enum-sync/_extractors";
 import {
   addEmbeddingBackfillJobWithGuard,
@@ -223,13 +224,40 @@ describe("INV-WORKER-LOCK-003: BullMQ jobId collision guard (RC-A)", () => {
     });
 
     it("INV-WORKER-LOCK-003: A4 — CollisionAuditPayloadSchema is a strict 5-field Zod object (PII-free contract)", () => {
-      // Plan §3.1.4 UP-4 binding: `.strict()` locks out future field injection,
-      // and each field carries a runtime regex / length / enum constraint.
-      // AST-level pin ensures the schema definition cannot be silently relaxed.
-      expect(backfillSource).toMatch(
-        /export\s+const\s+CollisionAuditPayloadSchema\s*=\s*z\s*\.\s*object\s*\(\s*\{/
+      // Plan §3.1.4 UP-4 binding: the schema is a `z.strictObject`, which locks out future field
+      // injection, and each field carries a runtime regex / length / enum constraint.
+      // zod 4 prep (PR-C1b): the declaration moved from `z.object({...}).strict()` to
+      // `z.strictObject({...})`, so the declaration pin reads the AST (structure, not text)
+      // through the shared scan.
+      // The 5 field pins below and the runtime reject case are unchanged in strength.
+      const declared = scanText(
+        "embedding-backfill-queue.ts",
+        backfillSource,
+        "CollisionAuditPayloadSchema"
       );
-      expect(backfillSource).toMatch(/\}\s*\)\s*\.\s*strict\s*\(\s*\)\s*;/);
+      expect(declared).toMatchObject({
+        strictObject: 1,
+        nonStrictObject: [],
+        strictChain: [],
+        looseForms: [],
+      });
+      // Runtime shape: exactly the 5 contract fields, and an unknown key is rejected.
+      expect(Object.keys(CollisionAuditPayloadSchema.shape).sort()).toEqual([
+        "originalJobId",
+        "originalState",
+        "retryJobId",
+        "timestamp",
+        "webPageId",
+      ]);
+      const valid = {
+        webPageId: "11111111...",
+        originalJobId: "11111111...__section_visual",
+        retryJobId: "11111111...__section_visual__retry_11111111-1111-4111-8111-111111111111",
+        originalState: "active",
+        timestamp: "2026-10-27T00:00:00.000Z",
+      };
+      expect(CollisionAuditPayloadSchema.safeParse(valid).success).toBe(true);
+      expect(CollisionAuditPayloadSchema.safeParse({ ...valid, evil: 1 }).success).toBe(false);
       // All 5 contract fields present.
       expect(backfillSource).toMatch(
         /webPageId:\s*z\s*\.\s*string\s*\(\s*\)\s*\.\s*length\s*\(\s*11\s*\)/
@@ -612,7 +640,7 @@ describe("INV-WORKER-LOCK-003: BullMQ jobId collision guard (RC-A)", () => {
       expect(truncatedOrig).toMatch(JOBID_TRUNCATED_REGEX);
 
       // Valid retry form: `<origJobId>__retry_<uuidv7-or-v4>`.
-      const retryUuid = "01234567-89ab-cdef-0123-456789abcdef";
+      const retryUuid = "01234567-89ab-4def-9123-456789abcdef";
       const validRetryJobId = `${validOrigJobId}__retry_${retryUuid}`;
       const truncatedRetry = truncateRetryJobId(validRetryJobId);
       expect(truncatedRetry).toBe(`abcdef01...__part_text__retry_${retryUuid}`);

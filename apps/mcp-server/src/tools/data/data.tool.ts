@@ -35,6 +35,7 @@ import type {
   PageExportResult,
   ProfileExportResult,
 } from "../../services/gdpr-deletion.service";
+import { formatIssueLine } from "../../utils/issue-path";
 
 // =====================================================
 // エラーコード / Error Codes
@@ -360,10 +361,10 @@ export async function dataDeleteHandler(input: unknown): Promise<DataDeleteOutpu
     validated = dataDeleteInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      const errorMessage = error.issues.map((e) => `${formatIssueLine(e)}`).join(", ");
 
       logger.warn("[MCP Tool] data.delete validation error", {
-        errors: error.errors,
+        errors: error.issues,
       });
 
       return {
@@ -602,10 +603,10 @@ export async function dataExportHandler(input: unknown): Promise<DataExportOutpu
     validated = dataExportInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      const errorMessage = error.issues.map((e) => `${formatIssueLine(e)}`).join(", ");
 
       logger.warn("[MCP Tool] data.export validation error", {
-        errors: error.errors,
+        errors: error.issues,
       });
 
       return {
@@ -752,6 +753,7 @@ export const dataDeleteToolDefinition = {
       page_ids: {
         type: "array",
         items: { type: "string", format: "uuid" },
+        maxItems: 100,
         description:
           "ページID配列（target=all_user_data時のみ、最大100件） / " +
           "Page IDs (only for target=all_user_data, max 100)",

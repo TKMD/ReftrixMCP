@@ -46,12 +46,18 @@ import { logSearch } from "../services/search-log.service";
 /**
  * 検索対象タイプ / Search target types
  */
-const searchTargetTypeSchema = z.enum(["layout", "part", "motion", "background", "narrative"]);
+export const searchTargetTypeSchema = z.enum([
+  "layout",
+  "part",
+  "motion",
+  "background",
+  "narrative",
+]);
 
 /**
  * ファセットフィールドスキーマ / Facet field schema
  */
-const facetFieldSchema = z.enum(["sectionType", "industry", "audience", "tags"]);
+export const facetFieldSchema = z.enum(["sectionType", "industry", "audience", "tags"]);
 
 /**
  * search.unified 入力スキーマ / search.unified input schema
@@ -60,7 +66,7 @@ export const searchUnifiedInputSchema = z.object({
   /** 検索クエリ（自然言語、1-500文字） / Search query (natural language, 1-500 chars) */
   query: z.string().min(1).max(500),
   /** 検索対象タイプ（デフォルト: 全タイプ） / Target types (default: all types) */
-  types: z.array(searchTargetTypeSchema).min(1).optional(),
+  types: z.array(searchTargetTypeSchema).min(1).max(5).optional(),
   /** 取得件数（1-50、デフォルト: 10） / Result limit (1-50, default: 10) */
   limit: z.number().int().min(1).max(50).default(10),
   /** WebページIDでフィルター / Filter by web page ID */
@@ -80,7 +86,7 @@ export const searchUnifiedInputSchema = z.object({
   /** ファセットカウント付与（デフォルト: false） / Include facet counts (default: false) */
   include_facets: z.boolean().default(false),
   /** ファセットフィールド指定（指定時はinclude_facetsが暗黙的にtrue） / Facet fields (implicitly enables include_facets when specified) */
-  facet_fields: z.array(facetFieldSchema).min(1).optional(),
+  facet_fields: z.array(facetFieldSchema).min(1).max(4).optional(),
 });
 export type SearchUnifiedInput = z.infer<typeof searchUnifiedInputSchema>;
 
@@ -880,6 +886,7 @@ export const searchUnifiedToolDefinition = {
           type: "string",
           enum: ["layout", "part", "motion", "background", "narrative"],
         },
+        maxItems: 5,
         description: "検索対象タイプ（デフォルト: 全タイプ） / Target types (default: all types)",
       },
       limit: {
@@ -942,6 +949,7 @@ export const searchUnifiedToolDefinition = {
           enum: ["sectionType", "industry", "audience", "tags"],
         },
         minItems: 1,
+        maxItems: 4,
         description:
           "ファセットフィールド指定（指定時はinclude_facetsが暗黙的にtrue）。未指定時は全4フィールド / " +
           "Facet fields to compute (implicitly enables include_facets). Defaults to all 4 fields when omitted. " +

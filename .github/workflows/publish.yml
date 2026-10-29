@@ -56,10 +56,19 @@ jobs:
       - name: Validate tag input
         env:
           RAW_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          REF: ${{ github.ref }}
         run: |
           TAG="$RAW_TAG"
           if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9.]+)?$ ]]; then
             echo "::error::Invalid tag format: '$TAG' (expected vX.Y.Z or vX.Y.Z-prerelease)"
+            exit 1
+          fi
+          # The run must have been started from the tag ref being published (release:
+          # release.tag_name; dispatch: inputs.tag), as a tag and not a same-named branch.
+          # Both checkouts use github.sha, so github.sha is the tag commit, which is the
+          # base the provenance check in the `publish` job compares against.
+          if [ "$REF" != "refs/tags/$TAG" ]; then
+            echo "::error::github.ref '$REF' != 'refs/tags/$TAG' (start the run from the v* tag ref being published)"
             exit 1
           fi
 
@@ -71,7 +80,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          ref: ${{ github.sha }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
@@ -123,13 +132,11 @@ jobs:
       # are combined into ONE step below for exactly this reason.
       - name: Version-consistency check, build, pack, validate (single shell — source scope)
         env:
-          TAG_VERSION: ${{ steps.tag.outputs.version }}
+          RAW_TAG: ${{ github.event.release.tag_name || inputs.tag }}
         run: |
           source scripts/publish-targets.sh   # SSOT arrays — same run: block as their only consumer here
-          for pkg in "${PUBLISH_PACKAGES[@]}"; do
-            PKG_VER=$(node -e "console.log(require('./$pkg/package.json').version)")
-            [ "$PKG_VER" = "$TAG_VERSION" ] || { echo "::error::$pkg@$PKG_VER != tag $TAG_VERSION"; exit 1; }
-          done
+          # root, the 5 packages, server.json (.version and .packages[0].version) == the tag
+          scripts/ci/check-release-versions.sh . "$RAW_TAG"
 
           pnpm install --frozen-lockfile
           pnpm build
@@ -211,22 +218,27 @@ jobs:
   publish:
     needs: verify
     runs-on: ubuntu-latest
+    # Three Tier gates of up to 1800 s each (5400 s) plus five publishes and margin. The
+    # Environment approval wait is not job time.
+    timeout-minutes: 120
+    outputs:
+      # true only after the Tier-3 gate returned 200 for every Tier-3 package
+      npm_published: ${{ steps.tiers.outputs.npm_published }}
     environment: npm-publish # GitHub Environment w/ required reviewers + deployment-tag restriction (User manual-action checklist)
     permissions:
       contents: read
       id-token: write # OIDC — the only credential surface, no NPM_TOKEN
     steps:
-      # ref is reconstructed from `needs.verify.outputs.version` (a value `verify`
-      # already validated via the regex guard + version-consistency check) rather
-      # than re-reading the raw trigger context a second, independent time in a
-      # different job — a structural guard against a future edit silently
-      # un-coupling `publish`'s ref from `verify`'s validated one. This checkout is
-      # only for scripts/publish-targets.sh (the SSOT list) — the tarballs
-      # themselves come from the verify job's artifact, not this checkout.
-      - name: Checkout (for scripts/publish-targets.sh only)
+      # ref is github.sha, the same commit `verify` validated (its validate step requires
+      # github.ref == refs/tags/<tag>), so a same-named branch or a moved tag cannot change
+      # what this job checks out. This checkout is
+      # only for scripts/publish-targets.sh (the SSOT list) and scripts/ci (the wait and
+      # provenance scripts) — the tarballs themselves come from the verify job's artifact,
+      # not this checkout.
+      - name: Checkout (for scripts/publish-targets.sh and scripts/ci)
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          ref: v${{ needs.verify.outputs.version }}
+          ref: ${{ github.sha }}
 
       - name: Download verified tarballs
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
@@ -254,67 +266,101 @@ jobs:
       # a matching checksum for it in the same process — this re-verification
       # would still pass, because it only checks "does this tarball match this
       # manifest", not "was this manifest honestly produced".
-      - name: Re-verify checksums, source SSOT, Tier-loop publish (single shell — source scope)
+      # Per Tier: publish every package, then gate on the version document answering 200
+      # for every package of that Tier before the next Tier is published (the published
+      # tarballs pin internal dependencies exactly, so a later Tier must not reach `latest`
+      # while an earlier one is still invisible). Each package gets a deadline of its own
+      # publish time + 1800 s. A failed `npm publish` is never swallowed: its exit code is
+      # kept, its stderr is handed to the wait script (which fails closed unless the refusal
+      # is a classified republish), and skipped or failed-then-classified packages get the
+      # provenance check once the gate returned 200. `npm_published` is written only after
+      # the Tier-3 gate.
+      - name: Re-verify checksums, source SSOT, Tier-gated publish (single shell — source scope)
+        id: tiers
         env:
           RELEASE_VERSION: ${{ needs.verify.outputs.version }}
           RELEASE_DIST_TAG: ${{ needs.verify.outputs.dist_tag }}
+          TAG_COMMIT_SHA: ${{ github.sha }}
         run: |
           (cd /tmp/tarballs && sha256sum -c checksums.txt)
 
           source scripts/publish-targets.sh   # SSOT arrays — same run: block as their only consumer here (mirrors verify job)
-          for pkg in "${PUBLISH_TIER1[@]}" "${PUBLISH_TIER2[@]}" "${PUBLISH_TIER3[@]}"; do
-            PKG_NAME=$(node -e "console.log(require('./$pkg/package.json').name)")
 
-            # Idempotent per-package skip-if-already-published check (mirrors
-            # sync-oss.sh Step 6.2) — makes workflow_dispatch recovery safe to run
-            # any number of times for the same tag: only still-unpublished
-            # packages actually attempt a publish. This is a forward recovery
-            # mechanism for PARTIAL publishes only — it cannot, and does not,
-            # recover from an erroneous-but-fully-successful publish (npm enforces
-            # same-version immutability; the only path there is `npm deprecate`
-            # plus a new patch version). The GitHub Environment required-reviewer
-            # approval is the last reversible checkpoint before a publish.
-            if npm view "${PKG_NAME}@${RELEASE_VERSION}" version >/dev/null 2>&1; then
-              echo "SKIP: ${PKG_NAME}@${RELEASE_VERSION} already published"
-              continue
-            fi
+          GATE_WINDOW=1800   # = NPM_PROPAGATION_MAX_SECONDS in scripts/ci/wait-for-npm-version.sh
 
-            # Same name-match glob + version-delimiter anchor as the verify job,
-            # asserting exactly 1 match (0 = fail, 2+ = fail).
-            SAFE_NAME=$(echo "$PKG_NAME" | sed 's/@//;s/\//-/')
-            MATCHES=(/tmp/tarballs/*"$SAFE_NAME"-[0-9]*.tgz)
-            if [ ! -e "${MATCHES[0]}" ] || [ "${#MATCHES[@]}" -ne 1 ]; then
-              # FIND-NPMPUB-MATCHES-MSG-01: without nullglob, a 0-match glob leaves
-              # MATCHES[0] as the literal (unexpanded) pattern string, so
-              # ${#MATCHES[@]} is 1 even on a true 0-match — report the real count
-              # (0 vs 2+) instead of that literal-fallback artifact. The guard
-              # verdict itself (0 = fail, 1 = pass, 2+ = fail) is unchanged.
-              MATCH_COUNT=0
-              [ -e "${MATCHES[0]}" ] && MATCH_COUNT="${#MATCHES[@]}"
-              echo "::error::$PKG_NAME: expected exactly 1 tarball matching *${SAFE_NAME}-[0-9]*.tgz, found ${MATCH_COUNT}"
-              exit 1
-            fi
-            TARBALL="${MATCHES[0]}"
+          publish_tier() {
+            local pkg pkg_name safe_name tarball err rc t0 i match_count
+            local -a matches names=() errs=() rcs=() deadlines=() reused=()
+            for pkg in "$@"; do
+              pkg_name=$(node -e "console.log(require('./$pkg/package.json').name)")
+              t0=$(date +%s)
 
-            # --provenance is passed explicitly and unconditionally (in addition to
-            # the publishConfig.provenance:true field injected at OSS-sync time) —
-            # npm's docs state provenance is automatic under trusted publishing and
-            # the flag is "no longer needed", while independent practitioner
-            # reports say this did not hold reliably in practice and the flag had
-            # to be passed explicitly. Both mechanisms are included at negligible
-            # cost: redundant-but-harmless if the docs are right, load-bearing if
-            # they are not.
-            npm publish "$TARBALL" --tag "$RELEASE_DIST_TAG" --provenance
+              # Idempotent per-package skip-if-already-published check (mirrors
+              # sync-oss.sh Step 6.2) — makes workflow_dispatch recovery safe to run
+              # any number of times for the same tag: only still-unpublished
+              # packages actually attempt a publish. This is a forward recovery
+              # mechanism for PARTIAL publishes only — it cannot, and does not,
+              # recover from an erroneous-but-fully-successful publish (npm enforces
+              # same-version immutability; the only path there is `npm deprecate`
+              # plus a new patch version). The GitHub Environment required-reviewer
+              # approval is the last reversible checkpoint before a publish.
+              if npm view "${pkg_name}@${RELEASE_VERSION}" version >/dev/null 2>&1; then
+                echo "SKIP: ${pkg_name}@${RELEASE_VERSION} already published"
+                names+=("$pkg_name"); errs+=(""); rcs+=(0); deadlines+=($((t0 + GATE_WINDOW))); reused+=(1)
+                continue
+              fi
 
-            # Registry-propagation wait (mirrors sync-oss.sh's wait_for_registry:
-            # up to 24 attempts x 5s = 120s) before the next Tier proceeds.
-            ATTEMPT=0
-            until npm view "${PKG_NAME}@${RELEASE_VERSION}" version >/dev/null 2>&1; do
-              ATTEMPT=$((ATTEMPT + 1))
-              if [ "$ATTEMPT" -ge 24 ]; then
-                echo "::error::$PKG_NAME: registry propagation timed out after 120s"
+              # Same name-match glob + version-delimiter anchor as the verify job,
+              # asserting exactly 1 match (0 = fail, 2+ = fail).
+              safe_name=$(echo "$pkg_name" | sed 's/@//;s/\//-/')
+              matches=(/tmp/tarballs/*"$safe_name"-[0-9]*.tgz)
+              if [ ! -e "${matches[0]}" ] || [ "${#matches[@]}" -ne 1 ]; then
+                # FIND-NPMPUB-MATCHES-MSG-01: without nullglob, a 0-match glob leaves
+                # matches[0] as the literal (unexpanded) pattern string, so
+                # ${#matches[@]} is 1 even on a true 0-match — report the real count
+                # (0 vs 2+) instead of that literal-fallback artifact. The guard
+                # verdict itself (0 = fail, 1 = pass, 2+ = fail) is unchanged.
+                match_count=0
+                [ -e "${matches[0]}" ] && match_count="${#matches[@]}"
+                echo "::error::$pkg_name: expected exactly 1 tarball matching *${safe_name}-[0-9]*.tgz, found ${match_count}"
                 exit 1
               fi
-              sleep 5
+              tarball="${matches[0]}"
+
+              # --provenance is passed explicitly and unconditionally (in addition to
+              # the publishConfig.provenance:true field injected at OSS-sync time) —
+              # npm's docs state provenance is automatic under trusted publishing and
+              # the flag is "no longer needed", while independent practitioner
+              # reports say this did not hold reliably in practice and the flag had
+              # to be passed explicitly. Both mechanisms are included at negligible
+              # cost: redundant-but-harmless if the docs are right, load-bearing if
+              # they are not.
+              err=$(mktemp)
+              rc=0
+              npm publish "$tarball" --tag "$RELEASE_DIST_TAG" --provenance 2>"$err" || rc=$?
+              t0=$(date +%s)
+              if [ "$rc" -ne 0 ]; then
+                echo "npm publish of ${pkg_name}@${RELEASE_VERSION} exited ${rc}; its stderr follows" >&2
+                # a registry error body can contain workflow commands (lines with ::)
+                sed -e 's/::/: :/g' -e 's/##\[/# #[/g' <"$err" >&2
+              fi
+              names+=("$pkg_name"); errs+=("$err"); rcs+=("$rc"); deadlines+=($((t0 + GATE_WINDOW))); reused+=(0)
             done
-          done
+
+            # Tier gate: every package of this Tier must be visible before the caller moves on.
+            for i in "${!names[@]}"; do
+              if [ "${rcs[$i]}" -ne 0 ]; then
+                NPM_PUBLISH_STDERR_FILE="${errs[$i]}" scripts/ci/wait-for-npm-version.sh "${names[$i]}" "$RELEASE_VERSION" "${deadlines[$i]}"
+              else
+                scripts/ci/wait-for-npm-version.sh "${names[$i]}" "$RELEASE_VERSION" "${deadlines[$i]}"
+              fi
+              if [ "${reused[$i]}" -eq 1 ] || [ "${rcs[$i]}" -ne 0 ]; then
+                scripts/ci/check-npm-provenance.sh "${names[$i]}" "$RELEASE_VERSION" "$TAG_COMMIT_SHA" "${deadlines[$i]}"
+              fi
+            done
+          }
+
+          publish_tier "${PUBLISH_TIER1[@]}"
+          publish_tier "${PUBLISH_TIER2[@]}"
+          publish_tier "${PUBLISH_TIER3[@]}"
+          echo "npm_published=true" >> "$GITHUB_OUTPUT"

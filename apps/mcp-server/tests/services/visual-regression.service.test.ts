@@ -109,14 +109,14 @@ describe("VisualRegressionService", () => {
 
   /** 共通の有効な入力 */
   const validInput: VisualRegressionInput = {
-    baselineSnapshotId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    baselineSnapshotId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
     url: "https://example.com",
   };
 
   /** ベースラインスナップショット行（data URI版、Prisma camelCase + nested metadata） */
   const baselineRowDataUri = {
-    id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-    webPageId: "11111111-2222-3333-4444-555555555555",
+    id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+    webPageId: "11111111-2222-4333-9444-555555555555",
     snapshotAt: new Date("2026-01-15T10:00:00Z"),
     metadata: {
       screenshot_full_url:
@@ -349,8 +349,8 @@ describe("VisualRegressionService", () => {
   describe("getBaselineScreenshot (Option B: metadata.screenshot_full_url)", () => {
     it("正常系: metadata.screenshot_full_url が data URI で存在", async () => {
       mockPrisma.designSnapshot.findUnique.mockResolvedValueOnce({
-        id: "01234567-89ab-cdef-0123-456789abcdef",
-        webPageId: "fedcba98-7654-3210-fedc-ba9876543210",
+        id: "01234567-89ab-4def-9123-456789abcdef",
+        webPageId: "fedcba98-7654-4210-8edc-ba9876543210",
         snapshotAt: new Date("2026-01-01"),
         metadata: {
           screenshot_full_url:
@@ -359,7 +359,7 @@ describe("VisualRegressionService", () => {
         webPage: { url: "https://example.com" },
       });
       const result = await runVisualRegression({
-        baselineSnapshotId: "01234567-89ab-cdef-0123-456789abcdef",
+        baselineSnapshotId: "01234567-89ab-4def-9123-456789abcdef",
         url: "https://example.com",
         threshold: 0.001,
         viewportWidth: 1920,
@@ -371,14 +371,14 @@ describe("VisualRegressionService", () => {
 
     it("graceful fallback: metadata が null の旧スナップショット", async () => {
       mockPrisma.designSnapshot.findUnique.mockResolvedValueOnce({
-        id: "01234567-89ab-cdef-0123-456789abcdef",
-        webPageId: "fedcba98-7654-3210-fedc-ba9876543210",
+        id: "01234567-89ab-4def-9123-456789abcdef",
+        webPageId: "fedcba98-7654-4210-8edc-ba9876543210",
         snapshotAt: new Date("2026-01-01"),
         metadata: null, // 旧スナップショット
         webPage: { url: "https://example.com" },
       });
       const result = await runVisualRegression({
-        baselineSnapshotId: "01234567-89ab-cdef-0123-456789abcdef",
+        baselineSnapshotId: "01234567-89ab-4def-9123-456789abcdef",
         url: "https://example.com",
         threshold: 0.001,
         viewportWidth: 1920,
@@ -390,14 +390,14 @@ describe("VisualRegressionService", () => {
 
     it("graceful fallback: metadata 存在するが screenshot_full_url 欠落", async () => {
       mockPrisma.designSnapshot.findUnique.mockResolvedValueOnce({
-        id: "01234567-89ab-cdef-0123-456789abcdef",
-        webPageId: "fedcba98-7654-3210-fedc-ba9876543210",
+        id: "01234567-89ab-4def-9123-456789abcdef",
+        webPageId: "fedcba98-7654-4210-8edc-ba9876543210",
         snapshotAt: new Date("2026-01-01"),
         metadata: { analysis_version: "1.0" }, // 他の key のみ
         webPage: { url: "https://example.com" },
       });
       const result = await runVisualRegression({
-        baselineSnapshotId: "01234567-89ab-cdef-0123-456789abcdef",
+        baselineSnapshotId: "01234567-89ab-4def-9123-456789abcdef",
         url: "https://example.com",
         threshold: 0.001,
         viewportWidth: 1920,
@@ -415,8 +415,8 @@ describe("VisualRegressionService", () => {
   describe("Path Traversal / Symlink 防御", () => {
     it("path traversal ペイロード (../../etc/passwd) → BASELINE_NOT_FOUND", async () => {
       mockPrisma.designSnapshot.findUnique.mockResolvedValueOnce({
-        id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-        webPageId: "11111111-2222-3333-4444-555555555555",
+        id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        webPageId: "11111111-2222-4333-9444-555555555555",
         snapshotAt: new Date("2026-01-01"),
         metadata: {
           screenshot_full_url: "../../etc/passwd",
@@ -435,8 +435,8 @@ describe("VisualRegressionService", () => {
 
     it("ALLOWED_SCREENSHOT_ROOT 外の絶対パス → BASELINE_NOT_FOUND", async () => {
       mockPrisma.designSnapshot.findUnique.mockResolvedValueOnce({
-        id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-        webPageId: "11111111-2222-3333-4444-555555555555",
+        id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        webPageId: "11111111-2222-4333-9444-555555555555",
         snapshotAt: new Date("2026-01-01"),
         metadata: {
           screenshot_full_url: "/var/secret/data.png",
@@ -451,8 +451,8 @@ describe("VisualRegressionService", () => {
 
     it("symlink が ALLOWED_SCREENSHOT_ROOT 外を指す場合 → BASELINE_NOT_FOUND", async () => {
       mockPrisma.designSnapshot.findUnique.mockResolvedValueOnce({
-        id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-        webPageId: "11111111-2222-3333-4444-555555555555",
+        id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        webPageId: "11111111-2222-4333-9444-555555555555",
         snapshotAt: new Date("2026-01-01"),
         metadata: {
           screenshot_full_url: "/tmp/reftrix-screenshots/link-to-secret",

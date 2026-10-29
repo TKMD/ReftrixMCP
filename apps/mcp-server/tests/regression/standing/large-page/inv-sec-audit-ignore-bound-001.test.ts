@@ -2,60 +2,34 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * Standing Regression Suite — INV-SEC-AUDIT-IGNORE-BOUND-001 (M landing for R2-AR-08, lane R2-U)
+ * Standing Regression Suite — INV-SEC-AUDIT-IGNORE-BOUND-001
  *
- * `pnpm audit` の ignore 集合を固定する。braces `GHSA-vfj7-8cjw-p6xm` (high、patched 版なし) は
- * accepted-risk R2-AR-08 として root `package.json` の `pnpm.auditConfig.ignoreGhsas` で除外する
- * (security-deps R2 addendum v1 §2.4 / §5.4、User 判断 UD-A2 = (α))。**ignore は修正ではない**。
- * braces 3.0.3 は lockfile に残る。本 INV は ignore が黙って広がる経路と、accepted-risk の前提
- * (braces が production 閉包に入らない) が崩れる経路を CI で RED にする。
+ * `pnpm audit` の ignore 集合を **空** に固定する。以前の唯一の entry (braces
+ * `GHSA-vfj7-8cjw-p6xm`) は 2026-10-23 に withdrawn され何も抑止していなかったため、
+ * root `package.json` の `pnpm.auditConfig` ごと削除した。以後 ignore を足すと本 INV が RED になる。
+ * **ignore を足して GREEN にすることは禁止**。足す必要が生じたら accepted-risk の記録と IO 裁定を
+ * 先に取り、本 INV の期待集合を同一 commit で変える。
  *
- * Pins the `pnpm audit` ignore set. braces GHSA-vfj7-8cjw-p6xm (high, no patched release) is an
- * accepted risk (R2-AR-08) excluded via the root `pnpm.auditConfig.ignoreGhsas`. The ignore is NOT a
- * fix; braces 3.0.3 stays in the lockfile. This test fails when the ignore set silently grows or
- * when the accepted-risk premise (braces outside the production closure) no longer holds.
+ * Pins the `pnpm audit` ignore set to EMPTY. The only former entry (braces GHSA-vfj7-8cjw-p6xm) was
+ * withdrawn on 2026-10-23 and suppressed nothing, so the whole `pnpm.auditConfig` was removed from the
+ * root `package.json`. Adding any ignore turns this test RED; widening the ignore to go GREEN is
+ * forbidden (record an accepted risk and get an IO ruling first, then change the expected set here).
  *
- * | leg | 契約 / contract                                                                               |
- * | --- | --------------------------------------------------------------------------------------------- |
- * | (1) | root `package.json` `pnpm.auditConfig` のキー集合 ⊆ {`ignoreGhsas`}、`ignoreGhsas` は        |
- * |     | [`GHSA-vfj7-8cjw-p6xm`] ちょうど / keys ⊆ {ignoreGhsas}, ignoreGhsas is exactly that one ID     |
- * | (2) | `ignoreCves` は無い (空配列も不可) / no `ignoreCves`, not even an empty array                   |
- * | (3) | `pnpm-workspace.yaml` に `auditConfig` が無い / no `auditConfig` in the workspace file        |
- * | (4) | `.github/workflows/*.yml` の `pnpm audit` 呼出に `--ignore` / `--ignore-unfixable` が無い     |
- * | (5) | ignore する各 ID に R2-AR-08 参照・解除条件・tracked ID (CO-R2-41) の行がある (集合一致)      |
- * | (6) | lockfile の全 importer の `dependencies` ∪ `optionalDependencies` から辿る snapshot 推移閉包  |
- * |     | に `braces@*` が 0 (addendum registry v1 E-58) / braces absent from the production closure    |
+ * | leg | 契約 / contract                                                                           |
+ * | --- | ----------------------------------------------------------------------------------------- |
+ * | (1) | root `package.json` に `pnpm.auditConfig` が無い (ignoreGhsas / ignoreCves / 他キー全て不可) |
+ * | (2) | `pnpm-workspace.yaml` に `auditConfig` が無い                                             |
+ * | (3) | `.github/workflows/*.yml` の `pnpm audit` 呼出 (>= 1): `--ignore*` 無し、`--audit-level` は   |
+ * |     | `high` のみで全 workflow 合計ちょうど 1 回、`\|\| true` / pipe / `continue-on-error` 無し     |
  *
- * leg (6) の閉包: importer の `link:` は対象 importer へ辿り、alias (`name: other@1.2.3`) は
- * `other@1.2.3` の snapshot へ辿る。snapshot が見つからない参照は violation (fail-closed)。
- * devDependencies は辿らない (braces の公開経路は 0。private 経路 = tools/tda-instruments の jscpd と
- * example/reftrix4 の eslint-config-next 16.3.8 は dev のみ)。
- * The closure follows `link:` to the target importer and aliases to their snapshot key; an
- * unresolvable reference is a violation (fail-closed). devDependencies are not followed.
- *
- * 非空虚性 / Non-vacuity: (a) 各 leg は読み出した値を引数に取る純関数で、control fixture (test 内の
- * オブジェクト / 文字列) で ID 追加・`ignoreCves` 追加・workspace の `auditConfig`・workflow の
- * `--ignore-unfixable` / `--ignore`・表の欠落・prod 配下の braces が RED、dev 配下の braces は GREEN
- * になることを assert する。(b) locator: 実 file の読取結果が空なら RED、workflow の `pnpm audit`
- * 呼出 ≥ 1、閉包関数で `apps/mcp-server` から `cheerio` と `undici` に到達する (≥ 1)。
- *
- * 解除 / Release (addendum v1 §2.4.2 / §5.4): braces の patched 版公開、または
- * `@next/eslint-plugin-next` が fast-glob 3.3.3+ / micromatch 非依存へ移行し、かつ jscpd 経路
- * (tools/tda-instruments) も range 外になった時点で、ignore と本 INV の pin を同一 commit で外す。
- * leg (6) が RED になったら ignore を外して再裁定する (M → H 候補)。**ignore を広げて GREEN に
- * することは禁止** (E-58)。ネットワークを使う解除条件の確認 (`npm view` / `gh api`) は本 test に
- * 入れず CO-R2-41 の refresh で手動記録する。
- * When the release condition holds, drop the ignore and this pin in one commit. If leg (6) turns
- * RED, remove the ignore and re-adjudicate; widening the ignore to go GREEN is forbidden.
+ * 非空虚性 / Non-vacuity: 各 leg は読み出した値を引数に取る純関数で、control fixture が
+ * ID 追加・空配列の ignoreGhsas・`ignoreCves`・workspace の `auditConfig`・workflow の
+ * `--ignore-unfixable` / `--ignore` (1 行・`\` 継続・`>-` 折り返し)・`--audit-level` の緩和 / 重複 / 欠落・
+ * `|| true` / pipe / `continue-on-error`・呼出 0 件で RED になることを assert する。実 file の読取結果が
+ * 空でも RED。leg (3) は YAML を parse して step の `run` を対象にする (1 行 regex ではない)。
  *
  * 配置 / Placement: INV-SEC-OVERRIDE-BOUND-001 (harness) と同 directory の別 file (harness を編集しない、
- * helper を copy しない、別 `.test.ts` から import しない = E-60)。共有 helper は非 test module
- * `../_shared/semver-lockfile` からのみ import する (CO-R2-36、現状は `REPO_ROOT` のみ)。YAML / lockfile は root
- * devDependency の `js-yaml` で parse する。4 常設ドメインの不変条件そのものではなく harness 隣接の
- * precedent として large-page に置く。
- *
- * Plan: security-deps-remediation-r2-plan-addendum-v1.md §2.4 / §5.4 / §8.1.
- * Registry: r2 addendum finding registry v1 §2 / E-58 / E-60 (U6-a = inside R2-U).
+ * helper を copy しない)。YAML は root devDependency の `js-yaml` で parse する。
  * Regression domain: large-page.
  */
 
@@ -65,42 +39,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { load } from "js-yaml";
 import { describe, expect, it } from "vitest";
-import { lockfileClosure } from "../_shared/lockfile-closure";
 import { REPO_ROOT } from "../_shared/semver-lockfile";
-
-/** 許可する `pnpm.auditConfig` のキー / the only allowed `pnpm.auditConfig` key */
-const ALLOWED_AUDIT_CONFIG_KEYS: readonly string[] = ["ignoreGhsas"];
-
-interface IgnoreRecord {
-  /** GHSA ID (`ignoreGhsas` の要素) */
-  id: string;
-  /** 対象 package / affected package */
-  pkg: string;
-  /** accepted-risk 記録 / accepted-risk record */
-  acceptedRisk: string;
-  /** tracked carryover */
-  tracked: string;
-  /** 解除条件 / release condition */
-  release: string;
-}
-
-/**
- * ignore する ID の表 (leg (5))。行を足すには accepted-risk 記録と IO 裁定が要る。
- * Table of ignored IDs; adding a row requires an accepted-risk record and an IO ruling.
- */
-const IGNORE_TABLE: readonly IgnoreRecord[] = [
-  {
-    id: "GHSA-vfj7-8cjw-p6xm",
-    pkg: "braces",
-    acceptedRisk: "R2-AR-08",
-    tracked: "CO-R2-41",
-    release:
-      "braces patched release, or @next/eslint-plugin-next leaves fast-glob 3.3.1 / micromatch and the jscpd path (tools/tda-instruments) is out of range",
-  },
-];
-
-/** braces の snapshot key 接頭辞 / snapshot key prefix of braces */
-const BRACES_PREFIX = "braces@";
 
 // ---------------------------------------------------------------------------
 // 読み出し / readers (読取結果が空なら throw = RED)
@@ -133,80 +72,153 @@ function readWorkflows(repoRoot: string): WorkflowFile[] {
 // legs (読み出した値を引数に取る純関数 = control fixture から再利用)
 // ---------------------------------------------------------------------------
 
-/** legs (1)(2): root manifest の `pnpm.auditConfig` */
+/** leg (1): root manifest に `pnpm.auditConfig` が無い */
 function checkAuditConfig(manifest: unknown): string[] {
   if (!isRecord(manifest)) return ["(1) root package.json が object でない"];
   const pnpmField = manifest.pnpm;
-  const auditConfig = isRecord(pnpmField) ? pnpmField.auditConfig : undefined;
-  if (!isRecord(auditConfig)) return ["(1) pnpm.auditConfig が無い (ignore 集合を pin できない)"];
-  const violations: string[] = [];
-  for (const key of Object.keys(auditConfig)) {
-    if (key === "ignoreCves")
-      violations.push("(2) pnpm.auditConfig.ignoreCves がある (空配列も不可)");
-    else if (!ALLOWED_AUDIT_CONFIG_KEYS.includes(key))
-      violations.push(`(1) pnpm.auditConfig に許可外のキー ${key}`);
+  if (isRecord(pnpmField) && "auditConfig" in pnpmField) {
+    const keys = isRecord(pnpmField.auditConfig) ? Object.keys(pnpmField.auditConfig) : [];
+    return [`(1) pnpm.auditConfig がある (keys: [${keys.join(", ")}]) — ignore 集合は空で固定`];
   }
-  const ids = auditConfig.ignoreGhsas;
-  const expected = IGNORE_TABLE.map((row) => row.id).sort();
-  if (!Array.isArray(ids)) {
-    violations.push("(1) pnpm.auditConfig.ignoreGhsas が配列でない");
-  } else if (JSON.stringify([...ids].sort()) !== JSON.stringify(expected)) {
-    violations.push(
-      `(1) ignoreGhsas = [${ids.join(", ")}] が期待集合 [${expected.join(", ")}] と一致しない`
-    );
-  }
-  return violations;
+  return [];
 }
 
-/** leg (3): `pnpm-workspace.yaml` に `auditConfig` が無い */
+/** leg (2): `pnpm-workspace.yaml` に `auditConfig` が無い */
 function checkWorkspace(workspace: unknown): string[] {
-  if (!isRecord(workspace)) return ["(3) pnpm-workspace.yaml が mapping でない"];
-  return "auditConfig" in workspace ? ["(3) pnpm-workspace.yaml に auditConfig がある"] : [];
+  if (!isRecord(workspace)) return ["(2) pnpm-workspace.yaml が mapping でない"];
+  return "auditConfig" in workspace ? ["(2) pnpm-workspace.yaml に auditConfig がある"] : [];
 }
 
-/** leg (4): workflow の `pnpm audit` 呼出に `--ignore*` が無い。呼出 0 件も RED (locator) */
+/** `pnpm [options] audit` 呼出。group 1 = `audit` より前の option (`pnpm --prod audit`) / group 1 = options before `audit` */
+const AUDIT_CALL_RE = /\bpnpm\s+((?:(?:-\S+|\S+=\S+)\s+)*)audit\b/g;
+/**
+ * option を問わない出現 (raw text との件数突合用)。`pnpm-workspace.yaml` のような語は数えない
+ * any occurrence, for the raw-count cross-check; a word such as `pnpm-workspace.yaml` does not count
+ */
+const AUDIT_LOOSE_RE = /\bpnpm\s[^\n]*?\baudit\b/g;
+/** step / input の説明文の行 (呼出ではない) / description lines of a step or input (not a call) */
+const PROSE_LINE_RE = /^\s*(?:-\s+)?(?:name|description):/;
+/**
+ * 許可する option (allowlist)。`--audit-level` の値は別に high のみを許す。それ以外の option
+ * (`--fix` は常に exit 0、`--ignore*`、`--prod` / `--filter` 等の範囲縮小、`--registry` / `--dir`)
+ * はすべて RED / allowed options; the `--audit-level` value is checked separately (high only).
+ * Any other option is RED (`--fix` always exits 0, `--ignore*`, narrowing, `--registry` / `--dir`).
+ */
+const ALLOWED_AUDIT_OPTIONS: readonly string[] = ["--json"];
+
+/** allowlist に無い token (`audit` の前後とも) / tokens outside the allowlist, before or after `audit` */
+function disallowedOptions(flags: string): string[] {
+  const tokens = flags.trim().split(/\s+/).filter(Boolean);
+  const out: string[] = [];
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i] as string;
+    if (token === "--audit-level") i += 1;
+    else if (!token.startsWith("--audit-level=") && !ALLOWED_AUDIT_OPTIONS.includes(token))
+      out.push(token);
+  }
+  return out;
+}
+
+/** `continue-on-error` が false 以外 (式を含む) / any `continue-on-error` other than a literal false */
+function continuesOnError(value: unknown): boolean {
+  return value !== undefined && value !== false && value !== "false";
+}
+
+/** `\` 継続を 1 行に畳む (`>-` 等の YAML 折り返しは parse 済み) */
+const fold = (text: string): string => text.replace(/\\\r?\n/g, " ");
+
+/** step の `run` を読む */
+function runScripts(workflow: unknown): Array<{ where: string; script: string; lenient: boolean }> {
+  if (!isRecord(workflow) || !isRecord(workflow.jobs)) return [];
+  const out: Array<{ where: string; script: string; lenient: boolean }> = [];
+  for (const [jobName, job] of Object.entries(workflow.jobs)) {
+    if (!isRecord(job) || !Array.isArray(job.steps)) continue;
+    job.steps.forEach((step: unknown, index: number) => {
+      if (!isRecord(step) || typeof step.run !== "string") return;
+      out.push({
+        where: `${jobName}.steps[${index}]`,
+        script: fold(step.run),
+        lenient:
+          continuesOnError(job["continue-on-error"]) || continuesOnError(step["continue-on-error"]),
+      });
+    });
+  }
+  return out;
+}
+
+/** 呼出 1 件分の判定 / the verdict for one call */
+function checkCall(at: string, flags: string, after: string, lenient: boolean): string[] {
+  const out: string[] = [];
+  const extra = disallowedOptions(flags);
+  if (extra.length > 0)
+    out.push(
+      `${at} の pnpm audit に許可外の option [${extra.join(" ")}] (--ignore / 範囲縮小 / --fix 等)`
+    );
+  if (after.startsWith("|")) out.push(`${at} の pnpm audit の終了コードが || / pipe で失われる`);
+  if (lenient) out.push(`${at} は continue-on-error (pnpm audit が落ちても通る)`);
+  return out;
+}
+
+/** raw text (コメント行を除く) の `pnpm ... audit` 件数: `run` 以外に置いた呼出を拾う */
+const rawAuditCount = (text: string): number =>
+  [
+    ...fold(text)
+      .split("\n")
+      .filter((line) => !/^\s*#/.test(line) && !PROSE_LINE_RE.test(line))
+      .join("\n")
+      .matchAll(AUDIT_LOOSE_RE),
+  ].length;
+
+/**
+ * leg (3): workflow の `pnpm audit` 呼出 (>= 1) を YAML の step `run` から読む。
+ * - option は allowlist (`--audit-level=high`、`--json`) のみ。`--ignore*`、範囲縮小 (--prod / --filter ...)、
+ *   `--fix` (常に exit 0)、`--registry` / `--dir` 等は RED (`audit` より前の option も見る)
+ * - `--audit-level` は `high` のみ (緩和 / 他の値は RED)、全 workflow 合計でちょうど 1 回
+ * - 呼出の直後が `|| ...` / pipe ではない、step / job が `continue-on-error` ではない
+ * - raw text の件数と `run` の解析で数えた件数が一致する (`with:` 入力などに置いた呼出は RED)
+ * - 呼出 0 件も RED (locator)
+ * 範囲外 (step `if:`、`shell:` 上書き、`set +e`、`! pnpm audit`、`; exit 0`) は tracked: deps-zod4.md TDA-B2C2A-06。
+ */
+function checkScript(
+  at: string,
+  run: { where: string; script: string; lenient: boolean }
+): { parsed: number; highLevels: number; violations: string[] } {
+  const out = { parsed: 0, highLevels: 0, violations: [] as string[] };
+  for (const match of run.script.matchAll(AUDIT_CALL_RE)) {
+    out.parsed += 1;
+    const rest = run.script.slice((match.index ?? 0) + match[0].length);
+    const end = rest.search(/&&|;|\||\n/);
+    const args = end < 0 ? rest : rest.slice(0, end);
+    const where = `${at} ${run.where}`;
+    const after = end < 0 ? "" : rest.slice(end).trimStart();
+    const flags = `${match[1] ?? ""} ${args}`;
+    out.violations.push(...checkCall(where, flags, after, run.lenient));
+    for (const level of flags.matchAll(/--audit-level(?:=|\s+)(\S+)/g)) {
+      if (level[1] === "high") out.highLevels += 1;
+      else out.violations.push(`${where} の --audit-level が ${String(level[1])} (high 以外)`);
+    }
+  }
+  return out;
+}
+
 function checkWorkflows(files: readonly WorkflowFile[]): string[] {
   const violations: string[] = [];
   let calls = 0;
+  let highLevels = 0;
   for (const file of files) {
-    file.text.split("\n").forEach((line, index) => {
-      if (!/\bpnpm\s+audit\b/.test(line)) return;
-      calls += 1;
-      if (/--ignore/.test(line))
-        violations.push(`(4) ${file.path}:${index + 1} の pnpm audit に --ignore 系 flag がある`);
-    });
+    const found = runScripts(load(file.text)).map((run) => checkScript(`(3) ${file.path}`, run));
+    const parsed = found.reduce((n, f) => n + f.parsed, 0);
+    highLevels += found.reduce((n, f) => n + f.highLevels, 0);
+    violations.push(...found.flatMap((f) => f.violations));
+    const raw = rawAuditCount(file.text);
+    if (raw !== parsed)
+      violations.push(`(3) ${file.path} の pnpm audit は raw ${raw} 件、run の解析 ${parsed} 件`);
+    calls += parsed;
   }
-  if (calls === 0) violations.push("(4) workflow に pnpm audit 呼出が 1 件も無い (locator)");
+  if (calls === 0) violations.push("(3) workflow に pnpm audit 呼出が 1 件も無い (locator)");
+  else if (highLevels !== 1)
+    violations.push(`(3) --audit-level=high が ${highLevels} 回 (全 workflow 合計でちょうど 1 回)`);
   return violations;
-}
-
-/** leg (5): ignore した ID の集合 = 表の ID 集合、各行に記録・解除条件・tracked がある */
-function checkIgnoreTable(
-  ignored: readonly string[],
-  table: readonly IgnoreRecord[] = IGNORE_TABLE
-): string[] {
-  const violations: string[] = [];
-  const tableIds = new Set(table.map((row) => row.id));
-  for (const id of ignored) {
-    if (!tableIds.has(id)) violations.push(`(5) ${id}: ignore 表に行が無い`);
-  }
-  for (const row of table) {
-    if (!ignored.includes(row.id)) violations.push(`(5) ${row.id}: 表にあるが ignore されていない`);
-    if (row.acceptedRisk !== "R2-AR-08" || row.tracked !== "CO-R2-41" || row.release.length === 0)
-      violations.push(`(5) ${row.id}: accepted-risk / tracked / 解除条件が欠けている`);
-  }
-  return violations;
-}
-
-function checkProdBraces(lock: unknown): string[] {
-  const closure = lockfileClosure(lock, undefined, { includeDev: false });
-  const braces = [...closure.keys].filter((key) => key.startsWith(BRACES_PREFIX)).sort();
-  return [
-    ...closure.unresolved.map((reason) => `(6) 閉包を辿れない (fail-closed): ${reason}`),
-    ...braces.map(
-      (key) => `(6) ${key} が production 閉包にある (accepted-risk R2-AR-08 の前提が崩れた)`
-    ),
-  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -216,159 +228,157 @@ function checkProdBraces(lock: unknown): string[] {
 describe("INV-SEC-AUDIT-IGNORE-BOUND-001 (large-page)", () => {
   const manifest: unknown = JSON.parse(readNonEmpty(join(REPO_ROOT, "package.json")));
   const workspace: unknown = load(readNonEmpty(join(REPO_ROOT, "pnpm-workspace.yaml")));
-  const lock: unknown = load(readNonEmpty(join(REPO_ROOT, "pnpm-lock.yaml")));
   const workflows = readWorkflows(REPO_ROOT);
 
-  it("(1)(2) pnpm.auditConfig = { ignoreGhsas: [GHSA-vfj7-8cjw-p6xm] } ちょうど、ignoreCves なし", () => {
+  it("(1) root package.json に pnpm.auditConfig が無い (ignore 集合 = 空)", () => {
     expect(checkAuditConfig(manifest)).toEqual([]);
   });
 
-  it("(3) pnpm-workspace.yaml に auditConfig が無い", () => {
+  it("(2) pnpm-workspace.yaml に auditConfig が無い", () => {
     expect(checkWorkspace(workspace)).toEqual([]);
   });
 
-  it("(4) workflow の pnpm audit 呼出 (>= 1) に --ignore / --ignore-unfixable が無い", () => {
+  it("(3) workflow の pnpm audit 呼出 (>= 1) に --ignore / --ignore-unfixable が無い", () => {
     expect(workflows.length).toBeGreaterThanOrEqual(1);
     expect(checkWorkflows(workflows)).toEqual([]);
-  });
-
-  it("(5) ignore した ID ごとに R2-AR-08 / 解除条件 / CO-R2-41 の行がある (集合一致)", () => {
-    const pnpmField = (manifest as { pnpm?: { auditConfig?: { ignoreGhsas?: string[] } } }).pnpm;
-    expect(checkIgnoreTable(pnpmField?.auditConfig?.ignoreGhsas ?? [])).toEqual([]);
-  });
-
-  it("(6) 全 importer の production 閉包に braces@* が 0 (E-58)", () => {
-    expect(checkProdBraces(lock)).toEqual([]);
-  });
-
-  it("(6) locator: 閉包関数で apps/mcp-server から cheerio と undici に到達する (>= 1)", () => {
-    const closure = lockfileClosure(lock, ["apps/mcp-server"], { includeDev: false });
-    expect(closure.unresolved).toEqual([]);
-    const keys = [...closure.keys];
-    expect(keys.filter((key) => key.startsWith("cheerio@")).length).toBeGreaterThanOrEqual(1);
-    expect(keys.filter((key) => key.startsWith("undici@")).length).toBeGreaterThanOrEqual(1);
   });
 
   // -------------------------------------------------------------------------
   // control fixtures (非空虚性 / non-vacuity): 各 leg が実際に RED を返せることを固定する
   // -------------------------------------------------------------------------
   describe("control fixtures", () => {
-    const baseManifest = { pnpm: { auditConfig: { ignoreGhsas: ["GHSA-vfj7-8cjw-p6xm"] } } };
-
-    it("(1)(2) baseline fixture は GREEN、ID 追加 / ignoreCves / 空 ignoreCves / 許可外キー / 欠落は RED", () => {
-      expect(checkAuditConfig(baseManifest)).toEqual([]);
+    it("(1) auditConfig 無しは GREEN、ID 追加 / 空 ignoreGhsas / ignoreCves / 他キーは RED", () => {
+      expect(checkAuditConfig({ pnpm: { overrides: {} } })).toEqual([]);
+      expect(checkAuditConfig({})).toEqual([]);
       const cases: unknown[] = [
-        { pnpm: { auditConfig: { ignoreGhsas: ["GHSA-vfj7-8cjw-p6xm", "GHSA-vcvr-r3jv-pc5j"] } } },
-        {
-          pnpm: {
-            auditConfig: { ignoreGhsas: ["GHSA-vfj7-8cjw-p6xm"], ignoreCves: ["CVE-2026-93687"] },
-          },
-        },
-        { pnpm: { auditConfig: { ignoreGhsas: ["GHSA-vfj7-8cjw-p6xm"], ignoreCves: [] } } },
-        { pnpm: { auditConfig: { ignoreGhsas: ["GHSA-vfj7-8cjw-p6xm"], ignoreUnfixable: true } } },
+        { pnpm: { auditConfig: { ignoreGhsas: ["GHSA-vfj7-8cjw-p6xm"] } } },
         { pnpm: { auditConfig: { ignoreGhsas: [] } } },
-        { pnpm: {} },
+        { pnpm: { auditConfig: { ignoreCves: ["CVE-2026-93687"] } } },
+        { pnpm: { auditConfig: { ignoreCves: [] } } },
+        { pnpm: { auditConfig: { ignoreUnfixable: true } } },
+        { pnpm: { auditConfig: {} } },
       ];
-      for (const fixture of cases)
-        expect(checkAuditConfig(fixture).length).toBeGreaterThanOrEqual(1);
+      for (const fixture of cases) expect(checkAuditConfig(fixture)).toHaveLength(1);
+      expect(checkAuditConfig("not an object")).toHaveLength(1);
     });
 
-    it("(3) workspace に auditConfig を置く → RED", () => {
+    it("(2) workspace に auditConfig を置く → RED", () => {
       expect(checkWorkspace({ packages: ["apps/*"] })).toEqual([]);
       expect(
         checkWorkspace({ packages: ["apps/*"], auditConfig: { ignoreGhsas: ["GHSA-x"] } })
       ).toHaveLength(1);
     });
 
-    it("(4) --ignore-unfixable / --ignore <CVE> / 呼出 0 件 → RED", () => {
-      const ok = [{ path: "ci.yml", text: "      - run: pnpm audit --audit-level=high\n" }];
-      expect(checkWorkflows(ok)).toEqual([]);
+    const workflow = (run: string, extra = ""): WorkflowFile[] => [
+      {
+        path: "ci.yml",
+        text: `jobs:\n  audit:\n    runs-on: ubuntu-latest\n${extra}    steps:\n      - name: a\n${run}`,
+      },
+    ];
+    const step = (text: string, stepExtra = ""): WorkflowFile[] =>
+      workflow(`        run: ${text}\n${stepExtra}`);
+
+    it("(3) 現在の形 (pnpm audit --audit-level=high が 1 回) は GREEN", () => {
+      expect(checkWorkflows(step("pnpm audit --audit-level=high"))).toEqual([]);
+      expect(checkWorkflows(step("pnpm audit --audit-level high"))).toEqual([]);
+    });
+
+    it("(3) --ignore-unfixable / --ignore <CVE> (1 行) → RED", () => {
       for (const line of [
-        "      - run: pnpm audit --audit-level=high --ignore-unfixable",
-        "      - run: pnpm audit --ignore CVE-2026-93687",
+        "pnpm audit --audit-level=high --ignore-unfixable",
+        "pnpm audit --ignore CVE-2026-93687 --audit-level=high",
       ]) {
-        expect(checkWorkflows([{ path: "ci.yml", text: `${line}\n` }])).toHaveLength(1);
+        expect(checkWorkflows(step(line))).toHaveLength(1);
       }
-      expect(checkWorkflows([{ path: "ci.yml", text: "      - run: pnpm lint\n" }])).toHaveLength(
-        1
+    });
+
+    it("(3) `\\` 継続の --ignore → RED", () => {
+      const run =
+        "        run: |\n          pnpm audit --audit-level=high \\\n            --ignore CVE-2026-93687\n";
+      expect(checkWorkflows(workflow(run))).toHaveLength(1);
+    });
+
+    it("(3) `>-` 折り返しの --ignore → RED", () => {
+      const run =
+        "        run: >-\n          pnpm audit\n          --audit-level=high\n          --ignore-unfixable\n";
+      expect(checkWorkflows(workflow(run))).toHaveLength(1);
+      const clean = "        run: >-\n          pnpm audit\n          --audit-level=high\n";
+      expect(checkWorkflows(workflow(clean))).toEqual([]);
+    });
+
+    it("(3) --audit-level の緩和 (critical / moderate) と欠落 → RED", () => {
+      expect(checkWorkflows(step("pnpm audit --audit-level=critical"))).toHaveLength(2);
+      expect(checkWorkflows(step("pnpm audit --audit-level moderate"))).toHaveLength(2);
+      expect(checkWorkflows(step("pnpm audit"))).toHaveLength(1);
+    });
+
+    it("(3) --audit-level=high が 2 回 (別 step) → RED", () => {
+      const run =
+        "        run: pnpm audit --audit-level=high\n      - name: b\n        run: pnpm audit --audit-level=high\n";
+      expect(checkWorkflows(workflow(run))).toHaveLength(1);
+    });
+
+    it("(3) `|| true` / pipe → RED", () => {
+      expect(checkWorkflows(step("pnpm audit --audit-level=high || true"))).toHaveLength(1);
+      expect(checkWorkflows(step("pnpm audit --audit-level=high | tee audit.log"))).toHaveLength(1);
+    });
+
+    it("(3) continue-on-error (step / job、true / 式) → RED、false は GREEN", () => {
+      const line = "pnpm audit --audit-level=high";
+      expect(checkWorkflows(step(line, "        continue-on-error: true\n"))).toHaveLength(1);
+      expect(
+        checkWorkflows(step(line, "        continue-on-error: ${{ always() }}\n"))
+      ).toHaveLength(1);
+      expect(
+        checkWorkflows(workflow(`        run: ${line}\n`, "    continue-on-error: true\n"))
+      ).toHaveLength(1);
+      expect(checkWorkflows(step(line, "        continue-on-error: false\n"))).toEqual([]);
+    });
+
+    it("(3) audit の前置 option と範囲を狭める flag (--prod / --filter) → RED", () => {
+      expect(checkWorkflows(step("pnpm --prod audit --audit-level=high"))).toHaveLength(1);
+      expect(checkWorkflows(step("pnpm audit --audit-level=high --prod"))).toHaveLength(1);
+      expect(checkWorkflows(step("pnpm --filter=app audit --audit-level=high"))).toHaveLength(1);
+      expect(checkWorkflows(step("pnpm audit --audit-level=high --filter app"))).toHaveLength(1);
+    });
+
+    it("(3) allowlist 外の option (--fix / --registry / --dir / 位置引数) → RED、--json は GREEN", () => {
+      for (const line of [
+        "pnpm audit --audit-level=high --fix",
+        "pnpm audit --audit-level=high --registry=https://example.invalid",
+        "pnpm audit --dir=packages/core --audit-level=high",
+        "pnpm --dir=packages/core audit --audit-level=high",
+        "pnpm audit --audit-level=high extra",
+      ]) {
+        expect(checkWorkflows(step(line))).toHaveLength(1);
+      }
+      expect(checkWorkflows(step("pnpm audit --audit-level=high --json"))).toEqual([]);
+      expect(checkWorkflows(step("pnpm audit --json --audit-level high"))).toEqual([]);
+    });
+
+    it("(3) step 名や pnpm-workspace.yaml の語は raw 件数に数えない", () => {
+      const named = workflow(
+        "        run: pnpm audit --audit-level=high\n      - name: pnpm audit の結果を確認\n        run: echo done\n"
       );
-    });
-
-    it("(5) 表に無い ID / ignore されていない表の行 → RED", () => {
-      expect(checkIgnoreTable(["GHSA-vfj7-8cjw-p6xm", "GHSA-x4vx-rjvf-j5p4"]).length).toBe(1);
-      expect(checkIgnoreTable([]).length).toBe(1);
-    });
-
-    it("(6) braces を prod (dependencies / optionalDependencies / link: 経由) に置く → RED、dev のみは GREEN", () => {
-      const snapshots = {
-        "fast-glob@3.3.3": { dependencies: { micromatch: "4.0.8" } },
-        "micromatch@4.0.8": { dependencies: { braces: "3.0.3" } },
-        "braces@3.0.3": {},
-        "cheerio@1.2.0": { dependencies: { undici: "7.30.0" } },
-        "undici@7.30.0": {},
-      };
-      const devOnly = {
-        importers: {
-          "apps/x": { devDependencies: { "fast-glob": { specifier: "^3", version: "3.3.3" } } },
-        },
-        snapshots,
-      };
-      expect(checkProdBraces(devOnly)).toEqual([]);
-      const prodDep = {
-        importers: {
-          "apps/x": { dependencies: { "fast-glob": { specifier: "^3", version: "3.3.3" } } },
-        },
-        snapshots,
-      };
-      expect(checkProdBraces(prodDep).some((v) => v.includes("braces@3.0.3"))).toBe(true);
-      const optionalDep = {
-        importers: {
-          "apps/x": { optionalDependencies: { micromatch: { specifier: "^4", version: "4.0.8" } } },
-        },
-        snapshots,
-      };
-      expect(checkProdBraces(optionalDep).some((v) => v.includes("braces@3.0.3"))).toBe(true);
-      const viaLink = {
-        importers: {
-          "apps/x": {
-            dependencies: {
-              "@r/lib": { specifier: "workspace:*", version: "link:../../packages/lib" },
-            },
-          },
-          "packages/lib": { dependencies: { micromatch: { specifier: "^4", version: "4.0.8" } } },
-        },
-        snapshots,
-      };
-      expect(checkProdBraces(viaLink).some((v) => v.includes("braces@3.0.3"))).toBe(true);
-      const viaAlias = {
-        importers: {
-          "apps/x": {
-            dependencies: { mm: { specifier: "npm:micromatch@4", version: "micromatch@4.0.8" } },
-          },
-        },
-        snapshots,
-      };
-      expect(checkProdBraces(viaAlias).some((v) => v.includes("braces@3.0.3"))).toBe(true);
-      const located = lockfileClosure(
-        {
-          importers: {
-            "apps/x": { dependencies: { cheerio: { specifier: "^1", version: "1.2.0" } } },
-          },
-          snapshots,
-        },
-        ["apps/x"],
-        { includeDev: false }
+      expect(checkWorkflows(named)).toEqual([]);
+      const word = workflow(
+        "        run: pnpm audit --audit-level=high\n      - name: b\n        run: cat pnpm-workspace.yaml && echo audit\n"
       );
-      expect([...located.keys].sort()).toEqual(["cheerio@1.2.0", "undici@7.30.0"]);
+      expect(checkWorkflows(word)).toEqual([]);
     });
 
-    it("(6) snapshot が見つからない参照 / importers 欠落 → RED (fail-closed)", () => {
-      const missing = {
-        importers: { "apps/x": { dependencies: { ghost: { specifier: "^1", version: "1.0.0" } } } },
-        snapshots: {},
-      };
-      expect(checkProdBraces(missing).some((v) => v.includes("ghost@1.0.0"))).toBe(true);
-      expect(checkProdBraces({})).toHaveLength(1);
+    it("(3) run 以外 (with: 入力) の pnpm audit は raw 件数との突合で RED、コメントは数えない", () => {
+      const text =
+        "jobs:\n  a:\n    steps:\n      - run: pnpm audit --audit-level=high\n      - uses: x/y@v1\n        with:\n          cmd: pnpm audit --ignore CVE-1\n";
+      expect(checkWorkflows([{ path: "ci.yml", text }])).toHaveLength(1);
+      const [clean] = step("pnpm audit --audit-level=high");
+      expect(
+        checkWorkflows([{ ...clean!, text: `# pnpm audit --ignore X\n${clean!.text}` }])
+      ).toEqual([]);
+    });
+
+    it("(3) 呼出 0 件 → RED", () => {
+      expect(checkWorkflows(step("pnpm lint"))).toHaveLength(1);
     });
   });
 });

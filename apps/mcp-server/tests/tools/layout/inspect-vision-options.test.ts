@@ -266,7 +266,7 @@ describe("layoutInspectInputSchema with visionOptions integration", () => {
 
     it("should accept id with visionOptions", () => {
       const result = extendedLayoutInspectInputSchema.safeParse({
-        id: "01234567-89ab-cdef-0123-456789abcdef",
+        id: "01234567-89ab-4def-9123-456789abcdef",
         options: {
           useVision: true,
           visionOptions: {

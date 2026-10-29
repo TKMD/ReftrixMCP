@@ -28,7 +28,7 @@ describe.skipIf(!DATABASE_URL || !ADMIN_DATABASE_URL)(
     let prisma: PrismaClient;
 
     // Test user with known projects
-    const testUserId = "00000000-0000-0000-0000-000000000099";
+    const testUserId = "00000000-0000-4000-9000-000000000099";
     let testProjectId: string;
 
     beforeAll(async () => {

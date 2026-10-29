@@ -31,8 +31,8 @@ import {
 // テストデータ
 // =====================================================
 
-const VALID_UUID = "01234567-89ab-cdef-0123-456789abcdef";
-const ANOTHER_UUID = "01234567-89ab-cdef-0123-456789abcde0";
+const VALID_UUID = "01234567-89ab-4def-9123-456789abcdef";
+const ANOTHER_UUID = "01234567-89ab-4def-8123-456789abcde0";
 
 /**
  * モックパーツ詳細行を生成

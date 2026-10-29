@@ -1,0 +1,198 @@
+{
+  "required-missing": {
+    "joined": "query: Invalid input: expected string, received undefined",
+    "messages": ["Invalid input: expected string, received undefined"]
+  },
+  "required-nested-missing": {
+    "joined": "options.depth: Invalid input: expected number, received undefined",
+    "messages": ["Invalid input: expected number, received undefined"]
+  },
+  "type-number-for-string": {
+    "joined": "query: Invalid input: expected string, received number",
+    "messages": ["Invalid input: expected string, received number"]
+  },
+  "type-null-for-string": {
+    "joined": "query: Invalid input: expected string, received null",
+    "messages": ["Invalid input: expected string, received null"]
+  },
+  "type-string-for-number-sentinel": {
+    "joined": "limit: Invalid input: expected number, received string",
+    "messages": ["Invalid input: expected number, received string"]
+  },
+  "type-array-for-boolean": {
+    "joined": "flag: Invalid input: expected boolean, received array",
+    "messages": ["Invalid input: expected boolean, received array"]
+  },
+  "uuid-invalid-sentinel": {
+    "joined": "id: Invalid UUID",
+    "messages": ["Invalid UUID"]
+  },
+  "uuid-valid-other-field-invalid": {
+    "joined": "n: Invalid input: expected number, received string",
+    "messages": ["Invalid input: expected number, received string"]
+  },
+  "url-invalid-sentinel": {
+    "joined": "url: Invalid URL",
+    "messages": ["Invalid URL"]
+  },
+  "email-invalid-sentinel": {
+    "joined": "mail: Invalid email address",
+    "messages": ["Invalid email address"]
+  },
+  "regex-invalid-sentinel": {
+    "joined": "code: Invalid string: must match pattern /^[0-9]+$/",
+    "messages": ["Invalid string: must match pattern /^[0-9]+$/"]
+  },
+  "enum-invalid-sentinel": {
+    "joined": "mode: Invalid option: expected one of \"fast\"|\"slow\"",
+    "messages": ["Invalid option: expected one of \"fast\"|\"slow\""]
+  },
+  "enum-invalid-number": {
+    "joined": "mode: Invalid option: expected one of \"fast\"|\"slow\"",
+    "messages": ["Invalid option: expected one of \"fast\"|\"slow\""]
+  },
+  "number-too-small": {
+    "joined": "limit: Too small: expected number to be >=1",
+    "messages": ["Too small: expected number to be >=1"]
+  },
+  "number-too-big": {
+    "joined": "limit: Too big: expected number to be <=10",
+    "messages": ["Too big: expected number to be <=10"]
+  },
+  "number-too-small-and-too-big-merge": {
+    "joined": "limit: Too small: expected number to be >=5, limit: Too big: expected number to be <=3",
+    "messages": ["Too small: expected number to be >=5", "Too big: expected number to be <=3"]
+  },
+  "number-not-int": {
+    "joined": "limit: Invalid input: expected int, received number",
+    "messages": ["Invalid input: expected int, received number"]
+  },
+  "string-too-short": {
+    "joined": "query: Too small: expected string to have >=3 characters",
+    "messages": ["Too small: expected string to have >=3 characters"]
+  },
+  "string-too-long-sentinel": {
+    "joined": "query: Too big: expected string to have <=5 characters",
+    "messages": ["Too big: expected string to have <=5 characters"]
+  },
+  "array-too-short": {
+    "joined": "ids: Too small: expected array to have >=2 items",
+    "messages": ["Too small: expected array to have >=2 items"]
+  },
+  "array-too-long": {
+    "joined": "ids: Too big: expected array to have <=1 items",
+    "messages": ["Too big: expected array to have <=1 items"]
+  },
+  "array-element-type": {
+    "joined": "ids.1: Invalid input: expected string, received number",
+    "messages": ["Invalid input: expected string, received number"]
+  },
+  "custom-refine": {
+    "joined": "a: custom rule failed",
+    "messages": ["custom rule failed"]
+  },
+  "custom-refine-default-message": {
+    "joined": ": Invalid input",
+    "messages": ["Invalid input"]
+  },
+  "strict-unrecognized-key-sentinel": {
+    "joined": ": Unrecognized key in input",
+    "messages": ["Unrecognized key: \"SECRET_SENTINEL_9f3a\""]
+  },
+  "union-no-match-sentinel": {
+    "joined": "v: Invalid input",
+    "messages": ["Invalid input"]
+  },
+  "literal-mismatch-sentinel": {
+    "joined": "v: Invalid input: expected \"on\"",
+    "messages": ["Invalid input: expected \"on\""]
+  },
+  "multiple-issues-order": {
+    "joined": "a: Invalid input: expected string, received undefined, b: Too small: expected number to be >=1, c: Invalid option: expected one of \"x\"|\"y\"",
+    "messages": [
+      "Invalid input: expected string, received undefined",
+      "Too small: expected number to be >=1",
+      "Invalid option: expected one of \"x\"|\"y\""
+    ]
+  },
+  "discriminated-union-no-match-sentinel": {
+    "joined": "v.kind: Invalid discriminator value. Expected 'a' | 'b'",
+    "messages": ["Invalid discriminator value. Expected 'a' | 'b'"]
+  },
+  "record-value-type": {
+    "joined": "m.k: Invalid input: expected number, received string",
+    "messages": ["Invalid input: expected number, received string"]
+  },
+  "tuple-element-type-and-length": {
+    "joined": "t: Too small: expected array to have >=2 items",
+    "messages": ["Too small: expected array to have >=2 items"]
+  },
+  "number-not-nonnegative": {
+    "joined": "n: Too small: expected number to be >=0",
+    "messages": ["Too small: expected number to be >=0"]
+  },
+  "number-not-positive": {
+    "joined": "n: Too small: expected number to be >0",
+    "messages": ["Too small: expected number to be >0"]
+  },
+  "number-not-finite": {
+    "joined": "n: Invalid input: expected number, received Infinity",
+    "messages": ["Invalid input: expected number, received Infinity"]
+  },
+  "number-int-below-min": {
+    "joined": "limit: Too small: expected number to be >=1",
+    "messages": ["Too small: expected number to be >=1"]
+  },
+  "number-int-above-max": {
+    "joined": "limit: Too big: expected number to be <=10",
+    "messages": ["Too big: expected number to be <=10"]
+  },
+  "string-not-datetime-sentinel": {
+    "joined": "at: Invalid ISO datetime",
+    "messages": ["Invalid ISO datetime"]
+  },
+  "string-not-startswith-sentinel": {
+    "joined": "u: Invalid string: must start with \"https://\"",
+    "messages": ["Invalid string: must start with \"https://\""]
+  },
+  "string-not-endswith-sentinel": {
+    "joined": "f: Invalid string: must end with \".png\"",
+    "messages": ["Invalid string: must end with \".png\""]
+  },
+  "string-length-exact-sentinel": {
+    "joined": "code: Too big: expected string to have exactly 3 characters",
+    "messages": ["Too big: expected string to have exactly 3 characters"]
+  },
+  "array-length-exact": {
+    "joined": "pair: Too small: expected array to have exactly 2 items",
+    "messages": ["Too small: expected array to have exactly 2 items"]
+  },
+  "instanceof-mismatch-sentinel": {
+    "joined": "d: Invalid input: expected Date, received string",
+    "messages": ["Invalid input: expected Date, received string"]
+  },
+  "size-bigint-too-small": {
+    "joined": "n: Too small: expected bigint to be >=5",
+    "messages": ["Too small: expected bigint to be >=5"]
+  },
+  "size-set-too-small": {
+    "joined": "s: Too small: expected set to have >=2 items",
+    "messages": ["Too small: expected set to have >=2 items"]
+  },
+  "record-string-bad-value-sentinel": {
+    "joined": "styles.[key]: Invalid input: expected string, received number",
+    "messages": ["Invalid input: expected string, received number"]
+  },
+  "record-string-max-bad-key-sentinel": {
+    "joined": "styles.[key]: Invalid key in record",
+    "messages": ["Invalid key in record"]
+  },
+  "record-string-value-too-long-sentinel": {
+    "joined": "styles.[key]: Too big: expected string to have <=2 characters",
+    "messages": ["Too big: expected string to have <=2 characters"]
+  },
+  "partial-record-enum-unknown-key-sentinel": {
+    "joined": ": Unrecognized key in input",
+    "messages": ["Unrecognized key: \"SECRET_SENTINEL_9f3a\""]
+  }
+}

@@ -29,7 +29,7 @@ import { PREFERENCE_MCP_ERROR_CODES } from "../../../src/tools/preference/schema
 // テストデータ
 // =====================================================
 
-const MOCK_PROFILE_ID = "01234567-89ab-cdef-0123-456789abcdef";
+const MOCK_PROFILE_ID = "01234567-89ab-4def-9123-456789abcdef";
 
 const MOCK_PROFILE = {
   profile_id: MOCK_PROFILE_ID,
@@ -46,11 +46,11 @@ const MOCK_PROFILE = {
 
 const MOCK_SIGNALS = [
   {
-    id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     signal_type: "hearing_positive",
     signal_weight: 1.0,
     target_type: "web_page",
-    target_id: "11111111-1111-1111-1111-111111111111",
+    target_id: "11111111-1111-4111-9111-111111111111",
     feedback_text: "ミニマルで美しい",
     created_at: "2026-03-07T01:00:00Z",
   },
@@ -159,7 +159,7 @@ describe("preference.get MCPツール", () => {
       setPreferenceServiceFactory(() => mockService);
 
       const result = await preferenceGetHandler({
-        profile_id: "99999999-9999-9999-9999-999999999999",
+        profile_id: "99999999-9999-4999-9999-999999999999",
       });
 
       expect(result).toHaveProperty("success", true);

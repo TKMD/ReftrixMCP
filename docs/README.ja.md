@@ -200,7 +200,7 @@ MCPサーバーは Claude Desktop から利用します。
 | 技術           | バージョン | 選定理由                           |
 | -------------- | ---------- | ---------------------------------- |
 | **Node.js**    | 20.x LTS   | 長期サポート、ES Modules安定       |
-| **Zod**        | 3.24.x     | スキーマ検証                       |
+| **Zod**        | 4.6.x      | スキーマ検証                       |
 | **MCP SDK**    | 1.26.x     | Model Context Protocol統合         |
 | **TypeScript** | 5.9.x      | node20モジュール、deferred imports |
 

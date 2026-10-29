@@ -187,6 +187,7 @@ export const briefValidateToolDefinition = {
                 "creative",
               ],
             },
+            maxItems: 8,
             description:
               "Design tone (optional): professional, playful, minimal, bold, elegant, friendly, corporate, creative",
           },
@@ -239,11 +240,13 @@ export const briefValidateToolDefinition = {
               mustHave: {
                 type: "array",
                 items: { type: "string" },
+                maxItems: 20,
                 description: "Required elements",
               },
               mustAvoid: {
                 type: "array",
                 items: { type: "string" },
+                maxItems: 20,
                 description: "Elements to avoid",
               },
             },

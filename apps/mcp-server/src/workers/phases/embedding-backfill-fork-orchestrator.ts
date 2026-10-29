@@ -19,7 +19,7 @@
  * 1. Redis lock pre-flight probe (observability-only, fail-open) — TPA M-1
  * 2. BullMQ `extendLock` cron relay (30s interval, `try/finally` で確実に clear) — TDA H-2
  * 3. AbortSignal 2-stage escalation (SIGTERM → 5s → SIGKILL) — SEC M-1
- * 4. Zod `.strict()` safeParse による IPC message 検証 — TDA M-1 / SEC H-2
+ * 4. Zod `z.strictObject` safeParse による IPC message 検証 — TDA M-1 / SEC H-2
  * 5. child 側 sanitize 済み message を parent で **再 sanitize しない** (冪等性) — SEC M-2
  * 6. log 出力時のみ `truncateId()` を全 UUID に適用 — SEC L-2
  *
@@ -70,6 +70,7 @@ import {
   type BackfillParentMessageT,
   type EmbeddingBackfillCategory,
 } from "./embedding-backfill-ipc";
+import { formatIssuePath } from "../../utils/issue-path";
 
 // ============================================================================
 // Constants
@@ -461,16 +462,16 @@ function installAbortEscalation(
  * field name (e.g. `processedCount`, `totalCount`). This is intentional for
  * observability, but **any new field added to `BackfillChildMessage` must go
  * through a naming review** — field names must not leak internal identifiers
- * (UUIDs, secrets, table names). The message itself is truncated to 120 chars
- * to bound log size.
+ * (UUIDs, secrets, table names). The issue message is never logged
+ * (SEC-C1B2R-L-01); only the issue code and the path are.
  */
 function formatZodParseFailure(error: z.ZodError): string {
   const issue = error.issues[0];
   if (!issue) return "Invalid child message (empty issues)";
-  const pathStr = issue.path.length > 0 ? issue.path.join(".") : "<root>";
-  // Truncate the message defensively (SEC L-2-analog) to bound log size.
-  const msg = issue.message.slice(0, 120);
-  return `Invalid child message at ${pathStr}: ${msg}`;
+  const pathStr = issue.path.length > 0 ? formatIssuePath(issue.path) : "<root>";
+  // Issue code and path only (SEC-C1B2R-L-01): the issue message can carry the received value or an
+  // unrecognized key name sent by the peer, and its wording changes between zod majors.
+  return `Invalid child message at ${pathStr}: code=${issue.code}`;
 }
 
 // ============================================================================
@@ -601,7 +602,7 @@ export function attachSubChildCascadeHooks(child: ChildProcess, jobId: string): 
  *   を即送信し、{@link BACKFILL_ABORT_ESCALATION_DELAY_MS}ms 経過後に SIGKILL。
  * - **Lock relay cron (TDA H-2)**: 30s 間隔で `extendLock()` を呼び、
  *   `try/finally` で確実に `clearInterval` する。
- * - **Strict Zod (SEC H-2)**: `.strict()` により unknown-key 混入を reject。
+ * - **Strict Zod (SEC H-2)**: `z.strictObject` により unknown-key 混入を reject。
  *
  * @throws Sanitized error on fork failure, child non-zero exit, IPC validation
  *   failure, or child-reported error.

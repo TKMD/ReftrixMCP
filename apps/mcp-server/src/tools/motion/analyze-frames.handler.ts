@@ -33,6 +33,7 @@ import {
   ANALYZE_FRAMES_ERROR_CODES,
   MIN_ANALYSIS_FRAMES,
 } from "./analyze-frames.schema";
+import { formatIssueLine } from "../../utils/issue-path";
 
 // ============================================================================
 // Service Interface
@@ -223,7 +224,7 @@ export async function motionAnalyzeFramesHandler(input: unknown): Promise<Analyz
   } catch (error) {
     if (error instanceof ZodError) {
       logger.warn("[motion.analyze_frames] Validation error", {
-        error: error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join(", "),
+        error: error.issues.map((issue) => `${formatIssueLine(issue)}`).join(", "),
       });
       return createErrorResponse(
         ANALYZE_FRAMES_ERROR_CODES.VALIDATION_ERROR,

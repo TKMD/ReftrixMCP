@@ -43,7 +43,7 @@ MPL-2.0およびLGPL-3.0-or-laterの依存関係は、AGPL-3.0との互換性が
 
 | Package                   | Version | License                                                            | Repository                                             |
 | ------------------------- | ------- | ------------------------------------------------------------------ | ------------------------------------------------------ |
-| @modelcontextprotocol/sdk | 1.26.x  | MIT                                                                | https://github.com/modelcontextprotocol/typescript-sdk |
+| @modelcontextprotocol/sdk | 1.32.x  | MIT                                                                | https://github.com/modelcontextprotocol/typescript-sdk |
 | @prisma/client            | 6.x     | Apache-2.0                                                         | https://github.com/prisma/prisma                       |
 | @huggingface/transformers | 3.x     | Apache-2.0                                                         | https://github.com/huggingface/transformers.js         |
 | onnxruntime-node          | 1.21.x  | MIT                                                                | https://github.com/microsoft/onnxruntime               |

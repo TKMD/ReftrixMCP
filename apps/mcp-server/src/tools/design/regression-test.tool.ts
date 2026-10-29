@@ -25,6 +25,7 @@ import {
   runVisualRegression,
   VISUAL_REGRESSION_ERROR_CODES,
 } from "../../services/visual-regression.service";
+import { formatIssueLine } from "../../utils/issue-path";
 
 // =====================================================
 // Constants / 定数
@@ -131,7 +132,7 @@ export async function designRegressionTestHandler(
   } catch (error) {
     const message =
       error instanceof z.ZodError
-        ? error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ")
+        ? error.issues.map((e) => `${formatIssueLine(e)}`).join("; ")
         : "Invalid input";
     return {
       success: false,

@@ -42,12 +42,12 @@ import {
 // テストデータ / Test data
 // =====================================================
 
-const UUID_A = "01234567-89ab-cdef-0123-456789abcde0";
-const UUID_B = "01234567-89ab-cdef-0123-456789abcde1";
-const UUID_C = "01234567-89ab-cdef-0123-456789abcde2";
-const UUID_D = "01234567-89ab-cdef-0123-456789abcde3";
-const UUID_E = "01234567-89ab-cdef-0123-456789abcde4";
-const UUID_MISSING = "01234567-89ab-cdef-0123-456789abcde9";
+const UUID_A = "01234567-89ab-4def-8123-456789abcde0";
+const UUID_B = "01234567-89ab-4def-8123-456789abcde1";
+const UUID_C = "01234567-89ab-4def-8123-456789abcde2";
+const UUID_D = "01234567-89ab-4def-8123-456789abcde3";
+const UUID_E = "01234567-89ab-4def-8123-456789abcde4";
+const UUID_MISSING = "01234567-89ab-4def-8123-456789abcde9";
 
 /**
  * モックパーツデータを生成

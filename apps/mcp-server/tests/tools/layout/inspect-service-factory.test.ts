@@ -44,7 +44,7 @@ import { webPageService } from "../../../src/services/web-page.service";
 // テストデータ
 // =====================================================
 
-const TEST_UUID = "01234567-89ab-cdef-0123-456789abcdef";
+const TEST_UUID = "01234567-89ab-4def-9123-456789abcdef";
 
 const TEST_HTML = `<!DOCTYPE html>
 <html>
@@ -184,7 +184,7 @@ describe("layout.inspect サービスファクトリ登録", () => {
       }));
 
       // 存在しない id でハンドラーを呼び出す（有効なUUID形式を使用）
-      const nonExistentUuid = "99999999-9999-9999-9999-999999999999";
+      const nonExistentUuid = "99999999-9999-4999-9999-999999999999";
       const result = await layoutInspectHandler({
         id: nonExistentUuid,
       });

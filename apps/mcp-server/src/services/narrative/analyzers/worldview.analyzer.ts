@@ -575,7 +575,7 @@ export class WorldViewAnalyzer {
       if (!parsed.success) {
         if (isDevelopment()) {
           logger.warn("[WorldViewAnalyzer] Vision response validation failed", {
-            errors: parsed.error.errors,
+            errors: parsed.error.issues,
           });
         }
         return null;

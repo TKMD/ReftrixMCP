@@ -467,6 +467,8 @@ Motion tools detect and classify CSS animations, transitions, and keyframes, and
 
 **用途 / Purpose**: HTMLからCSSアニメーション・トランジション・キーフレームを検出 / Detect CSS animations, transitions, and keyframes from HTML
 
+**省略時の既定値 / Defaults when omitted**: `video_options.wait_until` は `domcontentloaded`、`lighthouse_options.timeout` は `60000` ms(省略時に Lighthouse に渡される) / `video_options.wait_until` defaults to `domcontentloaded`; `lighthouse_options.timeout` defaults to `60000` ms (passed to Lighthouse when omitted)
+
 **基本的な使い方**
 
 ```typescript
@@ -972,6 +974,8 @@ const result = await page.analyze({
 >
 > **Advertised-schema string coercion of inputs**: the `page.analyze` advertised inputSchema exposes its boolean/number/object fields (`async`, `summary`, `timeout`, `timeout_strategy`, `partial_results`, `layoutTimeout`/`motionTimeout`/`qualityTimeout`, `auto_retry`/`max_retries`, `layout_first`, `narrativeOptions`/`visionOptions`, etc.). When an MCP client sends a boolean/number as a string (e.g. `async: "true"`, `timeout: "600000"`), the tool-layer `coerceArgs` coerces it to the correct type before Zod validation using the advertised type hints, so string-typed arguments no longer cause `VALIDATION_ERROR`.
 
+> **オプション group の省略 / Omitted option groups**: `motionOptions`・`responsiveOptions`・`accessibilityOptions`・`performanceOptions` を省略しても、各項目の既定値がすべて入ります(挙動は従来と同じ) / Omitting `motionOptions`, `responsiveOptions`, `accessibilityOptions` or `performanceOptions` still fills every nested default (behavior unchanged)
+
 **詳細レスポンス**
 
 ```typescript
@@ -1151,6 +1155,27 @@ const status = await page.getBatchStatus({
 
 - read-only、冪等（何度呼んでも同じ結果）/ Read-only, idempotent
 - バッチメタデータは48時間後にRedisから自動削除 / Batch metadata auto-expires after 48h
+
+### 入力配列の件数上限 / Input Array Limits
+
+上限を超える配列は検証エラーになります。`layout.ingest` と `page.analyze` の `viewports` は以前から 10 件が上限で、今回ツール定義(JSON Schema)の `maxItems` にも広告するようになりました。列挙値の配列(`quality.evaluate` の `categories`、`motion.detect` の `lighthouse_options.categories`)の上限は列挙値の数(それぞれ 6 と 4)です。
+Arrays over the limit fail validation. The `viewports` of `layout.ingest` and `page.analyze` already had a limit of 10; the tool definition (JSON Schema) now advertises it as `maxItems` as well. For arrays of enum values (`categories` of `quality.evaluate`, `lighthouse_options.categories` of `motion.detect`) the limit is the number of enum values (6 and 4 respectively).
+
+| ツール / Tool       | 引数 / Argument                             | 上限 / Max |
+| ------------------- | ------------------------------------------- | ---------- |
+| `style.get_palette` | `gradient_options.token_pairs`              | 20         |
+| `layout.search`     | `vision_search_query.visualFeatures.colors` | 10         |
+| `layout.ingest`     | `options.responsive.viewports`              | 10         |
+| `quality.evaluate`  | `responsive_evaluation.viewports`           | 10         |
+| `quality.evaluate`  | `categories`                                | 6 †        |
+| `motion.detect`     | `lighthouse_options.categories`             | 4 †        |
+| `motion.search`     | `samplePattern.properties`                  | 50         |
+| `motion.search`     | `pattern.properties`                        | 50         |
+| `motion.search`     | `pattern.properties[].keyframes`            | 100        |
+| `motion.search`     | `generation_options.project_css_paths`      | 20 †       |
+| `page.analyze`      | `responsiveOptions.viewports`               | 10         |
+
+† ツール定義(JSON Schema)には広告されていない引数 / Not advertised in the tool definition (JSON Schema).
 
 ---
 
@@ -1580,6 +1605,8 @@ Preference profiling tools interactively learn user design preferences and perso
 ### 13.1 preference.hear - 嗜好ヒアリング / Preference Hearing
 
 **用途 / Purpose**: ユーザーのデザイン嗜好をインタラクティブにヒアリング / Interactively learn user design preferences
+
+**省略時の既定値 / Defaults when omitted**: `limit` は 1、`offset` は 0 / `limit` defaults to 1 and `offset` to 0
 
 **動作モード / Operation Modes**:
 

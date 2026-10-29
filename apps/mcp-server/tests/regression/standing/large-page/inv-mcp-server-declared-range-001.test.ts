@@ -79,6 +79,8 @@ interface DeclaredRow {
 /**
  * CO-R2-97: GHSA-8r5x-fm3f-whwj / GHSA-p8wg-vrv2-v86f (handlebars <= 4.7.9) /
  * GHSA-6qxp-vccf-f47h (@modelcontextprotocol/sdk < 1.31.0)。
+ * GHSA-22jm-h49p-29qw / GHSA-46jr-4wx8-v453 (@modelcontextprotocol/sdk < 1.32.0、最初の修正版は 1.32.0。floor 1.32.1 はより厳しい側の選択)。
+ * First patched version is 1.32.0; the 1.32.1 floor is the stricter choice.
  */
 const HANDLEBARS_ROW: DeclaredRow = {
   name: "handlebars",
@@ -87,8 +89,8 @@ const HANDLEBARS_ROW: DeclaredRow = {
 };
 const SDK_ROW: DeclaredRow = {
   name: "@modelcontextprotocol/sdk",
-  patchedFloor: "1.31.0",
-  vulnerableProbes: ["1.12.0", "1.26.0", "1.30.1"],
+  patchedFloor: "1.32.1",
+  vulnerableProbes: ["1.12.0", "1.30.1", "1.31.0"],
 };
 const DECLARED_TABLE: readonly DeclaredRow[] = [HANDLEBARS_ROW, SDK_ROW];
 
@@ -231,17 +233,17 @@ interface FixtureOptions {
 
 const HEALTHY_DECLARED: Record<string, string> = {
   handlebars: "^4.7.10",
-  "@modelcontextprotocol/sdk": "^1.31.0",
+  "@modelcontextprotocol/sdk": "^1.32.1",
 };
 const SIBLING_OVERRIDE_KEY = "@modelcontextprotocol/sdk>ajv";
 const HEALTHY_OVERRIDES: Record<string, string> = {
   handlebars: ">=4.7.10 <5",
-  "@modelcontextprotocol/sdk": ">=1.31.0 <1.32",
+  "@modelcontextprotocol/sdk": ">=1.32.1 <1.33",
   [SIBLING_OVERRIDE_KEY]: ">=8.18.0",
 };
 const HEALTHY_LOCK: Record<string, string[]> = {
   handlebars: ["4.7.10"],
-  "@modelcontextprotocol/sdk": ["1.31.0"],
+  "@modelcontextprotocol/sdk": ["1.32.1"],
 };
 
 function writeJson(path: string, value: unknown): void {
@@ -385,18 +387,18 @@ describe("INV-MCP-SERVER-DECLARED-RANGE-001 (large-page)", () => {
   });
 
   describe("parser pin", () => {
-    it("parseSimpleRange: ^4.7.10 / ^1.31.0 は 4.7.9 / 1.30.1 を admit せず次 major を admit しない", () => {
+    it("parseSimpleRange: ^4.7.10 / ^1.32.1 は 4.7.9 / 1.32.0 を admit せず次 major を admit しない", () => {
       const hb = parseSimpleRange("^4.7.10");
-      const sdk = parseSimpleRange("^1.31.0");
+      const sdk = parseSimpleRange("^1.32.1");
       expect(hb && rangeAdmits(hb, { major: 4, minor: 7, patch: 9 })).toBe(false);
       expect(hb && rangeAdmits(hb, { major: 5, minor: 0, patch: 0 })).toBe(false);
-      expect(sdk && rangeAdmits(sdk, { major: 1, minor: 30, patch: 1 })).toBe(false);
+      expect(sdk && rangeAdmits(sdk, { major: 1, minor: 32, patch: 0 })).toBe(false);
       expect(sdk && rangeAdmits(sdk, { major: 2, minor: 0, patch: 0 })).toBe(false);
     });
-    it("parseRange: >=1.31.0 <1.32 は floor 1.31.0 / ceiling 1.32.0", () => {
-      expect(parseRange(">=1.31.0 <1.32")).toEqual({
-        floor: { major: 1, minor: 31, patch: 0 },
-        ceiling: { major: 1, minor: 32, patch: 0 },
+    it("parseRange: >=1.32.1 <1.33 は floor 1.32.1 / ceiling 1.33.0", () => {
+      expect(parseRange(">=1.32.1 <1.33")).toEqual({
+        floor: { major: 1, minor: 32, patch: 1 },
+        ceiling: { major: 1, minor: 33, patch: 0 },
       });
     });
   });

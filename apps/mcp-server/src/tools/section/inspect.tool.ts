@@ -42,7 +42,8 @@ import {
   getSectionDetail,
   getSectionParts,
   type PartSummary,
-} from "../../api/internal/page-detail.service";
+} from "../../services/section-detail.service";
+import { formatIssueLine } from "../../utils/issue-path";
 
 // =====================================================
 // 定数 / Constants
@@ -132,9 +133,9 @@ export async function sectionInspectHandler(input: unknown): Promise<SectionInsp
     validated = sectionInspectInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      const errorMessage = error.issues.map((e) => `${formatIssueLine(e)}`).join(", ");
       logger.warn("[MCP Tool] section.inspect validation error", {
-        errors: error.errors,
+        errors: error.issues,
       });
       return {
         success: false,

@@ -96,16 +96,16 @@ function createMockPageAnalyzeServiceWithTracking(): IPageAnalyzeService & {
         sectionCount: 5,
         sectionTypes: { hero: 1, features: 1, cta: 1, navigation: 1, footer: 1 },
         processingTimeMs: 50,
-        pageId: "01941234-5678-7abc-def0-987654321fed",
+        pageId: "01941234-5678-7abc-8ef0-987654321fed",
         sections: [
           {
-            id: "01941234-0001-7abc-def0-000000000001",
+            id: "01941234-0001-7abc-8ef0-000000000001",
             type: "navigation",
             positionIndex: 0,
             confidence: 0.95,
           },
           {
-            id: "01941234-0002-7abc-def0-000000000002",
+            id: "01941234-0002-7abc-8ef0-000000000002",
             type: "hero",
             positionIndex: 1,
             heading: "Hero Section",

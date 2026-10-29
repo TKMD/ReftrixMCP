@@ -136,7 +136,7 @@ const scrollTriggeredElementSchema = z.object({
 });
 
 const visionResponseSchema = z.object({
-  scrollTriggeredElements: z.array(scrollTriggeredElementSchema).default([]),
+  scrollTriggeredElements: z.array(scrollTriggeredElementSchema).default(() => []),
   visualImpression: z.string().default(""),
   confidence: z.number().min(0).max(1).default(0.5),
 });

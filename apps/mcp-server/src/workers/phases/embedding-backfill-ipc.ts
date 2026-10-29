@@ -16,16 +16,18 @@
  *
  * ## セキュリティ設計 / Security design
  *
- * 全 `z.object({...})` に `.strict()` を付与し unknown-key 混入
+ * 全 object schema を `z.strictObject({...})` で定義し unknown-key 混入
  * (`__proto__` / `constructor` 等による CWE-502 prototype pollution 経路) を
  * reject する (SEC H-2)。Zod のデフォルトは unknown-key を silently strip して
- * parse 成功とみなすため、`.strict()` なしでは IPC 経路に proxy が挟まった
- * 場合の observability を失う。
+ * parse 成功とみなすため、strict でないと IPC 経路に proxy が挟まった
+ * 場合の observability を失う。`z.strictObject` は zod 3 / 4 のどちらでも
+ * unknown-key を reject する。
  *
- * All `z.object({...})` use `.strict()` to reject unknown keys
+ * Every object schema is a `z.strictObject({...})` that rejects unknown keys
  * (CWE-502 prototype-pollution surface via `__proto__` / `constructor`) per
  * SEC H-2. Zod's default silently strips unknown keys, which would mask any
- * injected payload on the IPC path.
+ * injected payload on the IPC path. `z.strictObject` rejects unknown keys on
+ * both zod 3 and zod 4.
  *
  * ## カテゴリスコープ / Category scope
  *
@@ -118,7 +120,7 @@ export const ERRORS_PAYLOAD_CAP = 100 as const;
  *
  * Sent by parent immediately after fork() to start the backfill run.
  *
- * SEC H-2: `.strict()` で unknown-key 混入を reject する。
+ * SEC H-2: `z.strictObject` で unknown-key 混入を reject する。
  *
  * ## v0.4.0 PR7e-β4 PR2b-α 拡張 / PR2b-α extension
  *
@@ -135,25 +137,23 @@ export const ERRORS_PAYLOAD_CAP = 100 as const;
  * (`"backfill.run"`) — `kind` is used for discriminated-union branching while
  * `type` is the init-message discriminator.
  */
-export const BackfillParentMessage = z
-  .object({
-    type: z.literal("backfill.run"),
-    kind: z.literal("backfill.run"),
-    jobId: z.string().min(1),
-    webPageId: z.string().uuid(),
-    /**
-     * v0.4.0 PR7e-β4 PR2d (HIGH-β): All 7 categories supported. Backed by
-     * the canonical SSOT (`EMBEDDING_BACKFILL_CATEGORIES`); add/remove
-     * categories from the SSOT array only — IPC enum follows automatically.
-     *
-     * PR2d (HIGH-β): 7 全 category 対応。SSOT (`EMBEDDING_BACKFILL_CATEGORIES`)
-     * を直接参照するため、追加/削除は SSOT 配列のみで完結する。
-     */
-    category: z.enum(EMBEDDING_BACKFILL_CATEGORIES),
-    partsLimit: z.number().int().positive().max(BACKFILL_PARTS_LIMIT_MAX),
-    startedAt: z.string().datetime(),
-  })
-  .strict();
+export const BackfillParentMessage = z.strictObject({
+  type: z.literal("backfill.run"),
+  kind: z.literal("backfill.run"),
+  jobId: z.string().min(1),
+  webPageId: z.string().uuid(),
+  /**
+   * v0.4.0 PR7e-β4 PR2d (HIGH-β): All 7 categories supported. Backed by
+   * the canonical SSOT (`EMBEDDING_BACKFILL_CATEGORIES`); add/remove
+   * categories from the SSOT array only — IPC enum follows automatically.
+   *
+   * PR2d (HIGH-β): 7 全 category 対応。SSOT (`EMBEDDING_BACKFILL_CATEGORIES`)
+   * を直接参照するため、追加/削除は SSOT 配列のみで完結する。
+   */
+  category: z.enum(EMBEDDING_BACKFILL_CATEGORIES),
+  partsLimit: z.number().int().positive().max(BACKFILL_PARTS_LIMIT_MAX),
+  startedAt: z.string().datetime(),
+});
 
 /**
  * Parent → Child message type.
@@ -184,25 +184,21 @@ export type { EmbeddingBackfillCategory };
  *
  * Progress update bridged to BullMQ `job.updateProgress`.
  */
-export const BackfillProgressMessage = z
-  .object({
-    kind: z.literal("backfill.progress"),
-    processedCount: z.number().int().nonnegative(),
-    totalCount: z.number().int().nonnegative(),
-  })
-  .strict();
+export const BackfillProgressMessage = z.strictObject({
+  kind: z.literal("backfill.progress"),
+  processedCount: z.number().int().nonnegative(),
+  totalCount: z.number().int().nonnegative(),
+});
 
 /**
  * Child → Parent: heartbeat (parent 側 watchdog reset 用)。
  *
  * Heartbeat resets the parent-side watchdog timer.
  */
-export const BackfillHeartbeatMessage = z
-  .object({
-    kind: z.literal("backfill.heartbeat"),
-    at: z.string().datetime(),
-  })
-  .strict();
+export const BackfillHeartbeatMessage = z.strictObject({
+  kind: z.literal("backfill.heartbeat"),
+  at: z.string().datetime(),
+});
 
 /**
  * Child → Parent: done (終了時に送信、直後に child が exit(0))。
@@ -229,19 +225,17 @@ export const BackfillHeartbeatMessage = z
  * - `errors`: child が捕捉したエラーメッセージの先頭 100 件 (IPC payload bound) /
  *   first 100 error messages captured by child (IPC payload bound)
  */
-export const BackfillDoneMessage = z
-  .object({
-    kind: z.literal("backfill.done"),
-    processedCount: z.number().int().nonnegative(),
-    skipReason: z.string().optional(),
-    failedCount: z.number().int().nonnegative().optional(),
-    memorySkipCount: z.number().int().nonnegative().optional(),
-    // TDA-L-3 (v0.4.0 PR7e-β4 PR2b-β): Single source of truth — see
-    // ERRORS_PAYLOAD_CAP above. Child-side slice truncation uses the same
-    // constant to guarantee consistency between IPC emission and schema cap.
-    errors: z.array(z.string()).max(ERRORS_PAYLOAD_CAP).optional(),
-  })
-  .strict();
+export const BackfillDoneMessage = z.strictObject({
+  kind: z.literal("backfill.done"),
+  processedCount: z.number().int().nonnegative(),
+  skipReason: z.string().optional(),
+  failedCount: z.number().int().nonnegative().optional(),
+  memorySkipCount: z.number().int().nonnegative().optional(),
+  // TDA-L-3 (v0.4.0 PR7e-β4 PR2b-β): Single source of truth — see
+  // ERRORS_PAYLOAD_CAP above. Child-side slice truncation uses the same
+  // constant to guarantee consistency between IPC emission and schema cap.
+  errors: z.array(z.string()).max(ERRORS_PAYLOAD_CAP).optional(),
+});
 
 /**
  * Child → Parent: error (child 側で sanitize 済みの message、parent は再 sanitize しない)。
@@ -249,22 +243,20 @@ export const BackfillDoneMessage = z
  * Error already sanitized on the child side; parent does NOT re-sanitize
  * (SEC M-2 idempotency policy).
  */
-export const BackfillErrorMessage = z
-  .object({
-    kind: z.literal("backfill.error"),
-    message: z.string(),
-    // ADR-0018 Amendment 7 §7.7 (Plan v2 PR-E, SEC-V1-01): narrow `code` from the
-    // unconstrained `z.string().optional()` to accept only Prisma error codes
-    // (`P` + 4 digits, e.g. `P2002`) or `undefined`. Structurally rejects
-    // arbitrary strings at the IPC boundary, shrinking the CWE-209 latent surface
-    // (error message via arbitrary `code`). Producers MUST populate `code` only
-    // from `extractPrismaCode()` return values (P-code or undefined).
-    code: z
-      .string()
-      .regex(/^P\d{4}$/)
-      .optional(),
-  })
-  .strict();
+export const BackfillErrorMessage = z.strictObject({
+  kind: z.literal("backfill.error"),
+  message: z.string(),
+  // ADR-0018 Amendment 7 §7.7 (Plan v2 PR-E, SEC-V1-01): narrow `code` from the
+  // unconstrained `z.string().optional()` to accept only Prisma error codes
+  // (`P` + 4 digits, e.g. `P2002`) or `undefined`. Structurally rejects
+  // arbitrary strings at the IPC boundary, shrinking the CWE-209 latent surface
+  // (error message via arbitrary `code`). Producers MUST populate `code` only
+  // from `extractPrismaCode()` return values (P-code or undefined).
+  code: z
+    .string()
+    .regex(/^P\d{4}$/)
+    .optional(),
+});
 
 /**
  * Child → Parent: discriminated union of all child messages.

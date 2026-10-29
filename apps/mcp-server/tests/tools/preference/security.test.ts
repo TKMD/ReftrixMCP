@@ -41,7 +41,7 @@ import {
 // テストデータ / Test Data
 // =====================================================
 
-const MOCK_PROFILE_ID = "01234567-89ab-cdef-0123-456789abcdef";
+const MOCK_PROFILE_ID = "01234567-89ab-4def-9123-456789abcdef";
 
 // =====================================================
 // モックサービス / Mock Service
@@ -178,7 +178,7 @@ describe("preference セキュリティテスト", () => {
         profile_id: MOCK_PROFILE_ID,
         feedback: [
           {
-            sample_id: "11111111-1111-1111-1111-111111111111",
+            sample_id: "11111111-1111-4111-9111-111111111111",
             rating: "positive",
           },
         ],
@@ -204,7 +204,7 @@ describe("preference セキュリティテスト", () => {
         profile_id: MOCK_PROFILE_ID,
         feedback: [
           {
-            sample_id: "11111111-1111-1111-1111-111111111111",
+            sample_id: "11111111-1111-4111-9111-111111111111",
             rating: "positive",
             comment: sqlComment,
           },
@@ -270,7 +270,7 @@ describe("preference セキュリティテスト", () => {
       const result = await preferenceHearHandler({
         profile_id: MOCK_PROFILE_ID,
         exclude_ids: [
-          "11111111-1111-1111-1111-111111111111", // 有効
+          "11111111-1111-4111-9111-111111111111", // 有効
           "invalid-uuid-format", // 無効
         ],
       });
@@ -300,7 +300,7 @@ describe("preference セキュリティテスト", () => {
         profile_id: MOCK_PROFILE_ID,
         feedback: [
           {
-            sample_id: "11111111-1111-1111-1111-111111111111",
+            sample_id: "11111111-1111-4111-9111-111111111111",
             rating: "positive",
           },
         ],
@@ -326,7 +326,7 @@ describe("preference セキュリティテスト", () => {
         profile_id: MOCK_PROFILE_ID,
         feedback: [
           {
-            sample_id: "11111111-1111-1111-1111-111111111111",
+            sample_id: "11111111-1111-4111-9111-111111111111",
             rating: "positive",
             comment: longComment,
           },

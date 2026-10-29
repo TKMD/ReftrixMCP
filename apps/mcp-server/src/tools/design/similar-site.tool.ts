@@ -35,6 +35,7 @@ import {
   getCachedResult,
   setCachedResult,
 } from "../../services/search-cache.service";
+import { formatIssueLine } from "../../utils/issue-path";
 
 // =====================================================
 // Re-export error codes / エラーコードの再エクスポート
@@ -117,7 +118,7 @@ export async function designSimilarSiteHandler(input: unknown): Promise<DesignSi
   } catch (error) {
     const message =
       error instanceof z.ZodError
-        ? error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ")
+        ? error.issues.map((e) => `${formatIssueLine(e)}`).join("; ")
         : "Invalid input";
     return {
       success: false,

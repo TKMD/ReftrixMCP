@@ -5,24 +5,25 @@
  * Standing Regression Suite — 共有 lockfile 閉包 helper (test-only、`js-yaml` で parse 済みの値だけを受ける)
  * Shared lockfile closure helper for the standing suite (test-only; takes an already-parsed value)
  *
- * `INV-SEC-AUDIT-IGNORE-BOUND-001` leg (6) (`{ includeDev: false }`) と
- * `INV-SEC-OSS-CLOSURE-BRACES-001` (`{ includeDev: true }`) が同じ関数を使う (CO-R2-101)。
- * 抽出元は inv-sec-audit-ignore-bound-001.test.ts の `snapshotKey` / `prodClosure` で、
- * `includeDev: false` の振る舞いは抽出前と同一 (refactor のみ)。別 `.test.ts` から import しない
- * (testing-requirements §9 TPA-02) ため `*.test.ts` ではない本 module に置く。
+ * `INV-SEC-OSS-CLOSURE-BRACES-001` がこの関数を使う (CO-R2-101)。起点 importer の `devDependencies` を
+ * 常に含める。以前は `INV-SEC-AUDIT-IGNORE-BOUND-001` leg (6) が production だけの閉包 (`includeDev: false`)
+ * でも使っていたが、ignore 集合を空にした際にその leg を撤去し、呼び手が 0 になった `includeDev` option は
+ * 併せて削除した。抽出元は inv-sec-audit-ignore-bound-001.test.ts の `snapshotKey` / `prodClosure`。
+ * 別 `.test.ts` から import しない (testing-requirements §9 TPA-02) ため `*.test.ts` ではない本 module に置く。
  *
- * Both INV-SEC-AUDIT-IGNORE-BOUND-001 leg (6) (`{ includeDev: false }`) and
- * INV-SEC-OSS-CLOSURE-BRACES-001 (`{ includeDev: true }`) use this one function (CO-R2-101).
- * Extracted from the ignore-pin INV's `snapshotKey` / `prodClosure`; the `includeDev: false`
- * behaviour is identical to before the extraction (refactor only).
+ * INV-SEC-OSS-CLOSURE-BRACES-001 uses this function (CO-R2-101). It always includes the root importers'
+ * `devDependencies`. INV-SEC-AUDIT-IGNORE-BOUND-001 leg (6) used it for the production-only closure
+ * (`includeDev: false`) until the ignore set was emptied and that leg was removed; the `includeDev`
+ * option, left with no caller, was removed with it. Extracted from the ignore-pin INV's `snapshotKey` /
+ * `prodClosure`.
  *
  * 閉包 / Closure:
- * - 起点 = 指定 importer の `dependencies` ∪ `optionalDependencies` (+ `includeDev` が真なら
- *   `devDependencies`)。`includeDev` は**起点 importer にだけ**効く。`link:` で辿った先の importer は
- *   起点でなければ `dependencies` ∪ `optionalDependencies` のみ。
- *   Roots are the given importers' `dependencies` ∪ `optionalDependencies` (plus `devDependencies`
- *   when `includeDev`). `includeDev` applies to the root importers only; importers reached via
- *   `link:` that are not roots contribute `dependencies` ∪ `optionalDependencies` only.
+ * - 起点 = 指定 importer の `dependencies` ∪ `optionalDependencies` ∪ `devDependencies`。dev は**起点
+ *   importer にだけ**含める。`link:` で辿った先の importer は起点でなければ
+ *   `dependencies` ∪ `optionalDependencies` のみ。
+ *   Roots are the given importers' `dependencies` ∪ `optionalDependencies` ∪ `devDependencies`; dev
+ *   is included for the root importers only. Importers reached via `link:` that are not roots
+ *   contribute `dependencies` ∪ `optionalDependencies` only.
  * - 辺 = `snapshots` の `dependencies` ∪ `optionalDependencies`。`link:` は対象 importer へ、
  *   alias (`name: other@1.2.3`) は `other@1.2.3` の snapshot key へ辿る。
  *   Edges are the snapshots' `dependencies` ∪ `optionalDependencies`; `link:` goes to the target
@@ -48,11 +49,6 @@ export interface LockfileClosure {
   visitedImporters: Set<string>;
 }
 
-export interface LockfileClosureOptions {
-  /** 起点 importer の `devDependencies` を含めるか / include root importers' devDependencies */
-  includeDev: boolean;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -71,8 +67,7 @@ function snapshotKey(name: string, version: string): string | null {
  */
 export function lockfileClosure(
   lock: unknown,
-  importerPaths: readonly string[] | undefined,
-  options: LockfileClosureOptions
+  importerPaths: readonly string[] | undefined
 ): LockfileClosure {
   const closure: LockfileClosure = {
     keys: new Set(),
@@ -115,8 +110,8 @@ export function lockfileClosure(
     }
     pushDeps(importer.dependencies, path, path);
     pushDeps(importer.optionalDependencies, path, path);
-    // includeDev は起点 importer にだけ効く (link: で辿った先の非起点 importer には効かない)
-    if (options.includeDev && roots.has(path)) pushDeps(importer.devDependencies, path, path);
+    // dev は起点 importer にだけ含める (link: で辿った先の非起点 importer は含めない)
+    if (roots.has(path)) pushDeps(importer.devDependencies, path, path);
   };
   for (const path of roots) visitImporter(path);
   while (stack.length > 0) {

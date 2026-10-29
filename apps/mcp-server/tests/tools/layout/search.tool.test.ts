@@ -62,8 +62,8 @@ import {
 
 const mockSectionPatterns = [
   {
-    id: "11111111-1111-1111-1111-111111111111",
-    webPageId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    id: "11111111-1111-4111-9111-111111111111",
+    webPageId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     sectionType: "hero",
     sectionName: "Modern Hero Section",
     positionIndex: 0,
@@ -77,7 +77,7 @@ const mockSectionPatterns = [
     },
     textRepresentation: "Hero section with blue gradient, left-aligned heading, CTA button",
     webPage: {
-      id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
       url: "https://example.com/page1",
       title: "Example Page 1",
       sourceType: "award_gallery",
@@ -89,8 +89,8 @@ const mockSectionPatterns = [
     },
   },
   {
-    id: "22222222-2222-2222-2222-222222222222",
-    webPageId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    id: "22222222-2222-4222-9222-222222222222",
+    webPageId: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
     sectionType: "feature",
     sectionName: "Feature Grid",
     positionIndex: 1,
@@ -103,7 +103,7 @@ const mockSectionPatterns = [
     },
     textRepresentation: "Feature section with 3-column grid, green icons, light gray background",
     webPage: {
-      id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      id: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
       url: "https://example.com/page2",
       title: "Example Page 2",
       sourceType: "user_provided",
@@ -115,8 +115,8 @@ const mockSectionPatterns = [
     },
   },
   {
-    id: "33333333-3333-3333-3333-333333333333",
-    webPageId: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+    id: "33333333-3333-4333-8333-333333333333",
+    webPageId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
     sectionType: "cta",
     sectionName: "Call to Action",
     positionIndex: 2,
@@ -129,7 +129,7 @@ const mockSectionPatterns = [
     },
     textRepresentation: "CTA section with centered red button on dark background",
     webPage: {
-      id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
       url: "https://example.com/page3",
       title: "Example Page 3",
       sourceType: "award_gallery",
@@ -1214,8 +1214,8 @@ describe("layoutSearchOutputSchema", () => {
       data: {
         results: [
           {
-            id: "11111111-1111-1111-1111-111111111111",
-            webPageId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            id: "11111111-1111-4111-9111-111111111111",
+            webPageId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
             type: "hero",
             similarity: 0.95,
             preview: {
@@ -1259,8 +1259,8 @@ describe("layoutSearchOutputSchema", () => {
       data: {
         results: [
           {
-            id: "11111111-1111-1111-1111-111111111111",
-            webPageId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            id: "11111111-1111-4111-9111-111111111111",
+            webPageId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
             type: "hero",
             similarity: 0.95,
             preview: {},
@@ -1289,8 +1289,8 @@ describe("layoutSearchOutputSchema", () => {
       data: {
         results: [
           {
-            id: "11111111-1111-1111-1111-111111111111",
-            webPageId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            id: "11111111-1111-4111-9111-111111111111",
+            webPageId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
             type: "hero",
             similarity: 0.95,
             preview: {
@@ -1344,7 +1344,7 @@ describe("layoutSearchHandler - パフォーマンス", () => {
   it("大量の結果でも処理できる", async () => {
     const largeResults = Array.from({ length: 50 }, (_, i) => ({
       ...mockSectionPatterns[0],
-      id: `${i}`.padStart(8, "0") + "-1111-1111-1111-111111111111",
+      id: `${i}`.padStart(8, "0") + "-1111-4111-8111-111111111111",
       similarity: 0.99 - i * 0.01,
     }));
 

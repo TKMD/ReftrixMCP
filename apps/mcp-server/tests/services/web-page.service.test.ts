@@ -44,7 +44,7 @@ describe("WebPageService", () => {
   describe("getPageById", () => {
     it("should return WebPage with HTML content when found", async () => {
       const mockPage = {
-        id: "01234567-89ab-cdef-0123-456789abcdef",
+        id: "01234567-89ab-4def-9123-456789abcdef",
         htmlContent: "<html><body><h1>Test Page</h1></body></html>",
       };
 
@@ -76,7 +76,7 @@ describe("WebPageService", () => {
 
     it("should return null when page has no HTML content", async () => {
       const mockPage = {
-        id: "01234567-89ab-cdef-0123-456789abcdef",
+        id: "01234567-89ab-4def-9123-456789abcdef",
         htmlContent: null,
       };
 

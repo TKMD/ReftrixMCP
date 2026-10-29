@@ -122,9 +122,9 @@ function createMockService(
     generateQueryEmbedding: vi.fn().mockResolvedValue(new Array(768).fill(0.1)),
     searchBackgroundDesigns: vi.fn().mockResolvedValue({
       results: [
-        createMockSearchResult("11111111-1111-1111-1111-111111111111", "linear_gradient", 0.92),
-        createMockSearchResult("22222222-2222-2222-2222-222222222222", "glassmorphism", 0.87),
-        createMockSearchResult("33333333-3333-3333-3333-333333333333", "solid_color", 0.81),
+        createMockSearchResult("11111111-1111-4111-9111-111111111111", "linear_gradient", 0.92),
+        createMockSearchResult("22222222-2222-4222-9222-222222222222", "glassmorphism", 0.87),
+        createMockSearchResult("33333333-3333-4333-8333-333333333333", "solid_color", 0.81),
       ],
       total: 3,
     }),
@@ -155,7 +155,7 @@ describe("background.search MCPツール", () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors.length).toBeGreaterThan(0);
+        expect(result.error.issues.length).toBeGreaterThan(0);
       }
     });
 
@@ -343,7 +343,7 @@ describe("background.search MCPツール", () => {
 
       const input: BackgroundSearchInput = {
         query: "gradient background",
-        filters: { webPageId: "99999999-9999-9999-9999-999999999999" },
+        filters: { webPageId: "99999999-9999-4999-9999-999999999999" },
       };
       await backgroundSearchHandler(input);
 
@@ -351,7 +351,7 @@ describe("background.search MCPツール", () => {
         expect.any(Array),
         expect.objectContaining({
           filters: expect.objectContaining({
-            webPageId: "99999999-9999-9999-9999-999999999999",
+            webPageId: "99999999-9999-4999-9999-999999999999",
           }),
         })
       );
@@ -791,7 +791,7 @@ describe("background.search MCPツール", () => {
 // =====================================================
 
 describe("background.search 嗜好プロファイルリランキング", () => {
-  const PROFILE_ID = "11111111-2222-3333-4444-555555555555";
+  const PROFILE_ID = "11111111-2222-4333-9444-555555555555";
 
   /**
    * モックPrismaClientを作成
@@ -964,7 +964,7 @@ describe("background.search 嗜好プロファイルリランキング", () => {
   it("profile_idスキーマバリデーション: 有効なUUIDを受け付ける", () => {
     const input = {
       query: "gradient",
-      profile_id: "11111111-2222-3333-4444-555555555555",
+      profile_id: "11111111-2222-4333-9444-555555555555",
     };
     const result = backgroundSearchInputSchema.safeParse(input);
     expect(result.success).toBe(true);

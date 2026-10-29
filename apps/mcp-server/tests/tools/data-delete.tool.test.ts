@@ -58,8 +58,8 @@ vi.mock("../../src/utils/logger", () => ({
 // テストデータ / Test data
 // =====================================================
 
-const MOCK_PAGE_ID = "01934567-89ab-7def-0123-456789abcdef";
-const MOCK_PROFILE_ID = "02934567-89ab-7def-0123-456789abcdef";
+const MOCK_PAGE_ID = "01934567-89ab-7def-9123-456789abcdef";
+const MOCK_PROFILE_ID = "02934567-89ab-7def-8123-456789abcdef";
 
 // =====================================================
 // モックサービス / Mock service
@@ -529,7 +529,7 @@ describe("data.delete MCP Tool", () => {
     });
 
     it("target=all_user_data で複数ページの Queue ジョブをすべて削除する / should remove queue jobs for all pages on all_user_data", async () => {
-      const PAGE_ID_2 = "03934567-89ab-7def-0123-456789abcdef";
+      const PAGE_ID_2 = "03934567-89ab-7def-8123-456789abcdef";
       const mockQueue = createMockQueueWithJobs({ state: "waiting" });
       setDataDeleteBackfillQueueFactory(() => mockQueue);
 

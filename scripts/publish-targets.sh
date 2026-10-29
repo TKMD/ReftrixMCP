@@ -41,3 +41,13 @@ PUBLISH_TIER1=("packages/core" "packages/database" "packages/ml")
 PUBLISH_TIER2=("packages/webdesign-core")
 PUBLISH_TIER3=("apps/mcp-server")
 PUBLISH_PACKAGES=("${PUBLISH_TIER1[@]}" "${PUBLISH_TIER2[@]}" "${PUBLISH_TIER3[@]}")
+
+# Shared helpers for the callers above (preflight, sync-oss.sh).
+# A publish package dir is packages/<x> or apps/<x>; anything else stops the caller.
+publish_package_path_ok() { [[ "$1" =~ ^(packages|apps)/[a-z0-9-]+$ ]]; }
+# The database client output the build recreates (prisma generate); the preflight ignores it.
+# shellcheck disable=SC2034 # read by the scripts that source this file
+PUBLISH_DATABASE_GENERATED="packages/database/src/generated"
+# Exit 42 means the same in both callers: the clone is not publishable as it stands (the
+# preflight's clone_dirty, and sync-oss.sh step 6 when a package, its parent or its dist is a
+# symlink, which the preflight also rejects as clone_dirty).

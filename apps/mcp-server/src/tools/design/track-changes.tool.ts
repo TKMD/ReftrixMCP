@@ -34,6 +34,7 @@ import {
   getDesignChangeTrackerPrismaClientFactory,
   DESIGN_CHANGE_ERROR_CODES,
 } from "../../services/design-change-tracker.service";
+import { formatIssueLine } from "../../utils/issue-path";
 
 // =====================================================
 // Constants / 定数
@@ -157,7 +158,7 @@ export async function designTrackChangesHandler(input: unknown): Promise<DesignT
   } catch (error) {
     const message =
       error instanceof z.ZodError
-        ? error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ")
+        ? error.issues.map((e) => `${formatIssueLine(e)}`).join("; ")
         : "Invalid input";
     return {
       success: false,

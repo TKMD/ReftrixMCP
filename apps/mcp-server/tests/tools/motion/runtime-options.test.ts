@@ -96,7 +96,10 @@ describe("motion.detect runtime_options パラメータ", () => {
         // Assert
         expect(result.success).toBe(true);
         if (result.success) {
-          expect(result.data.runtime_options).toEqual({});
+          // zod 4 prep: wait_for_animations is now .optional().default(3000), so an empty
+          // runtime_options parses to the default (the reader's fallback is also 3000,
+          // detection-modes.ts runtimeOptions?.wait_for_animations ?? 3000).
+          expect(result.data.runtime_options).toEqual({ wait_for_animations: 3000 });
         }
       });
 

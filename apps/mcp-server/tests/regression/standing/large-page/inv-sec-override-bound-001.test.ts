@@ -32,7 +32,7 @@
  * `@hono/node-server` / `qs` / `body-parser`) + control (ii) 固有 instance 2 件 (`@hono/node-server`
  * `1.19.14`、E-46 の `hono` `4.13.5`) + CO-R2-39 非空虚 guard (impl registry c-v0 E-43 / addendum
  * registry E-46)。R2-U = transitive 5 行 (`undici` / `brace-expansion` / `@grpc/grpc-js` /
- * `ip-address` / `fast-uri`、addendum v1 §2.1 / E-50) + control (ii) 固有 instance `undici` `7.29.0`。
+ * `ip-address` / `fast-uri`、addendum v1 §2.1 / E-50) + control (ii) 固有 instance `undici` `7.30.0` / `body-parser` `2.3.0` / `qs` `6.16.0`。
  * R2-OF = override floor 3 行 (`proxy-addr` / `compression` / `source-map-js`、E-96) + control (ii)
  * 固有 instance 3 件 (各 package の base 版 `2.0.7` / `1.8.1` / `1.2.1`)。
  * CO-R2-97 = override floor 2 行 (`handlebars` / `@modelcontextprotocol/sdk`) + control (ii) 固有
@@ -40,18 +40,25 @@
  * R2-SH = override floor 1 行 (`sharp`、GHSA-wq5f-xc86-pv6w の修正版 0.35.5 + minor cap、E-124) +
  * control (ii) 固有 instance `sharp` `0.35.4`。
  * R2-D = override 行 1 (`dompurify`、GHSA-6688 / p98j の修正版 3.4.16 + major cap) + control (ii) 固有
- * instance `dompurify` `3.4.13`。読み出し元は行ごとの `source` (`pnpm.overrides`、cdxgen のみ
+ * instance `dompurify` `3.4.13`。
+ * ip-address floor = override 行 `ip-address` (GHSA-rxp7-6hxx-x8q5、修正版 10.7.4 + major cap) と control (ii)
+ * 固有 instance `ip-address` `10.7.3`、`hono` `4.13.10` / `@vitest/mocker` `4.1.11` の 3 件。
+ * INV-SEC-NEXT-FLOOR-001 = `next` の floor 契約 (GHSA-2464-fhr4-w9xw / GHSA-673q-mjm6-r5xr /
+ * GHSA-p3m5-59mp-jv5r、修正版 16.4.1、reftrix4 の exact pin + lockfile 全 key)。
+ * 読み出し元は行ごとの `source` (`pnpm.overrides`、cdxgen のみ
  * `devDependencies`、UB2-2)。
  * Rows/legs: R2-BE-a = toolchain rows + legs (a)(b)(c)(f)(g); R2-BE-b = vitest/cdxgen rows +
  * legs (d)(e) + defense-in-depth legs (a')(c') + prerelease fail-closed; R2-C = server runtime
  * rows + control (ii) specific instances (`@hono/node-server` 1.19.14, `hono` 4.13.5 per E-46) +
- * CO-R2-39 non-vacuity guard; R2-U = 5 transitive rows + control (ii) instance `undici` 7.29.0;
+ * CO-R2-39 non-vacuity guard; R2-U = 5 transitive rows + control (ii) instances `undici` 7.30.0 / `body-parser` 2.3.0 / `qs` 6.16.0;
  * R2-OF = 3 override-floor rows (`proxy-addr` / `compression` / `source-map-js`, E-96) + control (ii)
  * instances at their base versions 2.0.7 / 1.8.1 / 1.2.1; CO-R2-97 = 2 override-floor rows
  * (`handlebars` / `@modelcontextprotocol/sdk`) + control (ii) instances 4.7.9 / 1.30.1 (inside the
  * advisory ranges); R2-SH = 1 override-floor row (`sharp`,
  * first patched version 0.35.5 for GHSA-wq5f-xc86-pv6w plus a minor cap, E-124) + control (ii)
- * instance `sharp` 0.35.4; R2-D appends rows.
+ * instance `sharp` 0.35.4; R2-D appends rows. ip-address floor raised to 10.7.4 with control (ii)
+ * instance `ip-address` 10.7.3; control (ii) also gains the `hono` 4.13.10 and `@vitest/mocker`
+ * 4.1.11 instances (the last version inside each advisory range below the current floor).
  *
  * leg (a'): cap は lockfile の `overrides:` 節にも写る (pnpm は install 時に manifest から書く)。
  * lockfile 側だけ緩められると (a)(b) は root `package.json` しか読まないため leg (c) まで検知
@@ -78,14 +85,17 @@
  * 各 instance で leg (b) だけが violation (他 leg = `[]`) であることを assert する (addendum v1 §5.1
  * (5) / E-65 (c)): `@hono/node-server` `1.19.14` (GHSA-frvp-7c67-39w9 の `< 1.19.15` range 内 = plan
  * v3.1 §3.1「floor `1.19.14` はどの場合も禁止」、R2-C) / `hono` `4.13.5` (GHSA-hxh3-vqpv-xpqv の
- * `< 4.13.7` range 内、R2-C E-46) / `undici` `7.29.0` (GHSA-w293-vg96-wgc3 ほか 10 件の `< 7.29.1`
- * range 内、R2-U E-50) / `proxy-addr` `2.0.7` (GHSA-jqcg-44mw-7w3h の `< 2.0.8` range 内、R2-OF) /
+ * `< 4.13.7` range 内、R2-C E-46) / `undici` `7.30.0` (GHSA-xjj6-f33q-929c の `< 7.30.1`
+ * range 内) / `body-parser` `2.3.0` (GHSA-27r3-jxmh-p828 の `< 2.4.0` range 内) / `qs` `6.16.0` (floor 6.16.1 の 1 つ下) / `proxy-addr` `2.0.7` (GHSA-jqcg-44mw-7w3h の `< 2.0.8` range 内、R2-OF) /
  * `compression` `1.8.1` (GHSA-vc2v-76pw-4v95 の `< 1.8.2` range 内、R2-OF) / `source-map-js` `1.2.1`
  * (GHSA-68fv-2mgg-jv7q の `< 1.2.2` range 内、R2-OF)。
  * CO-R2-97 の固有 instance: `handlebars` `4.7.9` (GHSA-8r5x-fm3f-whwj / GHSA-p8wg-vrv2-v86f の
  * `<= 4.7.9` range 内) / `@modelcontextprotocol/sdk` `1.30.1` (GHSA-6qxp-vccf-f47h の `< 1.31.0`
  * range 内)。
  * R2-SH の固有 instance: `sharp` `0.35.4` (GHSA-wq5f-xc86-pv6w の `< 0.35.5` range 内)。
+ * ip-address floor 10.7.4 の固有 instance: `ip-address` `10.7.3` (10.7.4 未満)。あわせて `hono` `4.13.10`
+ * と `@vitest/mocker` `4.1.11` (現 floor 4.13.11 / 4.1.12 の 1 つ下、各 advisory range 内の最後の版) を追加し、
+ * 汎用形と旧 instance では検知できない floor 後退を固有 instance で追跡する。
  *
  * 新規依存なし: `semver` は未宣言 (phantom) ゆえ `>=` / `<` / `^` / `~` / 完全一致だけの最小
  * range parser を手書きし、未対応形は `null` で fail-closed。prerelease / build metadata 付きの版
@@ -99,6 +109,13 @@
  * `readParsedManifestRange` で共通化。
  * Helpers live in the non-test module `../_shared/semver-lockfile` (CO-R2-36, unchanged
  * behaviour); legs (a) / (b) share the `readParsedManifestRange` preamble.
+ *
+ * deps-body-parser (PR-A): qs / body-parser / undici の契約 floor を 6.16.1 / 2.4.0 / 7.30.1 へ上げ、
+ * express から辿った body-parser / qs / iconv-lite の解決版を契約表とは別の describe で pin する
+ * (iconv-lite には override が無く、表に入れると leg (f-1) が RED になる)。
+ * deps-body-parser (PR-A): raises the qs / body-parser / undici contract floors to 6.16.1 / 2.4.0 / 7.30.1 and pins
+ * the express-reachable body-parser / qs / iconv-lite resolutions in a separate describe (iconv-lite has no
+ * override; putting it in the table would turn leg (f-1) RED).
  *
  * Plan: security-deps-remediation-r2-plan-v3-1.md §3.1 / §6.2 #4 / §7.1 / §8 ※4.
  * Registry: r2 finding registry v4 §2 (harness = R2-BE) / impl registry be-v0 §8 (R2-BE-a).
@@ -119,8 +136,10 @@ import {
   collectLockVersions,
   collectPeerSuffixVersions,
   compareVersion,
+  escapeRegExp,
   formatVersion,
   lockKeyLine,
+  lockSection,
   parseRange,
   parseVersion,
   rangeAdmits,
@@ -160,22 +179,25 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
   { name: "baseline-browser-mapping", source: "overrides", contract: ">=2.11.0 <3" },
   { name: "@humanfs/node", source: "overrides", contract: ">=0.16.8 <0.17" },
   { name: "@babel/core", source: "overrides", contract: ">=7.29.6 <8" },
-  { name: "vitest", source: "overrides", contract: ">=4.1.11 <5" },
-  { name: "@vitest/mocker", source: "overrides", contract: ">=4.1.11 <5" },
-  { name: "@vitest/coverage-v8", source: "overrides", contract: ">=4.1.11 <5" },
+  { name: "vitest", source: "overrides", contract: ">=4.1.12 <5" },
+  { name: "@vitest/mocker", source: "overrides", contract: ">=4.1.12 <5" },
+  { name: "@vitest/coverage-v8", source: "overrides", contract: ">=4.1.12 <5" },
   { name: "@cyclonedx/cdxgen", source: "devDependencies", contract: ">=12.4.3 <12.8.3" },
-  // hono floor 4.13.7 (addendum registry E-46, supersedes c-v0 E-43 (1) ">=4.13.5 <5"):
-  // GHSA-hxh3-vqpv-xpqv affects hono < 4.13.7.
-  { name: "hono", source: "overrides", contract: ">=4.13.7 <5" },
+  // hono floor 4.13.11: GHSA-5r4p-p66f-jhc7 < 4.13.11 (earlier floor 4.13.7: GHSA-hxh3-vqpv-xpqv, E-46).
+  // The vitest family floor 4.1.12 closes GHSA-qxg6-89mg-rqv8 / GHSA-xp26-3454-mjgp (@vitest/mocker).
+  { name: "hono", source: "overrides", contract: ">=4.13.11 <5" },
   { name: "@hono/node-server", source: "overrides", contract: ">=2.0.10 <3" },
-  { name: "qs", source: "overrides", contract: ">=6.16.0 <7" },
-  { name: "body-parser", source: "overrides", contract: ">=2.3.0 <3" },
+  { name: "qs", source: "overrides", contract: ">=6.16.1 <7" },
+  { name: "body-parser", source: "overrides", contract: ">=2.4.0 <3" },
+  // deps-body-parser (PR-A): qs floor 6.16.1 (body-parser 2.4.0 requires ^6.16.1, so a 6.16.0 resolution must not remain),
+  // body-parser floor 2.4.0 (GHSA-27r3-jxmh-p828, < 2.4.0), undici floor 7.30.1 (GHSA-xjj6-f33q-929c, < 7.30.1).
   // R2-U (addendum v1 §2.1 verbatim / E-50): floors at the first patched version of the 2026-09-28〜30
   // advisories; brace-expansion / @grpc/grpc-js / ip-address gain a cap.
-  { name: "undici", source: "overrides", contract: ">=7.29.1 <8" },
+  { name: "undici", source: "overrides", contract: ">=7.30.1 <8" },
   { name: "brace-expansion", source: "overrides", contract: ">=5.0.12 <6" },
   { name: "@grpc/grpc-js", source: "overrides", contract: ">=1.14.5 <2" },
-  { name: "ip-address", source: "overrides", contract: ">=10.7.1 <11" },
+  // ip-address floor 10.7.4 (GHSA-rxp7-6hxx-x8q5, ip-address < 10.7.4): the first fixed version of the 10.7.x line (10.7.3 and earlier are below the floor).
+  { name: "ip-address", source: "overrides", contract: ">=10.7.4 <11" },
   { name: "fast-uri", source: "overrides", contract: ">=3.1.8 <4" },
   // R2-OF (E-96): floors at the first patched version.
   // GHSA-jqcg-44mw-7w3h (proxy-addr < 2.0.8) / GHSA-vc2v-76pw-4v95 (compression < 1.8.2) /
@@ -187,13 +209,29 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
   // GHSA-8r5x-fm3f-whwj / GHSA-p8wg-vrv2-v86f (handlebars <= 4.7.9) /
   // GHSA-6qxp-vccf-f47h (@modelcontextprotocol/sdk < 1.31.0).
   { name: "handlebars", source: "overrides", contract: ">=4.7.10 <5" },
-  { name: "@modelcontextprotocol/sdk", source: "overrides", contract: ">=1.31.0 <1.32" },
+  // GHSA-22jm-h49p-29qw / GHSA-46jr-4wx8-v453 (@modelcontextprotocol/sdk < 1.32.0): the first
+  // patched version is 1.32.0; the floor 1.32.1 is the stricter choice, minor cap 1.33.
+  { name: "@modelcontextprotocol/sdk", source: "overrides", contract: ">=1.32.1 <1.33" },
+  // GHSA-587h-7wmj-h5pm (vite >= 8.0.0 <= 8.1.5): floor at the first patched version, minor cap.
+  // The same advisory lists 8.2.0-8.2.3 and 8.3.0-8.3.2 as vulnerable, so the cap stops below 8.2.
+  { name: "vite", source: "overrides", contract: ">=8.1.6 <8.2" },
   // R2-SH (E-124): floor at the first patched version and a minor cap (0.x).
   // GHSA-wq5f-xc86-pv6w (sharp < 0.35.5, bundled librsvg).
   { name: "sharp", source: "overrides", contract: ">=0.35.5 <0.36" },
   // R2-D (E-47): floor at the first patched version and a major cap.
   // GHSA-6688-9rhm-gjv2 / GHSA-p98j-92pf-mc4p (dompurify <= 3.4.15 range).
   { name: "dompurify", source: "overrides", contract: ">=3.4.16 <4" },
+  // zod 4 bump (PR-E): floor at the first version without GHSA-mrhx-c7xc-m3w5, major cap. The four
+  // package.json declarations and every lockfile `zod@` key are held to this range by leg (g).
+  { name: "zod", source: "overrides", contract: ">=4.6.6 <5" },
+];
+
+/** leg (g): the package.json files that declare zod (zod 4 bump, PR-E) */
+const ZOD_DECLARING_MANIFESTS: readonly string[] = [
+  "apps/mcp-server/package.json",
+  "packages/core/package.json",
+  "packages/ml/package.json",
+  "packages/webdesign-core/package.json",
 ];
 
 /** leg (d): 解決版の一致を要求する組 (`vitest` exact peer との版一致、plan v3.1 §5.5) */
@@ -412,6 +450,39 @@ function checkLegE(repoRoot: string = REPO_ROOT): string[] {
     .map((raw) => `(e) ${CDXGEN_NAME}@${raw}: 12.8.3 未満ではない (または解釈不能)`);
 }
 
+/**
+ * leg (g): every package.json that declares zod admits only `>=4.6.6 <5` (the declared floor is at
+ * least 4.6.6 and the ceiling is at most 5.0.0). The lockfile side (a single resolved version in the
+ * range) is leg (c) on the `zod` row.
+ */
+function checkLegG(repoRoot: string = REPO_ROOT): string[] {
+  const row = CONTRACT_TABLE.find((r) => r.name === "zod") as ContractRow;
+  const contract = contractSpec(row);
+  const violations: string[] = [];
+  for (const file of ZOD_DECLARING_MANIFESTS) {
+    const deps = readJson(join(repoRoot, file)).dependencies as Record<string, unknown> | undefined;
+    const declared = deps?.zod;
+    if (typeof declared !== "string") {
+      violations.push(`(g) ${file}: zod の宣言が dependencies に無い`);
+      continue;
+    }
+    const spec = parseRange(declared);
+    if (spec === null || spec.ceiling === null) {
+      violations.push(`(g) ${file}: zod "${declared}" は上限付きの range として解釈できない`);
+      continue;
+    }
+    if (compareVersion(spec.floor, contract.floor) < 0) {
+      violations.push(
+        `(g) ${file}: zod "${declared}" の floor ${formatVersion(spec.floor)} が ${formatVersion(contract.floor)} 未満`
+      );
+    }
+    if (compareVersion(spec.ceiling, contract.ceiling as SemVer) > 0) {
+      violations.push(`(g) ${file}: zod "${declared}" の上限が 5.0.0 を超える`);
+    }
+  }
+  return violations;
+}
+
 /** leg (f-1): 契約表の行数 = 実 manifest から検出できたエントリ数 */
 function checkLegF1(
   repoRoot: string = REPO_ROOT,
@@ -453,6 +524,7 @@ function checkAllLegs(
     ...checkLegC2(repoRoot, table),
     ...checkLegD(repoRoot),
     ...checkLegE(repoRoot),
+    ...checkLegG(repoRoot),
     ...checkLegF1(repoRoot, table),
     ...checkLegF2(repoRoot, table),
   ];
@@ -472,24 +544,24 @@ const LANDED_VERSIONS: Readonly<Record<string, string>> = {
   "baseline-browser-mapping": "2.11.26",
   "@humanfs/node": "0.16.8",
   "@babel/core": "7.29.7",
-  vitest: "4.1.11",
-  "@vitest/mocker": "4.1.11",
-  "@vitest/coverage-v8": "4.1.11",
+  vitest: "4.1.12",
+  "@vitest/mocker": "4.1.12",
+  "@vitest/coverage-v8": "4.1.12",
   "@cyclonedx/cdxgen": "12.8.2",
   // R2-C 4 行: override commit の `pnpm install` 後の実解決版 (H-1)。hono は registry 追随で動く
   // (c-v0 C-L-02) ため exact 値は本 fixture にのみ置き、実 repo の判定は leg (c) の range で行う。
   // R2-C rows: post-install resolution (H-1); the real-repo check is the leg (c) range.
-  hono: "4.13.10",
+  hono: "4.13.13",
   "@hono/node-server": "2.1.1",
-  qs: "6.16.0",
-  "body-parser": "2.3.0",
-  // R2-U 5 行: override commit の `pnpm install` 後の実解決版 (H-1)。undici / ip-address は cap 内の
-  // 最新に解決した (floor ちょうどではない)。実 repo の判定は leg (c) の range で行う。
+  qs: "6.16.1",
+  "body-parser": "2.4.0",
+  // R2-U 5 行: override commit の `pnpm install` 後の実解決版 (H-1)。undici は cap 内の最新、
+  // ip-address は floor 10.7.4 ちょうどに解決した。実 repo の判定は leg (c) の range で行う。
   // R2-U rows: post-install resolution (H-1); the real-repo check is the leg (c) range.
-  undici: "7.30.0",
+  undici: "7.30.1",
   "brace-expansion": "5.0.12",
   "@grpc/grpc-js": "1.14.5",
-  "ip-address": "10.7.3",
+  "ip-address": "10.7.4",
   "fast-uri": "3.1.8",
   // R2-OF 3 行: override commit の `pnpm install` 後の実解決版 (H-1)。実 repo の判定は leg (c) の range で行う。
   // R2-OF rows: post-install resolution (H-1); the real-repo check is the leg (c) range.
@@ -499,13 +571,17 @@ const LANDED_VERSIONS: Readonly<Record<string, string>> = {
   // CO-R2-97 2 行: override commit の `pnpm install` 後の実解決版 (H-1)。実 repo の判定は leg (c) の range で行う。
   // CO-R2-97 rows: post-install resolution (H-1); the real-repo check is the leg (c) range.
   handlebars: "4.7.10",
-  "@modelcontextprotocol/sdk": "1.31.0",
+  "@modelcontextprotocol/sdk": "1.32.1",
+  // GHSA-587h-7wmj-h5pm: post-install resolution (H-1).
+  vite: "8.1.6",
   // R2-SH 1 行: override commit の `pnpm install` 後の実解決版 (H-1、C2 で実測値に合わせる)。
   // R2-SH row: post-install resolution (H-1; aligned to the measured value at C2).
   sharp: "0.35.5",
   // R2-D 1 行: override commit の `pnpm install` 後の実解決版 (H-1)。
   // R2-D row: post-install resolution (H-1).
   dompurify: "3.4.17",
+  // zod 4 bump (PR-E): post-install resolution (H-1).
+  zod: "4.6.7",
 };
 
 const fixtureRoots: string[] = [];
@@ -542,6 +618,12 @@ function writeFixtureRoot(options: FixtureOptions = {}): string {
     join(root, "package.json"),
     `${JSON.stringify({ name: "reftrix", devDependencies, pnpm: { overrides } }, null, 2)}\n`
   );
+
+  // leg (g): the package.json files that declare zod
+  for (const file of ZOD_DECLARING_MANIFESTS) {
+    mkdirSync(join(root, file, ".."), { recursive: true });
+    writeFileSync(join(root, file), JSON.stringify({ dependencies: { zod: "^4.6.7" } }));
+  }
 
   // lockfile 側は manifest の写し (pnpm install の出力と同形)。lock* option で lockfile だけを変える
   const lockOverrides = applyPatch(overrides, options.lockOverrides);
@@ -599,17 +681,120 @@ afterAll(() => {
 });
 
 // ---------------------------------------------------------------------------
+// express から辿った body-parser / qs / iconv-lite (契約表の外) / express-reachable chain (outside the table)
+// ---------------------------------------------------------------------------
+
+const BODY_PARSER_FLOOR: SemVer = { major: 2, minor: 4, patch: 0 };
+const QS_FLOOR_VIA_BODY_PARSER: SemVer = { major: 6, minor: 16, patch: 1 };
+const ICONV_LITE_FLOOR_VIA_BODY_PARSER: SemVer = { major: 0, minor: 7, patch: 3 };
+
+/**
+ * snapshots 節の `<name>@<ver>` 各ブロックの `dependencies:` から依存名 → 版を集める。
+ * Collects dependency name -> versions from the `dependencies:` of every `<name>@<ver>` snapshot block.
+ */
+function collectSnapshotDependency(lockText: string, owner: string, dep: string): string[] {
+  const snapshots = lockSection(lockText, "snapshots");
+  if (snapshots === undefined) return [];
+  const versions: string[] = [];
+  const lines = snapshots.split("\n");
+  const ownerRe = new RegExp(`^  '?${escapeRegExp(owner)}@[^':(]+(?:\\([^']*)?'?:\\s*$`);
+  const depRe = new RegExp(`^ {6}'?${escapeRegExp(dep)}'?: ([^\\s(]+)`);
+  for (let i = 0; i < lines.length; i++) {
+    if (!ownerRe.test(lines[i])) continue;
+    let inDeps = false;
+    for (let j = i + 1; j < lines.length && lines[j].startsWith("    "); j++) {
+      if (/^ {4}\S/.test(lines[j])) inDeps = lines[j].trim() === "dependencies:";
+      else if (inDeps) {
+        const m = depRe.exec(lines[j]);
+        if (m) versions.push(m[1]);
+      }
+    }
+  }
+  return versions;
+}
+
+/** 版の一覧が 1 本以上あり、すべて floor 以上か / at least one version, all at or above the floor */
+function checkVersionsAtLeast(label: string, versions: string[], floor: SemVer): string[] {
+  if (versions.length === 0) return [`${label}: 版を 1 本も検出できない (parse 契約の破綻)`];
+  return [...new Set(versions)].sort().flatMap((raw) => {
+    const version = parseVersion(raw);
+    return version === null || compareVersion(version, floor) < 0
+      ? [`${label}@${raw}: floor ${formatVersion(floor)} 未満 (または解釈不能)`]
+      : [];
+  });
+}
+
+function checkExpressChain(lockText: string): string[] {
+  return [
+    ...checkVersionsAtLeast(
+      "express -> body-parser",
+      collectSnapshotDependency(lockText, "express", "body-parser"),
+      BODY_PARSER_FLOOR
+    ),
+    ...checkVersionsAtLeast(
+      "lockfile body-parser",
+      collectLockVersions(lockText, "body-parser"),
+      BODY_PARSER_FLOOR
+    ),
+    ...checkVersionsAtLeast(
+      "body-parser -> qs",
+      collectSnapshotDependency(lockText, "body-parser", "qs"),
+      QS_FLOOR_VIA_BODY_PARSER
+    ),
+    ...checkVersionsAtLeast(
+      "body-parser -> iconv-lite",
+      collectSnapshotDependency(lockText, "body-parser", "iconv-lite"),
+      ICONV_LITE_FLOOR_VIA_BODY_PARSER
+    ),
+  ];
+}
+
+// ---------------------------------------------------------------------------
 // 実 assert / the real asserts
 // ---------------------------------------------------------------------------
 
 describe("INV-SEC-OVERRIDE-BOUND-001 (large-page)", () => {
-  it("契約表 (R2-BE-a 4 + R2-BE-b 4 + R2-C 4 + R2-U 5 + R2-OF 3 + CO-R2-97 2 + R2-SH 1 + R2-D 1) の文字列はすべて上限付きで解釈できる / the contract table itself parses", () => {
-    expect(CONTRACT_TABLE.length).toBe(24);
+  it("契約表 (R2-BE-a 4 + R2-BE-b 4 + R2-C 4 + R2-U 5 + R2-OF 3 + CO-R2-97 2 + R2-SH 1 + R2-D 1 + vite 1 + zod 1) の文字列はすべて上限付きで解釈できる / the contract table itself parses", () => {
+    expect(CONTRACT_TABLE.length).toBe(26);
     for (const row of CONTRACT_TABLE) expect(contractSpec(row).ceiling).not.toBeNull();
     // cdxgen のみ devDependencies (UB2-2)。他は pnpm.overrides / only cdxgen is a declaration
     expect(
       CONTRACT_TABLE.filter((row) => row.source === "devDependencies").map((r) => r.name)
     ).toEqual([CDXGEN_NAME]);
+  });
+
+  describe("(g) zod: package.json declarations and lockfile (INV-DEPS-ZOD-FLOOR-001)", () => {
+    it("the four package.json declarations admit only >=4.6.6 <5", () => {
+      expect(checkLegG()).toEqual([]);
+    });
+    it("every lockfile zod@ key is one version inside >=4.6.6 <5 (leg (c) on the zod row)", () => {
+      const lock = readLock(REPO_ROOT);
+      const versions = [...new Set(collectLockVersions(lock, "zod"))];
+      expect(versions).toHaveLength(1);
+      const zod = CONTRACT_TABLE.find((r) => r.name === "zod") as ContractRow;
+      const version = parseVersion(versions[0] as string);
+      expect(version).not.toBeNull();
+      expect(rangeAdmits(contractSpec(zod), version as SemVer)).toBe(true);
+    });
+    it("mutation control: a 3.x declaration, a floor below 4.6.6 and a missing declaration are each reported", () => {
+      const root = mkdtempSync(join(tmpdir(), "inv-sec-override-bound-zod-"));
+      fixtureRoots.push(root);
+      const write = (file: string, deps: Record<string, string>): void => {
+        mkdirSync(join(root, file, ".."), { recursive: true });
+        writeFileSync(join(root, file), JSON.stringify({ dependencies: deps }));
+      };
+      write("apps/mcp-server/package.json", { zod: "^3.24.0" });
+      write("packages/core/package.json", { zod: "^4.6.5" });
+      write("packages/ml/package.json", {});
+      write("packages/webdesign-core/package.json", { zod: "^4.6.7" });
+      const violations = checkLegG(root);
+      expect(violations).toHaveLength(3);
+      expect(violations.some((v) => v.includes("apps/mcp-server") && v.includes("floor"))).toBe(
+        true
+      );
+      expect(violations.some((v) => v.includes("packages/core"))).toBe(true);
+      expect(violations.some((v) => v.includes("packages/ml"))).toBe(true);
+    });
   });
 
   describe("(a) 全エントリが上限を持つ / every entry is capped", () => {
@@ -698,6 +883,15 @@ describe("INV-SEC-OVERRIDE-BOUND-001 (large-page)", () => {
       expect(checkLegA(root).some((v) => v.includes("契約上限"))).toBe(true);
     });
 
+    // GHSA-587h-7wmj-h5pm also lists 8.2.0-8.2.3 and 8.3.0-8.3.2: the vite cap stops below 8.2
+    it.each([">=8.1.6 <9", ">=8.1.6 <8.3", ">=8.1.6 <8.4", "8.2.1", "^8.1.6", ">=8.1.6"])(
+      "(i'') vite の manifest が %s → RED (leg (a))",
+      (mutated) => {
+        const root = writeFixtureRoot({ overrides: { vite: mutated } });
+        expect(checkLegA(root).some((v) => v.includes("vite"))).toBe(true);
+      }
+    );
+
     it("(ii) 汎用形: @babel/core floor を 7.28.0 へ引下げ → leg (b) のみ RED (H-1)", () => {
       const root = writeFixtureRoot({ overrides: { "@babel/core": ">=7.28.0 <8" } });
       const legB = checkLegB(root);
@@ -711,26 +905,40 @@ describe("INV-SEC-OVERRIDE-BOUND-001 (large-page)", () => {
 
     // (ii) 固有 instance: 契約 floor を advisory range 内へ引下げ → leg (b) だけが violation (H-1)。
     // R2-C: @hono/node-server 1.19.14 (GHSA-frvp-7c67-39w9 `< 1.19.15`) / hono 4.13.5
-    // (GHSA-hxh3-vqpv-xpqv `< 4.13.7`、E-46)。R2-U: undici 7.29.0 (`< 7.29.1` の 10 件、E-50)。
+    // (GHSA-hxh3-vqpv-xpqv `< 4.13.7`、E-46)。R2-U/PR-A: undici 7.30.0 (`< 7.30.1`) / body-parser 2.3.0 (`< 2.4.0`) / qs 6.16.0 (`< 6.16.1`)。
     // R2-OF: proxy-addr 2.0.7 / compression 1.8.1 / source-map-js 1.2.1 (E-96)。
     // CO-R2-97: handlebars 4.7.9 / @modelcontextprotocol/sdk 1.30.1 (GHSA-8r5x / -p8wg / -6qxp)。
     // R2-SH: sharp 0.35.4 (GHSA-wq5f-xc86-pv6w `< 0.35.5`、E-124)。
     // R2-D: dompurify 3.4.13 (GHSA-6688 / -p98j、E-47)。
+    // ip-address 10.7.3 (GHSA-rxp7-6hxx-x8q5 `< 10.7.4`) / hono 4.13.10 / @vitest/mocker 4.1.11 (現 floor の 1 つ下)。
     it.each([
       { name: "@hono/node-server", mutated: ">=1.19.14 <3", floor: "1.19.14" },
       { name: "hono", mutated: ">=4.13.5 <5", floor: "4.13.5" },
-      { name: "undici", mutated: ">=7.29.0 <8", floor: "7.29.0" },
+      // deps-body-parser PR-A: floors inside the GHSA-xjj6 (undici < 7.30.1) / GHSA-27r3 (body-parser < 2.4.0)
+      // vulnerable ranges, and qs below the 6.16.1 floor that body-parser 2.4.0 requires (leg (b) judges 6.16.0 a violation).
+      { name: "undici", mutated: ">=7.30.0 <8", floor: "7.30.0" },
+      { name: "body-parser", mutated: ">=2.3.0 <3", floor: "2.3.0" },
+      { name: "qs", mutated: ">=6.16.0 <7", floor: "6.16.0" },
       // R2-OF: floors inside the GHSA-jqcg / -vc2v / -68fv vulnerable ranges.
       { name: "proxy-addr", mutated: ">=2.0.7 <3", floor: "2.0.7" },
       { name: "compression", mutated: ">=1.8.1 <2", floor: "1.8.1" },
       { name: "source-map-js", mutated: ">=1.2.1 <2", floor: "1.2.1" },
       // CO-R2-97: floors inside the GHSA-8r5x / -p8wg / -6qxp vulnerable ranges.
       { name: "handlebars", mutated: ">=4.7.9 <5", floor: "4.7.9" },
-      { name: "@modelcontextprotocol/sdk", mutated: ">=1.30.1 <1.32", floor: "1.30.1" },
+      { name: "@modelcontextprotocol/sdk", mutated: ">=1.31.0 <1.33", floor: "1.31.0" },
+      // GHSA-587h-7wmj-h5pm: floor inside the vulnerable range.
+      { name: "vite", mutated: ">=8.1.5 <8.2", floor: "8.1.5" },
       // R2-SH: floor inside the GHSA-wq5f vulnerable range.
       { name: "sharp", mutated: ">=0.35.4 <0.36", floor: "0.35.4" },
       // R2-D: floor inside the GHSA-6688 / -p98j vulnerable range.
       { name: "dompurify", mutated: ">=3.4.13 <4", floor: "3.4.13" },
+      // zod: floor below the first version without GHSA-mrhx-c7xc-m3w5 (4.6.6).
+      { name: "zod", mutated: ">=4.6.5 <5", floor: "4.6.5" },
+      // ip-address: floor below the first fixed version 10.7.4 (GHSA-rxp7-6hxx-x8q5).
+      { name: "ip-address", mutated: ">=10.7.3 <11", floor: "10.7.3" },
+      // hono / @vitest/mocker: last version inside each advisory range below the current floor.
+      { name: "hono", mutated: ">=4.13.10 <5", floor: "4.13.10" },
+      { name: "@vitest/mocker", mutated: ">=4.1.11 <5", floor: "4.1.11" },
     ])(
       "(ii) 固有 instance: $name floor を $floor へ引下げ → leg (b) のみ violation、他 leg は [] (H-1)",
       ({ name, mutated, floor }) => {
@@ -800,8 +1008,8 @@ describe("INV-SEC-OVERRIDE-BOUND-001 (large-page)", () => {
 
     // --- R2-BE-b: leg (a')(c')(d)(e) + devDependencies 経路 + prerelease の control (BEA-05 / BEA-12)
     it("(a') lockfile `overrides:` 節だけ上限を外す → leg (a') RED、leg (a) は検知しない", () => {
-      const root = writeFixtureRoot({ lockOverrides: { vitest: ">=4.1.11" } });
-      expect(checkLegA2(root).some((v) => v.includes("vitest") && v.includes(">=4.1.11"))).toBe(
+      const root = writeFixtureRoot({ lockOverrides: { vitest: ">=4.1.12" } });
+      expect(checkLegA2(root).some((v) => v.includes("vitest") && v.includes(">=4.1.12"))).toBe(
         true
       );
       // manifest は不変 → (a) は GREEN のまま = (a') が無ければ見逃す / (a) alone misses it
@@ -827,14 +1035,14 @@ describe("INV-SEC-OVERRIDE-BOUND-001 (large-page)", () => {
     });
 
     it("(c') 入れ子 peer suffix の版も捕捉し、key 行にあれば GREEN (positive)", () => {
-      const nested = "  '@vitest/coverage-v8@4.1.11(vitest@4.1.11(@types/node@22.19.6))':";
-      expect(collectPeerSuffixVersions(nested, "vitest")).toEqual(["4.1.11"]);
+      const nested = "  '@vitest/coverage-v8@4.1.12(vitest@4.1.12(@types/node@22.19.6))':";
+      expect(collectPeerSuffixVersions(nested, "vitest")).toEqual(["4.1.12"]);
       expect(checkLegC2(writeFixtureRoot({ extraSnapshotLines: [nested] }))).toEqual([]);
     });
 
     it("(d) @vitest/mocker だけ別版 (契約 range 内) → leg (d) RED、leg (c) は検知しない", () => {
-      const root = writeFixtureRoot({ lockVersions: { "@vitest/mocker": ["4.1.12"] } });
-      expect(checkLegD(root).some((v) => v.includes("@vitest/mocker=4.1.12"))).toBe(true);
+      const root = writeFixtureRoot({ lockVersions: { "@vitest/mocker": ["4.1.13"] } });
+      expect(checkLegD(root).some((v) => v.includes("@vitest/mocker=4.1.13"))).toBe(true);
       expect(checkLegC(root)).toEqual([]);
     });
 
@@ -868,6 +1076,58 @@ describe("INV-SEC-OVERRIDE-BOUND-001 (large-page)", () => {
           (v) => v.includes("@babel/core@8.0.0-rc.5") && v.includes("解釈できない")
         )
       ).toBe(true);
+    });
+  });
+
+  describe("express から辿った body-parser / qs / iconv-lite (契約表の外) / express-reachable chain", () => {
+    it("express の body-parser、lockfile の body-parser、body-parser の qs / iconv-lite が floor 以上", () => {
+      expect(checkExpressChain(readLock(REPO_ROOT))).toEqual([]);
+    });
+
+    const fixtureLock = (bodyParser: string, qs: string, iconv: string): string =>
+      [
+        "",
+        "snapshots:",
+        "",
+        `  body-parser@${bodyParser}:`,
+        "    dependencies:",
+        "      debug: 4.4.3",
+        `      iconv-lite: ${iconv}`,
+        `      qs: ${qs}`,
+        "    transitivePeerDependencies:",
+        "      - supports-color",
+        "",
+        "  express@5.2.1:",
+        "    dependencies:",
+        `      body-parser: ${bodyParser}`,
+        `      qs: ${qs}`,
+        "",
+        "packages:",
+        "",
+        `  body-parser@${bodyParser}:`,
+        "    resolution: {integrity: sha512-x}",
+        "",
+      ].join("\n");
+
+    it("control: 2.4.0 / 6.16.1 / 0.7.3 は GREEN", () => {
+      expect(checkExpressChain(fixtureLock("2.4.0", "6.16.1", "0.7.3"))).toEqual([]);
+    });
+
+    it.each([
+      { label: "body-parser 2.3.0", args: ["2.3.0", "6.16.1", "0.7.3"], hit: "body-parser@2.3.0" },
+      { label: "qs 6.16.0", args: ["2.4.0", "6.16.0", "0.7.3"], hit: "body-parser -> qs@6.16.0" },
+      {
+        label: "iconv-lite 0.7.2",
+        args: ["2.4.0", "6.16.1", "0.7.2"],
+        hit: "body-parser -> iconv-lite@0.7.2",
+      },
+    ])("control: $label は RED", ({ args, hit }) => {
+      const violations = checkExpressChain(fixtureLock(args[0], args[1], args[2]));
+      expect(violations.some((v) => v.includes(hit))).toBe(true);
+    });
+
+    it("control: lockfile に body-parser の snapshot が無いと RED (空虚 GREEN にしない)", () => {
+      expect(checkExpressChain("\nsnapshots:\n\n  foo@1.0.0: {}\n").length).toBeGreaterThan(0);
     });
   });
 
@@ -915,6 +1175,103 @@ describe("INV-SEC-OVERRIDE-BOUND-001 (large-page)", () => {
       for (const raw of ["*", "latest", "^4.0.0 || ^5.0.0", "workspace:*", ">=1.0.0 <2 <3"]) {
         expect(parseRange(raw)).toBeNull();
       }
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// INV-SEC-NEXT-FLOOR-001 (H) — next の floor 契約 / next floor contract
+// ---------------------------------------------------------------------------
+
+// INV-SEC-NEXT-FLOOR-001
+//
+// next 16.3.x は 3 件の advisory (GHSA-2464-fhr4-w9xw / GHSA-673q-mjm6-r5xr / GHSA-p3m5-59mp-jv5r)
+// の範囲内 (first patched = 16.4.1)。reftrix4 の
+// `dependencies.next` は exact pin (範囲演算子なし) かつ >= 16.4.1、`pnpm-lock.yaml` の
+// すべての `next@<版>` key も >= 16.4.1 であることを pin する。override の契約
+// (INV-SEC-OVERRIDE-BOUND-001) とは別契約のため describe を分ける。lockfile parser は
+// leg (g) の `collectLockVersions` を再利用する (複製しない)。
+// next 16.3.x falls inside 3 advisories (GHSA-2464-fhr4-w9xw / GHSA-673q-mjm6-r5xr /
+// GHSA-p3m5-59mp-jv5r; first patched = 16.4.1). The reftrix4 manifest must pin
+// `next` exactly (no range operator) at >= 16.4.1 and every `next@<version>` lockfile key must
+// be >= 16.4.1. Separate from the override contract; reuses the leg (g) parser.
+
+const NEXT_FLOOR: SemVer = { major: 16, minor: 4, patch: 1 };
+const NEXT_MANIFESTS: readonly string[] = ["example/reftrix4/package.json"];
+
+/** exact の版 (`^\d+\.\d+\.\d+$`) かつ floor 以上か判定する / Checks the spec is an exact version at or above the floor */
+function checkNextSpec(label: string, raw: string | undefined): string[] {
+  if (raw === undefined) return [`${label}: next の宣言が無い`];
+  if (!/^\d+\.\d+\.\d+$/.test(raw)) {
+    return [`${label}: "${raw}" は exact の版ではない (範囲演算子は不可)`];
+  }
+  const version = parseVersion(raw);
+  if (version === null || compareVersion(version, NEXT_FLOOR) < 0) {
+    return [`${label}: ${raw} は floor ${formatVersion(NEXT_FLOOR)} 未満`];
+  }
+  return [];
+}
+
+/** manifest の `dependencies.next` を検査する / Checks `dependencies.next` of a manifest */
+function checkNextManifest(repoRoot: string, relPath: string): string[] {
+  const deps = readJson(join(repoRoot, relPath)).dependencies as
+    | Record<string, unknown>
+    | undefined;
+  const raw = deps?.next;
+  return checkNextSpec(relPath, typeof raw === "string" ? raw : undefined);
+}
+
+/** lockfile の `next@<版>` key を全件検査する。0 件は空虚 GREEN を避けて RED / Checks every lockfile `next@<version>` key; zero keys is RED to avoid a vacuous GREEN */
+function checkNextLock(lock: string): string[] {
+  const versions = [...new Set(collectLockVersions(lock, "next"))].sort();
+  if (versions.length === 0)
+    return ["pnpm-lock.yaml: next の key 行が 1 本も無い (parse 契約の破綻)"];
+  return versions.flatMap((raw) => {
+    const version = parseVersion(raw);
+    return version === null || compareVersion(version, NEXT_FLOOR) < 0
+      ? [`pnpm-lock.yaml: next@${raw} は floor ${formatVersion(NEXT_FLOOR)} 未満 (または解釈不能)`]
+      : [];
+  });
+}
+
+describe("INV-SEC-NEXT-FLOOR-001 (large-page)", () => {
+  it("example/reftrix4/package.json の next は exact pin かつ >= 16.4.1", () => {
+    expect(checkNextManifest(REPO_ROOT, NEXT_MANIFESTS[0])).toEqual([]);
+  });
+
+  it("pnpm-lock.yaml のすべての next@<版> key が >= 16.4.1", () => {
+    expect(checkNextLock(readLock(REPO_ROOT).toString())).toEqual([]);
+  });
+
+  describe("controls (非空虚性 / non-vacuity)", () => {
+    it.each(["16.4.0", "16.3.5"])("%s は floor 判定で失敗する", (raw) => {
+      expect(checkNextSpec("fixture", raw).some((v) => v.includes("floor"))).toBe(true);
+    });
+
+    it("^16.4.1 は exact 判定で失敗する", () => {
+      expect(checkNextSpec("fixture", "^16.4.1").some((v) => v.includes("exact"))).toBe(true);
+    });
+
+    it("16.4.1 は成功する", () => {
+      expect(checkNextSpec("fixture", "16.4.1")).toEqual([]);
+    });
+
+    it("manifest reader: fixture の ^16.4.1 を検知し、16.4.1 は通す", () => {
+      const root = mkdtempSync(join(tmpdir(), "inv-sec-next-floor-"));
+      fixtureRoots.push(root);
+      mkdirSync(join(root, "example/reftrix4"), { recursive: true });
+      const manifest = join(root, "example/reftrix4/package.json");
+      writeFileSync(manifest, JSON.stringify({ dependencies: { next: "^16.4.1" } }));
+      expect(checkNextManifest(root, "example/reftrix4/package.json")).toHaveLength(1);
+      writeFileSync(manifest, JSON.stringify({ dependencies: { next: "16.4.1" } }));
+      expect(checkNextManifest(root, "example/reftrix4/package.json")).toEqual([]);
+    });
+
+    it("lockfile: 16.4.0 の key を含むと RED、全件 16.4.1 なら GREEN、key 0 本は RED", () => {
+      const ok = ["packages:", "  next@16.4.1:", "snapshots:", "  next@16.4.1(react@19.2.3):", ""];
+      expect(checkNextLock(ok.join("\n"))).toEqual([]);
+      expect(checkNextLock([...ok, "  next@16.4.0:", ""].join("\n"))).toHaveLength(1);
+      expect(checkNextLock("packages:\n  react@19.2.3:\n")).toHaveLength(1);
     });
   });
 });

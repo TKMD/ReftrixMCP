@@ -469,9 +469,9 @@ export class GdprDeletionService {
    * crop dir を削除（best-effort、失敗は warn のみ、GDPR Art.17 crop-dir cascade）
    * Delete the per-page crop dir (best-effort; failures logged as warn).
    *
-   * `<root>/crops/<webPageId>/` を一括 unlink する。`CROP_PERSISTENCE_ENABLED`
-   * を ON にすると crop file が disk に生成されるため、screenshot と対称に
-   * `data.delete` で回収しないと第三者 visual-PII が永久残存する (Art.17 違反)。
+   * `<root>/crops/<webPageId>/` を一括 unlink する。crop の生成は終了したが、既存
+   * (legacy) の crop file が disk に残るため、screenshot と対称に `data.delete` で
+   * 回収しないと第三者 visual-PII が残存する (Art.17 違反)。
    *
    * - path-traversal 防御: dir は `buildSafeCropDir(webPageId)`
    *   (`UUID_REGEX` 検証 + `buildSafePathWithinRoot` 共有 core) でのみ構築し、

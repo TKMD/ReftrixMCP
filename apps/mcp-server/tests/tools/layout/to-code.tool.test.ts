@@ -43,13 +43,13 @@ import {
 // テストデータ
 // =====================================================
 
-const validUUID = "11111111-1111-1111-1111-111111111111";
-const validUUID2 = "22222222-2222-2222-2222-222222222222";
+const validUUID = "11111111-1111-4111-9111-111111111111";
+const validUUID2 = "22222222-2222-4222-9222-222222222222";
 const invalidUUID = "not-a-valid-uuid";
 
 const mockSectionPattern = {
   id: validUUID,
-  webPageId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  webPageId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
   sectionType: "hero",
   sectionName: "Modern Hero Section",
   positionIndex: 0,
@@ -66,7 +66,7 @@ const mockSectionPattern = {
   htmlSnippet: '<section class="hero"><h1>Welcome</h1></section>',
   textRepresentation: "Hero section with blue gradient, left-aligned heading, CTA button",
   webPage: {
-    id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     url: "https://example.com/page1",
     title: "Example Page 1",
     sourceType: "award_gallery",

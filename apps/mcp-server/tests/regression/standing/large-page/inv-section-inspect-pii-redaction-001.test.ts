@@ -6,13 +6,13 @@
  *
  * Contract (Registry §1, plan-v1 §6.1 / §7.1):
  *   section.inspect MUST null a high-PII section's `htmlSnippet` (and its sanitized structure
- *   preview) by mirroring the `getHighPiiSectionIds` SSOT used by the internal read API
- *   (`page-detail.service.ts`). The crop/markup high-PII sink class (223 avatars,
+ *   preview) by mirroring the `getHighPiiSectionIds` SSOT
+ *   (`services/section-detail.service.ts`). The crop/markup high-PII sink class (223 avatars,
  *   part_type=avatar) must never reach the single sanitized-HTML sink — this extends
  *   `INV-WEBUI-HIGHPII-NEVER-IN-RESPONSE-001` to the section.inspect read tool.
  *
  * This is a deterministic, Prisma-mocked standing test (same isolation pattern as
- * `tests/api/internal/page-detail.service.test.ts`). It does NOT gate on DATABASE_URL, so it can
+ * `tests/services/section-detail.service.test.ts`). It does NOT gate on DATABASE_URL, so it can
  * never short-circuit into a false PASS (cf. real-DB short-circuit feedback). The mocked
  * `componentPart.findMany` IS the `getHighPiiSectionIds` SSOT call, so the redaction path is
  * genuinely exercised end-to-end through the real `getSectionDetail` → handler.
@@ -33,6 +33,7 @@ vi.mock("@reftrixmcp/database", () => ({
 
 import { prisma } from "@reftrixmcp/database";
 import { sectionInspectHandler } from "../../../../src/tools/section/inspect.tool";
+import * as sectionDetailService from "../../../../src/services/section-detail.service";
 
 const SECTION_ID = "0190c700-aaaa-7abc-89ab-0123456789ab";
 const WEB_PAGE_ID = "0190c700-1234-7abc-89ab-0123456789ab";
@@ -40,6 +41,7 @@ const WEB_PAGE_ID = "0190c700-1234-7abc-89ab-0123456789ab";
 const mockedSectionFindUnique = prisma.sectionPattern.findUnique as ReturnType<typeof vi.fn>;
 const mockedPartFindMany = prisma.componentPart.findMany as ReturnType<typeof vi.fn>;
 
+const PART_SECRET = "jane@secret.example.com";
 const highPiiMarkup = "<section><img alt='user avatar' src='/avatar/jane.png'></section>";
 
 beforeEach(() => {
@@ -121,6 +123,70 @@ describe("INV-SECTION-INSPECT-PII-REDACTION-001 (H) — high-PII section html ne
     if (result.success) {
       expect(result.data.htmlSnippet).not.toBeNull();
       expect(result.data.structurePreview).toBeTruthy();
+    }
+  });
+});
+
+/**
+ * Part-level leg (INV-SECTION-INSPECT-PII-REDACTION-001, cross-ref
+ * INV-WEBUI-HIGHPII-NEVER-IN-RESPONSE-001): path = inspect.tool → section-detail.service
+ * (getSectionParts → toPartSummary). A high-PII part's htmlSnippet / cssClasses / attributes
+ * must be null/[]/null in `partsSummary` while the `piiRiskLevel` marker is kept. Removing the
+ * nulling in `toPartSummary` turns this RED.
+ */
+describe("INV-SECTION-INSPECT-PII-REDACTION-001 (H) — part-level leg (partsSummary)", () => {
+  const partRow = (id: string, pii: string): Record<string, unknown> => ({
+    id,
+    partType: "form",
+    sectionPatternId: SECTION_ID,
+    boundingBox: { x: 0, y: 0, width: 0, height: 0 },
+    piiRiskLevel: pii,
+    htmlSnippet: `<input value="${PART_SECRET}">`,
+    cssClasses: ["secret-field"],
+    attributes: { value: PART_SECRET },
+  });
+
+  it("the inspect.tool path reaches the section-detail.service module", () => {
+    expect(typeof sectionDetailService.getSectionParts).toBe("function");
+  });
+
+  it("nulls htmlSnippet/cssClasses/attributes of a high-PII part and keeps the marker", async () => {
+    mockedSectionFindUnique.mockResolvedValue({
+      id: SECTION_ID,
+      webPageId: WEB_PAGE_ID,
+      sectionType: "contact",
+      sectionName: null,
+      positionIndex: 1,
+      layoutInfo: null,
+      htmlSnippet: "<section>x</section>",
+    });
+    // getHighPiiSectionIds call (where.piiRiskLevel) vs getSectionParts call (where.sectionPatternId only)
+    mockedPartFindMany.mockImplementation(async (arg: { where?: { piiRiskLevel?: string } }) =>
+      arg?.where?.piiRiskLevel === "high"
+        ? [{ sectionPatternId: SECTION_ID }]
+        : [partRow("part-high", "high"), partRow("part-none", "none")]
+    );
+
+    const result = await sectionInspectHandler({
+      section_id: SECTION_ID,
+      include_parts_summary: true,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const parts = result.data.partsSummary ?? [];
+      const high = parts.find((p) => p.id === "part-high");
+      const none = parts.find((p) => p.id === "part-none");
+      expect(high).toBeDefined();
+      expect(high!.htmlSnippet).toBeNull();
+      expect(high!.cssClasses).toEqual([]);
+      expect(high!.attributes).toBeNull();
+      // marker preserved (the viewer/agent can still see WHY it is hidden)
+      expect(high!.piiRiskLevel).toBe("high");
+      expect(JSON.stringify(high)).not.toContain(PART_SECRET);
+      expect(JSON.stringify(high)).not.toContain("secret-field");
+      // non-PII sibling is untouched (redaction is not over-broad)
+      expect(none!.htmlSnippet).toContain(PART_SECRET);
     }
   });
 });

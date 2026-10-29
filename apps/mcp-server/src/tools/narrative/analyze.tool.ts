@@ -34,6 +34,7 @@ import type {
   NarrativeAnalysisInput,
   NarrativeAnalysisResult,
 } from "../../services/narrative/types/narrative.types";
+import { formatIssuePath, formatIssueMessage } from "../../utils/issue-path";
 
 // ============================================================================
 // Types
@@ -302,9 +303,9 @@ export async function narrativeAnalyzeHandler(input: unknown): Promise<Narrative
   } catch (error) {
     // エラーハンドリング
     if (error instanceof ZodError) {
-      const details = error.errors.map((e) => ({
-        path: e.path.join("."),
-        message: e.message,
+      const details = error.issues.map((e) => ({
+        path: formatIssuePath(e.path),
+        message: formatIssueMessage(e),
       }));
 
       logger.warn("[narrative.analyze] Validation error", { details });

@@ -76,7 +76,7 @@ function createBasicPart(
   overrides?: Partial<ComponentPartForEmbedding>
 ): ComponentPartForEmbedding {
   return {
-    id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
     partType: "button",
     partSubtype: null,
     computedStyles: {},

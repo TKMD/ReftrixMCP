@@ -955,7 +955,8 @@ export const AUDIT_ACTOR_BACKFILL_TRUNCATED_REPAIR = "system:backfill-truncated-
  * `crop_backfill_robots_disallowed` — W6 Issue A PR-4a (ADR-0042 Amendment 12,
  * F-M-05 / SEC-M-02 / LCC-M-02).
  *
- * Emitted by the one-shot crop-backfill operator script (`scripts/backfill-crops.ts`)
+ * Emitted by the former one-shot crop-backfill operator script (removed in the crop
+ * write-path removal; the constant stays because past `audit_logs` rows reference it)
  * when the live re-visit's mandatory robots.txt pre-flight gate
  * (`isUrlAllowedByRobotsTxt`) returns a genuine Disallow (`reason === "disallowed"`)
  * for a page's URL. The page is honest-skipped (no live visit, no crop generated)
@@ -984,6 +985,11 @@ export const AUDIT_ACTION_CROP_BACKFILL_ROBOTS_DISALLOWED =
  * SSOT-bound `system:` prefixed actor per the Worker actor naming SSOT convention
  * (`.claude/rules/security.md`). Template-literal construction is forbidden
  * (CWE-209 / GDPR Art.30 consistency).
+ *
+ * Kept after the crop-backfill script was deleted (crop generation ended): no code emits
+ * this actor any more, but past `audit_logs` rows carry it (GDPR Art.30 record), so the
+ * constant stays as their SSOT. / crop-backfill script 削除後も残す: 新規 emit は無いが、過去の
+ * `audit_logs` 行が参照する (Art.30 記録) ため SSOT として維持する。
  *
  * @see ADR-0042 Amendment 12
  * @see CONTRIBUTING.md §"Worker actor naming SSOT"

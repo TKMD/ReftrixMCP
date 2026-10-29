@@ -50,11 +50,11 @@ import type { CodeGeneratorOptions } from "../../../src/tools/layout/to-code.too
 // テストデータ
 // =====================================================
 
-const validUUID = "11111111-1111-1111-1111-111111111111";
+const validUUID = "11111111-1111-4111-9111-111111111111";
 
 const mockSectionPattern: SectionPattern = {
   id: validUUID,
-  webPageId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  webPageId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
   sectionType: "hero",
   sectionName: "Modern Hero Section",
   positionIndex: 0,
@@ -71,7 +71,7 @@ const mockSectionPattern: SectionPattern = {
   htmlSnippet: '<section class="hero"><h1>Welcome</h1><p>Description here</p></section>',
   textRepresentation: "Hero section with heading and description",
   webPage: {
-    id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     url: "https://example.com/page1",
     title: "Example Page 1",
     sourceType: "award_gallery",

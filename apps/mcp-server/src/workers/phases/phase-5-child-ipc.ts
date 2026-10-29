@@ -16,8 +16,10 @@
 
 import { z } from "zod";
 
+import { formatIssuePath } from "../../utils/issue-path";
 import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { safeParseInt } from "../../utils/safe-parse-int";
+import type { Assert, DeepSame } from "../../utils/type-equality";
 // PR-BT-5 (M-1-RSS, ADR-0039 Decision 3, Conflict 1): the additive `subPhase`
 // IPC discriminator is SSOT-derived from these const arrays via `z.enum(...)`
 // — NO hand-written enum literals (enforced by
@@ -25,6 +27,7 @@ import { safeParseInt } from "../../utils/safe-parse-int";
 // (TS const ↔ Zod); Prisma↔MCP 4-site is N/A (subPhase is neither persisted nor
 // MCP-exposed, IO V-4).
 import { PHASE5_TEXT_SUBPHASES, PHASE5_VISUAL_SUBPHASES } from "./phase-5-subphases.const";
+import type { ChunkedEncoderTelemetry } from "./types";
 
 // ============================================================================
 // Constants
@@ -54,107 +57,100 @@ const idMappingEntrySchema = z.tuple([
 /**
  * Parent → Child: Initialize text embedding child process
  */
-export const parentInitTextSchema = z
-  .object({
-    type: z.literal("init-text"),
-    webPageId: z.string().uuid(),
-    url: z.string().max(IPC_STRING_MAX_LENGTH),
-    // SaveResult idMappings serialized as [key, value][] arrays
-    sectionIdMapping: z.array(idMappingEntrySchema).nullable(),
-    motionIdMapping: z.array(idMappingEntrySchema).nullable(),
-    jsIdMapping: z.array(idMappingEntrySchema).nullable(),
-    bgIds: z.array(z.string().max(IPC_STRING_MAX_LENGTH)).nullable(),
-    scrollVisionIdMapping: z.array(idMappingEntrySchema).nullable(),
-    // Serialized analysis results (JSON strings for large payloads)
-    layoutResultJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
-    motionResultJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
-    jsAnimationsJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
-    scrollVisionResultJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
-    responsiveAnalysisId: z.string().max(IPC_STRING_MAX_LENGTH).optional(),
-    partsSavedCount: z.number().int().min(0).optional(),
-    /**
-     * v0.4.0 PR4: 子プロセスで処理する Part text embedding の上限件数。
-     * 100 件超のページで 100 に設定される。
-     *
-     * v0.4.0 PR4: Cap on the number of Part text embeddings processed in the
-     * child. Set to 100 when a page has more than 100 Parts.
-     */
-    partsLimit: z.number().int().min(1).optional(),
-    /**
-     * PR-BT-5 (M-1-RSS, ADR-0039 Decision 3): per-sub-phase fork discriminator.
-     * When set, the text child runs ONLY this single text sub-phase and
-     * `exit(0)`s (the per-sub-phase fork model — each fork reclaims its arena on
-     * exit, rooting out the inter-sub-phase reload). When **omitted**, the child
-     * grandfathers to the legacy "run all 7 text sub-phases" behaviour
-     * (backward-compatible). SSOT-derived via `z.enum(PHASE5_TEXT_SUBPHASES)`
-     * — no hand-written literals.
-     *
-     * PR-BT-5 (M-1-RSS): per-sub-phase fork 識別子。指定時は当 1 sub-phase のみ
-     * 実行して exit(0)。省略時は legacy 全 7 sub-phase 実行に grandfather。
-     */
-    subPhase: z.enum(PHASE5_TEXT_SUBPHASES).optional(),
-    // FIND-PLAN-M-02 (SEC-M-1, SEC H-2 parity): reject unknown keys at the IPC
-    // boundary (CWE-20 improper input validation). PR-1 GPU-COORD adds .strict()
-    // to all 10 phase-5-child-ipc schemas (was 0 before; ADR/master-plan prose
-    // claiming "existing .strict()" is a known doc-error per FIND-PLAN-DOC-01).
-    // PR-BT-5 keeps .strict() while adding the additive `subPhase` field above.
-  })
-  .strict();
+export const parentInitTextSchema = z.strictObject({
+  type: z.literal("init-text"),
+  webPageId: z.string().uuid(),
+  url: z.string().max(IPC_STRING_MAX_LENGTH),
+  // SaveResult idMappings serialized as [key, value][] arrays
+  sectionIdMapping: z.array(idMappingEntrySchema).nullable(),
+  motionIdMapping: z.array(idMappingEntrySchema).nullable(),
+  jsIdMapping: z.array(idMappingEntrySchema).nullable(),
+  bgIds: z.array(z.string().max(IPC_STRING_MAX_LENGTH)).nullable(),
+  scrollVisionIdMapping: z.array(idMappingEntrySchema).nullable(),
+  // Serialized analysis results (JSON strings for large payloads)
+  layoutResultJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
+  motionResultJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
+  jsAnimationsJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
+  scrollVisionResultJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
+  responsiveAnalysisId: z.string().max(IPC_STRING_MAX_LENGTH).optional(),
+  partsSavedCount: z.number().int().min(0).optional(),
+  /**
+   * v0.4.0 PR4: 子プロセスで処理する Part text embedding の上限件数。
+   * 100 件超のページで 100 に設定される。
+   *
+   * v0.4.0 PR4: Cap on the number of Part text embeddings processed in the
+   * child. Set to 100 when a page has more than 100 Parts.
+   */
+  partsLimit: z.number().int().min(1).optional(),
+  /**
+   * PR-BT-5 (M-1-RSS, ADR-0039 Decision 3): per-sub-phase fork discriminator.
+   * When set, the text child runs ONLY this single text sub-phase and
+   * `exit(0)`s (the per-sub-phase fork model — each fork reclaims its arena on
+   * exit, rooting out the inter-sub-phase reload). When **omitted**, the child
+   * grandfathers to the legacy "run all 7 text sub-phases" behaviour
+   * (backward-compatible). SSOT-derived via `z.enum(PHASE5_TEXT_SUBPHASES)`
+   * — no hand-written literals.
+   *
+   * PR-BT-5 (M-1-RSS): per-sub-phase fork 識別子。指定時は当 1 sub-phase のみ
+   * 実行して exit(0)。省略時は legacy 全 7 sub-phase 実行に grandfather。
+   */
+  subPhase: z.enum(PHASE5_TEXT_SUBPHASES).optional(),
+  // FIND-PLAN-M-02 (SEC-M-1, SEC H-2 parity): reject unknown keys at the IPC
+  // boundary (CWE-20 improper input validation). All 10 phase-5-child-ipc
+  // schemas (and the 2 nested objects of childTextResultSchema) are
+  // `z.strictObject` (ADR/master-plan prose claiming "existing .strict()" is a
+  // known doc-error per FIND-PLAN-DOC-01). PR-BT-5 keeps it strict while adding
+  // the additive `subPhase` field above.
+});
 
 /**
  * Parent → Child: Initialize visual embedding child process
  */
-export const parentInitVisualSchema = z
-  .object({
-    type: z.literal("init-visual"),
-    webPageId: z.string().uuid(),
-    url: z.string().max(IPC_STRING_MAX_LENGTH),
-    screenshotPngPath: z.string().max(IPC_STRING_MAX_LENGTH),
-    sectionIdMapping: z.array(idMappingEntrySchema).nullable(),
-    partsSavedCount: z.number().int().min(0).optional(),
-    /**
-     * v0.4.0 PR4: 子プロセスで処理する Part visual embedding の上限件数。
-     * v0.4.0 PR4: Cap on the number of Part visual embeddings processed in the child.
-     */
-    partsLimit: z.number().int().min(1).optional(),
-    layoutResultJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
-    viewportWidth: z.number().int().min(1).max(4096).optional(),
-    viewportHeight: z.number().int().min(1).max(4096).optional(),
-    fallbackEnabled: z.boolean(),
-    dinov2ModelPath: z.string().max(IPC_STRING_MAX_LENGTH),
-    /**
-     * PR-BT-5 (M-1-RSS, ADR-0039 Decision 3): per-sub-phase fork discriminator.
-     * When set, the visual child runs ONLY this single visual sub-phase and
-     * `exit(0)`s. When **omitted**, the child grandfathers to the legacy "run
-     * both section_visual + part_visual" behaviour (backward-compatible).
-     * SSOT-derived via `z.enum(PHASE5_VISUAL_SUBPHASES)` — no hand-written
-     * literals.
-     *
-     * PR-BT-5 (M-1-RSS): per-sub-phase fork 識別子。指定時は当 1 sub-phase のみ
-     * 実行して exit(0)。省略時は legacy 全 visual sub-phase 実行に grandfather。
-     */
-    subPhase: z.enum(PHASE5_VISUAL_SUBPHASES).optional(),
-  })
-  .strict();
+export const parentInitVisualSchema = z.strictObject({
+  type: z.literal("init-visual"),
+  webPageId: z.string().uuid(),
+  url: z.string().max(IPC_STRING_MAX_LENGTH),
+  screenshotPngPath: z.string().max(IPC_STRING_MAX_LENGTH),
+  sectionIdMapping: z.array(idMappingEntrySchema).nullable(),
+  partsSavedCount: z.number().int().min(0).optional(),
+  /**
+   * v0.4.0 PR4: 子プロセスで処理する Part visual embedding の上限件数。
+   * v0.4.0 PR4: Cap on the number of Part visual embeddings processed in the child.
+   */
+  partsLimit: z.number().int().min(1).optional(),
+  layoutResultJson: z.string().max(IPC_DATA_MAX_LENGTH).nullable(),
+  viewportWidth: z.number().int().min(1).max(4096).optional(),
+  viewportHeight: z.number().int().min(1).max(4096).optional(),
+  fallbackEnabled: z.boolean(),
+  dinov2ModelPath: z.string().max(IPC_STRING_MAX_LENGTH),
+  /**
+   * PR-BT-5 (M-1-RSS, ADR-0039 Decision 3): per-sub-phase fork discriminator.
+   * When set, the visual child runs ONLY this single visual sub-phase and
+   * `exit(0)`s. When **omitted**, the child grandfathers to the legacy "run
+   * both section_visual + part_visual" behaviour (backward-compatible).
+   * SSOT-derived via `z.enum(PHASE5_VISUAL_SUBPHASES)` — no hand-written
+   * literals.
+   *
+   * PR-BT-5 (M-1-RSS): per-sub-phase fork 識別子。指定時は当 1 sub-phase のみ
+   * 実行して exit(0)。省略時は legacy 全 visual sub-phase 実行に grandfather。
+   */
+  subPhase: z.enum(PHASE5_VISUAL_SUBPHASES).optional(),
+});
 
 /**
  * Parent → Child: Relay lock extension acknowledgment
  */
-export const parentLockAckSchema = z
-  .object({
-    type: z.literal("lock-ack"),
-    success: z.boolean(),
-  })
-  .strict();
+export const parentLockAckSchema = z.strictObject({
+  type: z.literal("lock-ack"),
+  success: z.boolean(),
+});
 
 /**
  * Parent → Child: Graceful shutdown request
  */
-export const parentShutdownSchema = z
-  .object({
-    type: z.literal("shutdown"),
-  })
-  .strict();
+export const parentShutdownSchema = z.strictObject({
+  type: z.literal("shutdown"),
+});
 
 /**
  * Union of all parent → child message types
@@ -187,36 +183,30 @@ export type ParentToChildMessage = z.infer<typeof parentToChildSchema>;
  * 絶対値 `rssMb`（可観測性 / DB ログ用）と delta（`currentRss - initialRss`、
  * 閾値判定用）の両方を報告する。
  */
-export const childHeartbeatSchema = z
-  .object({
-    type: z.literal("heartbeat"),
-    rssMb: z.number().min(0),
-    rssDeltaMb: z.number(),
-    phase: z.string().max(200),
-  })
-  .strict();
+export const childHeartbeatSchema = z.strictObject({
+  type: z.literal("heartbeat"),
+  rssMb: z.number().min(0),
+  rssDeltaMb: z.number(),
+  phase: z.string().max(200),
+});
 
 /**
  * Child → Parent: Request lock extension relay
  */
-export const childLockRequestSchema = z
-  .object({
-    type: z.literal("lock-request"),
-    label: z.string().max(200),
-  })
-  .strict();
+export const childLockRequestSchema = z.strictObject({
+  type: z.literal("lock-request"),
+  label: z.string().max(200),
+});
 
 /**
  * Child → Parent: Progress update
  */
-export const childProgressSchema = z
-  .object({
-    type: z.literal("progress"),
-    completed: z.number().int().min(0),
-    total: z.number().int().min(0),
-    phase: z.string().max(200),
-  })
-  .strict();
+export const childProgressSchema = z.strictObject({
+  type: z.literal("progress"),
+  completed: z.number().int().min(0),
+  total: z.number().int().min(0),
+  phase: z.string().max(200),
+});
 
 /**
  * Child → Parent: Text embedding result (success)
@@ -243,30 +233,50 @@ export const childProgressSchema = z
  * back to the parent for `audit_logs` emission. Optional for forward
  * compatibility.
  */
-export const childTextResultSchema = z
-  .object({
-    type: z.literal("text-result"),
-    sectionEmbeddingsGenerated: z.number().int().min(0),
-    motionEmbeddingsGenerated: z.number().int().min(0),
-    bgEmbeddingsGenerated: z.number().int().min(0),
-    jsAnimationEmbeddingsGenerated: z.number().int().min(0),
-    responsiveEmbeddingsGenerated: z.number().int().min(0),
-    partEmbeddingsGenerated: z.number().int().min(0),
-    embeddingFailedChunks: z.number().int().min(0),
-    chunkedEncoderTelemetry: z
-      .object({
-        partialCompletion: z
-          .object({
-            chunksDone: z.number().int().min(0),
-            totalChunks: z.number().int().min(1),
-          })
-          .optional(),
-        budgetExceededChunkIndex: z.number().int().min(0).optional(),
-        idempotencyChunkSkippedCount: z.number().int().min(0).optional(),
-      })
-      .optional(),
-  })
-  .strict();
+export const childTextResultSchema = z.strictObject({
+  type: z.literal("text-result"),
+  sectionEmbeddingsGenerated: z.number().int().min(0),
+  motionEmbeddingsGenerated: z.number().int().min(0),
+  bgEmbeddingsGenerated: z.number().int().min(0),
+  jsAnimationEmbeddingsGenerated: z.number().int().min(0),
+  responsiveEmbeddingsGenerated: z.number().int().min(0),
+  partEmbeddingsGenerated: z.number().int().min(0),
+  embeddingFailedChunks: z.number().int().min(0),
+  chunkedEncoderTelemetry: z
+    .strictObject({
+      partialCompletion: z
+        .strictObject({
+          chunksDone: z.number().int().min(0),
+          totalChunks: z.number().int().min(1),
+        })
+        .optional(),
+      budgetExceededChunkIndex: z.number().int().min(0).optional(),
+      idempotencyChunkSkippedCount: z.number().int().min(0).optional(),
+    })
+    .optional(),
+});
+
+/**
+ * The hand-written `ChunkedEncoderTelemetry` interface (types.ts) and the nested
+ * `chunkedEncoderTelemetry` schema above must describe the same object. The child sends the
+ * telemetry through a variable, so TypeScript does not flag an extra property there; a key added
+ * to only one side would pass typecheck and then make the parent reject every text-result.
+ * `DeepSame` (utils/type-equality.ts) fails typecheck when the key sets, the optional keys or the
+ * value types differ at any level; `any` never matches; `| undefined` is ignored because `z.infer`
+ * adds it to optional keys under exactOptionalPropertyTypes. It is a type only: nothing is exported
+ * to runtime.
+ *
+ * 手書きの `ChunkedEncoderTelemetry` interface と上の入れ子 schema は同じ object を表す。子は
+ * telemetry を変数で渡すので余分な property は型検査で見つからず、片側だけ key を足すと
+ * typecheck を通ったまま親が text-result をすべて reject する。key 集合・optional・値の型が
+ * ずれると typecheck が落ちる(`| undefined` は無視する)。
+ */
+type TelemetryOnSchema = NonNullable<
+  z.infer<typeof childTextResultSchema>["chunkedEncoderTelemetry"]
+>;
+export type ChunkedEncoderTelemetrySchemaInSync = Assert<
+  DeepSame<ChunkedEncoderTelemetry, TelemetryOnSchema>
+>;
 
 /**
  * Child → Parent: Visual embedding result (success)
@@ -279,36 +289,32 @@ export const childTextResultSchema = z
  * `partVisualSkippedBboxInvalid`. Legacy child messages (missing this field)
  * default to 0 via Zod, preserving backward compatibility.
  */
-export const childVisualResultSchema = z
-  .object({
-    type: z.literal("visual-result"),
-    sectionVisualEmbeddingsGenerated: z.number().int().min(0),
-    partVisualEmbeddingsGenerated: z.number().int().min(0),
-    partVisualSkippedBboxInvalid: z.number().int().min(0).optional().default(0),
-    // ADR-0018 Amendment 7 §7.6 exit #2 (Plan v2 PR-B): additively added optional
-    // `partVisualSkippedBboxUnresolvable`. Legacy child messages (missing this
-    // field) default to 0 via Zod, preserving backward compatibility (symmetric
-    // with partVisualSkippedBboxInvalid).
-    partVisualSkippedBboxUnresolvable: z.number().int().min(0).optional().default(0),
-    // ADR-0018 Amendment 13 (truncated-screenshot data-loss fix): additively added
-    // optional `partVisualSkippedScreenshotTruncated`. Legacy child messages
-    // (missing this field) default to 0 via Zod, preserving backward compatibility
-    // (symmetric with partVisualSkippedBboxUnresolvable).
-    partVisualSkippedScreenshotTruncated: z.number().int().min(0).optional().default(0),
-    embeddingFailedChunks: z.number().int().min(0),
-  })
-  .strict();
+export const childVisualResultSchema = z.strictObject({
+  type: z.literal("visual-result"),
+  sectionVisualEmbeddingsGenerated: z.number().int().min(0),
+  partVisualEmbeddingsGenerated: z.number().int().min(0),
+  partVisualSkippedBboxInvalid: z.number().int().min(0).optional().default(0),
+  // ADR-0018 Amendment 7 §7.6 exit #2 (Plan v2 PR-B): additively added optional
+  // `partVisualSkippedBboxUnresolvable`. Legacy child messages (missing this
+  // field) default to 0 via Zod, preserving backward compatibility (symmetric
+  // with partVisualSkippedBboxInvalid).
+  partVisualSkippedBboxUnresolvable: z.number().int().min(0).optional().default(0),
+  // ADR-0018 Amendment 13 (truncated-screenshot data-loss fix): additively added
+  // optional `partVisualSkippedScreenshotTruncated`. Legacy child messages
+  // (missing this field) default to 0 via Zod, preserving backward compatibility
+  // (symmetric with partVisualSkippedBboxUnresolvable).
+  partVisualSkippedScreenshotTruncated: z.number().int().min(0).optional().default(0),
+  embeddingFailedChunks: z.number().int().min(0),
+});
 
 /**
  * Child → Parent: Error report
  */
-export const childErrorSchema = z
-  .object({
-    type: z.literal("error"),
-    message: z.string().max(IPC_ERROR_MESSAGE_MAX_LENGTH),
-    phase: z.string().max(200).optional(),
-  })
-  .strict();
+export const childErrorSchema = z.strictObject({
+  type: z.literal("error"),
+  message: z.string().max(IPC_ERROR_MESSAGE_MAX_LENGTH),
+  phase: z.string().max(200).optional(),
+});
 
 /**
  * Union of all child → parent message types
@@ -329,14 +335,30 @@ export type ChildToParentMessage = z.infer<typeof childToParentSchema>;
 // ============================================================================
 
 /**
+ * Describe the first schema issue for a log line: the issue code and the path only. The issue
+ * message is left out on purpose: it can carry the received value or an unrecognized key name,
+ * and both come from the peer and have no length limit.
+ */
+function describeFirstIssue(issue: z.ZodIssue | undefined): string {
+  if (!issue) return "code=unknown path=";
+  return `code=${issue.code} path=${formatIssuePath(issue.path)}`;
+}
+
+/**
  * Validate an IPC message from parent to child.
  * Returns null if validation fails (with logged warning).
  */
 export function validateParentMessage(raw: unknown): ParentToChildMessage | null {
   const result = parentToChildSchema.safeParse(raw);
   if (!result.success) {
-    // Log validation failure (no PII — only schema error details)
-    console.warn("[Phase5-IPC] Invalid parent message:", result.error.issues[0]?.message);
+    // Log validation failure (no PII — only the schema name, the first issue code and the first
+    // issue path; the issue message is not logged because zod 3 puts the received enum value and the
+    // unrecognized key names in it). The schema name tells a schema rejection apart from a real IPC
+    // race, which the caller records the same way when the child still exits cleanly.
+    console.warn(
+      "[Phase5-IPC] Invalid parent message (schema: parentToChildSchema):",
+      describeFirstIssue(result.error.issues[0])
+    );
     return null;
   }
   return result.data;
@@ -349,8 +371,14 @@ export function validateParentMessage(raw: unknown): ParentToChildMessage | null
 export function validateChildMessage(raw: unknown): ChildToParentMessage | null {
   const result = childToParentSchema.safeParse(raw);
   if (!result.success) {
-    // Log validation failure (no PII — only schema error details)
-    console.warn("[Phase5-IPC] Invalid child message:", result.error.issues[0]?.message);
+    // Log validation failure (no PII — only the schema name, the first issue code and the first
+    // issue path; the issue message is not logged because zod 3 puts the received enum value and the
+    // unrecognized key names in it). The schema name tells a schema rejection apart from a real IPC
+    // race, which the caller records the same way when the child still exits cleanly.
+    console.warn(
+      "[Phase5-IPC] Invalid child message (schema: childToParentSchema):",
+      describeFirstIssue(result.error.issues[0])
+    );
     return null;
   }
   return result.data;

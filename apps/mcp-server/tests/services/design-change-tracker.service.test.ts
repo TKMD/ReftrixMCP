@@ -58,7 +58,7 @@ describe("DesignChangeTrackerService", () => {
 
   describe("createSnapshot", () => {
     it("正常系: webPageIdからスナップショットを作成できる", async () => {
-      const webPageId = "11111111-1111-1111-1111-111111111111";
+      const webPageId = "11111111-1111-4111-9111-111111111111";
 
       // Mock: web_pages テーブルから取得
       const mockSections = [
@@ -102,7 +102,7 @@ describe("DesignChangeTrackerService", () => {
     });
 
     it("異常系: 存在しないwebPageIdでエラーを返す", async () => {
-      const webPageId = "99999999-9999-9999-9999-999999999999";
+      const webPageId = "99999999-9999-4999-9999-999999999999";
 
       (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>).mockResolvedValueOnce([]); // web_pages が空
 
@@ -120,7 +120,7 @@ describe("DesignChangeTrackerService", () => {
     });
 
     it("異常系: セクションが0件でも空スナップショットを作成する", async () => {
-      const webPageId = "11111111-1111-1111-1111-111111111111";
+      const webPageId = "11111111-1111-4111-9111-111111111111";
 
       (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce([{ id: webPageId, url: "https://example.com" }])
@@ -142,8 +142,8 @@ describe("DesignChangeTrackerService", () => {
 
   describe("compareSnapshots", () => {
     it("正常系: 2つのスナップショットを比較して変更度スコアを算出する", async () => {
-      const snapshotId1 = "aaaa1111-1111-1111-1111-111111111111";
-      const snapshotId2 = "bbbb2222-2222-2222-2222-222222222222";
+      const snapshotId1 = "aaaa1111-1111-4111-8111-111111111111";
+      const snapshotId2 = "bbbb2222-2222-4222-8222-222222222222";
 
       // Mock: snapshot 1
       const snap1 = [
@@ -234,8 +234,8 @@ describe("DesignChangeTrackerService", () => {
         .mockResolvedValueOnce([]);
 
       const result = await compareSnapshots(
-        "aaaa1111-1111-1111-1111-111111111111",
-        "bbbb2222-2222-2222-2222-222222222222"
+        "aaaa1111-1111-4111-8111-111111111111",
+        "bbbb2222-2222-4222-8222-222222222222"
       );
 
       expect(result.success).toBe(false);
@@ -243,7 +243,7 @@ describe("DesignChangeTrackerService", () => {
     });
 
     it("異常系: 同じスナップショットIDでエラーを返す", async () => {
-      const sameId = "aaaa1111-1111-1111-1111-111111111111";
+      const sameId = "aaaa1111-1111-4111-8111-111111111111";
       const result = await compareSnapshots(sameId, sameId);
 
       expect(result.success).toBe(false);
@@ -251,8 +251,8 @@ describe("DesignChangeTrackerService", () => {
     });
 
     it("NaN/Infinityを含むembeddingでもクラッシュしない", async () => {
-      const snapshotId1 = "aaaa1111-1111-1111-1111-111111111111";
-      const snapshotId2 = "bbbb2222-2222-2222-2222-222222222222";
+      const snapshotId1 = "aaaa1111-1111-4111-8111-111111111111";
+      const snapshotId2 = "bbbb2222-2222-4222-8222-222222222222";
 
       (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce([
@@ -358,7 +358,7 @@ describe("DesignChangeTrackerService", () => {
 
   describe("detectChanges", () => {
     it("正常系: 最新分析結果と直前スナップショットの差分を検出する", async () => {
-      const webPageId = "11111111-1111-1111-1111-111111111111";
+      const webPageId = "11111111-1111-4111-9111-111111111111";
 
       // latest snapshot
       const latestSnapshot = [
@@ -417,7 +417,7 @@ describe("DesignChangeTrackerService", () => {
     });
 
     it("正常系: スナップショットがない場合はno_previous_snapshotを返す", async () => {
-      const webPageId = "11111111-1111-1111-1111-111111111111";
+      const webPageId = "11111111-1111-4111-9111-111111111111";
 
       (mockPrisma.$queryRawUnsafe as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce([{ id: webPageId }]) // page exists

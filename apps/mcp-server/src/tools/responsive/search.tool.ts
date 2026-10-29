@@ -37,6 +37,7 @@ import {
   getCachedResult,
   setCachedResult,
 } from "../../services/search-cache.service";
+import { formatIssueLine } from "../../utils/issue-path";
 
 // =====================================================
 // 型定義
@@ -144,7 +145,7 @@ export async function responsiveSearchHandler(input: unknown): Promise<Responsiv
     validated = responsiveSearchInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      const errorMessage = error.issues.map((e) => `${formatIssueLine(e)}`).join(", ");
 
       logger.warn("[MCP Tool] responsive.search validation error", {
         error: (error as Error).message,

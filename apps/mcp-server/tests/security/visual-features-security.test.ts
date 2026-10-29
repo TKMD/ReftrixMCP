@@ -118,7 +118,7 @@ describe("visualFeatures SQLインジェクション対策", () => {
       const result = visualFeaturesColorsSchema.safeParse(maliciousColors);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain("Invalid");
+        expect(result.error.issues[0].message).toContain("Invalid");
       }
     });
 
@@ -430,7 +430,7 @@ describe("visualFeatures DoS対策", () => {
       const result = visualFeaturesColorsSchema.safeParse(oversizedColors);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain("5");
+        expect(result.error.issues[0].message).toContain("5");
       }
     });
 
@@ -487,7 +487,7 @@ describe("visualFeatures DoS対策", () => {
       const result = visualFeaturesColorsSchema.safeParse(largePayload);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain("100");
+        expect(result.error.issues[0].message).toContain("100");
       }
     });
 

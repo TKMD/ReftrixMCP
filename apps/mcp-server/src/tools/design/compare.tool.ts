@@ -34,6 +34,7 @@ import {
   getCachedResult,
   setCachedResult,
 } from "../../services/search-cache.service";
+import { formatIssueLine } from "../../utils/issue-path";
 
 // =====================================================
 // Re-export error codes / エラーコードの再エクスポート
@@ -48,6 +49,9 @@ export { DESIGN_COMPARE_ERROR_CODES } from "../../services/design-compare.servic
 /** UUID v4/v7 pattern */
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** 比較次元 / Comparison dimension */
+export const designCompareDimensionSchema = z.enum(["layout", "visual", "quality", "color"]);
+
 export const designCompareInputSchema = z.object({
   page_ids: z
     .array(z.string().regex(UUID_PATTERN, "Invalid UUID format"))
@@ -58,10 +62,17 @@ export const designCompareInputSchema = z.object({
         " / Page IDs to compare (2-5, UUID format). Must exist in web_pages table."
     ),
   dimensions: z
-    .array(z.enum(["layout", "visual", "quality", "color"]))
+    .array(designCompareDimensionSchema)
     .min(1)
     .max(4)
-    .default(["layout", "visual", "quality", "color"])
+    .default(
+      (): Array<"layout" | "visual" | "quality" | "color"> => [
+        "layout",
+        "visual",
+        "quality",
+        "color",
+      ]
+    )
     .describe(
       "比較次元（layout/visual/quality/color）。デフォルト: 全4次元。" +
         " / Comparison dimensions. Default: all 4 dimensions."
@@ -126,7 +137,7 @@ export async function designCompareHandler(input: unknown): Promise<DesignCompar
   } catch (error) {
     const message =
       error instanceof z.ZodError
-        ? error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ")
+        ? error.issues.map((e) => `${formatIssueLine(e)}`).join("; ")
         : "Invalid input";
     return {
       success: false,
@@ -236,6 +247,7 @@ export const designCompareToolDefinition = {
           type: "string",
           enum: ["layout", "visual", "quality", "color"],
         },
+        maxItems: 4,
         default: ["layout", "visual", "quality", "color"],
         description: "比較次元（デフォルト: 全4次元） / Comparison dimensions (default: all 4)",
       },

@@ -174,7 +174,7 @@ describe("system.health MCPツール", () => {
 
     it("外部から_request_idを渡した場合、そのIDが使用されること", async () => {
       // Arrange
-      const customRequestId = "01234567-89ab-cdef-0123-456789abcdef";
+      const customRequestId = "01234567-89ab-4def-9123-456789abcdef";
       fetchMock.mockResolvedValueOnce({
         ok: true,
         status: 200,

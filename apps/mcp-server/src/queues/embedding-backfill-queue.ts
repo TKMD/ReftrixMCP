@@ -777,7 +777,7 @@ export const RETRY_JOBID_TRUNCATED_REGEX = /^[a-f0-9]{8}\.{3}__[a-z_]+__retry_[0
  * Zod schema for the `embedding_backfill_collision_resolved` audit action
  * payload (Plan v1.2 §3.1.4 UP-4 + US-1 binding).
  *
- * `.strict()` で future field injection を禁止し、runtime regex validation で
+ * `z.strictObject` で future field injection を禁止し、runtime regex validation で
  * PII leak (full 36-char UUID) を schema-level で閉塞する。`AuditLogEntry`
  * 受け渡し時は caller が本 schema を `parse` した後で `details` に spread する。
  *
@@ -785,20 +785,18 @@ export const RETRY_JOBID_TRUNCATED_REGEX = /^[a-f0-9]{8}\.{3}__[a-z_]+__retry_[0
  * regex validation closes the PII-leak path (full 36-char UUID never reaches
  * `audit_logs.details`).
  */
-export const CollisionAuditPayloadSchema = z
-  .object({
-    /** 11-char truncated webPageId (`<8-char>...`), post `truncateId(webPageId, 8)`. */
-    webPageId: z.string().length(11),
-    /** `<8-char>...__<category>` — no 36-char UUID leak. */
-    originalJobId: z.string().regex(JOBID_TRUNCATED_REGEX),
-    /** `<8-char>...__<category>__retry_<uuidv7>` — no 36-char UUID leak. */
-    retryJobId: z.string().regex(RETRY_JOBID_TRUNCATED_REGEX),
-    /** Original job state at collision detection time. */
-    originalState: z.enum(["active", "waiting", "delayed", "completed", "failed", "unknown"]),
-    /** ISO-8601 timestamp at collision detection time. */
-    timestamp: z.string().datetime(),
-  })
-  .strict();
+export const CollisionAuditPayloadSchema = z.strictObject({
+  /** 11-char truncated webPageId (`<8-char>...`), post `truncateId(webPageId, 8)`. */
+  webPageId: z.string().length(11),
+  /** `<8-char>...__<category>` — no 36-char UUID leak. */
+  originalJobId: z.string().regex(JOBID_TRUNCATED_REGEX),
+  /** `<8-char>...__<category>__retry_<uuidv7>` — no 36-char UUID leak. */
+  retryJobId: z.string().regex(RETRY_JOBID_TRUNCATED_REGEX),
+  /** Original job state at collision detection time. */
+  originalState: z.enum(["active", "waiting", "delayed", "completed", "failed", "unknown"]),
+  /** ISO-8601 timestamp at collision detection time. */
+  timestamp: z.string().datetime(),
+});
 
 export type CollisionAuditPayload = z.infer<typeof CollisionAuditPayloadSchema>;
 

@@ -32,6 +32,7 @@ import type {
   ResponsiveDiffService,
   ResponsiveDiffResult,
 } from "../../services/responsive/responsive-diff.service";
+import { formatIssueLine } from "../../utils/issue-path";
 
 // ============================================================================
 // 型定義 / Types
@@ -149,7 +150,7 @@ export async function responsiveCaptureHandler(input: unknown): Promise<Responsi
     validated = responsiveCaptureInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      const errorMessage = error.issues.map((e) => `${formatIssueLine(e)}`).join(", ");
 
       logger.warn("[MCP Tool] responsive.capture validation error", {
         error: errorMessage,

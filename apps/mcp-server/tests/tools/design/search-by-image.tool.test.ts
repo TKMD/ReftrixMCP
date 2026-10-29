@@ -443,6 +443,38 @@ describe("design.search_by_image", () => {
       }
     });
 
+    // SSRF redirect pin (CWE-918): assert on what was actually handed to fetch, not on source text.
+    // Every hop must carry init.redirect === "manual". Changing it to "follow" or dropping the
+    // option (fetch default is "follow") makes this RED, even when the mocked fetch still returns
+    // a raw 302 and the behavioural tests above stay green.
+    it('should pass init.redirect === "manual" to every fetch hop (never auto-follow)', async () => {
+      const originalFetch = globalThis.fetch;
+      const fetchSpy = vi.fn(async (input: string | URL | Request, _init?: RequestInit) => {
+        if (String(input).includes("cdn.example.com/real.png")) {
+          return new Response(Buffer.from(VALID_BASE64_PNG, "base64"), {
+            status: 200,
+            headers: { "content-type": "image/png" },
+          });
+        }
+        return new Response(null, {
+          status: 302,
+          headers: { location: "https://cdn.example.com/real.png" },
+        });
+      });
+      globalThis.fetch = fetchSpy as unknown as typeof fetch;
+      try {
+        await designSearchByImageHandler({ image: "https://example.com/legit.png" });
+        // two hops: the original URL and the validated redirect target
+        expect(fetchSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+        for (const call of fetchSpy.mock.calls) {
+          const init = call[1] as RequestInit | undefined;
+          expect(init?.redirect).toBe("manual");
+        }
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
     it("should follow a 302 to a valid PUBLIC URL and fetch that image (re-validation passes, not a blanket reject)", async () => {
       // Positive companion: a 302 to a PUBLIC URL is re-validated and followed (1 hop), proving the
       // manual-redirect loop is a genuine per-hop re-validation, not "reject all 302". Mutation-proof

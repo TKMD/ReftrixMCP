@@ -112,7 +112,7 @@ describe("layout.ingest DB保存機能", () => {
 
     it("save_to_db: true でDBに保存する", async () => {
       const mockSavedPage = {
-        id: "01234567-89ab-cdef-0123-456789abcdef",
+        id: "01234567-89ab-4def-9123-456789abcdef",
       };
 
       mockUpsert.mockResolvedValue(mockSavedPage as never);
@@ -198,7 +198,7 @@ describe("layout.ingest DB保存機能", () => {
 
     it("メタデータが正しく保存される", async () => {
       const mockSavedPage = {
-        id: "01234567-89ab-cdef-0123-456789abcdef",
+        id: "01234567-89ab-4def-9123-456789abcdef",
       };
 
       mockUpsert.mockResolvedValue(mockSavedPage as never);
@@ -221,7 +221,7 @@ describe("layout.ingest DB保存機能", () => {
 
     it("HTMLハッシュがSHA-256形式である", async () => {
       const mockSavedPage = {
-        id: "01234567-89ab-cdef-0123-456789abcdef",
+        id: "01234567-89ab-4def-9123-456789abcdef",
       };
 
       mockUpsert.mockResolvedValue(mockSavedPage as never);

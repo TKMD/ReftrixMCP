@@ -168,6 +168,7 @@ export const responsiveEvaluationSchema = z.object({
         height: z.number().int().min(480).max(2160),
       })
     )
+    .max(10, { message: "viewportsは10個以下にしてください" })
     .optional(),
   /** 実行するチェック項目 */
   checks: z
@@ -286,7 +287,12 @@ export const qualityEvaluateInputSchema = z
       ),
 
     // action: "suggest_improvements" 用オプション
-    categories: z.array(improvementCategorySchema).optional(),
+    categories: z
+      .array(improvementCategorySchema)
+      .max(6, {
+        message: "categoriesは6個以下にしてください",
+      })
+      .optional(),
     minPriority: recommendationPrioritySchema.optional(),
     maxSuggestions: z.number().int().min(1).max(50).default(10),
     includeCodeExamples: z.boolean().default(true),

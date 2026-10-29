@@ -272,7 +272,7 @@ describe("INV-WORKER-PID-IDENTITY-005", () => {
       const prismaStub = makeStub("ok");
       const spawnTime = new Date(1746472200001);
       await recordWorkerSpawn(prismaStub, {
-        webPageId: "00000000-0000-0000-0000-000000000010",
+        webPageId: "00000000-0000-4000-9000-000000000010",
         workerPid: 24680,
         workerSpawnTime: spawnTime,
         workerType: "page",
@@ -280,7 +280,7 @@ describe("INV-WORKER-PID-IDENTITY-005", () => {
       });
       expect(recordedCreates).toHaveLength(1);
       const create = recordedCreates[0]!.data;
-      expect(create.webPageId).toBe("00000000-0000-0000-0000-000000000010");
+      expect(create.webPageId).toBe("00000000-0000-4000-9000-000000000010");
       expect(create.workerPid).toBe(24680);
       // Byte-identical Date instance (same epoch ms).
       expect(create.workerSpawnTime.getTime()).toBe(spawnTime.getTime());
@@ -296,7 +296,7 @@ describe("INV-WORKER-PID-IDENTITY-005", () => {
       // write hook fails, but the spawn path itself MUST proceed.
       await expect(
         recordWorkerSpawn(prismaStub, {
-          webPageId: "00000000-0000-0000-0000-000000000011",
+          webPageId: "00000000-0000-4000-8000-000000000011",
           workerPid: 1,
           workerSpawnTime: new Date(),
           workerType: "page",
@@ -343,7 +343,7 @@ describe("INV-WORKER-PID-IDENTITY-005", () => {
       const prismaStub = makeStub("ok");
       const spawnTime = new Date(1746472200001);
       await recordWorkerRelease(prismaStub, {
-        webPageId: "00000000-0000-0000-0000-000000000020",
+        webPageId: "00000000-0000-4000-9000-000000000020",
         workerPid: 13579,
         workerSpawnTime: spawnTime,
         workerType: "page",
@@ -357,7 +357,7 @@ describe("INV-WORKER-PID-IDENTITY-005", () => {
       // workerPid + workerSpawnTime so supervisor backfill can detect orphan
       // via spawn-without-release).
       expect(create.workerSpawnTime.getTime()).toBe(spawnTime.getTime());
-      expect(create.webPageId).toBe("00000000-0000-0000-0000-000000000020");
+      expect(create.webPageId).toBe("00000000-0000-4000-9000-000000000020");
       expect(create.nonce).toBe("boot-token-xyz-789");
     });
 
@@ -366,7 +366,7 @@ describe("INV-WORKER-PID-IDENTITY-005", () => {
       const prismaStub = makeStub("throw");
       await expect(
         recordWorkerRelease(prismaStub, {
-          webPageId: "00000000-0000-0000-0000-000000000021",
+          webPageId: "00000000-0000-4000-9000-000000000021",
           workerPid: 1,
           workerSpawnTime: new Date(),
           workerType: "page",
@@ -445,8 +445,8 @@ describe("INV-WORKER-PID-IDENTITY-005", () => {
       const reusedPid = 12345;
       const workerASpawnTime = new Date("2026-05-05T18:00:00.000Z");
       const workerBSpawnTime = new Date("2026-05-05T19:00:00.000Z");
-      const workerAWebPageId = "00000000-0000-0000-0000-0000000000A1";
-      const workerBWebPageId = "00000000-0000-0000-0000-0000000000B2";
+      const workerAWebPageId = "00000000-0000-4000-8000-0000000000A1";
+      const workerBWebPageId = "00000000-0000-4000-8000-0000000000B2";
 
       const { prisma, findManyCalls } = makeFailurePathPrismaStub([
         // Worker A spawn (orphan — no paired release).
@@ -485,8 +485,8 @@ describe("INV-WORKER-PID-IDENTITY-005", () => {
       assertInvName(expect.getState().currentTestName ?? "", "INV-WORKER-PID-IDENTITY-005");
       const pid = 23456;
       const spawnTime = new Date("2026-05-05T20:00:00.000Z");
-      const releasedWebPageId = "00000000-0000-0000-0000-0000000000C3";
-      const orphanedWebPageId = "00000000-0000-0000-0000-0000000000D4";
+      const releasedWebPageId = "00000000-0000-4000-8000-0000000000C3";
+      const orphanedWebPageId = "00000000-0000-4000-8000-0000000000D4";
 
       const { prisma } = makeFailurePathPrismaStub([
         // Released — has both spawn and release events.
@@ -527,7 +527,7 @@ describe("INV-WORKER-PID-IDENTITY-005", () => {
       const { prisma } = makeFailurePathPrismaStub([
         {
           id: "row-x",
-          webPageId: "00000000-0000-0000-0000-0000000000E5",
+          webPageId: "00000000-0000-4000-8000-0000000000E5",
           workerPid: 11111,
           workerSpawnTime: new Date("2026-05-05T21:00:00.000Z"),
           eventType: "spawn",
@@ -587,7 +587,7 @@ describe("INV-WORKER-PID-IDENTITY-005", () => {
       // Real worker spawned at fixed timestamp T1.
       const T1 = new Date("2026-05-05T22:00:00.000Z");
       const pid = 34567;
-      const webPageId = "00000000-0000-0000-0000-0000000000F6";
+      const webPageId = "00000000-0000-4000-8000-0000000000F6";
 
       const rows: Array<{
         id: string;

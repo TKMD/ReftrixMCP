@@ -460,6 +460,29 @@ describe("runEmbeddingBackfillFork — parent orchestrator", () => {
     ).rejects.toThrow(/Invalid child message/);
   });
 
+  // SEC-C1B2R-L-01: the failure text carries the issue code and path, never the peer's key name.
+  it("T10b: an unknown key name sent by the child is not part of the rejection text", async () => {
+    const SECRET_KEY = "secret_key_name_from_peer_" + "x".repeat(80);
+    sharedControls.setScript({
+      messages: [{ kind: "backfill.error", message: "m", code: "P2025", [SECRET_KEY]: 1 }],
+      result: { exitedCleanly: false, exitCode: 1 },
+    });
+    const { runEmbeddingBackfillFork } =
+      await import("../../../src/workers/phases/embedding-backfill-fork-orchestrator");
+    const err = await runEmbeddingBackfillFork({
+      jobId: "job-bad-key",
+      webPageId: VALID_UUID,
+      category: "js_animation",
+      partsLimit: 100,
+    }).then(
+      () => new Error("resolved"),
+      (e: unknown) => e as Error
+    );
+    expect(err.message).toMatch(/Invalid child message/);
+    expect(err.message).toContain("code=unrecognized_keys");
+    expect(err.message).not.toContain("secret_key_name_from_peer_");
+  });
+
   // --------------------------------------------------------------------------
   // T11: non-zero exit code rejects.
   // --------------------------------------------------------------------------

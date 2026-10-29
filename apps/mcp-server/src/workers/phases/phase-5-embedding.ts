@@ -48,14 +48,6 @@ import {
 } from "../../services/part/part-embedding-db.service";
 // Part Bounding Box resolution via Playwright (Phase 5 pre-step for DINOv2)
 import { resolvePartBoundingBoxes } from "../../services/part/part-bbox-playwright.service";
-// Crop Persistence (W6 Issue A PR-3a): save-before-discard viewable PNG crops,
-// flag-gated by CROP_PERSISTENCE_ENABLED (default OFF), PII-filtered-loop internal.
-import {
-  cutCropFromScreenshot,
-  isCropPersistenceEnabled,
-  persistDynamicFallbackSectionCrop,
-  saveCropFromBuffer,
-} from "../../services/part/crop-persistence.helper";
 // Section Screenshot Fallback: screenshotBase64範囲外セクション用Playwrightキャプチャ
 import { captureSectionScreenshots } from "../../services/part/section-screenshot-fallback.service";
 // Responsive Analysis Embedding generation
@@ -1176,57 +1168,6 @@ async function clearStaleBboxUnresolvableParts(
 }
 
 /**
- * Part crop persistence (W6 Issue A PR-3a). Persists the viewable PNG crop that
- * produced a part's `visual_embedding`, then updates
- * `component_part_embeddings.crop_storage_path`. Called ONLY after the
- * `visual_embedding` write succeeds, from inside the part loop whose query filters
- * `piiRiskLevel: { not: "high" }` (high-PII parts never reach here = fail-closed,
- * INV-CROP-PII-EXCLUDED-001).
- *
- * - `saveCropFromBuffer` no-ops + returns null when `CROP_PERSISTENCE_ENABLED` is
- *   OFF (default) → crop_storage_path stays NULL (SEC-M-03 flag-gate parity).
- * - Crop failure is non-fatal (Graceful Degradation): the `visual_embedding` write
- *   is already committed; only the crop path column is left NULL.
- * - vision-scoped parity (INV-CROP-COVERAGE-PARITY-001).
- *
- * @param ctx          embedding sub-phase context (webPageId + prisma)
- * @param embeddingId  component_part_embeddings.id (DB UPDATE key)
- * @param componentPartId  component_parts.id (crop filename entityId)
- * @param viewablePng  the viewable PNG crop buffer (null → no-op)
- */
-async function persistPartCrop(
-  ctx: Pick<EmbeddingSubPhaseContext, "webPageId" | "prisma">,
-  embeddingId: string,
-  componentPartId: string,
-  viewablePng: Buffer | null
-): Promise<void> {
-  if (!viewablePng) return;
-  const cropPath = await saveCropFromBuffer({
-    webPageId: ctx.webPageId,
-    kind: "part",
-    entityId: componentPartId,
-    pngBuffer: viewablePng,
-  });
-  if (cropPath === null) return;
-  try {
-    await ctx.prisma.$executeRawUnsafe(
-      `UPDATE component_part_embeddings
-         SET crop_storage_path = $1
-       WHERE id = $2::uuid`,
-      cropPath,
-      embeddingId
-    );
-  } catch (cropDbError) {
-    // Non-fatal: crop file saved but path column failed; the embedding is intact.
-    // Log in all environments (no isDevelopment() guard, SEC-L-01).
-    logger.warn("[PageAnalyzeWorker] Failed to write part crop_storage_path (non-fatal)", {
-      partEmbeddingId: truncateAuditTargetId(embeddingId),
-      error: cropDbError instanceof Error ? cropDbError.message : String(cropDbError),
-    });
-  }
-}
-
-/**
  * Part Visual Embedding loop (DINOv2) — extracted from orchestrator.
  *
  * P0-C: Loads partRawBuffer independently (not shared with section visual embedding).
@@ -1554,36 +1495,6 @@ async function processPartVisualEmbeddingLoop(
           continue;
         }
 
-        // C4 (W6 Issue A PR-3a): the part crop goes straight to `.raw()` and has no
-        // viewable PNG intermediate, so produce one ADDITIVELY (only when crop
-        // persistence is enabled — flag-gated by saveCropFromBuffer below — so
-        // flag-OFF pays no extra encode here either). W6 PR-4a (F-M-02): the cut +
-        // clamp gate is delegated to the `cutCropFromScreenshot` SSOT so the clamp
-        // logic is single-source across the Phase 5 and backfill paths (drift guard).
-        // The clamp gate inside the SSOT is a no-op re-clamp here (left/top/cropWidth/
-        // cropHeight were already validated above), so it returns the same region.
-        // generate → save → free one at a time (OOM guard, R3): the viewable PNG is
-        // null'd right after the save call so it never accumulates in pipeline state.
-        let partViewablePng: Buffer | null = null;
-        if (isCropPersistenceEnabled()) {
-          const partCutSource =
-            partRawBuffer && rawScreenshotMeta
-              ? {
-                  rawBuffer: partRawBuffer,
-                  rawMeta: {
-                    width: rawScreenshotMeta.width,
-                    height: rawScreenshotMeta.height,
-                    channels: rawScreenshotMeta.channels as 1 | 2 | 3 | 4,
-                  },
-                }
-              : { pngBuffer: (screenshotBuffer ?? partFallbackBuffer) as Buffer };
-          partViewablePng = await cutCropFromScreenshot({
-            source: partCutSource,
-            bbox: { x: left, y: top, width: cropWidth, height: cropHeight },
-            imgDims: { imgWidth, imgHeight },
-          });
-        }
-
         const rawCropBuffer = await partSharpInput
           .extract({ left, top, width: cropWidth, height: cropHeight })
           .resize(DINOV2_INPUT_SIZE, DINOV2_INPUT_SIZE, { fit: "cover", kernel: "cubic" })
@@ -1602,13 +1513,6 @@ async function processPartVisualEmbeddingLoop(
           visualVectorString,
           part.embeddingId
         );
-
-        // Part crop persistence (W6 Issue A PR-3a). Co-located with the
-        // visual_embedding write (vision-scoped parity). This loop's query already
-        // filters `piiRiskLevel: { not: "high" }`, so the crop is structurally
-        // PII-safe (fail-closed, INV-CROP-PII-EXCLUDED-001). flag-OFF → no-op.
-        await persistPartCrop(ctx, part.embeddingId, part.id, partViewablePng);
-        partViewablePng = null;
 
         ctx.result.partVisualEmbeddingsGenerated++;
       } catch (partVisualError) {
@@ -1691,8 +1595,6 @@ async function processPartVisualEmbeddingLoop(
  * セクションビジュアルエンベディングループのパラメータ
  */
 interface SectionVisualEmbeddingLoopParams {
-  /** 所有 web page id（crop 永続化の per-page dir + UUID 検証用、W6 Issue A PR-3a） */
-  webPageId: string;
   sectionsFiltered: Array<{ id: string; section_pattern_id: string }>;
   sectionsNeedingVisual: Array<{ id: string; section_pattern_id: string }>;
   sectionPositionMap: Map<
@@ -1847,7 +1749,6 @@ async function processSectionVisualEmbeddingLoop(
   loopParams: SectionVisualEmbeddingLoopParams
 ): Promise<SectionVisualEmbeddingLoopResult> {
   const {
-    webPageId,
     sectionsFiltered,
     sectionsNeedingVisual,
     sectionPositionMap,
@@ -2057,7 +1958,6 @@ async function processSectionVisualEmbeddingLoop(
 
     for (const section of chunk) {
       const singleResult = await processSingleSectionVisualEmbedding({
-        webPageId,
         section,
         sectionPositionMap,
         screenshotBuffer: screenshotBufferRef.value!,
@@ -2134,8 +2034,6 @@ async function processSectionVisualEmbeddingLoop(
 
     // 2. Playwright Fallbackキャプチャ実行（既存コード）
     const dynamicResult = await processDynamicFallbackBatch({
-      // W6 Issue A PR-3b (F-14): deep-crop C5 の crop 永続化用 page UUID を供給。
-      webPageId,
       dynamicFallbackSections,
       sectionFallbackCapturedCount,
       sectionPositionMap,
@@ -2213,8 +2111,6 @@ async function processSectionVisualEmbeddingLoop(
  * 単一セクションのビジュアルエンベディング処理パラメータ
  */
 interface SingleSectionVisualParams {
-  /** 所有 web page id（crop 永続化の per-page dir、W6 Issue A PR-3a） */
-  webPageId: string;
   section: { id: string; section_pattern_id: string };
   sectionPositionMap: Map<
     string,
@@ -2318,54 +2214,6 @@ async function writeSectionVisionSkipReason(
         error: markerError instanceof Error ? markerError.message : String(markerError),
       }
     );
-  }
-}
-
-/**
- * Section crop persistence (W6 Issue A PR-3a). Persists the viewable PNG crop that
- * produced the section's `vision_embedding`, then updates the
- * `section_embeddings.crop_storage_path` column. Called ONLY after the
- * `vision_embedding` write succeeds, from inside the PII-filtered `sectionsFiltered`
- * loop (high-PII sections never reach here = fail-closed, INV-CROP-PII-EXCLUDED-001).
- *
- * - `saveCropFromBuffer` no-ops + returns null when `CROP_PERSISTENCE_ENABLED` is
- *   OFF (default) → crop_storage_path stays NULL (SEC-M-03 flag-gate parity).
- * - Crop failure is non-fatal (Graceful Degradation): the `vision_embedding` write
- *   is already committed; only the crop path column is left NULL.
- * - vision-scoped parity: this write is co-located with the `vision_embedding`
- *   write so `vision_embedding IS NOT NULL ⇔ crop_storage_path IS NOT NULL` holds
- *   for non-PII-skipped rows (INV-CROP-COVERAGE-PARITY-001).
- *
- * @param p              the single-section visual params (webPageId + section.id)
- * @param viewablePng    the viewable PNG crop buffer (undefined → no-op)
- */
-async function persistSectionCrop(
-  p: SingleSectionVisualParams,
-  viewablePng: Buffer | undefined
-): Promise<void> {
-  if (!viewablePng) return;
-  const cropPath = await saveCropFromBuffer({
-    webPageId: p.webPageId,
-    kind: "section",
-    entityId: p.section.section_pattern_id,
-    pngBuffer: viewablePng,
-  });
-  if (cropPath === null) return;
-  try {
-    await p.prisma.$executeRawUnsafe(
-      `UPDATE section_embeddings
-         SET crop_storage_path = $1
-       WHERE id = $2::uuid`,
-      cropPath,
-      p.section.id
-    );
-  } catch (cropDbError) {
-    // Non-fatal: the crop file is saved but the path column failed; the embedding
-    // is intact. Log in all environments (no isDevelopment() guard, SEC-L-01).
-    logger.warn("[PageAnalyzeWorker] Failed to write section crop_storage_path (non-fatal)", {
-      sectionEmbeddingId: truncateAuditTargetId(p.section.id),
-      error: cropDbError instanceof Error ? cropDbError.message : String(cropDbError),
-    });
   }
 }
 
@@ -2643,7 +2491,6 @@ async function processSingleSectionVisualEmbedding(
     let cropResult: {
       rawCropBuffer: Buffer | null;
       isBlank: boolean;
-      viewablePngBuffer?: Buffer | undefined;
     };
 
     if (!isOutOfRange && p.rawScreenshotMeta && p.rawBuffer) {
@@ -2840,15 +2687,6 @@ async function processSingleSectionVisualEmbedding(
       p.section.id
     );
 
-    // Crop persistence (W6 Issue A PR-3a, vision-scoped parity): persist the
-    // viewable PNG crop that produced this vision_embedding. This call sits INSIDE
-    // the PII-filtered `sectionsFiltered` loop (high-PII section_pattern_ids are
-    // already excluded, fail-closed), and `saveCropFromBuffer` no-ops when
-    // CROP_PERSISTENCE_ENABLED is OFF (default). Crop failure is non-fatal (path
-    // column stays NULL = webui "視覚未取得"); the vision_embedding write above is
-    // already committed regardless. INV-CROP-PII-EXCLUDED-001 / -COVERAGE-PARITY-001.
-    await persistSectionCrop(p, cropResult.viewablePngBuffer);
-
     if (isOutOfRange) {
       result.diagFallback++;
     } else {
@@ -2884,8 +2722,6 @@ async function processSingleSectionVisualEmbedding(
  * 動的Fallbackバッチ処理パラメータ
  */
 interface DynamicFallbackBatchParams {
-  /** W6 Issue A PR-3b (F-14): deep-crop C5 の crop dir / filename 用 page UUID。 */
-  webPageId: string;
   dynamicFallbackSections: Array<{
     sectionEmbeddingId: string;
     sectionPatternId: string;
@@ -3010,16 +2846,6 @@ async function processDynamicFallbackBatch(
       if (!matchingSection) continue;
 
       try {
-        // C5 (W6 Issue A PR-3b, deep-crop): the dynamic-fallback path goes straight
-        // to `.raw()` and has no viewable PNG intermediate, so produce one ADDITIVELY
-        // via `.png()` from the same source buffer — flag-gated (flag OFF pays no
-        // extra encode) — BEFORE the screenshotBuffer is null'd below. generate →
-        // (later) save → free one at a time (OOM guard, C4 parity).
-        let dynamicViewablePng: Buffer | null = null;
-        if (isCropPersistenceEnabled()) {
-          dynamicViewablePng = await sharp(fbResult.screenshotBuffer).png().toBuffer();
-        }
-
         const rawCropBuffer = await sharp(fbResult.screenshotBuffer)
           .resize(DINOV2_INPUT_SIZE, DINOV2_INPUT_SIZE, {
             fit: "cover",
@@ -3046,9 +2872,6 @@ async function processDynamicFallbackBatch(
         });
 
         if (isDuplicateVector) {
-          // dedup-skip: no vision_embedding written → no crop persisted
-          // (vision-scoped parity). Free the viewable PNG (OOM guard).
-          dynamicViewablePng = null;
           logger.warn(
             "[PageAnalyzeWorker] Duplicate vision embedding (dynamic fallback), skipping",
             {
@@ -3079,21 +2902,6 @@ async function processDynamicFallbackBatch(
           visualVectorString,
           matchingSection.sectionEmbeddingId
         );
-
-        // C5 (W6 Issue A PR-3b): persist the viewable PNG crop co-located with the
-        // vision_embedding write (vision-scoped parity, INV-CROP-COVERAGE-PARITY-001
-        // surface 5). PII fail-closed: high-PII sections are excluded upstream
-        // (`sectionsFiltered`) so they never enter `dynamicFallbackSections` (F-04,
-        // no redundant gate). Leaf helper (F-09) keeps host branch delta ≤2.
-        // flag OFF / failure → no-op. generate → save → free one at a time.
-        await persistDynamicFallbackSectionCrop(
-          p.prisma,
-          p.webPageId,
-          matchingSection.sectionEmbeddingId,
-          matchingSection.sectionPatternId,
-          dynamicViewablePng
-        );
-        dynamicViewablePng = null;
 
         result.dynamicCount++;
         result.generated++;
@@ -3669,7 +3477,6 @@ export async function runVisualEmbeddingSubPhases(
               : sectionsNeedingVisual;
 
           const sectionVisualLoop = await processSectionVisualEmbeddingLoop({
-            webPageId: vParams.webPageId,
             sectionsFiltered,
             sectionsNeedingVisual,
             sectionPositionMap,

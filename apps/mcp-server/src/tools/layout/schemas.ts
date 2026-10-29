@@ -219,9 +219,9 @@ export const responsiveDifferenceSchema = z.object({
     "order", // 要素順序の変化
     "other", // その他
   ]),
-  desktop: z.record(z.unknown()).optional(),
-  tablet: z.record(z.unknown()).optional(),
-  mobile: z.record(z.unknown()).optional(),
+  desktop: z.record(z.string(), z.unknown()).optional(),
+  tablet: z.record(z.string(), z.unknown()).optional(),
+  mobile: z.record(z.string(), z.unknown()).optional(),
 });
 export type ResponsiveDifference = z.infer<typeof responsiveDifferenceSchema>;
 
@@ -799,8 +799,8 @@ export const visualFeaturesColorsFilterSchema = z.object({
     .number()
     .min(0, { message: "colorToleranceは0以上100以下である必要があります" })
     .max(100, { message: "colorToleranceは0以上100以下である必要があります" })
-    .default(15)
-    .optional(),
+    .optional()
+    .default(15),
 });
 export type VisualFeaturesColorsFilter = z.infer<typeof visualFeaturesColorsFilterSchema>;
 
@@ -966,7 +966,7 @@ export type MultimodalOptions = z.infer<typeof multimodalOptionsSchema>;
  */
 export const visionSearchVisualFeaturesSchema = z.object({
   theme: z.string().optional(),
-  colors: z.array(z.string()).optional(),
+  colors: z.array(z.string()).max(10, { message: "colorsは10個以下にしてください" }).optional(),
   density: z.string().optional(),
   gradient: z.string().optional(),
   mood: z.string().optional(),
@@ -1247,7 +1247,7 @@ export const layoutSearchDataSchema = z.object({
   results: z.array(layoutSearchResultItemSchema),
   total: z.number().int().nonnegative(),
   query: z.string(),
-  filters: z.record(z.unknown()).optional(),
+  filters: z.record(z.string(), z.unknown()).optional(),
   filtersApplied: z.array(z.string()).optional(),
   searchTimeMs: z.number().nonnegative().optional(),
   // REFTRIX-LAYOUT-02: Auto-detected context

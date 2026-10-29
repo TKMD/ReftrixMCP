@@ -125,9 +125,9 @@ import { captureSectionScreenshots } from "../../../src/services/part/section-sc
 // ============================================================================
 
 const MOCK_URL = "https://example.com/design";
-const MOCK_SECTION_ID_1 = "aaaa1111-1111-7111-1111-111111111111";
-const MOCK_SECTION_ID_2 = "bbbb2222-2222-7222-2222-222222222222";
-const MOCK_SECTION_ID_3 = "cccc3333-3333-7333-3333-333333333333";
+const MOCK_SECTION_ID_1 = "aaaa1111-1111-7111-8111-111111111111";
+const MOCK_SECTION_ID_2 = "bbbb2222-2222-7222-8222-222222222222";
+const MOCK_SECTION_ID_3 = "cccc3333-3333-7333-8333-333333333333";
 
 // ============================================================================
 // Mock Factories / モックファクトリー

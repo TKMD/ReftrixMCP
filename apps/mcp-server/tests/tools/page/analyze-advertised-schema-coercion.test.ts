@@ -40,6 +40,15 @@ import { buildCoercionMap, coerceArgs } from "../../../src/middleware/args-type-
 // reads it. The lightweight Zod canonical schema (`input.schemas`, Zod-only)
 // stays a static import — it is the load-light T1 SSOT and carries no race.
 import { pageAnalyzeInputSchema } from "../../../src/tools/page/input.schemas";
+// Schema structure is read through this helper so the walk gives the same result on zod 3 and 4.
+import {
+  zodDefaultValue,
+  zodInner,
+  zodKind,
+  zodNumberBounds,
+  zodObjectShape,
+  zodUnwrap,
+} from "../../utils/support/zod-introspect";
 
 // Populated in beforeAll once the heavy `analyze.tool.ts` module-graph is fully
 // evaluated. Declared as mutable bindings so the deterministically-loaded
@@ -59,33 +68,18 @@ beforeAll(async () => {
 });
 
 /**
- * Unwrap ZodOptional / ZodDefault / ZodEffects wrappers to reach the underlying
+ * Unwrap optional / default / refine-or-transform wrappers to reach the underlying
  * scalar/object type.
  *
  * UB3 (TPA-L-02 + TDA-L-02 convergent): `pageAnalyzeFrameCaptureOptionsSchema`
- * (`input.schemas.ts:281` `.object` → `:333` `.refine`) is a ZodObject wrapped
- * in ZodEffects. If `unwrapZod` does not strip ZodEffects, the recursion below
- * silently skips the whole `frame_capture_options` sub-tree → its coercible
- * scalars are never enumerated → the forward-compat guard goes vacuously GREEN.
- * ZodEffects keeps its inner schema in `_def.schema` (`.refine`/`.transform`);
- * we also fall back to `_def.innerType` for robustness across Zod builds.
+ * (`input.schemas.ts:281` `.object` → `:333` `.refine`) is an object carrying a refinement
+ * (a ZodEffects wrapper on zod 3). If the unwrap does not strip that wrapper, the recursion below
+ * silently skips the whole `frame_capture_options` sub-tree → its coercible scalars are never
+ * enumerated → the forward-compat guard goes vacuously GREEN. `zodUnwrap` strips every wrapper kind
+ * on both zod 3 and zod 4.
  */
 function unwrapZod(schema: z.ZodTypeAny): z.ZodTypeAny {
-  let cur: z.ZodTypeAny = schema;
-  for (;;) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const def = (cur as any)._def;
-    const typeName = def?.typeName as string | undefined;
-    if (typeName === "ZodOptional" || typeName === "ZodDefault") {
-      cur = def.innerType as z.ZodTypeAny;
-    } else if (typeName === "ZodEffects") {
-      // `.refine()` / `.transform()` wrap the inner schema under `_def.schema`;
-      // some builds expose `_def.innerType` — fall back for robustness (UB3).
-      cur = (def.schema ?? def.innerType) as z.ZodTypeAny;
-    } else {
-      return cur;
-    }
-  }
+  return zodUnwrap(schema) as z.ZodTypeAny;
 }
 
 /**
@@ -99,11 +93,9 @@ function deriveCoercibleTopLevelZodFields(): Record<string, "boolean" | "number"
   const shape = (pageAnalyzeInputSchema as z.ZodObject<z.ZodRawShape>).shape;
   const out: Record<string, "boolean" | "number"> = {};
   for (const [key, value] of Object.entries(shape)) {
-    const inner = unwrapZod(value as z.ZodTypeAny);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const typeName = (inner as any)._def?.typeName as string | undefined;
-    if (typeName === "ZodBoolean") out[key] = "boolean";
-    else if (typeName === "ZodNumber") out[key] = "number";
+    const kind = zodKind(unwrapZod(value as z.ZodTypeAny));
+    if (kind === "boolean") out[key] = "boolean";
+    else if (kind === "number") out[key] = "number";
   }
   return out;
 }
@@ -130,24 +122,23 @@ function deriveCoercibleNestedZodFields(): Record<string, "boolean" | "number"> 
 
   function walk(schema: z.ZodTypeAny, prefix: string): void {
     const inner = unwrapZod(schema);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const typeName = (inner as any)._def?.typeName as string | undefined;
+    const kind = zodKind(inner);
 
-    if (typeName === "ZodBoolean") {
+    if (kind === "boolean") {
       out[prefix] = "boolean";
       return;
     }
-    if (typeName === "ZodNumber") {
+    if (kind === "number") {
       out[prefix] = "number";
       return;
     }
-    // UB2: ZodArray is excluded (engine does not recurse arrays). Do not record
+    // UB2: arrays are excluded (engine does not recurse arrays). Do not record
     // it as a leaf and do not descend into its element type.
-    if (typeName === "ZodArray") {
+    if (kind === "array") {
       return;
     }
-    if (typeName === "ZodObject") {
-      const shape = (inner as z.ZodObject<z.ZodRawShape>).shape;
+    if (kind === "object") {
+      const shape = zodObjectShape(inner);
       for (const [key, value] of Object.entries(shape)) {
         const path = prefix ? `${prefix}.${key}` : key;
         walk(value as z.ZodTypeAny, path);
@@ -175,45 +166,30 @@ interface ZodConstraintInfo {
 
 /**
  * Extract `default` / `minimum` / `maximum` for a single (already-unwrapped-aware)
- * Zod scalar. ZodNumber min/max live in `_def.checks`; ZodDefault default is the
- * value returned by `_def.defaultValue()`. We must read the default from the
+ * Zod scalar. Number min/max come from `zodNumberBounds`; a default schema's default is the
+ * value from `zodDefaultValue`. We must read the default from the
  * OUTER schema (the ZodDefault wrapper) and the min/max from the INNER ZodNumber,
  * so we walk wrappers manually here rather than via `unwrapZod`.
  */
 function extractScalarConstraints(schema: z.ZodTypeAny): ZodConstraintInfo | null {
-  let cur: z.ZodTypeAny = schema;
+  let cur: unknown = schema;
   let defaultValue: number | undefined;
-  // Strip wrappers, capturing the default from a ZodDefault if present.
+  // Strip wrappers, capturing the default from a default schema if present.
   for (;;) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const def = (cur as any)._def;
-    const typeName = def?.typeName as string | undefined;
-    if (typeName === "ZodOptional") {
-      cur = def.innerType as z.ZodTypeAny;
-    } else if (typeName === "ZodDefault") {
-      const dv = def.defaultValue?.();
+    if (zodKind(cur) === "default") {
+      const dv = zodDefaultValue(cur);
       if (typeof dv === "number") defaultValue = dv;
-      cur = def.innerType as z.ZodTypeAny;
-    } else if (typeName === "ZodEffects") {
-      cur = (def.schema ?? def.innerType) as z.ZodTypeAny;
-    } else {
-      break;
     }
+    const inner = zodInner(cur);
+    if (inner === undefined) break;
+    cur = inner;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const innerDef = (cur as any)._def;
-  const innerType = innerDef?.typeName as string | undefined;
-  if (innerType === "ZodBoolean") {
+  const innerKind = zodKind(cur);
+  if (innerKind === "boolean") {
     return { type: "boolean", default: defaultValue };
   }
-  if (innerType === "ZodNumber") {
-    let minimum: number | undefined;
-    let maximum: number | undefined;
-    const checks: Array<{ kind: string; value?: number }> = innerDef.checks ?? [];
-    for (const c of checks) {
-      if (c.kind === "min" && typeof c.value === "number") minimum = c.value;
-      else if (c.kind === "max" && typeof c.value === "number") maximum = c.value;
-    }
+  if (innerKind === "number") {
+    const { minimum, maximum } = zodNumberBounds(cur);
     return { type: "number", default: defaultValue, minimum, maximum };
   }
   return null;
@@ -234,11 +210,10 @@ function deriveNestedZodConstraints(): Record<string, ZodConstraintInfo> {
       return;
     }
     const inner = unwrapZod(schema);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const typeName = (inner as any)._def?.typeName as string | undefined;
-    if (typeName === "ZodArray") return; // UB2
-    if (typeName === "ZodObject") {
-      const shape = (inner as z.ZodObject<z.ZodRawShape>).shape;
+    const kind = zodKind(inner);
+    if (kind === "array") return; // UB2
+    if (kind === "object") {
+      const shape = zodObjectShape(inner);
       for (const [key, value] of Object.entries(shape)) {
         const path = prefix ? `${prefix}.${key}` : key;
         walk(value as z.ZodTypeAny, path);

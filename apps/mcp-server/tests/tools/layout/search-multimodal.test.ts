@@ -39,15 +39,15 @@ import {
 
 const mockTextSearchResults = [
   {
-    id: "11111111-1111-1111-1111-111111111111",
-    webPageId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    id: "11111111-1111-4111-9111-111111111111",
+    webPageId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     sectionType: "hero",
     sectionName: "Modern Hero Section",
     positionIndex: 0,
     similarity: 0.95,
     textRepresentation: "Hero section with blue gradient",
     webPage: {
-      id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
       url: "https://example.com/page1",
       title: "Example Page 1",
       sourceType: "award_gallery",
@@ -58,15 +58,15 @@ const mockTextSearchResults = [
     },
   },
   {
-    id: "22222222-2222-2222-2222-222222222222",
-    webPageId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    id: "22222222-2222-4222-9222-222222222222",
+    webPageId: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
     sectionType: "feature",
     sectionName: "Feature Grid",
     positionIndex: 1,
     similarity: 0.85,
     textRepresentation: "Feature section with 3-column grid",
     webPage: {
-      id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      id: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
       url: "https://example.com/page2",
       title: "Example Page 2",
       sourceType: "user_provided",
@@ -80,15 +80,15 @@ const mockTextSearchResults = [
 
 const mockVisionSearchResults = [
   {
-    id: "22222222-2222-2222-2222-222222222222", // 同じID
-    webPageId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    id: "22222222-2222-4222-9222-222222222222", // 同じID
+    webPageId: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
     sectionType: "feature",
     sectionName: "Feature Grid",
     positionIndex: 1,
     similarity: 0.92, // Vision検索では高スコア
     textRepresentation: "Feature section with 3-column grid",
     webPage: {
-      id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      id: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
       url: "https://example.com/page2",
       title: "Example Page 2",
       sourceType: "user_provided",
@@ -99,15 +99,15 @@ const mockVisionSearchResults = [
     },
   },
   {
-    id: "33333333-3333-3333-3333-333333333333",
-    webPageId: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+    id: "33333333-3333-4333-8333-333333333333",
+    webPageId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
     sectionType: "cta",
     sectionName: "Call to Action",
     positionIndex: 2,
     similarity: 0.88,
     textRepresentation: "CTA section with centered red button",
     webPage: {
-      id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
       url: "https://example.com/page3",
       title: "Example Page 3",
       sourceType: "award_gallery",
@@ -429,7 +429,7 @@ describe("RRF (Reciprocal Rank Fusion)", () => {
         hybridSearch: vi.fn().mockResolvedValue({
           results: [
             {
-              id: "22222222-2222-2222-2222-222222222222", // 重複
+              id: "22222222-2222-4222-9222-222222222222", // 重複
               sectionType: "feature",
               similarity: 0.93, // RRFスコア適用済み
               textRank: 2,
@@ -437,7 +437,7 @@ describe("RRF (Reciprocal Rank Fusion)", () => {
               webPage: { url: "https://example.com/page2" },
             },
             {
-              id: "11111111-1111-1111-1111-111111111111",
+              id: "11111111-1111-4111-9111-111111111111",
               sectionType: "hero",
               similarity: 0.9,
               textRank: 1,
@@ -445,7 +445,7 @@ describe("RRF (Reciprocal Rank Fusion)", () => {
               webPage: { url: "https://example.com/page1" },
             },
             {
-              id: "33333333-3333-3333-3333-333333333333",
+              id: "33333333-3333-4333-8333-333333333333",
               sectionType: "cta",
               similarity: 0.88,
               textRank: null, // textでは見つからず

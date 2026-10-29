@@ -63,13 +63,13 @@ const mockChromiumLaunch = vi.mocked(chromium.launch);
 // Test Data / テストデータ
 // ============================================================================
 
-const MOCK_WEB_PAGE_ID = "01934567-89ab-7def-0123-456789abcdef";
+const MOCK_WEB_PAGE_ID = "01934567-89ab-7def-9123-456789abcdef";
 const MOCK_URL = "https://example.com/design";
-const MOCK_PART_ID_1 = "11111111-1111-7111-1111-111111111111";
-const MOCK_PART_ID_2 = "22222222-2222-7222-2222-222222222222";
-const MOCK_PART_ID_3 = "33333333-3333-7333-3333-333333333333";
-const MOCK_SECTION_ID_1 = "aaaa1111-1111-7111-1111-111111111111";
-const MOCK_SECTION_ID_2 = "bbbb2222-2222-7222-2222-222222222222";
+const MOCK_PART_ID_1 = "11111111-1111-7111-9111-111111111111";
+const MOCK_PART_ID_2 = "22222222-2222-7222-9222-222222222222";
+const MOCK_PART_ID_3 = "33333333-3333-7333-9333-333333333333";
+const MOCK_SECTION_ID_1 = "aaaa1111-1111-7111-8111-111111111111";
+const MOCK_SECTION_ID_2 = "bbbb2222-2222-7222-8222-222222222222";
 
 // ============================================================================
 // Mock Factories / モックファクトリー

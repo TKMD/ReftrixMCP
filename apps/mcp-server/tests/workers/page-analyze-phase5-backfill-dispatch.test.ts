@@ -25,6 +25,10 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import {
+  parentInitTextSchema,
+  parentInitVisualSchema,
+} from "../../src/workers/phases/phase-5-child-ipc";
 
 describe("Phase 5 Backfill Dispatch (v0.4.0 PR4)", () => {
   const workerPath = path.resolve(__dirname, "../../src/workers/page-analyze-worker.ts");
@@ -34,7 +38,6 @@ describe("Phase 5 Backfill Dispatch (v0.4.0 PR4)", () => {
     __dirname,
     "../../src/workers/phases/phase-5-fork-orchestrator.ts"
   );
-  const ipcPath = path.resolve(__dirname, "../../src/workers/phases/phase-5-child-ipc.ts");
   const textChildPath = path.resolve(
     __dirname,
     "../../src/workers/phases/phase-5-text-embedding-child.ts"
@@ -48,7 +51,6 @@ describe("Phase 5 Backfill Dispatch (v0.4.0 PR4)", () => {
   let phase5Source: string;
   let typesSource: string;
   let orchestratorSource: string;
-  let ipcSource: string;
   let textChildSource: string;
   let visualChildSource: string;
 
@@ -57,7 +59,6 @@ describe("Phase 5 Backfill Dispatch (v0.4.0 PR4)", () => {
     phase5Source = fs.readFileSync(phase5Path, "utf8");
     typesSource = fs.readFileSync(typesPath, "utf8");
     orchestratorSource = fs.readFileSync(orchestratorPath, "utf8");
-    ipcSource = fs.readFileSync(ipcPath, "utf8");
     textChildSource = fs.readFileSync(textChildPath, "utf8");
     visualChildSource = fs.readFileSync(visualChildPath, "utf8");
   });
@@ -95,21 +96,12 @@ describe("Phase 5 Backfill Dispatch (v0.4.0 PR4)", () => {
     });
 
     it("should declare partsLimit in IPC Zod schemas for both init-text and init-visual", () => {
-      // Must appear in both schemas.
-      // PR-1 GPU-COORD (T1-wins): schemas are now `z.object({...}).strict()`
-      // (FIND-PLAN-M-02 SEC H-2 parity), which Prettier renders multi-line as
-      // `z\n  .object({...})\n  .strict();`. The regex tolerates both the legacy
-      // `z.object({...});` form and the new `.strict()` form.
-      const parentInitTextMatch = ipcSource.match(
-        /parentInitTextSchema = z[\s\S]*?\.object\(\{[\s\S]*?\}\)[\s\S]*?;/
-      );
-      const parentInitVisualMatch = ipcSource.match(
-        /parentInitVisualSchema = z[\s\S]*?\.object\(\{[\s\S]*?\}\)[\s\S]*?;/
-      );
-      expect(parentInitTextMatch).not.toBeNull();
-      expect(parentInitVisualMatch).not.toBeNull();
-      expect(parentInitTextMatch![0]).toContain("partsLimit");
-      expect(parentInitVisualMatch![0]).toContain("partsLimit");
+      // Assert on the schema's runtime shape, not on source text. zod 4 prep (PR-C1b): the
+      // schemas are `z.strictObject({...})`, so the old source regex (which tolerated
+      // `z.object({...})` / `z\n.object({...})\n.strict()`) no longer describes them; the shape
+      // is the contract the children read, and it does not depend on how the schema is spelled.
+      expect(Object.keys(parentInitTextSchema.shape)).toContain("partsLimit");
+      expect(Object.keys(parentInitVisualSchema.shape)).toContain("partsLimit");
     });
 
     it("should propagate partsLimit from orchestrator to text/visual init messages", () => {

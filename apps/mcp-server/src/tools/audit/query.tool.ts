@@ -31,6 +31,7 @@ import {
   type AuditLogService,
   type AuditLogRecord,
 } from "../../services/audit-log.service";
+import { formatIssueLine } from "../../utils/issue-path";
 
 // =====================================================
 // エラーコード / Error Codes
@@ -348,10 +349,10 @@ export async function auditQueryHandler(input: unknown): Promise<AuditQueryOutpu
     validated = auditQueryInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      const errorMessage = error.issues.map((e) => `${formatIssueLine(e)}`).join(", ");
 
       logger.warn("[MCP Tool] audit.query validation error", {
-        errors: error.errors,
+        errors: error.issues,
       });
 
       return {

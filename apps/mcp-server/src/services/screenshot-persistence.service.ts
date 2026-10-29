@@ -387,14 +387,15 @@ export async function validateScreenshotPath(candidatePath: string): Promise<str
  * Validate a candidate path within an arbitrary allowlist root (5-stage SSOT core)
  *
  * `validateScreenshotPath` の 5 段防御（null byte → startsWith → realpath → realpath
- * 再 startsWith → isFile）を `allowlistDir` 引数化したもの。crops sibling dir の
- * serve-time validator（`crop-persistence.helper.ts`）が複製ゼロで共有する
- * （弱い第 2 resolver 禁止、SEC-H-02 ≡ TDA-08、W6 Issue A PR-3a）。
+ * 再 startsWith → isFile）を `allowlistDir` 引数化したもの。crop を読む sink は
+ * 現在存在しない（ADR-0052）。sink を作り直す場合は、この core を複製ゼロで共有し
+ * 実行時 validator と symlink-escape test を同じ PR で戻す（弱い第 2 resolver 禁止）。
  *
  * Parameterizes `validateScreenshotPath`'s 5-stage defense (null byte → startsWith →
- * realpath → realpath re-startsWith → isFile) by `allowlistDir` so the crops
- * sibling-dir serve-time validator reuses it with zero duplication (no weak second
- * resolver, SEC-H-02 ≡ TDA-08, W6 Issue A PR-3a).
+ * realpath → realpath re-startsWith → isFile) by `allowlistDir`. No sink reads crops
+ * today (ADR-0052); if one is rebuilt it must share this core with zero duplication and
+ * restore the runtime validator and a symlink-escape test in the same PR (no weak second
+ * resolver).
  *
  * @param candidatePath 検証対象の絶対パス候補 / Candidate absolute path
  * @param allowlistDir 許可する root ディレクトリ / Allowlist root directory

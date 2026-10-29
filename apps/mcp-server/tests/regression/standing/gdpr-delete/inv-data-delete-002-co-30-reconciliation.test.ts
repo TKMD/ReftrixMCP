@@ -288,7 +288,7 @@ describe("INV-DATA-DELETE-002: BackfillReconciliationCron picks up orphaned in_p
     // after the residual category (e.g. motion) was backfilled. The
     // `failed_with_known_reason` transition routes the row into the auto-recovery
     // path (re_enqueue → all 7 categories → terminal `completed` once complete).
-    const page = makeStaleInProgressPage("019dd610-cccc-7000-cccc-000000000003");
+    const page = makeStaleInProgressPage("019dd610-cccc-7000-8ccc-000000000003");
     const updateManySpy = vi.fn(async () => ({ count: 1 }));
     const prisma = buildPrismaMock({
       pages: [page],
@@ -322,7 +322,7 @@ describe("INV-DATA-DELETE-002: BackfillReconciliationCron picks up orphaned in_p
     // Arrange: stale row whose BullMQ job is still 'active' — the
     //          embedding-backfill worker has not yet attempted the per-job
     //          UPDATE; cron must NOT preempt the worker.
-    const page = makeStaleInProgressPage("019dd610-dddd-7000-dddd-000000000004");
+    const page = makeStaleInProgressPage("019dd610-dddd-7000-8ddd-000000000004");
     const updateManySpy = vi.fn(async () => ({ count: 1 }));
     const prisma = buildPrismaMock({ pages: [page], updateManySpy });
     const queue = buildQueueMock({

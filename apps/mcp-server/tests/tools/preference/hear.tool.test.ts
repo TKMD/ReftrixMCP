@@ -35,11 +35,11 @@ import { PREFERENCE_MCP_ERROR_CODES } from "../../../src/tools/preference/schema
 // テストデータ
 // =====================================================
 
-const MOCK_PROFILE_ID = "01234567-89ab-cdef-0123-456789abcdef";
+const MOCK_PROFILE_ID = "01234567-89ab-4def-9123-456789abcdef";
 
 const MOCK_SAMPLES = [
   {
-    id: "11111111-1111-1111-1111-111111111111",
+    id: "11111111-1111-4111-9111-111111111111",
     url: "https://example.com/minimal",
     mood_category: "minimalist",
     mood_description: "クリーンでミニマルなデザイン",
@@ -47,7 +47,7 @@ const MOCK_SAMPLES = [
     screenshot_available: true,
   },
   {
-    id: "22222222-2222-2222-2222-222222222222",
+    id: "22222222-2222-4222-9222-222222222222",
     url: "https://example.com/bold",
     mood_category: "bold",
     mood_description: "大胆なカラーとタイポグラフィ",
@@ -55,7 +55,7 @@ const MOCK_SAMPLES = [
     screenshot_available: false,
   },
   {
-    id: "33333333-3333-3333-3333-333333333333",
+    id: "33333333-3333-4333-8333-333333333333",
     url: "https://example.com/elegant",
     mood_category: "elegant",
     mood_description: "上品で洗練されたデザイン",
@@ -63,7 +63,7 @@ const MOCK_SAMPLES = [
     screenshot_available: true,
   },
   {
-    id: "44444444-4444-4444-4444-444444444444",
+    id: "44444444-4444-4444-8444-444444444444",
     url: "https://example.com/tech",
     mood_category: "tech",
     mood_description: "テクノロジー感のあるデザイン",
@@ -71,7 +71,7 @@ const MOCK_SAMPLES = [
     screenshot_available: true,
   },
   {
-    id: "55555555-5555-5555-5555-555555555555",
+    id: "55555555-5555-4555-8555-555555555555",
     url: "https://example.com/warm",
     mood_category: "warm",
     mood_description: "温かみのあるデザイン",
@@ -195,8 +195,11 @@ describe("preference.hear MCPツール", () => {
       expect(result).toHaveProperty("success", true);
       expect(mockService.getSamples).toHaveBeenCalledWith({
         profileId: MOCK_PROFILE_ID,
-        limit: undefined,
-        offset: undefined,
+        // zod 4 prep: the input schema is now .optional().default(x), so an omitted limit /
+        // offset reaches the service as 1 / 0 (the service's own fallback is 1 / 0,
+        // preference-profile.service.ts getSamples), i.e. the effective values are unchanged.
+        limit: 1,
+        offset: 0,
         excludeIds: undefined,
       });
     });
@@ -210,8 +213,11 @@ describe("preference.hear MCPツール", () => {
       expect(result).toHaveProperty("success", true);
       expect(mockService.getSamples).toHaveBeenCalledWith({
         profileId: undefined,
-        limit: undefined,
-        offset: undefined,
+        // zod 4 prep: the input schema is now .optional().default(x), so an omitted limit /
+        // offset reaches the service as 1 / 0 (the service's own fallback is 1 / 0,
+        // preference-profile.service.ts getSamples), i.e. the effective values are unchanged.
+        limit: 1,
+        offset: 0,
         excludeIds: undefined,
       });
     });
@@ -221,8 +227,8 @@ describe("preference.hear MCPツール", () => {
       setPreferenceServiceFactory(() => mockService);
 
       const excludeIds = [
-        "11111111-1111-1111-1111-111111111111",
-        "22222222-2222-2222-2222-222222222222",
+        "11111111-1111-4111-9111-111111111111",
+        "22222222-2222-4222-9222-222222222222",
       ];
 
       await preferenceHearHandler({
@@ -244,7 +250,7 @@ describe("preference.hear MCPツール", () => {
       const mockService = createMockService();
       setPreferenceServiceFactory(() => mockService);
 
-      const excludeIds = ["33333333-3333-3333-3333-333333333333"];
+      const excludeIds = ["33333333-3333-4333-8333-333333333333"];
 
       await preferenceHearHandler({
         exclude_ids: excludeIds,
@@ -456,7 +462,7 @@ describe("preference.hear MCPツール", () => {
         profile_id: MOCK_PROFILE_ID,
         feedback: [
           {
-            sample_id: "11111111-1111-1111-1111-111111111111",
+            sample_id: "11111111-1111-4111-9111-111111111111",
             rating: "positive",
             comment: "とても気に入りました",
           },
@@ -481,7 +487,7 @@ describe("preference.hear MCPツール", () => {
 
       const feedback = [
         {
-          sample_id: "11111111-1111-1111-1111-111111111111",
+          sample_id: "11111111-1111-4111-9111-111111111111",
           rating: "positive" as const,
           comment: "テストコメント",
         },
@@ -528,7 +534,7 @@ describe("preference.hear MCPツール", () => {
         profile_id: MOCK_PROFILE_ID,
         feedback: [
           {
-            sample_id: "11111111-1111-1111-1111-111111111111",
+            sample_id: "11111111-1111-4111-9111-111111111111",
             rating: "love", // 無効
           },
         ],
@@ -586,7 +592,7 @@ describe("preference.hear MCPツール", () => {
         profile_id: MOCK_PROFILE_ID,
         feedback: [
           {
-            sample_id: "11111111-1111-1111-1111-111111111111",
+            sample_id: "11111111-1111-4111-9111-111111111111",
             rating: "positive",
           },
         ],

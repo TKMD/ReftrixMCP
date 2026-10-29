@@ -110,7 +110,7 @@ function createSuccessResult(
 ): FallbackAnalyzeResult {
   return {
     success: true,
-    webPageId: "01941234-5678-7abc-def0-123456789abc",
+    webPageId: "01941234-5678-7abc-8ef0-123456789abc",
     layout: {
       success: true,
       sectionCount: 5,
@@ -153,7 +153,7 @@ function createPartialResult(
         level: "warning",
       },
     ],
-    webPageId: "01941234-5678-7abc-def0-123456789abc",
+    webPageId: "01941234-5678-7abc-8ef0-123456789abc",
     layout: {
       success: true,
       sectionCount: 3,
@@ -304,7 +304,7 @@ describe("FallbackAnalyzerService", () => {
 
     it("Level 1成功時の結果にwebPageIdが含まれる", async () => {
       const expectedResult = createSuccessResult({
-        webPageId: "01941234-5678-7abc-def0-987654321fed",
+        webPageId: "01941234-5678-7abc-8ef0-987654321fed",
       });
       const mockService = createMockPageAnalyzeService({
         level1: expectedResult,
@@ -316,7 +316,7 @@ describe("FallbackAnalyzerService", () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.webPageId).toBe("01941234-5678-7abc-def0-987654321fed");
+        expect(result.webPageId).toBe("01941234-5678-7abc-8ef0-987654321fed");
       }
     });
 

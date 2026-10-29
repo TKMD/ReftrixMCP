@@ -1,0 +1,285 @@
+{
+  "_doc": "INV-ZOD-DEFAULT-OPTIONAL-GOLDEN-001. One entry per `.default(x).optional()` site (20, AST-fixed at the start of PR-C1). `default` is the value the reordered schema must produce for an omitted key (the zod 4 result). `consumer` is the tool-layer reader measured on zod 3 BEFORE the reorder: `effectiveBefore` is what that reader used when the key was omitted; `needle` must still occur in `file`. status: equal = same value before and after; aligned = the schema default was changed to the value the reader already used; newly-passed = the reader used to pass nothing and now passes the default; unread = no reader looks at the key.",
+  "entries": [
+    {
+      "id": "preference.limit",
+      "module": "src/tools/preference/schemas.ts",
+      "schema": "preferenceHearInputSchema",
+      "key": "limit",
+      "minimal": {},
+      "default": 1,
+      "consumer": {
+        "file": "src/services/preference-profile.service.ts",
+        "needle": "options?.limit ?? 1",
+        "effectiveBefore": 1,
+        "status": "equal"
+      }
+    },
+    {
+      "id": "preference.offset",
+      "module": "src/tools/preference/schemas.ts",
+      "schema": "preferenceHearInputSchema",
+      "key": "offset",
+      "minimal": {},
+      "default": 0,
+      "consumer": {
+        "file": "src/services/preference-profile.service.ts",
+        "needle": "options?.offset ?? 0",
+        "effectiveBefore": 0,
+        "status": "equal"
+      }
+    },
+    {
+      "id": "layout.colorTolerance",
+      "module": "src/tools/layout/schemas.ts",
+      "schema": "visualFeaturesColorsFilterSchema",
+      "key": "colorTolerance",
+      "minimal": {},
+      "default": 15,
+      "consumer": {
+        "file": "src/services/layout-search.service.ts",
+        "needle": "filter.colors.colorTolerance ?? 15",
+        "effectiveBefore": 15,
+        "status": "equal"
+      }
+    },
+    {
+      "id": "motion.runtime.wait_for_animations",
+      "module": "src/tools/motion/detect.schemas.ts",
+      "schema": "runtimeOptionsSchema",
+      "key": "wait_for_animations",
+      "minimal": {},
+      "default": 3000,
+      "consumer": {
+        "file": "src/tools/motion/detection-modes.ts",
+        "needle": "runtimeOptions?.wait_for_animations ?? 3000",
+        "effectiveBefore": 3000,
+        "status": "equal"
+      }
+    },
+    {
+      "id": "motion.frame.fps",
+      "module": "src/tools/motion/detect.schemas.ts",
+      "schema": "frameAnalysisOptionsSchema",
+      "key": "fps",
+      "minimal": {},
+      "default": 10,
+      "consumer": {
+        "file": "src/tools/motion/detection-modes.ts",
+        "needle": "frame_analysis?.fps ?? 10",
+        "effectiveBefore": 10,
+        "status": "equal"
+      }
+    },
+    {
+      "id": "motion.frame.change_threshold",
+      "module": "src/tools/motion/detect.schemas.ts",
+      "schema": "frameAnalysisOptionsSchema",
+      "key": "change_threshold",
+      "minimal": {},
+      "default": 0.01,
+      "consumer": {
+        "file": "src/tools/motion/detection-modes.ts",
+        "needle": "frame_analysis?.change_threshold ?? 0.01",
+        "effectiveBefore": 0.01,
+        "status": "equal"
+      }
+    },
+    {
+      "id": "motion.frame.min_motion_duration_ms",
+      "module": "src/tools/motion/detect.schemas.ts",
+      "schema": "frameAnalysisOptionsSchema",
+      "key": "min_motion_duration_ms",
+      "minimal": {},
+      "default": 100,
+      "consumer": {
+        "file": "src/tools/motion/detection-modes.ts",
+        "needle": "frame_analysis?.min_motion_duration_ms ?? 100",
+        "effectiveBefore": 100,
+        "status": "equal"
+      }
+    },
+    {
+      "id": "motion.frame.gap_tolerance_ms",
+      "module": "src/tools/motion/detect.schemas.ts",
+      "schema": "frameAnalysisOptionsSchema",
+      "key": "gap_tolerance_ms",
+      "minimal": {},
+      "default": 50,
+      "consumer": {
+        "file": "src/tools/motion/detection-modes.ts",
+        "needle": "frame_analysis?.gap_tolerance_ms ?? 50",
+        "effectiveBefore": 50,
+        "status": "equal"
+      }
+    },
+    {
+      "id": "motion.video.timeout",
+      "module": "src/tools/motion/detect.schemas.ts",
+      "schema": "videoOptionsSchema",
+      "key": "timeout",
+      "minimal": {},
+      "default": 30000,
+      "consumer": {
+        "file": "src/tools/motion/detection-modes.ts",
+        "needle": "videoOptions?.timeout ?? 30000",
+        "effectiveBefore": 30000,
+        "status": "equal"
+      }
+    },
+    {
+      "id": "motion.video.record_duration",
+      "module": "src/tools/motion/detect.schemas.ts",
+      "schema": "videoOptionsSchema",
+      "key": "record_duration",
+      "minimal": {},
+      "default": 5000,
+      "consumer": {
+        "file": "src/tools/motion/detection-modes.ts",
+        "needle": "videoOptions?.record_duration ?? 5000",
+        "effectiveBefore": 5000,
+        "status": "equal"
+      }
+    },
+    {
+      "id": "motion.video.scroll_page",
+      "module": "src/tools/motion/detect.schemas.ts",
+      "schema": "videoOptionsSchema",
+      "key": "scroll_page",
+      "minimal": {},
+      "default": true,
+      "consumer": {
+        "file": "src/tools/motion/detection-modes.ts",
+        "needle": "videoOptions?.scroll_page ?? true",
+        "effectiveBefore": true,
+        "status": "equal"
+      }
+    },
+    {
+      "id": "motion.video.move_mouse",
+      "module": "src/tools/motion/detect.schemas.ts",
+      "schema": "videoOptionsSchema",
+      "key": "move_mouse",
+      "minimal": {},
+      "default": true,
+      "consumer": {
+        "file": "src/tools/motion/detection-modes.ts",
+        "needle": "videoOptions?.move_mouse ?? true",
+        "effectiveBefore": true,
+        "status": "equal"
+      }
+    },
+    {
+      "id": "motion.video.wait_until",
+      "module": "src/tools/motion/detect.schemas.ts",
+      "schema": "videoOptionsSchema",
+      "key": "wait_until",
+      "minimal": {},
+      "default": "domcontentloaded",
+      "consumer": {
+        "file": "src/tools/motion/detection-modes.ts",
+        "needle": "videoOptions?.wait_until ?? \"domcontentloaded\"",
+        "effectiveBefore": "domcontentloaded",
+        "status": "aligned"
+      }
+    },
+    {
+      "id": "motion.lighthouse.categories",
+      "module": "src/tools/motion/detect.schemas.ts",
+      "schema": "lighthouseOptionsSchema",
+      "key": "categories",
+      "minimal": { "enabled": true },
+      "default": ["performance"],
+      "consumer": {
+        "file": "src/tools/motion/detect.tool.ts",
+        "needle": "options.categories || [\"performance\"]",
+        "effectiveBefore": ["performance"],
+        "status": "equal"
+      }
+    },
+    {
+      "id": "motion.lighthouse.throttling",
+      "module": "src/tools/motion/detect.schemas.ts",
+      "schema": "lighthouseOptionsSchema",
+      "key": "throttling",
+      "minimal": { "enabled": true },
+      "default": false,
+      "consumer": {
+        "file": "src/tools/motion/detect.tool.ts",
+        "needle": "options.throttling ?? false",
+        "effectiveBefore": false,
+        "status": "equal"
+      }
+    },
+    {
+      "id": "motion.lighthouse.timeout",
+      "module": "src/tools/motion/detect.schemas.ts",
+      "schema": "lighthouseOptionsSchema",
+      "key": "timeout",
+      "minimal": { "enabled": true },
+      "default": 60000,
+      "consumer": {
+        "file": "src/tools/motion/detect.tool.ts",
+        "needle": "if (options.timeout !== undefined)",
+        "effectiveBefore": null,
+        "status": "newly-passed"
+      }
+    },
+    {
+      "id": "motion.lighthouse.save_to_db",
+      "module": "src/tools/motion/detect.schemas.ts",
+      "schema": "lighthouseOptionsSchema",
+      "key": "save_to_db",
+      "minimal": { "enabled": true },
+      "default": false,
+      "consumer": {
+        "file": "src/tools/motion/detect.tool.ts",
+        "needle": "if (options.save_to_db)",
+        "effectiveBefore": false,
+        "status": "equal"
+      }
+    },
+    {
+      "id": "motion.metrics.include_recommendations",
+      "module": "src/tools/motion/detect.schemas.ts",
+      "schema": "analyzeMetricsOptionsSchema",
+      "key": "include_recommendations",
+      "minimal": {},
+      "default": true,
+      "consumer": {
+        "file": "src/tools/motion/detect.tool.ts",
+        "needle": "options?.include_recommendations !== false",
+        "effectiveBefore": true,
+        "status": "equal"
+      }
+    },
+    {
+      "id": "motion.metrics.include_cls_contributors",
+      "module": "src/tools/motion/detect.schemas.ts",
+      "schema": "analyzeMetricsOptionsSchema",
+      "key": "include_cls_contributors",
+      "minimal": {},
+      "default": true,
+      "consumer": {
+        "file": "src/tools/motion/detect.tool.ts",
+        "needle": "options?.include_cls_contributors !== false",
+        "effectiveBefore": true,
+        "status": "equal"
+      }
+    },
+    {
+      "id": "motion.metrics.timeout",
+      "module": "src/tools/motion/detect.schemas.ts",
+      "schema": "analyzeMetricsOptionsSchema",
+      "key": "timeout",
+      "minimal": {},
+      "default": 30000,
+      "consumer": {
+        "file": "src/tools/motion/detect.tool.ts",
+        "needle": "executeAnimationMetricsIfEnabled",
+        "effectiveBefore": null,
+        "status": "unread"
+      }
+    }
+  ]
+}

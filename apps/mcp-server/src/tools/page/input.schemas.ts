@@ -25,7 +25,7 @@ export const analysisFeaturesSchema = z
     quality: z.boolean().optional().default(true),
   })
   .optional()
-  .default({ layout: true, motion: true, quality: true });
+  .default(() => ({ layout: true, motion: true, quality: true }));
 export type AnalysisFeatures = z.infer<typeof analysisFeaturesSchema>;
 
 // ============================================================================
@@ -602,7 +602,21 @@ export const motionOptionsSchema = z
     timeout: z.number().int().min(30000).max(600000).optional().default(300000),
   })
   .optional()
-  .default({});
+  // 出力型の全 field を返す（zod 4 は既定値を inner schema に通さない）。関数にして parse ごとに新しい object を返す。
+  // Return every output field (zod 4 does not run the default through the inner schema) as a function so each parse gets a new object.
+  .default(() => ({
+    detection_mode: "css" as const,
+    fetchExternalCss: true,
+    minDuration: 0,
+    maxPatterns: 500,
+    includeWarnings: true,
+    saveToDb: true,
+    enable_frame_capture: false,
+    analyze_frames: false,
+    detect_js_animations: true,
+    detect_webgl_animations: true,
+    timeout: 300000,
+  }));
 export type MotionOptions = z.infer<typeof motionOptionsSchema>;
 
 export const qualityOptionsSchema = z
@@ -683,13 +697,13 @@ export const narrativeOptionsSchema = z
     generateEmbedding: z.boolean().optional().default(true).describe("Embedding生成を含む"),
   })
   .optional()
-  .default({
+  .default(() => ({
     enabled: true,
     saveToDb: true,
     includeVision: true,
     visionTimeoutMs: 300000,
     generateEmbedding: true,
-  });
+  }));
 export type NarrativeOptions = z.infer<typeof narrativeOptionsSchema>;
 
 // ============================================================================
@@ -939,7 +953,17 @@ export const pageAnalyzeInputSchema = z.object({
       breakpoint_resolution: z.enum(["range", "precise"]).optional().default("range"),
     })
     .optional()
-    .default({ enabled: true }),
+    .default(() => ({
+      enabled: true,
+      include_screenshots: false,
+      include_diff_images: false,
+      diff_threshold: 0.1,
+      save_to_db: true,
+      detect_navigation: true,
+      detect_visibility: true,
+      detect_layout: true,
+      breakpoint_resolution: "range" as const,
+    })),
 
   /**
    * page.analyze完了後にデザインスナップショットを自動生成するか (v0.3.0 T2-DCT)
@@ -976,7 +1000,12 @@ export const pageAnalyzeInputSchema = z.object({
       save_to_db: z.boolean().optional().default(true),
     })
     .optional()
-    .default({ enabled: false }),
+    .default(() => ({
+      enabled: false,
+      level: "AA" as const,
+      include_contrast: true,
+      save_to_db: true,
+    })),
 
   /**
    * パフォーマンス評価オプション (v0.3.0 Phase 7.5b)
@@ -994,12 +1023,16 @@ export const pageAnalyzeInputSchema = z.object({
       /** スクリーンショットをレスポンスに含めるか（デフォルト: false） / Include screenshots in response (default: false) */
       include_screenshots: z.boolean().optional().default(false),
       /** カスタムパフォーマンスBudget / Custom performance budget */
-      budget: z.record(z.number()).optional(),
+      budget: z.record(z.string(), z.number()).optional(),
       /** DB保存するか（デフォルト: true） / Save to DB (default: true) */
       save_to_db: z.boolean().optional().default(true),
     })
     .optional()
-    .default({ enabled: false }),
+    .default(() => ({
+      enabled: false,
+      include_screenshots: false,
+      save_to_db: true,
+    })),
 });
 
 export type PageAnalyzeInput = z.infer<typeof pageAnalyzeInputSchema>;

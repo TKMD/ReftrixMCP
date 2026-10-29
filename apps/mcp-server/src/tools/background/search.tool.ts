@@ -35,6 +35,7 @@ import type {
   DegradedReason,
   QueryEmbeddingResult,
 } from "../../services/_shared/resolve-query-embedding";
+import { formatIssueLine } from "../../utils/issue-path";
 
 // =====================================================
 // 型定義
@@ -234,10 +235,10 @@ export async function backgroundSearchHandler(input: unknown): Promise<Backgroun
     validated = backgroundSearchInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      const errorMessage = error.issues.map((e) => `${formatIssueLine(e)}`).join(", ");
 
       logger.warn("[MCP Tool] background.search validation error", {
-        errors: error.errors,
+        errors: error.issues,
       });
 
       return {

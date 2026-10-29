@@ -8,9 +8,8 @@
  *
  * INV-CROP-RETENTION-001 (W6 Issue A PR-3b, ADR-0044 §Decision 4 / ADR-0041
  *   §Amendment Crop Retention Parity / Registry F-03/F-06/F-07/F-08/F-12/F-13):
- *   crop の保持 trigger-event は `data.delete` のみ。`CROP_PERSISTENCE_ENABLED`
- *   を ON にすると `<root>/crops/<webPageId>/<kind>-<entityId>.png` が disk に
- *   生成されるため、single (`deletePage`) と batch (`deleteAllUserData`) の両
+ *   crop の保持 trigger-event は `data.delete` のみ。crop の生成は終了したが、既存
+ *   (legacy) の `<root>/crops/<webPageId>/<kind>-<entityId>.png` が disk に残るため、single (`deletePage`) と batch (`deleteAllUserData`) の両
  *   削除経路が crop dir を best-effort で unlink し、第三者 visual-PII が永久
  *   残存しないことを保証する (Art.17 fail-closed)。さらに crop cascade は DI
  *   factory 配線に依存しない (cascade は `resolveCropRoot()` env-only 依存ゆえ
@@ -18,7 +17,7 @@
  *   配線非依存性)。
  *
  * INV-CROP-RETENTION-001: the crop retention trigger event is `data.delete`
- *   only; with `CROP_PERSISTENCE_ENABLED` ON, crop files appear on disk at
+ *   only; crop generation has ended but legacy crop files remain on disk at
  *   `<root>/crops/<webPageId>/<kind>-<entityId>.png`, so BOTH the single
  *   (`deletePage`) AND batch (`deleteAllUserData`) deletion paths best-effort
  *   unlink the crop dir, ensuring third-party visual-PII never persists
@@ -45,7 +44,7 @@
  *
  * F-07 (lstatSync symlink-escape TOCTOU): accepted-risk。`buildSafeCropDir` は
  *   `buildSafePathWithinRoot` (lexical 検証) 経由で per-page dir を返し、crop dir は
- *   `saveCropFromBuffer` が `fs.mkdir mode:0o700` で real-dir のみ生成する (symlink
+ *   生成時に `fs.mkdir mode:0o700` で real-dir のみ作られていた (symlink
  *   非生成) + root owner-0o700 ゆえ live exploit なし。defense-in-depth な lstatSync
  *   再 check は将来 PR (docs note のみ、本 INV では未 assert)。
  *
@@ -167,18 +166,11 @@ async function countCropFilesForPage(webPageId: string): Promise<number> {
 
 let prisma: PrismaClient;
 let productionRootExistedBefore: boolean;
-let previousCropFlag: string | undefined;
-
 describe("INV-CROP-RETENTION-001: crop retention = until data.delete (GDPR Art.17 crop-dir cascade, single + batch, factory-unwired)", () => {
   beforeAll(async () => {
     await ensureSchemaAppliedOnce(process.env.DATABASE_URL!);
     prisma = createTestPrismaClient();
     await prisma.$connect();
-
-    // CROP_PERSISTENCE_ENABLED を test 内で ON にする (production flip とは独立に、
-    // crop file fixture を seed するため)。afterAll で復元。
-    previousCropFlag = process.env.CROP_PERSISTENCE_ENABLED;
-    process.env.CROP_PERSISTENCE_ENABLED = "true";
 
     // DI wire-up: 実 Prisma Client を GdprDeletionService / AuditLogService に注入。
     // **重要**: screenshot persistence factory は意図的に配線しない (crop cascade が
@@ -205,13 +197,6 @@ describe("INV-CROP-RETENTION-001: crop retention = until data.delete (GDPR Art.1
     resetGdprDeletionService();
     resetAuditLogService();
     await prisma?.$disconnect();
-
-    // CROP_PERSISTENCE_ENABLED を復元。
-    if (previousCropFlag === undefined) {
-      delete process.env.CROP_PERSISTENCE_ENABLED;
-    } else {
-      process.env.CROP_PERSISTENCE_ENABLED = previousCropFlag;
-    }
 
     // F-13 test-encoded assert: production default root が本テストにより作成も
     // 削除もされていないこと (coupling-drift / sandbox violation 検知)。
@@ -417,47 +402,5 @@ describe("INV-CROP-RETENTION-001: crop retention = until data.delete (GDPR Art.1
     const cropRoot = await resolveCropRoot();
     expect(dir.startsWith(cropRoot)).toBe(true);
     expect(dir.endsWith(okId)).toBe(true);
-  }, 60_000);
-
-  // ==========================================================================
-  // Assertion #7: backfill-generated crops are reaped by the SAME cascade (W6 PR-4a, R8)
-  //
-  // PR-4a's one-shot backfill (`scripts/backfill-crops.ts`) writes crops under the
-  // SAME per-page dir convention `<cropRoot>/<webPageId>/<kind>-<entityId>.png` via
-  // the SAME `saveCropFromBuffer` SSOT. So a backfill-generated crop is
-  // indistinguishable from a Phase-5 crop for retention and is reaped by the SAME
-  // `deleteCropDirBestEffort` cascade (NO new GDPR leg, ADR-0044 §Decision 4). This
-  // fixture asserts a crop written via the production `saveCropFromBuffer` path (the
-  // path the backfill script uses) is reaped by `data.delete`.
-  // ==========================================================================
-  it("INV-CROP-RETENTION-001: a backfill-generated crop (via saveCropFromBuffer SSOT) is reaped by the same data.delete cascade (R8, no new GDPR leg)", async () => {
-    assertInvName(expect.getState().currentTestName ?? "", "INV-CROP-RETENTION-001");
-
-    const ids: GdprFixtureIds = await seedGdprFixture(prisma);
-
-    // Write a crop via the SAME production SSOT the backfill script uses
-    // (saveCropFromBuffer), not the test-local fixture helper, to prove the
-    // backfill-write path produces a crop the cascade reaps.
-    const cropMod = await import("../../../../src/services/part/crop-persistence.helper");
-    const cropPath = await cropMod.saveCropFromBuffer({
-      webPageId: ids.webPageId,
-      kind: "section",
-      entityId: ids.sectionPatternId,
-      pngBuffer: MIN_PNG_BYTES,
-    });
-    expect(cropPath, "saveCropFromBuffer must persist the backfill crop (flag ON)").not.toBeNull();
-    expect(fs.existsSync(cropPath as string)).toBe(true);
-
-    const result = await dataDeleteHandler({
-      target: "page",
-      id: ids.webPageId,
-      reason: "INV-CROP-RETENTION-001 — backfill crop cascade (R8)",
-      confirm: true,
-    });
-    expect(result.success).toBe(true);
-
-    // The backfill-generated crop is reaped by the same cascade.
-    expect(fs.existsSync(cropPath as string)).toBe(false);
-    expect(await countCropFilesForPage(ids.webPageId)).toBe(0);
   }, 60_000);
 });

@@ -26,8 +26,8 @@ import {
 
 const mockSectionPatterns = [
   {
-    id: "11111111-1111-1111-1111-111111111111",
-    webPageId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    id: "11111111-1111-4111-9111-111111111111",
+    webPageId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     sectionType: "hero",
     sectionName: "SaaS Hero Section",
     similarity: 0.85,
@@ -38,7 +38,7 @@ const mockSectionPatterns = [
     },
     htmlSnippet: '<section class="hero">SaaS platform hero</section>',
     webPage: {
-      id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
       url: "https://example-saas.com",
       title: "SaaS Platform",
       sourceType: "award_gallery",
@@ -47,8 +47,8 @@ const mockSectionPatterns = [
     },
   },
   {
-    id: "22222222-2222-2222-2222-222222222222",
-    webPageId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    id: "22222222-2222-4222-9222-222222222222",
+    webPageId: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
     sectionType: "hero",
     sectionName: "E-commerce Hero",
     similarity: 0.8,
@@ -59,7 +59,7 @@ const mockSectionPatterns = [
     },
     htmlSnippet: '<section class="hero">Shop now</section>',
     webPage: {
-      id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      id: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
       url: "https://example-shop.com",
       title: "Online Store",
       sourceType: "user_provided",
@@ -68,8 +68,8 @@ const mockSectionPatterns = [
     },
   },
   {
-    id: "33333333-3333-3333-3333-333333333333",
-    webPageId: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+    id: "33333333-3333-4333-8333-333333333333",
+    webPageId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
     sectionType: "hero",
     sectionName: "Medical Hero",
     similarity: 0.75,
@@ -80,7 +80,7 @@ const mockSectionPatterns = [
     },
     htmlSnippet: '<section class="hero">Healthcare platform</section>',
     webPage: {
-      id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
       url: "https://example-medical.com",
       title: "Healthcare Platform",
       sourceType: "award_gallery",

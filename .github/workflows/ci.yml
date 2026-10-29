@@ -136,6 +136,17 @@ jobs:
           #     violations in the notify job were fixed (quoted "$GITHUB_OUTPUT") instead.
           SHELLCHECK_OPTS: "--exclude=SC1091 --exclude=SC2129"
 
+      # scripts/ci/*.sh are not workflow `run:` text, so the actionlint pass above does not
+      # reach them. Pinned release + sha256 so the lint result does not move with the runner image.
+      - name: ShellCheck scripts/ci (pinned 0.11.0)
+        shell: bash # bash --noprofile --norc -eo pipefail {0}: a failed sha256sum -c ends the step
+        run: |
+          curl -fsSL --proto '=https' --retry 3 --max-time 60 -o "$RUNNER_TEMP/shellcheck.tar.xz" \
+            https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz
+          echo "8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198  $RUNNER_TEMP/shellcheck.tar.xz" | sha256sum -c -
+          tar -xJf "$RUNNER_TEMP/shellcheck.tar.xz" -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP/shellcheck-v0.11.0/shellcheck" scripts/ci/*.sh
+
   # Smoke Tests - 高速な起動確認テスト
   # MCPツールの登録確認、基本レスポンス確認、型整合性チェック
   test-smoke:
@@ -178,7 +189,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          # full history: the append-only attestation test reads every revision of the file
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4

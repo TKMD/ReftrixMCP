@@ -40,6 +40,7 @@ import {
 } from "../../services/part/part-search.service";
 import type { DegradedReason } from "../../services/_shared/resolve-query-embedding";
 import { buildEmbeddingFailureError } from "../_shared/embedding-failure-response";
+import { formatIssueLine } from "../../utils/issue-path";
 
 // =====================================================
 // 型定義
@@ -204,10 +205,10 @@ export async function partSearchHandler(input: unknown): Promise<PartSearchOutpu
     validated = partSearchInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      const errorMessage = error.issues.map((e) => `${formatIssueLine(e)}`).join(", ");
 
       logger.warn("[MCP Tool] part.search validation error", {
-        errors: error.errors,
+        errors: error.issues,
       });
 
       return {

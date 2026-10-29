@@ -1465,6 +1465,7 @@ export const layoutIngestToolDefinition = {
               },
               viewports: {
                 type: "array",
+                maxItems: 10,
                 description:
                   "Custom viewport configurations. Default: desktop (1920x1080), tablet (768x1024), mobile (375x667)",
                 items: {

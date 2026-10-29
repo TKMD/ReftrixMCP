@@ -180,7 +180,7 @@ export const brandPaletteSchema = z.object({
   brandName: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
   mode: paletteModeSchema.default("both"),
-  tokens: z.record(colorTokenSchema),
+  tokens: z.record(z.string(), colorTokenSchema),
   gradients: z.array(gradientDefinitionSchema).optional(),
   metadata: paletteMetadataSchema.optional(),
   createdAt: z.date(),

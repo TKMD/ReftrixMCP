@@ -108,6 +108,7 @@ export const PART_COMPARE_ERROR_CODES = {
 
 // sanitizeErrorMessage: unified utility from utils/sanitize-error.ts
 import { sanitizeErrorMessage } from "../../utils/sanitize-error";
+import { formatIssueLine } from "../../utils/issue-path";
 
 // =====================================================
 // 比較ロジック / Comparison Logic
@@ -350,10 +351,10 @@ export async function partCompareHandler(input: unknown): Promise<PartCompareOut
     validated = partCompareInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      const errorMessage = error.issues.map((e) => `${formatIssueLine(e)}`).join(", ");
 
       logger.warn("[MCP Tool] part.compare validation error", {
-        errors: error.errors,
+        errors: error.issues,
       });
 
       return {
@@ -504,6 +505,7 @@ export const partCompareToolDefinition = {
           type: "string",
           enum: ["styles", "layout", "interaction", "accessibility"],
         },
+        maxItems: 4,
         default: ["styles", "layout"],
         description:
           "比較観点（デフォルト: styles, layout） / Aspects to compare (default: styles, layout)",

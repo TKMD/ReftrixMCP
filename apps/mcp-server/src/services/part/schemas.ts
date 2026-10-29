@@ -96,7 +96,7 @@ export const partExtractionConfigSchema = z.object({
   maxPartsPerType: z.number().int().min(1).max(20).default(5),
   minPartSize: z.number().int().min(1).default(20),
   cropSize: z.number().int().min(64).max(512).default(224),
-  partTypes: z.array(partTypeSchema).default([...ALL_PART_TYPES]),
+  partTypes: z.array(partTypeSchema).default(() => [...ALL_PART_TYPES]),
   rssLimitBytes: z
     .number()
     .int()
@@ -164,6 +164,9 @@ export const partInspectInputSchema = z.object({
   include_embedding: z.boolean().default(false),
 });
 
+/** 比較観点 / Comparison aspect */
+export const partCompareAspectSchema = z.enum(["styles", "layout", "interaction", "accessibility"]);
+
 /**
  * part.compare 入力スキーマ
  * part.compare input schema
@@ -179,8 +182,11 @@ export const partCompareInputSchema = z.object({
   part_ids: z.array(z.string().uuid()).min(2).max(5),
   /** 比較観点 / Comparison aspects */
   compare_aspects: z
-    .array(z.enum(["styles", "layout", "interaction", "accessibility"]))
-    .default(["styles", "layout"]),
+    .array(partCompareAspectSchema)
+    .max(4)
+    .default(
+      (): Array<"styles" | "layout" | "interaction" | "accessibility"> => ["styles", "layout"]
+    ),
 });
 
 // ============================================================================

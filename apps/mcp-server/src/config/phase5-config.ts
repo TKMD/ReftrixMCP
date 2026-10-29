@@ -30,6 +30,7 @@
 
 import { z } from "zod";
 import { logger } from "../utils/logger";
+import { formatIssuePath } from "../utils/issue-path";
 
 /**
  * Phase 5 Parent RSS Max (MB) — legacy pre-PR-V3-T1a default.
@@ -213,7 +214,10 @@ export function loadPhase5Config(): Phase5Config {
         parentRssMaxMb: DEFAULT_PARENT_RSS_MAX_MB,
         maxSectionsInput: DEFAULT_MAX_SECTIONS_INPUT,
       },
-      issues: result.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
+      issues: result.error.issues.map((i) => ({
+        path: formatIssuePath(i.path),
+        message: i.message,
+      })),
     });
     return {
       parentRssMaxMb: DEFAULT_PARENT_RSS_MAX_MB,

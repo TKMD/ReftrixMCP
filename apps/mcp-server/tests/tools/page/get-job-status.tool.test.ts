@@ -73,7 +73,7 @@ describe("page.getJobStatus MCPツール", () => {
   describe("正常系: ジョブが見つかった場合", () => {
     it("完了したジョブのステータスを返す（success: true）", async () => {
       // Arrange
-      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
+      const validJobId = "01234567-89ab-4def-9123-456789abcdef";
       const mockJobStatus = {
         jobId: validJobId,
         state: "completed" as const,
@@ -112,7 +112,7 @@ describe("page.getJobStatus MCPツール", () => {
 
     it("処理中のジョブのステータスを返す（currentPhase付き）", async () => {
       // Arrange
-      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
+      const validJobId = "01234567-89ab-4def-9123-456789abcdef";
       const mockJobStatus = {
         jobId: validJobId,
         state: "active" as const,
@@ -141,7 +141,7 @@ describe("page.getJobStatus MCPツール", () => {
 
     it("失敗したジョブのステータスを返す（failedReason付き）", async () => {
       // Arrange
-      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
+      const validJobId = "01234567-89ab-4def-9123-456789abcdef";
       const mockJobStatus = {
         jobId: validJobId,
         state: "failed" as const,
@@ -172,7 +172,7 @@ describe("page.getJobStatus MCPツール", () => {
   describe("正常系: ジョブが見つからない場合", () => {
     it("JOB_NOT_FOUNDエラーを返す（success: false）", async () => {
       // Arrange
-      const nonExistentJobId = "01234567-89ab-cdef-0123-000000000000";
+      const nonExistentJobId = "01234567-89ab-4def-8123-000000000000";
 
       (isRedisAvailable as Mock).mockResolvedValue(true);
       (getJobStatus as Mock).mockResolvedValue(null);
@@ -243,7 +243,7 @@ describe("page.getJobStatus MCPツール", () => {
   describe("異常系: Redis未起動", () => {
     it("Redis未起動でREDIS_UNAVAILABLEエラーを返す", async () => {
       // Arrange
-      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
+      const validJobId = "01234567-89ab-4def-9123-456789abcdef";
 
       (isRedisAvailable as Mock).mockResolvedValue(false);
 
@@ -262,7 +262,7 @@ describe("page.getJobStatus MCPツール", () => {
   describe("異常系: 内部エラー", () => {
     it("getJobStatus例外でINTERNAL_ERRORを返す", async () => {
       // Arrange
-      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
+      const validJobId = "01234567-89ab-4def-9123-456789abcdef";
 
       (isRedisAvailable as Mock).mockResolvedValue(true);
       (getJobStatus as Mock).mockRejectedValue(new Error("Connection lost"));
@@ -283,7 +283,7 @@ describe("page.getJobStatus MCPツール", () => {
 
     it("非Errorオブジェクトの例外でもINTERNAL_ERRORを返す", async () => {
       // Arrange
-      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
+      const validJobId = "01234567-89ab-4def-9123-456789abcdef";
 
       (isRedisAvailable as Mock).mockResolvedValue(true);
       (getJobStatus as Mock).mockRejectedValue("String error");
@@ -302,7 +302,7 @@ describe("page.getJobStatus MCPツール", () => {
   describe("メタデータ: request_idの検証", () => {
     it("成功レスポンスにrequest_idが含まれる", async () => {
       // Arrange
-      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
+      const validJobId = "01234567-89ab-4def-9123-456789abcdef";
       const mockJobStatus = {
         jobId: validJobId,
         state: "completed" as const,
@@ -337,7 +337,7 @@ describe("page.getJobStatus MCPツール", () => {
 
     it("JOB_NOT_FOUNDレスポンスにrequest_idが含まれる", async () => {
       // Arrange
-      const nonExistentJobId = "01234567-89ab-cdef-0123-000000000000";
+      const nonExistentJobId = "01234567-89ab-4def-8123-000000000000";
 
       (isRedisAvailable as Mock).mockResolvedValue(true);
       (getJobStatus as Mock).mockResolvedValue(null);
@@ -354,7 +354,7 @@ describe("page.getJobStatus MCPツール", () => {
   describe("リソースクリーンアップ", () => {
     it("正常完了時にキューがクローズされる", async () => {
       // Arrange
-      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
+      const validJobId = "01234567-89ab-4def-9123-456789abcdef";
       const mockJobStatus = {
         jobId: validJobId,
         state: "completed" as const,
@@ -374,7 +374,7 @@ describe("page.getJobStatus MCPツール", () => {
 
     it("エラー発生時もキューがクローズされる（finally保証）", async () => {
       // Arrange
-      const validJobId = "01234567-89ab-cdef-0123-456789abcdef";
+      const validJobId = "01234567-89ab-4def-9123-456789abcdef";
 
       (isRedisAvailable as Mock).mockResolvedValue(true);
       (getJobStatus as Mock).mockRejectedValue(new Error("Test error"));

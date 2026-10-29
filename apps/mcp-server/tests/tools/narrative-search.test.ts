@@ -83,9 +83,9 @@ function createMockNarrativeService(
     search: vi
       .fn()
       .mockResolvedValue([
-        createMockSearchResult("11111111-1111-1111-1111-111111111111", "tech", 0.92),
-        createMockSearchResult("22222222-2222-2222-2222-222222222222", "minimal", 0.85),
-        createMockSearchResult("33333333-3333-3333-3333-333333333333", "professional", 0.78),
+        createMockSearchResult("11111111-1111-4111-9111-111111111111", "tech", 0.92),
+        createMockSearchResult("22222222-2222-4222-9222-222222222222", "minimal", 0.85),
+        createMockSearchResult("33333333-3333-4333-8333-333333333333", "professional", 0.78),
       ]),
     // analyze メソッド（narrative.searchでは使用しないがインターフェース必須）
     analyze: vi.fn().mockRejectedValue(new Error("Not implemented in search test")),
@@ -904,7 +904,7 @@ describe("narrative.search MCPツール", () => {
       const searchHybridMock = vi
         .fn()
         .mockResolvedValue([
-          createMockSearchResult("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "premium", 0.88),
+          createMockSearchResult("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb", "premium", 0.88),
         ]);
       const mockService = createMockNarrativeService({
         searchHybrid: searchHybridMock,
@@ -921,7 +921,7 @@ describe("narrative.search MCPツール", () => {
       if (result.success) {
         expect(result.data.results.length).toBe(1);
         const item = result.data.results[0];
-        expect(item.id).toBe("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        expect(item.id).toBe("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb");
         expect(item.worldView.moodCategory).toBe("premium");
         expect(item.similarity).toBeGreaterThan(0);
         expect(result.data.searchInfo.searchMode).toBe("hybrid");
@@ -940,7 +940,7 @@ describe("narrative.search MCPツール", () => {
         search: vi
           .fn()
           .mockResolvedValue([
-            createMockSearchResult("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "elegant", 0.91),
+            createMockSearchResult("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa", "elegant", 0.91),
           ]),
       });
       setNarrativeSearchServiceFactory(() => mockService);
@@ -957,7 +957,7 @@ describe("narrative.search MCPツール", () => {
         const item = result.data.results[0];
 
         // 各必須フィールドの存在確認
-        expect(item.id).toBe("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        expect(item.id).toBe("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa");
         expect(item.webPageId).toBeDefined();
         expect(item.similarity).toBeDefined();
         expect(item.worldView).toBeDefined();
@@ -1039,7 +1039,7 @@ describe("narrative.search MCPツール", () => {
       // Act
       const result = await narrativeSearchHandler({
         query: "テスト検索",
-        filters: { webPageId: "11111111-1111-1111-1111-111111111111" },
+        filters: { webPageId: "11111111-1111-4111-9111-111111111111" },
       });
 
       // Assert
@@ -1047,7 +1047,7 @@ describe("narrative.search MCPツール", () => {
       expect(mockService.search).toHaveBeenCalledWith(
         expect.objectContaining({
           filters: expect.objectContaining({
-            webPageId: "11111111-1111-1111-1111-111111111111",
+            webPageId: "11111111-1111-4111-9111-111111111111",
           }),
         })
       );
@@ -1174,7 +1174,7 @@ describe("narrative.search MCPツール", () => {
         filters: {
           moodCategory: "tech",
           minConfidence: 0.7,
-          webPageId: "22222222-2222-2222-2222-222222222222",
+          webPageId: "22222222-2222-4222-9222-222222222222",
           webPageUrl: "https://example.com",
           tags: ["saas", "dashboard"],
           industry: "fintech",
@@ -1189,7 +1189,7 @@ describe("narrative.search MCPツール", () => {
           filters: expect.objectContaining({
             moodCategory: ["tech"],
             minConfidence: 0.7,
-            webPageId: "22222222-2222-2222-2222-222222222222",
+            webPageId: "22222222-2222-4222-9222-222222222222",
             webPageUrl: "https://example.com",
             tags: ["saas", "dashboard"],
             industry: "fintech",

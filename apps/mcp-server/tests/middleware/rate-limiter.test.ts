@@ -156,12 +156,9 @@ describe("RateLimiter", () => {
       expect(TOOL_TIER_MAP["layout.search"]).toBe("search");
     });
 
-    it("WebUI W3 内部API search route キーは search ティアにマッピングされる (SEC-W3-M1)", () => {
-      // The internal read-API search routes share the SAME Token Bucket core as the MCP tool
-      // path; they are search-class operations and map to the `search` tier (120 RPM default).
-      expect(TOOL_TIER_MAP["internal_search.text"]).toBe("search");
-      expect(TOOL_TIER_MAP["internal_search.image"]).toBe("search");
-      expect(TOOL_TIER_MAP["internal_search.similar_site"]).toBe("search");
+    it("internal read API route キーは TOOL_TIER_MAP に存在しない (API 撤去済み)", () => {
+      // The internal read HTTP API was removed; its `internal_*` route keys must not linger.
+      expect(Object.keys(TOOL_TIER_MAP).filter((k) => k.startsWith("internal_"))).toEqual([]);
     });
 
     it("未登録ツールは default ティアを使用する", async () => {

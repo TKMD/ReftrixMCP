@@ -155,12 +155,12 @@ function createMockService(overrides?: Partial<ILayoutSearchService>): ILayoutSe
       const includeHtml = options.include_html ?? false;
       const results = includeHtml
         ? [
-            createMockResultWithHtml("11111111-1111-1111-1111-111111111111", "hero"),
-            createMockResultWithHtml("22222222-2222-2222-2222-222222222222", "feature"),
+            createMockResultWithHtml("11111111-1111-4111-9111-111111111111", "hero"),
+            createMockResultWithHtml("22222222-2222-4222-9222-222222222222", "feature"),
           ]
         : [
-            createMockResultWithoutHtml("11111111-1111-1111-1111-111111111111", "hero"),
-            createMockResultWithoutHtml("22222222-2222-2222-2222-222222222222", "feature"),
+            createMockResultWithoutHtml("11111111-1111-4111-9111-111111111111", "hero"),
+            createMockResultWithoutHtml("22222222-2222-4222-9222-222222222222", "feature"),
           ];
 
       return Promise.resolve({
@@ -507,7 +507,7 @@ describe("layout.search - htmlSnippet フィールド", { timeout: 120000 }, () 
       searchSectionPatterns: vi.fn().mockResolvedValue({
         results: [
           {
-            ...createMockResultWithHtml("11111111-1111-1111-1111-111111111111", "hero"),
+            ...createMockResultWithHtml("11111111-1111-4111-9111-111111111111", "hero"),
             htmlSnippet: "", // 空文字列
           },
         ],

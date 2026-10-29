@@ -28,6 +28,7 @@ import {
   type PreferenceHearInput,
   type FeedbackItem,
 } from "./schemas";
+import { formatIssueLine } from "../../utils/issue-path";
 
 // =====================================================
 // 型定義 / Type Definitions
@@ -280,10 +281,10 @@ export async function preferenceHearHandler(input: unknown): Promise<PreferenceH
     validated = preferenceHearInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      const errorMessage = error.issues.map((e) => `${formatIssueLine(e)}`).join(", ");
 
       logger.warn("[MCP Tool] preference.hear validation error", {
-        errors: error.errors,
+        errors: error.issues,
       });
 
       return {
@@ -426,6 +427,7 @@ export const preferenceHearToolDefinition = {
       },
       feedback: {
         type: "array",
+        maxItems: 50,
         description:
           "フィードバック配列（存在する場合はモードB） / Feedback array (Mode B if present)",
         items: {

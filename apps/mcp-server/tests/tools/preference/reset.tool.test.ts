@@ -29,7 +29,7 @@ import { PREFERENCE_MCP_ERROR_CODES } from "../../../src/tools/preference/schema
 // テストデータ
 // =====================================================
 
-const MOCK_PROFILE_ID = "01234567-89ab-cdef-0123-456789abcdef";
+const MOCK_PROFILE_ID = "01234567-89ab-4def-9123-456789abcdef";
 
 // =====================================================
 // モックサービス
@@ -266,7 +266,7 @@ describe("preference.reset MCPツール", () => {
       setPreferenceServiceFactory(() => mockService);
 
       const result = await preferenceResetHandler({
-        profile_id: "99999999-9999-9999-9999-999999999999",
+        profile_id: "99999999-9999-4999-9999-999999999999",
         confirm: true,
       });
 

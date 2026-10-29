@@ -56,11 +56,11 @@ import { logger } from "../../src/utils/logger";
 // テストデータ / Test data
 // =====================================================
 
-const MOCK_PROFILE_ID = "01934567-89ab-7def-0123-456789abcdef";
-const MOCK_PROFILE_ID_2 = "01934567-89ab-7def-0123-456789abcde0";
-const MOCK_NARRATIVE_ID_1 = "11111111-1111-1111-1111-111111111111";
-const MOCK_NARRATIVE_ID_2 = "22222222-2222-2222-2222-222222222222";
-const MOCK_NARRATIVE_ID_3 = "33333333-3333-3333-3333-333333333333";
+const MOCK_PROFILE_ID = "01934567-89ab-7def-9123-456789abcdef";
+const MOCK_PROFILE_ID_2 = "01934567-89ab-7def-8123-456789abcde0";
+const MOCK_NARRATIVE_ID_1 = "11111111-1111-4111-9111-111111111111";
+const MOCK_NARRATIVE_ID_2 = "22222222-2222-4222-9222-222222222222";
+const MOCK_NARRATIVE_ID_3 = "33333333-3333-4333-8333-333333333333";
 
 /** 768次元の擬似embeddingベクトル / 768-dimensional pseudo embedding vector */
 function createMockEmbedding(): number[] {
@@ -579,7 +579,7 @@ describe("PreferenceProfileService", () => {
       setPreferencePrismaClientFactory(() => mockPrisma);
       service = new PreferenceProfileService();
 
-      const result = await service.getProfile("99999999-9999-9999-9999-999999999999");
+      const result = await service.getProfile("99999999-9999-4999-9999-999999999999");
 
       expect(result).toBeNull();
     });
@@ -627,7 +627,7 @@ describe("PreferenceProfileService", () => {
       setPreferencePrismaClientFactory(() => mockPrisma);
       service = new PreferenceProfileService();
 
-      await expect(service.resetProfile("99999999-9999-9999-9999-999999999999")).rejects.toThrow(
+      await expect(service.resetProfile("99999999-9999-4999-9999-999999999999")).rejects.toThrow(
         "Profile not found"
       );
     });
@@ -706,7 +706,7 @@ describe("PreferenceProfileService", () => {
       setPreferencePrismaClientFactory(() => mockPrisma);
       service = new PreferenceProfileService();
 
-      await expect(service.deleteProfile("99999999-9999-9999-9999-999999999999")).rejects.toThrow(
+      await expect(service.deleteProfile("99999999-9999-4999-9999-999999999999")).rejects.toThrow(
         "Profile not found"
       );
     });
@@ -721,7 +721,7 @@ describe("PreferenceProfileService", () => {
       const signalDate = new Date("2026-03-07T01:00:00Z");
       const queryMock = vi.fn().mockResolvedValueOnce([
         {
-          id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
           signal_type: "hearing_positive",
           signal_weight: 1.0,
           target_type: "web_page",
@@ -730,7 +730,7 @@ describe("PreferenceProfileService", () => {
           created_at: signalDate,
         },
         {
-          id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+          id: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
           signal_type: "hearing_negative",
           signal_weight: -0.5,
           target_type: "web_page",

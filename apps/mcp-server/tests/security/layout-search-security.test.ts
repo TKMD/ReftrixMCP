@@ -54,7 +54,7 @@ describe("layout.search SQLインジェクション対策", () => {
       const result = layoutSearchInputSchema.safeParse(maliciousInput);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors.some((e) => e.message.includes("#RRGGBB"))).toBe(true);
+        expect(result.error.issues.some((e) => e.message.includes("#RRGGBB"))).toBe(true);
       }
     });
 

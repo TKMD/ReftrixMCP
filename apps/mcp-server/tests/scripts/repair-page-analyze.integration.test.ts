@@ -83,7 +83,7 @@ describe.skipIf(!isDatabaseAvailable)(
         action: "embedding_backfill_repair_dryrun",
         actor: `repair-script:${testRunMarker}`,
         targetType: "web_page",
-        targetId: "00000000-0000-7000-0000-000000000000",
+        targetId: "00000000-0000-7000-8000-000000000000",
         details: {
           repair_reason: "pr7e_beta1_integration_test",
           pr: "PR7e-β1",
@@ -131,7 +131,7 @@ describe.skipIf(!isDatabaseAvailable)(
         action: "embedding_backfill_repair_dryrun",
         actor: `repair-script:${uniqueMarker}`,
         targetType: "web_page",
-        targetId: "00000000-0000-7000-0000-000000000001",
+        targetId: "00000000-0000-7000-9000-000000000001",
         details: { repair_reason: "no_bootstrap_test" },
         result: "success",
       });

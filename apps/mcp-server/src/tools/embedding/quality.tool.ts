@@ -23,6 +23,7 @@ import type {
   QualityMonitorResult,
   MonitorScope,
 } from "../../services/embedding-quality-monitor.service";
+import { formatIssueLine } from "../../utils/issue-path";
 
 // =====================================================
 // エラーコード / Error Codes
@@ -125,10 +126,10 @@ export async function embeddingQualityHandler(input: unknown): Promise<Embedding
     validated = embeddingQualityInputSchema.parse(input);
   } catch (error) {
     if (error instanceof ZodError) {
-      const errorMessage = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      const errorMessage = error.issues.map((e) => `${formatIssueLine(e)}`).join(", ");
 
       logger.warn("[MCP Tool] embedding.quality validation error", {
-        errors: error.errors,
+        errors: error.issues,
       });
 
       return {

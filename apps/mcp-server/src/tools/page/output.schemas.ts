@@ -51,7 +51,7 @@ export const cssFrameworkCompositeResultSchema = z.object({
   /** セカンダリフレームワーク（併用されている） */
   secondary: z.array(cssFrameworkTypeSchema),
   /** 各フレームワークの信頼度 */
-  confidenceMap: z.record(cssFrameworkTypeSchema, z.number().min(0).max(1)),
+  confidenceMap: z.partialRecord(cssFrameworkTypeSchema, z.number().min(0).max(1)),
   /** CSS変数が検出されたか */
   hasCssVariables: z.boolean(),
   /** CSS変数の信頼度（0-1） */
@@ -179,7 +179,7 @@ export const layoutResultSummarySchema = z.object({
   success: z.boolean(),
   pageId: z.string().uuid().optional(),
   sectionCount: z.number().int().nonnegative(),
-  sectionTypes: z.record(z.number().int().nonnegative()),
+  sectionTypes: z.record(z.string(), z.number().int().nonnegative()),
   processingTimeMs: z.number().nonnegative(),
   error: errorInfoSchema.optional(),
   /** CSSフレームワーク検出結果 */
@@ -487,7 +487,7 @@ export const visionAnalysisWarningSchema = z.object({
   /** 関連フィールド */
   field: z.string().optional(),
   /** 詳細情報 */
-  details: z.record(z.unknown()).optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
 });
 export type VisionAnalysisWarning = z.infer<typeof visionAnalysisWarningSchema>;
 
@@ -591,7 +591,7 @@ export type LayoutResult = LayoutResultSummary | LayoutResultFull;
 export const motionResultSummarySchema = z.object({
   success: z.boolean(),
   patternCount: z.number().int().nonnegative(),
-  categoryBreakdown: z.record(z.number().int().nonnegative()),
+  categoryBreakdown: z.record(z.string(), z.number().int().nonnegative()),
   warningCount: z.number().int().nonnegative(),
   a11yWarningCount: z.number().int().nonnegative(),
   perfWarningCount: z.number().int().nonnegative(),
@@ -1031,7 +1031,7 @@ export const actionableWarningSchema = z.object({
   /** ドキュメントへのリンク */
   docs: z.string().url().optional(),
   /** 追加のコンテキスト情報 */
-  context: z.record(z.unknown()).optional(),
+  context: z.record(z.string(), z.unknown()).optional(),
 });
 export type ActionableWarningSchema = z.infer<typeof actionableWarningSchema>;
 /** ActionableWarningの型エイリアス（result-builder.ts等からの参照用） */
@@ -1609,7 +1609,7 @@ export const backfillPendingSkipRecoverySchema = z.object({
   skipReason: z.string().superRefine((value, ctx) => {
     if (!EMBEDDING_SKIP_REASONS.includes(value as (typeof EMBEDDING_SKIP_REASONS)[number])) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: `Invalid skipReason: ${value}. Must be one of EMBEDDING_SKIP_REASONS.`,
       });
     }
@@ -1626,7 +1626,7 @@ export const backfillPendingSkipRecoverySchema = z.object({
         )
       ) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: [idx],
           message: `Invalid backfill category: ${value}.`,
         });

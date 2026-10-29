@@ -25,7 +25,7 @@ describe("truncateId", () => {
   // =====================================================
   describe("通常のUUID / normal UUID", () => {
     it('UUIDの先頭8文字 + "..." を返す / returns first 8 chars + "..."', () => {
-      const uuid = "01234567-89ab-cdef-0123-456789abcdef";
+      const uuid = "01234567-89ab-4def-9123-456789abcdef";
       expect(truncateId(uuid)).toBe("01234567...");
     });
 
@@ -71,14 +71,14 @@ describe("truncateId", () => {
   // =====================================================
   describe("PII保護 / PII protection", () => {
     it("完全なUUIDが出力に含まれない / full UUID is not in output", () => {
-      const uuid = "01234567-89ab-cdef-0123-456789abcdef";
+      const uuid = "01234567-89ab-4def-9123-456789abcdef";
       const result = truncateId(uuid);
       expect(result).not.toBe(uuid);
       expect(result.length).toBeLessThan(uuid.length);
     });
 
     it("ハイフンを含むUUIDの9文字目以降が含まれない / characters after position 8 are hidden", () => {
-      const uuid = "01234567-89ab-cdef-0123-456789abcdef";
+      const uuid = "01234567-89ab-4def-9123-456789abcdef";
       const result = truncateId(uuid);
       expect(result).not.toContain("89ab");
       expect(result).not.toContain("cdef");
