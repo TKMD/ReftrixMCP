@@ -27,15 +27,15 @@ Reftrix MCP Server provides web design layout analysis, motion detection, and qu
 
 ### 技術スタック / Tech Stack
 
-| 技術 / Technology | バージョン / Version | 用途 / Purpose                                    |
-| ----------------- | -------------------- | ------------------------------------------------- |
-| MCP SDK           | 1.26.x               | Model Context Protocol実装                        |
-| Node.js           | 20.x LTS             | ランタイム                                        |
-| TypeScript        | 5.x                  | 型安全な開発                                      |
-| Zod               | 4.6.x                | 入力バリデーション                                |
-| BullMQ            | 5.66.x               | 非同期ジョブキュー（page.analyze）                |
-| Redis             | -                    | BullMQジョブキューのバックエンド（ポート: 27379） |
-| ONNX Runtime      | 1.21.x               | ML推論（Embedding生成、Worker Thread化）          |
+| 技術 / Technology | バージョン / Version           | 用途 / Purpose                                                             |
+| ----------------- | ------------------------------ | -------------------------------------------------------------------------- |
+| MCP SDK           | 1.26.x                         | Model Context Protocol実装                                                 |
+| Node.js           | 22.23.4+ / 24.22.1+ / 26.12.1+ | ランタイム（`^22.23.4 \|\| ^24.22.1 \|\| ^26.12.1`、範囲外は起動時に終了） |
+| TypeScript        | 5.x                            | 型安全な開発                                                               |
+| Zod               | 4.6.x                          | 入力バリデーション                                                         |
+| BullMQ            | 5.66.x                         | 非同期ジョブキュー（page.analyze）                                         |
+| Redis             | -                              | BullMQジョブキューのバックエンド（ポート: 27379）                          |
+| ONNX Runtime      | 1.21.x                         | ML推論（Embedding生成、Worker Thread化）                                   |
 
 ## インストール / Installation
 

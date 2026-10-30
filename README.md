@@ -67,7 +67,7 @@ AIエージェントと統合するプラットフォームです。
 
 ### Prerequisites
 
-Node.js 20+, pnpm 10+, Docker & Docker Compose, [Ollama](https://ollama.com/)
+Node.js `^22.23.4 || ^24.22.1 || ^26.12.1`, pnpm 10+, Docker & Docker Compose, [Ollama](https://ollama.com/)
 
 ### Setup
 

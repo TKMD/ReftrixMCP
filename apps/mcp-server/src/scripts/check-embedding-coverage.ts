@@ -15,6 +15,7 @@
  * @module scripts/check-embedding-coverage
  */
 
+import "@reftrixmcp/core/assert-node-runtime";
 import { prisma } from "@reftrixmcp/database";
 import { loadEnvLocal } from "@reftrixmcp/core";
 import {

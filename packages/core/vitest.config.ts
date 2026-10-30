@@ -14,7 +14,16 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "json", "html", "lcov"],
       include: ["src/**/*.ts"],
-      exclude: ["src/**/*.d.ts", "src/**/index.ts", "src/**/*.test.ts", "node_modules/", "dist/"],
+      // src/runtime/assert-node-runtime.ts is a process-exiting side-effect module; it is exercised by
+      // spawned-process tests in INV-SEC-NODE-RUNTIME-FLOOR-001, which v8 coverage cannot attribute.
+      exclude: [
+        "src/runtime/assert-node-runtime.ts",
+        "src/**/*.d.ts",
+        "src/**/index.ts",
+        "src/**/*.test.ts",
+        "node_modules/",
+        "dist/",
+      ],
       thresholds: {
         statements: 80,
         branches: 70,

@@ -16,6 +16,8 @@
  * - 配線漏れ検出（必須サービス未初期化の警告）
  */
 
+// Node.js runtime floor guard: must stay the first statement (INV-SEC-NODE-RUNTIME-FLOOR-001)
+import "@reftrixmcp/core/assert-node-runtime";
 import { createServer, start, SERVER_CONFIG } from "./server";
 import { createTransport } from "./transport";
 import { logger, validateEnvironment } from "./utils/logger";

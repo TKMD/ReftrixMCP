@@ -93,7 +93,7 @@ ReftrixMCPはデュアルライセンスモデルであるAGPL-3.0-only + 商用
 
 以下のツールがインストールされている必要があります:
 
-- **Node.js**: v20.19.0以上
+- **Node.js**: v22.23.4以上（22 系列）、v24.22.1以上（24 系列）、v26.12.1以上（26 系列）
 - **pnpm**: `package.json` の `packageManager` フィールドで指定されたバージョンを使用してください（Corepackで自動管理されます）
 - **Docker**: v24.0以上（データベース用）
 - **Git**: v2.40以上
@@ -498,7 +498,7 @@ npm への公開は CI 駆動です（Trusted Publishing / OIDC、`NPM_TOKEN` �
 
 1. プライベートリポでバージョンを bump → `bash scripts/sync-oss.sh` で OSS リポ（`TKMD/ReftrixMCP`）へ git 同期する。**`sync-oss.sh` は既定で npm publish を skip します**（publish は CI 側の責務）。
 2. OSS リポで `v*` タグの GitHub Release を手動作成する: `gh release create vX.Y.Z --repo TKMD/ReftrixMCP`（prerelease は `--prerelease` を付与し、タグを `vX.Y.Z-beta.N` 形式にする）。
-3. `release: published` イベントが `.github/workflows/publish.yml` を起動する。`verify` job（Node 20、Environment gate なし）がタグ検証・build・全 tarball 検証を行う。
+3. `release: published` イベントが `.github/workflows/publish.yml` を起動する。`verify` job（Node 22.23.4、Environment gate なし）がタグ検証・build・全 tarball 検証を行う。
 4. `publish` job（Node 22）は **`npm-publish` GitHub Environment の required-reviewer 承認 1 回**の後にのみ実行され、5 パッケージ（`@reftrixmcp/core` → `database` → `ml` → `webdesign-core` → `mcp-server`）を Tier 順に **npm Trusted Publishing (OIDC)** + `--provenance` で公開する。再実行は冪等（公開済バージョンは skip）。
 5. **Fallback（CI/OIDC 障害時のみ）**: どうしても CI 経由で公開できない場合に限り、`bash scripts/sync-oss.sh --local-publish` でローカル npm publish を明示 opt-in できる（Environment 承認 gate を bypass するため通常経路では使わない）。旧 `--skip-publish` は現在 no-op（skip は既定）で、後方互換のために残されている。
 
@@ -601,7 +601,7 @@ PRを作成すると、[`.github/pull_request_template.md`](.github/pull_request
 
 - OS: [例: macOS 14.0]
 - ブラウザ: [例: Chrome 120]
-- Node.js: [例: v20.19.0]
+- Node.js: [例: v22.23.4]
 
 ## スクリーンショット
 
@@ -720,7 +720,7 @@ ReftrixMCP uses a dual-license model (AGPL-3.0-only + Commercial License). To al
 
 Ensure you have the following tools installed:
 
-- **Node.js**: v20.19.0 or higher
+- **Node.js**: v22.23.4+ (22 line), v24.22.1+ (24 line) or v26.12.1+ (26 line)
 - **pnpm**: Use the version specified in the `packageManager` field of `package.json` (automatically managed by Corepack)
 - **Docker**: v24.0 or higher (for database)
 - **Git**: v2.40 or higher
@@ -1090,7 +1090,7 @@ npm publishing is CI-driven (Trusted Publishing / OIDC, no `NPM_TOKEN`). Follow 
 
 1. Bump the version in the private repo, then run `bash scripts/sync-oss.sh` to git-sync to the OSS repo (`TKMD/ReftrixMCP`). **`sync-oss.sh` skips npm publish by default** (publishing is CI's responsibility).
 2. Manually create a GitHub Release for a `v*` tag in the OSS repo: `gh release create vX.Y.Z --repo TKMD/ReftrixMCP` (for a prerelease, add `--prerelease` and use a `vX.Y.Z-beta.N` tag).
-3. The `release: published` event triggers `.github/workflows/publish.yml`. The `verify` job (Node 20, no Environment gate) validates the tag, builds, and validates every tarball.
+3. The `release: published` event triggers `.github/workflows/publish.yml`. The `verify` job (Node 22.23.4, no Environment gate) validates the tag, builds, and validates every tarball.
 4. The `publish` job (Node 22) runs only after **one required-reviewer approval of the `npm-publish` GitHub Environment**, publishing the 5 packages (`@reftrixmcp/core` → `database` → `ml` → `webdesign-core` → `mcp-server`) in Tier order via **npm Trusted Publishing (OIDC)** + `--provenance`. Re-runs are idempotent (already-published versions are skipped).
 5. **Fallback (CI/OIDC failure only)**: only when publishing via CI is genuinely impossible, `bash scripts/sync-oss.sh --local-publish` explicitly opts into a local npm publish (do NOT use it in the normal flow — it bypasses the Environment-approval gate). The former `--skip-publish` is now a no-op (skip is the default), kept for backward compatibility.
 

@@ -27,6 +27,7 @@
  *   pnpm --filter @reftrixmcp/mcp-server exec tsx scripts/generate-sharp-parity-baseline.ts
  */
 
+import "@reftrixmcp/core/assert-node-runtime";
 import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

@@ -21,7 +21,7 @@ on:
     branches: [main]
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "22.23.4"
   # CI environment flag for conditional test execution
   CI: "true"
   # Disable robots.txt checks in CI (no external network access for robots.txt fetch)

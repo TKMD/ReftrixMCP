@@ -26,6 +26,7 @@
  * @module scripts/backfill-embeddings
  */
 
+import "@reftrixmcp/core/assert-node-runtime";
 import { prisma } from "@reftrixmcp/database";
 import { embeddingService } from "@reftrixmcp/ml";
 import {

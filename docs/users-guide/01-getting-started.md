@@ -24,7 +24,7 @@ Reftrix is a platform that aggregates web design as a "searchable knowledge base
 | 項目 / Item         | 要件 / Requirement                                                                                                                                                                                                                                                                       |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **OS**              | Linux (Ubuntu 20.04+), macOS 12+, Windows 10/11                                                                                                                                                                                                                                          |
-| **Node.js**         | 20.x LTS 以上（>=20.19.0）/ 20.x LTS or higher (>=20.19.0)                                                                                                                                                                                                                               |
+| **Node.js**         | 22.23.4 以上（22 系列）、24.22.1 以上（24 系列）、26.12.1 以上（26 系列）/ 22.23.4+, 24.22.1+ or 26.12.1+ (`^22.23.4 \|\| ^24.22.1 \|\| ^26.12.1`)                                                                                                                                       |
 | **pnpm**            | 10.x 以上 / 10.x or higher                                                                                                                                                                                                                                                               |
 | **PostgreSQL**      | 18.x（pgvector 0.8.x）                                                                                                                                                                                                                                                                   |
 | **Redis**           | 7.x 以上（BullMQジョブキュー用）/ 7.x or higher (for BullMQ job queue)                                                                                                                                                                                                                   |
@@ -54,9 +54,9 @@ Reftrix is a platform that aggregates web design as a "searchable knowledge base
 # Node Version Manager (nvm) を使用する場合 / Using Node Version Manager (nvm)
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
 source ~/.bashrc  # または ~/.zshrc / or ~/.zshrc
-nvm install 20
-nvm use 20
-node --version  # v20.x.x を確認 / Verify v20.x.x
+nvm install 22.23.4
+nvm use 22.23.4
+node --version  # v22.23.4 以上を確認 / Verify v22.23.4 or newer
 ```
 
 #### pnpm のインストール / Installing pnpm

@@ -29,6 +29,8 @@
 
 /* eslint-disable no-console */
 
+// Node.js runtime floor guard: must stay the first statement (INV-SEC-NODE-RUNTIME-FLOOR-001)
+import "@reftrixmcp/core/assert-node-runtime";
 import { loadEnvLocal as loadEnvLocalShared } from "@reftrixmcp/core";
 import { computeMemoryProfile, logMemoryProfile } from "../services/worker-memory-profile";
 // v0.4.0 PR7d-2: Redis-based dual-run detection.

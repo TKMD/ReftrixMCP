@@ -638,6 +638,12 @@ export const baseConfig = [
     ],
     rules: { complexity: ["error", 10] },
   },
+  // INV-SEC-NODE-RUNTIME-FLOOR-001: the Node runtime floor SSOT is a pure-function file, CC-gated.
+  // Node 実行時下限の SSOT（純関数 file）を CC 10 で machine-enforce。
+  {
+    files: ["packages/core/src/runtime/node-runtime-floor.ts"],
+    rules: { complexity: ["error", 10] },
+  },
   {
     ignores: [
       "**/node_modules/**",

@@ -54,6 +54,7 @@
 
 /* eslint-disable no-console */
 
+import "@reftrixmcp/core/assert-node-runtime";
 import { prisma } from "@reftrixmcp/database";
 import { computeRemainingStatusWithPrisma } from "../services/backfill-status.helper";
 import { AUDIT_LOG_CONSTANTS, getAuditLogService } from "../services/audit-log.service";

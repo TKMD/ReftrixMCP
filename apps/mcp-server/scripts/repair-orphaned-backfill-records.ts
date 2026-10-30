@@ -37,6 +37,7 @@
  * @module scripts/repair-orphaned-backfill-records
  */
 
+import "@reftrixmcp/core/assert-node-runtime";
 import * as fs from "node:fs";
 import { PrismaClient } from "@reftrixmcp/database";
 // PR7e-β1: shared .env.local loader.

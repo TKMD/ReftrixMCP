@@ -106,7 +106,7 @@ export function scheduleWorkerStderrCleanupCron(
   const checkDiskPressure = async (): Promise<void> => {
     if (stopped) return;
     try {
-      // fs.statfs is Node.js 18.15+ / 20+; we depend on Node 20 LTS.
+      // fs.statfs is Node.js 18.15+ / 20+; we require ^22.23.4 || ^24.22.1 || ^26.12.1.
       const stats = await fsp.statfs(absoluteDir);
       const availableBytes = stats.bavail * stats.bsize;
       if (availableBytes < DISK_PRESSURE_THRESHOLD_BYTES) {
