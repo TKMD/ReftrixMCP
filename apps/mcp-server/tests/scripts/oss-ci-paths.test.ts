@@ -12,10 +12,10 @@
  * @module tests/scripts/oss-ci-paths.test
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { spawnSync } from "node:child_process";
 import { join, posix, resolve } from "node:path";
 import { load } from "js-yaml";
 import { describe, expect, it } from "vitest";
+import { ossOutput } from "./support/oss-output";
 
 const REPO_ROOT = resolve(__dirname, "../../../..");
 const PREPARE = join(REPO_ROOT, "scripts/prepare-oss.sh");
@@ -37,33 +37,6 @@ function referenceFormViolations(text: string): string[] {
 // disabled and every 403 fails (the 403 rows of the wait script tests). Remove this entry the
 // moment the file exists; the test below asserts it is absent in both trees.
 const ABSENT_BY_DESIGN = "scripts/ci/fixtures/npm-403-republish.txt";
-
-function ossOutput(): (path: string) => boolean {
-  if (!existsSync(PREPARE)) return (p) => existsSync(join(REPO_ROOT, p));
-  const src = readFileSync(PREPARE, "utf-8");
-  const block = src.slice(src.indexOf("phase2_rsync() {"), src.indexOf('./ "$OSS_DIR/"'));
-  const includes = [...block.matchAll(/--include='([^']+)'/g)].map((m) => `--include=${m[1]}`);
-  expect(includes.length).toBeGreaterThan(30);
-  expect(block.match(/--exclude=/g)).toHaveLength(1);
-  expect(block).toContain("--exclude='*'");
-  const r = spawnSync(
-    "rsync",
-    [
-      "-anm",
-      "--safe-links",
-      "--out-format=%n",
-      "--filter=merge .ossfilter",
-      ...includes,
-      "--exclude=*",
-      "./",
-      "/nonexistent-oss/",
-    ],
-    { cwd: REPO_ROOT, encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 }
-  );
-  expect(r.status, r.stderr).toBe(0);
-  const files = new Set(r.stdout.split("\n").filter((l) => l && !l.endsWith("/")));
-  return (p) => files.has(p);
-}
 
 /** Workflow files that reach the OSS output (prepare-oss.sh --include list; the OSS repo itself otherwise). */
 function syncedWorkflows(): string[] {

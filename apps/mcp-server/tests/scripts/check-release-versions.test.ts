@@ -10,7 +10,7 @@
  *
  * @module tests/scripts/check-release-versions.test
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -97,5 +97,61 @@ describe("INV-REGSYNC-VERSION-001: check-release-versions.sh", () => {
     expect(run("1.2.3").rc).toBe(2);
     expect(spawnSync("bash", [SCRIPT, join(dir, "nope"), TAG]).status).toBe(2);
     expect(spawnSync("bash", [SCRIPT, dir]).status).toBe(2);
+  });
+
+  // OSSCI-Plan-02 (SEC-OSSCI-PLAN-L-01): the package list is the script's only source of truth. When it
+  // cannot be loaded or is empty the script must fail closed; reading the 5 packages as "no packages"
+  // would let publish.yml `verify` pass a release whose package versions were never compared.
+  describe("fails closed when the package list cannot be loaded", () => {
+    const stage = (publishTargets: string | null): string => {
+      const root = mkdtempSync(join(tmpdir(), "rel-ver-script-"));
+      mkdirSync(join(root, "scripts/ci"), { recursive: true });
+      copyFileSync(SCRIPT, join(root, "scripts/ci/check-release-versions.sh"));
+      if (publishTargets !== null) {
+        writeFileSync(join(root, "scripts/publish-targets.sh"), publishTargets);
+      }
+      return root;
+    };
+    const runStaged = (root: string): { rc: number; out: string } => {
+      const r = spawnSync("bash", [join(root, "scripts/ci/check-release-versions.sh"), dir, TAG], {
+        encoding: "utf-8",
+      });
+      return { rc: r.status ?? -1, out: `${r.stdout}${r.stderr}` };
+    };
+    let staged: string;
+    afterEach(() => {
+      rmSync(staged, { recursive: true, force: true });
+    });
+
+    it("exits non-zero when scripts/publish-targets.sh cannot be sourced", () => {
+      seed();
+      staged = stage(null);
+      const r = runStaged(staged);
+      expect(r.rc, r.out).not.toBe(0);
+      expect(r.out).not.toContain("OK: all release versions");
+    });
+
+    it("exits non-zero when PUBLISH_PACKAGES is empty", () => {
+      seed();
+      staged = stage("PUBLISH_PACKAGES=()\n");
+      const r = runStaged(staged);
+      expect(r.rc, r.out).not.toBe(0);
+      expect(r.out).not.toContain("OK: all release versions");
+    });
+
+    it("exits non-zero when PUBLISH_PACKAGES is never defined", () => {
+      seed();
+      staged = stage("# defines nothing\n");
+      const r = runStaged(staged);
+      expect(r.rc, r.out).not.toBe(0);
+      expect(r.out).not.toContain("OK: all release versions");
+    });
+
+    it("control: a staged copy with the real package list still passes (the staging itself is sound)", () => {
+      seed();
+      staged = stage(readFileSync(join(REPO_ROOT, "scripts/publish-targets.sh"), "utf-8"));
+      const r = runStaged(staged);
+      expect(r.rc, r.out).toBe(0);
+    });
   });
 });

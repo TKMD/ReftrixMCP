@@ -18,10 +18,10 @@ Reftrixプロジェクトのセキュリティを真剣に受け止めていま�
 
 | バージョン | サポート状況      |
 | ---------- | ----------------- |
-| 0.3.x      | ✅ サポート中     |
-| 0.2.x      | ✅ サポート中     |
-| 0.1.x      | ⚠️ 限定サポート   |
-| < 0.1.0    | ❌ サポート対象外 |
+| 0.7.x      | ✅ サポート中     |
+| < 0.7.0    | ❌ サポート対象外 |
+
+0.7.0 未満の版には起動時の検査が無く、2026-10-21 のセキュリティリリースより古い Node.js でも動作します。0.7.x に更新し（Node.js `^22.23.4 || ^24.22.1 || ^26.12.1`）、Node.js 自体も最新に保ってください。
 
 **注意**: Reftrixは現在初期リリースフェーズです。本番環境での使用は十分なテストの上で行ってください。
 
@@ -244,7 +244,7 @@ Reftrixでは、Webページクロール時に取得したHTMLをDOMPurify v3.4.
 
 ---
 
-**最終更新日**: 2026-03-25
+**最終更新日**: 2026-10-31
 
 ---
 
@@ -260,12 +260,12 @@ We take the security of the ReftrixMCP project seriously. This document outlines
 
 The following versions are currently receiving security updates:
 
-| Version | Support Status     |
-| ------- | ------------------ |
-| 0.3.x   | ✅ Supported       |
-| 0.2.x   | ✅ Supported       |
-| 0.1.x   | ⚠️ Limited Support |
-| < 0.1.0 | ❌ Not Supported   |
+| Version | Support Status   |
+| ------- | ---------------- |
+| 0.7.x   | ✅ Supported     |
+| < 0.7.0 | ❌ Not Supported |
+
+Releases before 0.7.0 have no start-up check and run on Node.js releases older than the 2026-10-21 security releases; update to 0.7.x (Node.js `^22.23.4 || ^24.22.1 || ^26.12.1`) and keep Node.js itself up to date.
 
 **Note**: ReftrixMCP is in its initial release phase. Please test thoroughly before production use.
 
@@ -489,4 +489,4 @@ For security questions or concerns:
 
 ---
 
-**Last Updated**: 2026-03-25
+**Last Updated**: 2026-10-31

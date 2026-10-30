@@ -12,7 +12,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { once } from "node:events";
 import type { Server } from "http";
+import type { AddressInfo } from "node:net";
 
 // =====================================================
 // 外部依存モック / External dependency mocks
@@ -88,6 +90,33 @@ import {
 // =====================================================
 // テスト / Tests
 // =====================================================
+
+// =====================================================
+// ヘルパー / Helpers
+// =====================================================
+
+/**
+ * port 0（OS 割り当て）で起動し、listen 完了を待って実ポートを返す。
+ * 乱数ポートは ephemeral 範囲と衝突し得て、listen 完了前の fetch は ECONNREFUSED になる
+ * (tracked-issues/testing.md §15)。
+ *
+ * Starts on port 0 (OS-assigned), waits for `listening`, and returns the bound port.
+ * A random port can collide with the ephemeral range and a fetch before listen
+ * completes gets ECONNREFUSED (tracked-issues/testing.md §15).
+ */
+async function startOnFreePort(
+  username: string,
+  password: string
+): Promise<{ server: Server; port: number }> {
+  const server = await startBullBoard({ username, password, port: 0 });
+  if (server === null) {
+    throw new Error("startBullBoard returned null");
+  }
+  if (!server.listening) {
+    await once(server, "listening");
+  }
+  return { server, port: (server.address() as AddressInfo).port };
+}
 
 describe("getBullBoardConfig", () => {
   const originalEnv = process.env;
@@ -197,9 +226,9 @@ describe("startBullBoard - Basic Auth middleware", () => {
 
   beforeEach(() => {
     process.env = { ...originalEnv };
-    // ランダムポートを使用（ポート競合回避）
-    // Use random port (avoid port conflicts)
-    testPort = 30000 + Math.floor(Math.random() * 10000);
+    // testPort は各テストで port 0 起動後の実ポートを代入する
+    // testPort is assigned the actual bound port after a port-0 start in each test
+    testPort = 0;
   });
 
   afterEach(async () => {
@@ -214,15 +243,8 @@ describe("startBullBoard - Basic Auth middleware", () => {
 
   it("should return 401 when no authorization header is provided", async () => {
     // Arrange
-    const config: BullBoardConfig = {
-      username: "admin",
-      password: "secret",
-      port: testPort,
-    };
-
     // Act
-    server = await startBullBoard(config);
-    expect(server).not.toBeNull();
+    ({ server, port: testPort } = await startOnFreePort("admin", "secret"));
 
     const response = await fetch(`http://127.0.0.1:${testPort}/admin/queues`);
 
@@ -233,14 +255,8 @@ describe("startBullBoard - Basic Auth middleware", () => {
 
   it("should return 401 when invalid credentials are provided", async () => {
     // Arrange
-    const config: BullBoardConfig = {
-      username: "admin",
-      password: "secret",
-      port: testPort,
-    };
-
-    server = await startBullBoard(config);
-    expect(server).not.toBeNull();
+    // Act
+    ({ server, port: testPort } = await startOnFreePort("admin", "secret"));
 
     // Base64 encode "wrong-user:wrong-pass"
     const invalidCredentials = Buffer.from("wrong-user:wrong-pass").toString("base64");
@@ -258,14 +274,8 @@ describe("startBullBoard - Basic Auth middleware", () => {
 
   it("should pass authentication and not return 401 when valid credentials are provided", async () => {
     // Arrange
-    const config: BullBoardConfig = {
-      username: "admin",
-      password: "secret",
-      port: testPort,
-    };
-
-    server = await startBullBoard(config);
-    expect(server).not.toBeNull();
+    // Act
+    ({ server, port: testPort } = await startOnFreePort("admin", "secret"));
 
     // Base64 encode "admin:secret"
     const validCredentials = Buffer.from("admin:secret").toString("base64");
@@ -285,14 +295,8 @@ describe("startBullBoard - Basic Auth middleware", () => {
 
   it("should return 401 when correct username but wrong password is provided", async () => {
     // Arrange
-    const config: BullBoardConfig = {
-      username: "admin",
-      password: "secret",
-      port: testPort,
-    };
-
-    server = await startBullBoard(config);
-    expect(server).not.toBeNull();
+    // Act
+    ({ server, port: testPort } = await startOnFreePort("admin", "secret"));
 
     const partialCredentials = Buffer.from("admin:wrong-password").toString("base64");
 
@@ -309,14 +313,8 @@ describe("startBullBoard - Basic Auth middleware", () => {
 
   it("should return 401 when Authorization header is not Basic scheme", async () => {
     // Arrange
-    const config: BullBoardConfig = {
-      username: "admin",
-      password: "secret",
-      port: testPort,
-    };
-
-    server = await startBullBoard(config);
-    expect(server).not.toBeNull();
+    // Act
+    ({ server, port: testPort } = await startOnFreePort("admin", "secret"));
 
     // Act
     const response = await fetch(`http://127.0.0.1:${testPort}/admin/queues`, {
@@ -331,14 +329,8 @@ describe("startBullBoard - Basic Auth middleware", () => {
 
   it("should return 401 when base64 decoded value has no colon separator", async () => {
     // Arrange
-    const config: BullBoardConfig = {
-      username: "admin",
-      password: "secret",
-      port: testPort,
-    };
-
-    server = await startBullBoard(config);
-    expect(server).not.toBeNull();
+    // Act
+    ({ server, port: testPort } = await startOnFreePort("admin", "secret"));
 
     // Base64 encode "no-colon-here" (no separator)
     const malformedCredentials = Buffer.from("no-colon-here").toString("base64");
@@ -374,14 +366,8 @@ describe("startBullBoard - Basic Auth middleware", () => {
 
   it("should redirect root path to /admin/queues", async () => {
     // Arrange
-    const config: BullBoardConfig = {
-      username: "admin",
-      password: "secret",
-      port: testPort,
-    };
-
-    server = await startBullBoard(config);
-    expect(server).not.toBeNull();
+    // Act
+    ({ server, port: testPort } = await startOnFreePort("admin", "secret"));
 
     // Act — fetch without following redirects
     const response = await fetch(`http://127.0.0.1:${testPort}/`, {

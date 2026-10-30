@@ -515,29 +515,29 @@ describe("E2E: JSアニメーションライブラリ検出", () => {
   });
 
   it("GSAPグローバルオブジェクトを検出する", async () => {
-    const html = loadFixture("gsap-test.html");
+    // 外部ネットワークに依存しない: cdnjs の gsap.min.js 要求を、このテストが書いた
+    // 最小 stub（第三者コードを含まない）で応答する。stub は SRI（integrity）に合致しないので、
+    // fixture の integrity 属性を外した HTML を使う（tracked-issues/testing.md §14）。
+    // No external network: answer the cdnjs gsap.min.js request with a minimal stub
+    // written in this test (no third-party code). The stub cannot satisfy SRI, so the
+    // fixture's integrity attribute is stripped (tracked-issues/testing.md §14).
+    const stubVersion = "3.12.2-test-stub";
+    await page.route("https://cdnjs.cloudflare.com/ajax/libs/gsap/**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/javascript",
+        body: `window.gsap = { version: ${JSON.stringify(stubVersion)}, to: function () {} };`,
+      })
+    );
+    const html = loadFixture("gsap-test.html").replace(/\sintegrity="[^"]*"/, "");
+    expect(html).not.toContain("integrity=");
     await page.setContent(html);
 
-    // CDNからGSAPがロードされるのを待つ
-    await page
-      .waitForFunction(() => (window as unknown as { gsap?: unknown }).gsap !== undefined, {
-        timeout: 10000,
-      })
-      .catch(() => {
-        // GSAPがロードされなかった場合はスキップ
-      });
-
-    const hasGsap = await page.evaluate(() => {
-      return (window as unknown as { gsap?: { version?: string } }).gsap !== undefined;
+    const gsapVersion = await page.evaluate(() => {
+      return (window as unknown as { gsap?: { version?: string } }).gsap?.version;
     });
 
-    // CDN接続が失敗する環境ではスキップ
-    if (hasGsap) {
-      const gsapVersion = await page.evaluate(() => {
-        return (window as unknown as { gsap?: { version?: string } }).gsap?.version;
-      });
-      expect(gsapVersion).toBeDefined();
-    }
+    expect(gsapVersion).toBe(stubVersion);
   });
 
   it("Framer Motionマーカーを検出する", async () => {

@@ -30,8 +30,13 @@ TAG="$2"
 [ -d "$DATA_DIR" ] || die "data dir not found"
 [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9.]+)?$ ]] || die "bad tag"
 command -v jq >/dev/null 2>&1 || die "required tool not found: jq"
-# shellcheck source=../publish-targets.sh
-source "$SCRIPT_DIR/../publish-targets.sh"
+# The pinned ShellCheck step in ci.yml runs without -x, so it cannot follow this source; the
+# list it would read is checked at run time below instead.
+# shellcheck disable=SC1091 source=../publish-targets.sh
+source "$SCRIPT_DIR/../publish-targets.sh" || die "cannot load scripts/publish-targets.sh"
+# Fail closed: no package list must never read as "no packages to compare".
+declare -p PUBLISH_PACKAGES >/dev/null 2>&1 || die "PUBLISH_PACKAGES is not defined"
+[ "${#PUBLISH_PACKAGES[@]}" -gt 0 ] || die "PUBLISH_PACKAGES is empty"
 
 TAG_VERSION="${TAG#v}"
 FAILED=0

@@ -1,6 +1,6 @@
 {
   "name": "@reftrixmcp/mcp-server",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "license": "AGPL-3.0-only",
   "description": "MCP Server for Reftrix - AI agent integration for web design analysis, layout extraction, motion detection, and quality evaluation",
   "files": [

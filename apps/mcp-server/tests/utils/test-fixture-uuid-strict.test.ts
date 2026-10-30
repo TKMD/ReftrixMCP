@@ -22,26 +22,19 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { z } from "zod";
+import {
+  MIN_OSS_MATCHES,
+  REPO_ROOT,
+  SCAN_ROOTS,
+  scanAll as scanAllWith,
+  scannedFiles,
+  violationsIn as violationsInWith,
+} from "./support/uuid-fixture-scan";
 
-const REPO_ROOT = resolve(__dirname, "../../../..");
-const SCAN_ROOTS = ["apps", "packages"].flatMap((top) =>
-  readdirSync(join(REPO_ROOT, top))
-    .map((name) => join(REPO_ROOT, top, name, "tests"))
-    .filter((dir) => existsSync(dir))
-);
-const SELF = resolve(__filename);
-const EXTENSIONS = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|json)$/;
-/**
- * UUID-shaped literals in the scanned dirs (self excluded); a drop means the walk lost files.
- * 898 when the scope was widened (899 after #172 added one); 851 after #174 (measured on its merge):
- * -47 matches from the deleted tests/api/internal files and -1 from an edit of a standing test.
- */
-const MIN_MATCHES = 851;
-const UUID_SHAPE =
-  /\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b/g;
+export { MIN_OSS_MATCHES };
 
 /**
  * 意図的に不適合な UUID を使う negative test のみを許可する (file -> literal 集合)。
@@ -63,45 +56,9 @@ const INTENTIONAL_INVALID: Readonly<Record<string, readonly string[]>> = {
   ],
 };
 
-function walk(dir: string, out: string[]): void {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === "node_modules" || entry.name === "dist") continue;
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) walk(full, out);
-    else if (EXTENSIONS.test(entry.name) && resolve(full) !== SELF) out.push(full);
-  }
-}
-
-function scannedFiles(): string[] {
-  const files: string[] = [];
-  for (const root of SCAN_ROOTS) walk(root, files);
-  return files;
-}
-
-/** Non-conforming UUID literals in `text` that the allowlist does not name for `rel`. */
-function violationsIn(rel: string, text: string): { matches: number; violations: string[] } {
-  const strictUuid = z.string().uuid();
-  const allowed = new Set(INTENTIONAL_INVALID[rel] ?? []);
-  let matches = 0;
-  const violations: string[] = [];
-  for (const match of text.matchAll(UUID_SHAPE)) {
-    matches += 1;
-    if (!strictUuid.safeParse(match[0]).success && !allowed.has(match[0])) {
-      violations.push(`${rel}: ${match[0]}`);
-    }
-  }
-  return { matches, violations };
-}
-
-function scanAll(): { matches: number; violations: string[] } {
-  const total = { matches: 0, violations: [] as string[] };
-  for (const file of scannedFiles()) {
-    const found = violationsIn(relative(REPO_ROOT, file), readFileSync(file, "utf8"));
-    total.matches += found.matches;
-    total.violations.push(...found.violations);
-  }
-  return total;
-}
+const violationsIn = (rel: string, text: string): ReturnType<typeof violationsInWith> =>
+  violationsInWith(rel, text, INTENTIONAL_INVALID);
+const scanAll = (): ReturnType<typeof scanAllWith> => scanAllWith(INTENTIONAL_INVALID);
 
 /**
  * UUIDs assembled at run time: a variable head followed by a literal tail, `${i}-0000-4000-8000-...`
@@ -127,11 +84,15 @@ describe("test fixture UUID strictness (RFC 9562, zod 4 uuid())", () => {
     expect(rels).toEqual(
       expect.arrayContaining(["apps/mcp-server/tests", "packages/database/tests"])
     );
-    expect(rels.length).toBeGreaterThanOrEqual(6);
+    // Root count is not mirrored here: the OSS tree has fewer roots than the private tree (apps/cli is not
+    // synced). Each required root must contribute at least one file; the private-only sibling holds the
+    // private root count and floor (OSSCI-Plan-05).
+    const scanned = scanAll();
+    expect(scanned.rootsWithFiles).toEqual(expect.arrayContaining(rels.slice().sort()));
     const files = scannedFiles();
     expect(files.length).toBeGreaterThan(100);
     expect(files.some((f) => /\.(js|mjs|cjs)$/.test(f))).toBe(true);
-    expect(scanAll().matches).toBeGreaterThanOrEqual(MIN_MATCHES);
+    expect(scanned.matches).toBeGreaterThanOrEqual(MIN_OSS_MATCHES);
   });
 
   it("recognises a non-conforming UUID as a violation (positive control)", () => {

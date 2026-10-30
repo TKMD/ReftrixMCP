@@ -13,6 +13,7 @@
  *  (3) input echo through the raw-joined default message is a closed set (SEC-B1-02): it may only
  *      shrink, never spread to a new case.
  */
+import { readFileSync } from "node:fs";
 import * as path from "node:path";
 
 import { describe, it, expect } from "vitest";
@@ -103,11 +104,25 @@ describe("INV-ZOD-ERROR-RAWJOIN-SNAPSHOT-001 (1b) fixed set of first-issue reads
     expect(actual).toEqual(expected);
   });
 
-  it("style-get-palette.ts reads the first issue at :152 and its message at :159 (client-reaching)", () => {
-    const palette = sites
-      .filter((s) => s.file === "src/tools/style-get-palette.ts")
-      .map((s) => `${s.kind}@${s.line}`);
-    expect(palette).toEqual(["first-issue-read@152", "first-issue-message@159"]);
+  it("style-get-palette.ts reads the first issue and its message at the two anchored lines (client-reaching)", () => {
+    // Lines are derived from content anchors, never fixed: scripts/prepare-oss.sh inserts a SPDX header
+    // (+3 lines) into src files that lack one, so an absolute line number differs between the private
+    // tree and the OSS tree. Each anchor must occur exactly once, so a second read or a moved message
+    // read cannot hide behind a derived line (SEC-OSSCI C-2: the client-reaching positions stay asserted).
+    const FILE = "src/tools/style-get-palette.ts";
+    const lines = readFileSync(path.join(PKG_ROOT, FILE), "utf8").split("\n");
+    const lineOf = (anchor: string): number[] =>
+      lines.flatMap((l, i) => (l.includes(anchor) ? [i + 1] : []));
+    const readLines = lineOf("const firstError = error.issues[0];");
+    const messageLines = lineOf("${firstError.message}");
+    expect(readLines, "first-issue read anchor must occur exactly once").toHaveLength(1);
+    expect(messageLines, "message read anchor must occur exactly once").toHaveLength(1);
+
+    const palette = sites.filter((s) => s.file === FILE).map((s) => `${s.kind}@${s.line}`);
+    expect(palette).toEqual([
+      `first-issue-read@${readLines[0]}`,
+      `first-issue-message@${messageLines[0]}`,
+    ]);
   });
 
   it("totals: 5 site rows in 3 files, 1 file client-reaching", () => {
