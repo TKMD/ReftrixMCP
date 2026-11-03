@@ -1,6 +1,6 @@
 {
   "name": "@reftrixmcp/mcp-server",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "license": "AGPL-3.0-only",
   "description": "MCP Server for Reftrix - AI agent integration for web design analysis, layout extraction, motion detection, and quality evaluation",
   "files": [
@@ -70,6 +70,7 @@
     "clean": "rm -rf dist node_modules .turbo"
   },
   "dependencies": {
+    "@axe-core/playwright": "^4.11.0",
     "@bull-board/api": "^6.20.6",
     "@bull-board/express": "^6.20.6",
     "@modelcontextprotocol/sdk": "^1.32.1",
@@ -80,6 +81,7 @@
     "@reftrixmcp/webdesign-core": "workspace:*",
     "axe-core": "^4.10.2",
     "bullmq": "^5.66.5",
+    "cheerio": "^1.2.0",
     "culori": "^4.0.2",
     "dompurify": "^3.4.16",
     "express": "^5.2.1",
@@ -88,13 +90,17 @@
     "jsdom": "^27.2.0",
     "lru-cache": "^11.2.7",
     "pixelmatch": "^6.0.0",
+    "playwright": "1.57.0",
     "pngjs": "^7.0.0",
     "sharp": "^0.35.5",
+    "uuid": "^14.0.0",
     "ws": "^8.18.0",
     "zod": "^4.6.7"
   },
+  "optionalDependencies": {
+    "onnxruntime-node": "1.21.0"
+  },
   "devDependencies": {
-    "@axe-core/playwright": "^4.11.0",
     "@reftrixmcp/config": "workspace:*",
     "@types/culori": "^4.0.1",
     "@types/dompurify": "^3.2.0",
@@ -102,7 +108,6 @@
     "@types/jsdom": "^27.0.0",
     "@types/node": "^22.0.0",
     "@types/pixelmatch": "^5.2.6",
-    "playwright": "^1.57.0",
     "testcontainers": "^11.14.0",
     "tsx": "^4.0.0",
     "typescript": "^5.9.0",

@@ -10,7 +10,7 @@
  * @module @reftrixmcp/webdesign-core/services/preflight-probe
  */
 
-import { isUrlAllowedByRobotsTxt, ROBOTS_TXT } from "@reftrixmcp/core";
+import { isUrlAllowedByRobotsTxt, ROBOTS_TXT, safeFetch } from "@reftrixmcp/core";
 
 // =============================================================================
 // Constants
@@ -611,7 +611,7 @@ export class PreflightProbeService implements IPreflightProbeService {
       const startTime = performance.now();
 
       // まずHEADリクエストで応答時間を計測
-      const headResponse = await fetch(url, {
+      const headResponse = await safeFetch(url, {
         method: "HEAD",
         signal: controller.signal,
         headers: {
@@ -623,7 +623,7 @@ export class PreflightProbeService implements IPreflightProbeService {
       const responseTimeMs = Math.round(headTime - startTime);
 
       // HTMLを取得（最初の100KB程度）
-      const getResponse = await fetch(url, {
+      const getResponse = await safeFetch(url, {
         method: "GET",
         signal: controller.signal,
         headers: {

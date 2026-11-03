@@ -17,6 +17,7 @@
  */
 
 import { createLogger } from "../utils/logger";
+import { safeFetch } from "@reftrixmcp/core";
 
 // =============================================
 // ロガー
@@ -540,13 +541,14 @@ async function fetchCssDetailed(
       logger.debug("Fetching CSS", { url, timeout, maxSize });
     }
 
-    const response = await fetch(url, {
+    // 各 hop の宛先を名前解決後の IP で検査する (SSRF、INV-SEC-SSRF-EGRESS-GUARD-001)
+    // Each hop's destination is checked by its resolved IPs (SSRF)
+    const response = await safeFetch(url, {
       signal: controller.signal,
       headers: {
         "User-Agent": userAgent,
         Accept: "text/css, */*;q=0.1",
       },
-      redirect: "follow",
     });
 
     clearTimeout(timeoutId);

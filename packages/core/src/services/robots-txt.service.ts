@@ -22,6 +22,7 @@ import robotsParser from "robots-parser";
 import { logger } from "../utils/logger";
 import { ROBOTS_TXT } from "../constants";
 import type { RobotsTxtCheckResult } from "../types";
+import { checkEgressHost, getEgressDispatcher } from "../net/egress";
 
 // =============================================================================
 // Types
@@ -239,6 +240,14 @@ export class RobotsTxtService {
       const timeoutId = setTimeout(() => controller.abort(), ROBOTS_TXT.FETCH_TIMEOUT_MS);
 
       try {
+        // 名前解決後の全アドレスが公開であること (INV-SEC-SSRF-EGRESS-GUARD-001)
+        // Every resolved address must be public
+        if (!(await checkEgressHost(new URL(robotsUrl).hostname)).allowed) {
+          logger.warn("[RobotsTxtService] SSRF blocked: host resolves to a non-public address", {
+            domain,
+          });
+          return null;
+        }
         // リダイレクト先のSSRFバイパスを防ぐため manual mode
         let response = await fetch(robotsUrl, {
           method: "GET",
@@ -248,6 +257,8 @@ export class RobotsTxtService {
             Accept: "text/plain",
           },
           redirect: "manual",
+          // 接続時の名前解決も検査し固定する (rebinding 対策) / pinned connection-time lookup
+          ...({ dispatcher: getEgressDispatcher() } as RequestInit),
         });
 
         // リダイレクト処理（最大3回、リダイレクト先もSSRF検証）
@@ -268,6 +279,13 @@ export class RobotsTxtService {
             return null;
           }
 
+          if (!(await checkEgressHost(new URL(redirectUrl).hostname)).allowed) {
+            logger.warn("[RobotsTxtService] SSRF blocked redirect target (resolved address)", {
+              domain,
+            });
+            return null;
+          }
+
           response = await fetch(redirectUrl, {
             method: "GET",
             signal: controller.signal,
@@ -276,6 +294,8 @@ export class RobotsTxtService {
               Accept: "text/plain",
             },
             redirect: "manual",
+            // 接続時の名前解決も検査し固定する (rebinding 対策) / pinned connection-time lookup
+            ...({ dispatcher: getEgressDispatcher() } as RequestInit),
           });
           redirectCount++;
         }

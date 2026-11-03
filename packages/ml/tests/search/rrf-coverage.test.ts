@@ -29,7 +29,7 @@ describe("RRF - development logging", () => {
 
   it("should output log in development mode", () => {
     process.env.NODE_ENV = "development";
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const vectorResults: RankedItem[] = [{ id: "a", rank: 1, name: "A" }];
     const fulltextResults: RankedItem[] = [{ id: "b", rank: 1, name: "B" }];
@@ -50,7 +50,7 @@ describe("RRF - development logging", () => {
 
   it("should not output log in production mode", () => {
     process.env.NODE_ENV = "production";
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const vectorResults: RankedItem[] = [{ id: "a", rank: 1, name: "A" }];
     const fulltextResults: RankedItem[] = [];

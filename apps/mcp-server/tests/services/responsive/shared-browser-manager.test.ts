@@ -59,10 +59,15 @@ describe("SharedBrowserManager", () => {
       const browser = await manager.getBrowser();
 
       expect(chromium.launch).toHaveBeenCalledTimes(1);
-      expect(chromium.launch).toHaveBeenCalledWith({
-        headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      });
+      // launchChromium が送信先検査プロキシを付けて起動する (INV-SEC-SSRF-EGRESS-GUARD-001)
+      // launchChromium adds the egress guard proxy
+      expect(chromium.launch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          headless: true,
+          args: expect.arrayContaining(["--no-sandbox", "--disable-setuid-sandbox"]),
+          proxy: expect.objectContaining({ bypass: "<-loopback>" }),
+        })
+      );
       expect(browser).toBeDefined();
     });
 

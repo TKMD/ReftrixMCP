@@ -250,7 +250,7 @@ export class BriefValidateService implements IBriefValidateService {
     // Log in development
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.info("[BriefValidateService] Validation result:", {
+      console.error("[BriefValidateService] Validation result:", {
         isValid,
         completenessScore,
         issueCount: issues.length,

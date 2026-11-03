@@ -90,7 +90,9 @@ function checkWorkspace(workspace: unknown): string[] {
 }
 
 /** `pnpm [options] audit` 呼出。group 1 = `audit` より前の option (`pnpm --prod audit`) / group 1 = options before `audit` */
-const AUDIT_CALL_RE = /\bpnpm\s+((?:(?:-\S+|\S+=\S+)\s+)*)audit\b/g;
+// The two option forms are disjoint (a leading `-` vs none) so the repetition cannot backtrack
+// exponentially (CodeQL js/redos).
+const AUDIT_CALL_RE = /\bpnpm\s+((?:(?:-\S+|[^\s=-][^\s=]*=\S*)\s+)*)audit\b/g;
 /**
  * option を問わない出現 (raw text との件数突合用)。`pnpm-workspace.yaml` のような語は数えない
  * any occurrence, for the raw-count cross-check; a word such as `pnpm-workspace.yaml` does not count

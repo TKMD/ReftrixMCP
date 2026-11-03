@@ -172,7 +172,7 @@ export class CLSCalculator {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[CLSCalculator] Initialized:", this.config);
+      console.error("[CLSCalculator] Initialized:", this.config);
     }
   }
 
@@ -317,7 +317,7 @@ export class CLSCalculator {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[CLSCalculator] Sequence CLS calculated:", {
+      console.error("[CLSCalculator] Sequence CLS calculated:", {
         totalCLS: totalCLS.toFixed(4),
         maxSessionCLS: maxSessionCLS.toFixed(4),
         shiftCount,

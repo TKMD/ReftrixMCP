@@ -36,6 +36,7 @@ import {
   createEmptyResult,
   convertAxeViolation,
 } from "./axe-core-shared";
+import { launchChromium } from "../../utils/launch-chromium";
 
 // Playwright types (for runtime dynamic import)
 // Note: playwright is dynamically imported at runtime, so we use import() type annotations
@@ -136,8 +137,7 @@ export class PlaywrightAxeService {
       return;
     }
 
-    const playwright = await import("playwright");
-    this.browser = await playwright.chromium.launch({
+    this.browser = await launchChromium({
       headless: this.options.headless,
     });
     this.browserContext = await this.browser.newContext();

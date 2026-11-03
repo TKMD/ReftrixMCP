@@ -17,11 +17,11 @@
  */
 
 import type { Browser, Page, BrowserContext } from "playwright";
-import { chromium } from "playwright";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { logger, isDevelopment } from "../../utils/logger";
 import { withTimeout } from "../../tools/page/handlers/timeout-utils";
 import { isUrlAllowedByRobotsTxt, ROBOTS_TXT } from "@reftrixmcp/core";
+import { launchChromium } from "../../utils/launch-chromium";
 
 // =====================================================
 // 型定義
@@ -200,7 +200,7 @@ export class PlaywrightCrawlerService {
       if (isDevelopment()) {
         logger.debug("[PlaywrightCrawlerService] Launching browser");
       }
-      this.browser = await chromium.launch({
+      this.browser = await launchChromium({
         headless: true,
         args: [
           "--no-sandbox",

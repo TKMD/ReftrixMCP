@@ -48,6 +48,55 @@ cd apps/mcp-server
 pnpm build
 ```
 
+### npm パッケージとして使う場合 / Using the npm Package
+
+```bash
+npm install @reftrixmcp/mcp-server
+npx playwright@1.57.0 install chromium
+```
+
+2 行目は版を固定しているため、どのディレクトリで実行しても同じ revision のブラウザが入ります（版は本パッケージが使う Playwright の版 <!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright --> です）。ブラウザが未取得のときにツールが返す文言と対処は、下の「ブラウザ未取得時の固定文言」節を参照してください。
+
+The second line pins the version, so it installs the same browser revision whichever directory you run it in (the version is the Playwright version this package uses, <!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright -->). For the message the tools return when the browser is missing and what to do, see "Fixed Message When the Browser Is Missing" below.
+
+#### ブラウザの取得について / Getting the Browser
+
+Reftrix は Web ページの取得に Playwright のブラウザを使います。**ブラウザは本パッケージに含まれていません。** 上記のコマンドで、Playwright の配布サーバー（Microsoft）から利用者ご自身が取得してください。
+
+- (a) 取得されるのは第三者のソフトウェアです。
+- (b) Linux arm64 以外（Linux x64、macOS の Intel / Apple Silicon、Windows x64）では **Google の Chrome for Testing** が入ります。これは Google の著作物で、Google の利用規約（chrome://terms）に服し、オープンソースではない部品を含みます。Linux arm64 では Chromium が入ります。あわせて ffmpeg（LGPL-2.1-or-later）も取得されます。
+- (c) 本プロジェクトの AGPL-3.0-only はこれらのブラウザには及びません。本プロジェクトはブラウザを再配布しません。各ブラウザの利用条件は、取得した利用者に適用されます。
+- (d) 版は本パッケージが使う Playwright の版に固定しています。版を指定しない `npx playwright install` は別の revision のブラウザを入れることがあります。
+- ブラウザは本パッケージの SBOM に含まれません。
+
+Reftrix uses a Playwright browser to fetch web pages. **The browser is not included in this package.** Download it yourself from Playwright's distribution server (Microsoft) with the command above.
+
+- (a) What you download is third-party software.
+- (b) On every platform except Linux arm64 (Linux x64, macOS on Intel or Apple Silicon, Windows x64) this installs **Google's Chrome for Testing**, which is Google's software, is subject to Google's Terms of Service (chrome://terms), and contains components that are not open source. On Linux arm64 it installs Chromium. ffmpeg (LGPL-2.1-or-later) is downloaded as well.
+- (c) This project's AGPL-3.0-only license does not extend to these browsers, and this project does not redistribute them. Each browser's terms apply to you as the person who downloads it.
+- (d) The version is pinned to the Playwright version this package uses. Running `npx playwright install` without a version may install a browser from a different revision.
+- The browser is not part of this package's SBOM.
+
+#### `--ignore-scripts` で install した場合 / If You Installed with `--ignore-scripts`
+
+`npm install --ignore-scripts` では Prisma client の生成が走りません。install したディレクトリで次を実行してください。
+
+`npm install --ignore-scripts` skips generating the Prisma client. Run the following in the directory where you installed the package:
+
+```bash
+npm rebuild @prisma/client
+```
+
+### ブラウザ未取得時の固定文言 / Fixed Message When the Browser Is Missing
+
+ページ取得（`layout.ingest` / `layout.batch_ingest` / `page.analyze`）に使う Chromium が未取得の場合、クライアントには内部 path や Call log を含まない固定文言 `Browser for page crawling is not installed. Run: npx playwright@<!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright --> install chromium` を返します。`layout.ingest` / `layout.batch_ingest` の文言は固定文言そのもので、`page.analyze`（同期実行）の文言は固定文言で始まり、末尾に ` (after N attempt(s))` が付くことがあります。版を固定しているため、実行ディレクトリに依らず同じ revision が入ります。元のエラー本文はサーバー側ログにのみ残ります。
+
+When the Chromium used for page crawling (`layout.ingest` / `layout.batch_ingest` / `page.analyze`) is not installed, clients receive the fixed message `Browser for page crawling is not installed. Run: npx playwright@<!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright --> install chromium`, with no internal path or call log. For `layout.ingest` / `layout.batch_ingest` the message is exactly the fixed message; for `page.analyze` (synchronous run) it starts with the fixed message and may end with ` (after N attempt(s))`. The version is pinned, so the same revision is installed regardless of the working directory. The raw error text stays in the server-side log only.
+
+ブラウザを起動するすべてのツール（`layout.ingest` / `page.analyze` / `motion.detect` / `responsive.capture` / `accessibility.audit` など）は、ブラウザ未取得のとき Playwright の起動エラーをそのまま返さず、固定文言を返します（固定文言のみ、またはより長い文言の一部として）。Chromium の起動は `src/utils/launch-chromium.ts` の 1 箇所に集約しています。
+
+All tools that launch a browser (`layout.ingest`, `page.analyze`, `motion.detect`, `responsive.capture`, `accessibility.audit`, and others) never return the raw Playwright launch error when the browser is missing; they return the fixed message, either as is or inside a longer message. Chromium is launched from a single place, `src/utils/launch-chromium.ts`.
+
 ## 使用方法 / Usage
 
 ### 直接実行 / Direct Execution
@@ -730,6 +779,12 @@ pnpm backfill:embeddings
 | `NO_RESULTS`          | 検索結果なし                 |
 | `RATE_LIMIT_EXCEEDED` | レート制限超過               |
 
+### ログの出力先 / Log Output
+
+stdout は JSON-RPC 専用です。サーバーのログ（`console.error` と logger）は stderr に出力され、公開パッケージの `src` から stdout へは書きません（`INV-PUBLISHED-STDOUT-SILENT-001`）。
+
+stdout is reserved for JSON-RPC. Server logs (`console.error` and the loggers) go to stderr, and the `src` of the published packages never writes to stdout (`INV-PUBLISHED-STDOUT-SILENT-001`).
+
 ---
 
 ## セキュリティガイドライン / Security Guidelines
@@ -768,8 +823,8 @@ npm で `@reftrixmcp/mcp-server` を利用する場合、リポジトリ root �
 
 ### エラーメッセージサニタイズ / Error Message Sanitization (CWE-209)
 
-`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。<!-- gen:sanitize-usage-count -->122<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->40<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->109<!-- /gen:sanitize-import-count -->ファイルでインポート）。
-`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to <!-- gen:sanitize-usage-count -->122<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->109<!-- /gen:sanitize-import-count --> import files).
+`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。<!-- gen:sanitize-usage-count -->123<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->40<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->110<!-- /gen:sanitize-import-count -->ファイルでインポート）。
+`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to <!-- gen:sanitize-usage-count -->123<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->110<!-- /gen:sanitize-import-count --> import files).
 
 ---
 

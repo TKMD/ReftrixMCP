@@ -2,14 +2,14 @@
 
 ## 評価方法 / Evaluation Criteria
 
-| 検証項目 / Check Item                          | 評価方法 / Method | 目標 / Target                                    |
-| ---------------------------------------------- | ----------------- | ------------------------------------------------ |
-| ブランチ命名規則 / Branch naming convention    | 自動（Code）      | 100%準拠 / 100% compliance                       |
-| コミットメッセージ形式 / Commit message format | 自動（Code）      | Conventional Commits 100%                        |
-| lint/typecheck通過 / lint/typecheck pass       | 自動（Code）      | エラー 0件 / 0 errors                            |
-| テスト通過（推奨） / Test pass (recommended)   | 自動（Code）      | 0 failed（CI検証前提）                           |
-| PRサイズ / PR size                             | 自動（Code）      | 800行以下 / 800 lines or less                    |
-| 自動コミット適用 / Auto-commit applied         | 自動（Code）      | 機能実装・修正完了時 / On feature/fix completion |
+| 検証項目 / Check Item                          | 評価方法 / Method | 目標 / Target                                       |
+| ---------------------------------------------- | ----------------- | --------------------------------------------------- |
+| ブランチ命名規則 / Branch naming convention    | 自動（Code）      | 100%準拠 / 100% compliance                          |
+| コミットメッセージ形式 / Commit message format | 自動（Code）      | Conventional Commits 100%                           |
+| lint/typecheck通過 / lint/typecheck pass       | 自動（Code）      | エラー 0件 / 0 errors                               |
+| テスト通過（推奨） / Test pass (recommended)   | 自動（Code）      | 0 failed（CI検証前提）                              |
+| PRサイズ / PR size                             | 自動（Code）      | 1500行以下（目安） / 1500 lines or less (guideline) |
+| 自動コミット適用 / Auto-commit applied         | 自動（Code）      | 機能実装・修正完了時 / On feature/fix completion    |
 
 ---
 
@@ -140,15 +140,14 @@ PR title is used as the **final squash commit message subject**:
 
 ### PRサイズ制限 / PR Size Limits
 
-| 状態 / Status            | 差分行数 / Diff Lines   | アクション / Action             |
-| ------------------------ | ----------------------- | ------------------------------- |
-| ✅ 適切 / Appropriate    | 400行以下 / 400 or less | そのままレビュー / Review as-is |
-| ⚠️ 要検討 / Needs review | 400-800行 / 400-800     | 分割を検討 / Consider splitting |
-| ❌ 分割必須 / Must split | 800行超 / Over 800      | 必ず分割する / Must split       |
+1 つのまとまった変更は分割しない。目安 1500 行（自動生成ファイル・lockfile を除く）。依存関係のある PR を直列に並べて分割しない（2026-11-02 運用変更、CLAUDE.md「開発フロー」）。
 
-**例外 / Exceptions**: 自動生成ファイル、ロックファイル、大規模リファクタリング（事前承認済み） / Auto-generated files, lock files, large refactoring (pre-approved)
+Keep one coherent change in one PR; guideline 1500 lines (excluding generated files and lockfiles). Do not split into a serial chain of dependent PRs (process change 2026-11-02, see CLAUDE.md "開発フロー").
 
-**Plan v2 PR-Bα series LoC variance band gate / Plan v2 PR-Bα シリーズ LoC 偏差バンドゲート**: PR-Bα-2 (N≥2) では [ADR-0026](../specs/adr/ADR-0026-loc-tolerance-principle.md) の 4-band ladder (Green ±10% / Yellow / Red ±20% / Hard fail) で actual feat-only LoC vs predicted LoC を gate する。governance-only PR は本 ADR §Decision 2 Red-band sign-off 経路で 800-line hard cap exception と直交契約。 / For PR-Bα-2 onward, the 4-band ladder gate from ADR-0026 governs actual feat-only LoC vs predicted LoC; governance-only PRs are orthogonal to the 800-line hard cap via Decision 2 Red-band sign-off.
+| 状態 / Status            | 差分行数 / Diff Lines     | アクション / Action                                                      |
+| ------------------------ | ------------------------- | ------------------------------------------------------------------------ |
+| ✅ 適切 / Appropriate    | 1500行以下 / 1500 or less | そのまま / As-is                                                         |
+| ⚠️ 要検討 / Needs review | 1500行超 / Over 1500      | 独立した変更に分けられるなら分ける / Split only into independent changes |
 
 ### PR作成前チェックリスト / Pre-PR Checklist
 
@@ -161,7 +160,7 @@ pnpm lint && pnpm typecheck && pnpm format:check && pnpm test
 - [ ] ESLintエラー: 0件 / ESLint errors: 0
 - [ ] TypeScriptエラー: 0件 / TypeScript errors: 0
 - [ ] テストカバレッジ: 80%以上 / Test coverage: above 80%
-- [ ] 差分が800行以下（または分割済み） / Diff 800 lines or less (or already split)
+- [ ] 差分が1500行以下（目安） / Diff 1500 lines or less (guideline)
 
 #### Quality Gate コマンド列の記述規約 / Quality Gate Command Sequence Convention
 
@@ -209,12 +208,12 @@ main: A ─ B ─ C ─ D ─ E
 
 ## プッシュ条件 / Push Conditions
 
-プッシュはユーザー承認後のみ実行する。
+ローカル gate と監査を通った branch の push・PR 作成・squash merge は main が判断する。OSS 同期・npm 公開・破壊的操作はユーザー承認後のみ（2026-11-02 運用変更）。
 
-Push only after user approval.
+main decides push / PR / squash merge for branches that passed the local gate and audit. OSS sync, npm publish and destructive operations still require user approval (process change 2026-11-02).
 
 1. 機能開発が完了している / Feature development is complete
-2. ユーザー（レビュワー）が承認 / User (reviewer) approves
+2. ローカル gate と監査を通過（OSS 同期・npm 公開はユーザー承認） / Local gate and audit passed (OSS sync / npm publish need user approval)
 3. コミットがSquash用に準備済み / Commits prepared for squash
 
 ---
@@ -223,11 +222,11 @@ Push only after user approval.
 
 - ❌ WIP状態でのmainへのマージ / Merging WIP to main
 - ❌ テスト未通過でのプッシュ / Pushing with failing tests
-- ❌ ユーザー承認なしでのプッシュ / Pushing without user approval
+- ❌ ユーザー承認なしの OSS 同期・npm 公開 / OSS sync or npm publish without user approval
 - ❌ セキュリティ脆弱性残存でのプッシュ / Pushing with remaining security vulnerabilities
 - ❌ `git push --force` の無断使用 / Unauthorized use of `git push --force`
 - ❌ Merge Commit / Rebase and Merge の使用 / Using Merge Commit or Rebase and Merge
-- ❌ 800行超のPR（分割なし） / PR over 800 lines (without splitting)
+- ❌ 独立した複数の変更を 1 PR に混ぜる / Mixing independent changes in one PR
 
 ---
 

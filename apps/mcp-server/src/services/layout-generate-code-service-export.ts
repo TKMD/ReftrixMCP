@@ -57,7 +57,7 @@ function ensureServiceInitialized(): void {
 
   if (process.env.NODE_ENV === "development") {
     // eslint-disable-next-line no-console -- Development-only initialization log
-    console.log("[layout-generate-code-service-export] Service factory initialized");
+    console.error("[layout-generate-code-service-export] Service factory initialized");
   }
 }
 

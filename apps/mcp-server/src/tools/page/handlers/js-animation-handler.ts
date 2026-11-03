@@ -35,6 +35,7 @@ import type {
   ThreeJSLibrarySpecificData,
   ThreeJSSceneData,
 } from "./types";
+import { launchChromium } from "../../../utils/launch-chromium";
 
 // =====================================================
 // JSON サイズ制限定数
@@ -947,10 +948,8 @@ export async function executeJSAnimationMode(
       }
     } else {
       // Playwright動的インポート
-      const { chromium } = await import("playwright");
-
       // ブラウザ起動
-      browser = await chromium.launch({
+      browser = await launchChromium({
         headless: true,
         args: [
           "--no-sandbox",

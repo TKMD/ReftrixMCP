@@ -49,13 +49,24 @@ describe("logger utility", () => {
       vi.resetModules();
     });
 
+    it("logger.info / debug は stdout (console.log) に書かず stderr に出す", async () => {
+      const { logger } = await import("../../src/utils/logger");
+
+      logger.info("a");
+      logger.debug("b");
+
+      expect(consoleLogSpy).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith("[INFO]", "a");
+      expect(consoleErrorSpy).toHaveBeenCalledWith("[DEBUG]", "b");
+    });
+
     it("logger.info はコンソールに出力される", async () => {
       // 環境変数変更後にモジュールを再読み込み
       const { logger } = await import("../../src/utils/logger");
 
       logger.info("テストメッセージ");
 
-      expect(consoleLogSpy).toHaveBeenCalledWith("[INFO]", "テストメッセージ");
+      expect(consoleErrorSpy).toHaveBeenCalledWith("[INFO]", "テストメッセージ");
     });
 
     it("logger.info は複数の引数を受け付ける", async () => {
@@ -63,7 +74,7 @@ describe("logger utility", () => {
 
       logger.info("メッセージ", { key: "value" }, 123);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith("[INFO]", "メッセージ", { key: "value" }, 123);
+      expect(consoleErrorSpy).toHaveBeenCalledWith("[INFO]", "メッセージ", { key: "value" }, 123);
     });
 
     it("logger.warn はコンソールに出力される", async () => {
@@ -89,7 +100,7 @@ describe("logger utility", () => {
 
       logger.debug("デバッグ情報");
 
-      expect(consoleLogSpy).toHaveBeenCalledWith("[DEBUG]", "デバッグ情報");
+      expect(consoleErrorSpy).toHaveBeenCalledWith("[DEBUG]", "デバッグ情報");
     });
 
     it("logger.debug は複数の引数を受け付ける", async () => {
@@ -97,7 +108,7 @@ describe("logger utility", () => {
 
       logger.debug("デバッグ", { stack: "trace" }, [1, 2, 3]);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
         "[DEBUG]",
         "デバッグ",
         {
@@ -131,7 +142,7 @@ describe("logger utility", () => {
 
       logger.info("本番環境のinfoメッセージ");
 
-      expect(consoleLogSpy).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
     it("logger.warn は出力されない", async () => {
@@ -147,7 +158,7 @@ describe("logger utility", () => {
 
       logger.debug("本番環境のdebugメッセージ");
 
-      expect(consoleLogSpy).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
     it("logger.error は出力される", async () => {
@@ -181,7 +192,7 @@ describe("logger utility", () => {
 
       logger.info("テスト環境のinfoメッセージ");
 
-      expect(consoleLogSpy).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
     it("logger.warn は出力されない", async () => {
@@ -197,7 +208,7 @@ describe("logger utility", () => {
 
       logger.debug("テスト環境のdebugメッセージ");
 
-      expect(consoleLogSpy).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
     it("logger.error は出力されない（テスト時のノイズ防止）", async () => {
@@ -233,7 +244,7 @@ describe("logger utility", () => {
       logger.debug("debug");
       logger.error("error");
 
-      // infoとdebugはconsole.logを使用
+      // stdout (console.log) には決して書かない / never writes to stdout
       expect(consoleLogSpy).not.toHaveBeenCalled();
       // warnはconsole.warnを使用
       expect(consoleWarnSpy).not.toHaveBeenCalled();
@@ -293,7 +304,7 @@ describe("logger utility", () => {
 
       logger.info("message");
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("[INFO]"), "message");
+      expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("[INFO]"), "message");
     });
 
     it("warnログは[WARN]プレフィックスを持つ", async () => {
@@ -309,7 +320,7 @@ describe("logger utility", () => {
 
       logger.debug("message");
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("[DEBUG]"), "message");
+      expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("[DEBUG]"), "message");
     });
 
     it("errorログは[ERROR]プレフィックスを持つ（本番環境でテスト）", async () => {
@@ -334,7 +345,7 @@ describe("logger utility", () => {
 
       logger.info("string message");
 
-      expect(consoleLogSpy).toHaveBeenCalledWith("[INFO]", "string message");
+      expect(consoleErrorSpy).toHaveBeenCalledWith("[INFO]", "string message");
     });
 
     it("数値を正しく出力する", async () => {
@@ -342,7 +353,7 @@ describe("logger utility", () => {
 
       logger.info(42, 3.14, -100);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith("[INFO]", 42, 3.14, -100);
+      expect(consoleErrorSpy).toHaveBeenCalledWith("[INFO]", 42, 3.14, -100);
     });
 
     it("オブジェクトを正しく出力する", async () => {
@@ -351,7 +362,7 @@ describe("logger utility", () => {
 
       logger.info(obj);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith("[INFO]", obj);
+      expect(consoleErrorSpy).toHaveBeenCalledWith("[INFO]", obj);
     });
 
     it("配列を正しく出力する", async () => {
@@ -360,7 +371,7 @@ describe("logger utility", () => {
 
       logger.info(arr);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith("[INFO]", arr);
+      expect(consoleErrorSpy).toHaveBeenCalledWith("[INFO]", arr);
     });
 
     it("null/undefinedを正しく出力する", async () => {
@@ -368,7 +379,7 @@ describe("logger utility", () => {
 
       logger.info(null, undefined);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith("[INFO]", null, undefined);
+      expect(consoleErrorSpy).toHaveBeenCalledWith("[INFO]", null, undefined);
     });
 
     it("Errorオブジェクトを正しく出力する", async () => {
@@ -387,7 +398,7 @@ describe("logger utility", () => {
 
       logger.info(true, false);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith("[INFO]", true, false);
+      expect(consoleErrorSpy).toHaveBeenCalledWith("[INFO]", true, false);
     });
   });
 });

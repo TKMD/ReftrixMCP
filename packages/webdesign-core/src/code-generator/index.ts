@@ -173,7 +173,7 @@ export class CodeGenerator {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[CodeGenerator] Initialized with options:", this.options);
+      console.error("[CodeGenerator] Initialized with options:", this.options);
     }
   }
 
@@ -190,7 +190,7 @@ export class CodeGenerator {
   generate(section: DetectedSection, inspectResult?: LayoutInspectOutput): GeneratedCode {
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[CodeGenerator] Generating code for section:", section.type);
+      console.error("[CodeGenerator] Generating code for section:", section.type);
     }
 
     switch (this.options.framework) {

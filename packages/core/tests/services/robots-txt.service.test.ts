@@ -17,7 +17,17 @@
  * - ドメイン抽出: URL→origin変換
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  vi,
+  type Mock,
+  beforeAll,
+  afterAll,
+} from "vitest";
 import {
   RobotsTxtService,
   getRobotsTxtService,
@@ -25,6 +35,12 @@ import {
   resetRobotsTxtService,
 } from "../../src/services/robots-txt.service";
 import { ROBOTS_TXT } from "../../src/constants";
+import { setEgressResolverForTesting } from "../../src/net/egress";
+
+// テストのホスト名はすべて公開アドレスに解決させる (実 DNS に依存しない)
+// Resolve every test host name to a public address (no real DNS)
+beforeAll(() => setEgressResolverForTesting(async () => [{ address: "93.184.215.14", family: 4 }]));
+afterAll(() => setEgressResolverForTesting(null));
 
 // ロガーをモック化（テスト中のログ出力を抑制）
 vi.mock("../../src/utils/logger", () => ({
@@ -1125,8 +1141,9 @@ describe("RobotsTxtService", () => {
         service.isAllowed("https://example.com/page3"),
       ];
 
-      // タイマーを進めてfetchを完了させる
-      vi.advanceTimersByTime(200);
+      // タイマーを進めてfetchを完了させる (fetch は送信先検査の await の後に始まる)
+      // Advance timers; fetch starts after the awaited egress check
+      await vi.advanceTimersByTimeAsync(200);
 
       const results = await Promise.all(promises);
 

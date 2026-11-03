@@ -38,7 +38,6 @@
  */
 
 import type { Browser, BrowserContext, Page } from "playwright";
-import { chromium } from "playwright";
 import sharp from "../../utils/sharp-safe";
 import { ROBOTS_TXT, isUrlAllowedByRobotsTxt } from "@reftrixmcp/core";
 import { validateExternalUrl } from "../../utils/url-validator";
@@ -46,6 +45,7 @@ import { logger, isDevelopment } from "../../utils/logger";
 // W6 Issue A PR-2 (F-M-05): rAF-race tail dedup leaf util。scroll セマンティクスは
 // 共有しない (scrollTo vs scrollIntoView)、rAF tail のみ共有。
 import { waitForRafSettle } from "./section-selector.helper";
+import { launchChromium } from "../../utils/launch-chromium";
 
 // ============================================================================
 // Constants / 定数
@@ -452,7 +452,7 @@ export async function captureSectionScreenshots(
     if (usingSharedBrowser) {
       browser = options.sharedBrowser!;
     } else {
-      browser = await chromium.launch({
+      browser = await launchChromium({
         headless: true,
         args: [
           "--no-sandbox",

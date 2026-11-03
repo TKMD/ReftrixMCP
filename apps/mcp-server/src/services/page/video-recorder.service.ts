@@ -18,12 +18,12 @@
  */
 
 import type { Browser, Page, BrowserContext } from "playwright";
-import { chromium } from "playwright";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { logger, isDevelopment } from "../../utils/logger";
+import { launchChromium } from "../../utils/launch-chromium";
 
 // =====================================================
 // 型定義
@@ -171,7 +171,7 @@ export class VideoRecorderService {
       if (isDevelopment()) {
         logger.debug("[VideoRecorderService] Launching browser");
       }
-      this.browser = await chromium.launch({
+      this.browser = await launchChromium({
         headless: true,
         args: [
           "--no-sandbox",

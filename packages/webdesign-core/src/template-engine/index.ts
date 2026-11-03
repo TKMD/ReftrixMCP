@@ -109,7 +109,7 @@ export class TemplateEngine {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[TemplateEngine] Rendering:", {
+      console.error("[TemplateEngine] Rendering:", {
         templateId: template.id,
         sectionType: template.sectionType,
         framework: template.framework,

@@ -107,7 +107,7 @@ async function initializePipeline(): Promise<void> {
       const effectiveDevice: ExecutionProvider = resolveWorkerEffectiveDevice(resolvedProvider);
 
       // eslint-disable-next-line no-console
-      console.log("[EmbeddingWorker] Initializing ONNX pipeline", {
+      console.error("[EmbeddingWorker] Initializing ONNX pipeline", {
         model: config.modelId,
         requestedDevice: config.device,
         resolvedProvider,
@@ -147,7 +147,7 @@ async function initializePipeline(): Promise<void> {
       }
 
       // eslint-disable-next-line no-console
-      console.log("[EmbeddingWorker] ONNX pipeline ready (provider: %s)", resolvedProvider);
+      console.error("[EmbeddingWorker] ONNX pipeline ready (provider: %s)", resolvedProvider);
     } catch (error) {
       initPromise = null;
       const code = (error as { code?: string }).code;
@@ -395,7 +395,7 @@ async function handleMessage(message: WorkerMessage): Promise<void> {
       config = { ...config, device: targetProvider };
 
       // eslint-disable-next-line no-console
-      console.log("[EmbeddingWorker] Switched provider to:", resolvedProvider);
+      console.error("[EmbeddingWorker] Switched provider to:", resolvedProvider);
 
       sendResponse({
         type: "switch-provider",
@@ -414,7 +414,7 @@ async function handleMessage(message: WorkerMessage): Promise<void> {
       config = { ...config, device: "cpu" };
 
       // eslint-disable-next-line no-console
-      console.log("[EmbeddingWorker] Released GPU, reverted to CPU");
+      console.error("[EmbeddingWorker] Released GPU, reverted to CPU");
 
       sendResponse({
         type: "release-gpu",

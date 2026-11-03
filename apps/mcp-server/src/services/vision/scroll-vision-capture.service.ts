@@ -19,9 +19,9 @@
  */
 
 import type { Browser, BrowserContext, Page } from "playwright";
-import { chromium } from "playwright";
 import { validateExternalUrl } from "../../utils/url-validator.js";
 import { createLogger } from "../../utils/logger.js";
+import { launchChromium } from "../../utils/launch-chromium";
 
 // =============================================================================
 // 定数
@@ -281,7 +281,7 @@ export async function captureScrollPositions(
       browser = options!.sharedBrowser!;
       logger.info("Using shared browser instance", { url });
     } else {
-      browser = await chromium.launch({
+      browser = await launchChromium({
         headless: true,
         args: [
           "--no-sandbox",

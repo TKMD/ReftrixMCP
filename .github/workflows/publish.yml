@@ -12,7 +12,8 @@
 #   .claude/specs/plans/npm-publish-automation-plan-v0.md
 #   .claude/specs/plans/npm-publish-automation-finding-registry-v0.md
 #
-# 2-job graph: verify (Node 22.23.4, no Environment — build/pack/validate, no human wait)
+# 3-job graph: verify (Node 22.23.4, no Environment — build/pack/validate, no human wait)
+#   -> verify-launch (read-only, installs and starts the packed tarballs, no credentials)
 #   -> publish (Node 22.23.4 scoped to this job only, Environment-gated OIDC publish).
 # Separating the two means a broken version tag fails fast in `verify` with zero
 # human interruption, and the Environment's required-reviewer approval prompt only
@@ -41,11 +42,15 @@ jobs:
   # ===========================================================================
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
     outputs:
       dist_tag: ${{ steps.tag.outputs.dist_tag }}
       version: ${{ steps.tag.outputs.version }}
+      # `sha256sum ./*.tgz` of the packed tarballs. Later jobs compare the artifact with this job output
+      # (not with the checksums.txt inside the artifact) so a tampered artifact cannot vouch for itself.
+      checksums: ${{ steps.pack.outputs.checksums }}
     steps:
       # Untrusted input hardening (CWE-94/78 script-injection defense): the raw tag
       # string is passed through `env:` (a real OS environment variable set by the
@@ -131,6 +136,7 @@ jobs:
       # validation (workspace: residual + LICENSE + database Prisma-dist checks)
       # are combined into ONE step below for exactly this reason.
       - name: Version-consistency check, build, pack, validate (single shell — source scope)
+        id: pack
         env:
           RAW_TAG: ${{ github.event.release.tag_name || inputs.tag }}
         run: |
@@ -200,7 +206,11 @@ jobs:
             fi
           done
 
+          # the same runtime-dependency rules as the src check, applied to what was actually packed
+          node scripts/ci/check-published-runtime-deps.mjs --tarballs /tmp/tarballs --expect-count "${#PUBLISH_PACKAGES[@]}"
+
           (cd /tmp/tarballs && sha256sum ./*.tgz > checksums.txt)
+          { echo 'checksums<<CHECKSUMS_EOF'; cat /tmp/tarballs/checksums.txt; echo 'CHECKSUMS_EOF'; } >> "$GITHUB_OUTPUT"
 
       - name: Upload verified tarballs + checksum manifest
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -209,13 +219,72 @@ jobs:
           path: /tmp/tarballs/
 
   # ===========================================================================
+  # verify-launch — installs the packed tarballs (hoisted layout; linked is out of scope, see tracked-issues/release.md) outside the repository and starts
+  # the packed mcp-server (INV-PUBLISHED-PACKAGE-LAUNCH-002). It runs third-party install code, so it is a
+  # separate job from `verify` (which makes the tarballs) and from `publish` (which can publish): read-only
+  # contents permission, no id-token, no Environment, no secrets, no cache, no artifact upload, commit-SHA pinned
+  # actions. It first requires the artifact to be exactly the set `verify` reported through its job output.
+  # ===========================================================================
+  verify-launch:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # 使い捨ての service container 用 (runner の中だけで使う) / throwaway service container only
+      PACKED_LAUNCH_DB_PASSWORD: launch_check_password
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_USER: reftrix
+          POSTGRES_PASSWORD: launch_check_password
+          POSTGRES_DB: reftrix_launch
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout (for scripts/ci only)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Download verified tarballs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: publish-tarballs
+          path: /tmp/tarballs
+
+      - name: Setup Node.js 22.23.4 (product baseline)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22.23.4"
+
+      - name: Require the artifact to be exactly the set verify produced
+        env:
+          CHECKSUMS: ${{ needs.verify.outputs.checksums }}
+        run: bash scripts/ci/check-tarball-set.sh /tmp/tarballs
+
+      - name: Install the packed tarballs outside the repository and start the packed server
+        env:
+          RELEASE_VERSION: ${{ needs.verify.outputs.version }}
+          PACKED_LAUNCH_DATABASE_URL: postgresql://reftrix:${{ env.PACKED_LAUNCH_DB_PASSWORD }}@localhost:5432/reftrix_launch
+        run: bash scripts/ci/check-packed-launch.sh /tmp/tarballs "$RELEASE_VERSION"
+
+  # ===========================================================================
   # publish — needs: verify. environment: npm-publish (GitHub Environment with
   # required reviewers + a v* deployment-tag restriction — see the User
   # manual-action checklist). Both jobs use Node 22.23.4 (the product floor);
   # OIDC trusted publishing needs npm CLI >=11.5.1 / Node.js >=22.14.0, which it satisfies.
   # ===========================================================================
   publish:
-    needs: verify
+    needs: [verify, verify-launch]
     runs-on: ubuntu-latest
     # Three Tier gates of up to 1800 s each (5400 s) plus five publishes and margin. The
     # Environment approval wait is not job time.
@@ -280,7 +349,10 @@ jobs:
           RELEASE_VERSION: ${{ needs.verify.outputs.version }}
           RELEASE_DIST_TAG: ${{ needs.verify.outputs.dist_tag }}
           TAG_COMMIT_SHA: ${{ github.sha }}
+          CHECKSUMS: ${{ needs.verify.outputs.checksums }}
         run: |
+          # the artifact must be exactly what verify produced (job output), then transport integrity as before
+          bash scripts/ci/check-tarball-set.sh /tmp/tarballs
           (cd /tmp/tarballs && sha256sum -c checksums.txt)
 
           source scripts/publish-targets.sh   # SSOT arrays — same run: block as their only consumer here (mirrors verify job)

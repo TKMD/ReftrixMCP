@@ -123,6 +123,7 @@ import {
 } from "../page/handlers/js-animation-handler";
 import type { JSAnimationFullResult, IPageAnalyzePrismaClient } from "../page/handlers/types";
 import { getJSAnimationPersistencePrismaClient } from "./di-factories";
+import { launchChromium } from "../../utils/launch-chromium";
 
 // =====================================================
 // タイムアウト設定定数 (v0.1.0)
@@ -957,12 +958,11 @@ async function handleHybridMode(
     const runtimeResult = await executeRuntimeDetection(validated.url!, validated.runtime_options);
 
     // 2. CSS検出も実行
-    const { chromium } = await import("playwright");
     let browser = null;
     let htmlContent = "";
 
     try {
-      browser = await chromium.launch({
+      browser = await launchChromium({
         headless: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
       });
@@ -1574,11 +1574,10 @@ async function executeJSAnimationDetectionWithUrl(
   const startTime = Date.now();
 
   // Playwrightを動的にインポートしてブラウザを起動
-  const { chromium } = await import("playwright");
-  let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
+  let browser: Awaited<ReturnType<typeof launchChromium>> | null = null;
 
   try {
-    browser = await chromium.launch({
+    browser = await launchChromium({
       headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
     });

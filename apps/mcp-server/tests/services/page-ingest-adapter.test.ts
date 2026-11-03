@@ -507,6 +507,23 @@ describe("PageIngestAdapter", () => {
       expect(result.screenshots).toBeUndefined();
       expect(mockPage.screenshot).not.toHaveBeenCalled();
     });
+
+    it("スクリーンショット失敗の warning に生のエラー文を含めない (CWE-209)", async () => {
+      mockPage.screenshot.mockRejectedValueOnce(
+        new Error(
+          'page.screenshot: Timeout 30000ms exceeded.\nCall log:\n  - waiting for "http://10.0.0.5/admin"'
+        )
+      );
+
+      const result = await pageIngestAdapter.ingest({ url: "https://example.com" });
+
+      const w = result.warnings?.find((x) => x.code === "SCREENSHOT_FAILED");
+      expect(w?.message).toBe(
+        "Screenshot capture failed: Page load timeout. Analysis will continue without screenshot."
+      );
+      expect(w?.message).not.toContain("10.0.0.5");
+      expect(w?.message).not.toContain("Call log");
+    });
   });
 
   // =====================================================

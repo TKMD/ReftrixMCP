@@ -8,7 +8,7 @@
  * @module tools/page/handlers/webgl-animation-handler
  */
 
-import { chromium, type Browser, type Page } from "playwright";
+import { type Browser, type Page } from "playwright";
 import { logger, isDevelopment } from "../../../utils/logger";
 import { sanitizeErrorMessage } from "../../../utils/sanitize-error";
 import { WEBGL_BROWSER_ARGS } from "../../../utils/gpu-browser-args";
@@ -25,6 +25,7 @@ import type {
   WebGLAnimationCategory,
   IPageAnalyzePrismaClient,
 } from "./types";
+import { launchChromium } from "../../../utils/launch-chromium";
 
 // =====================================================
 // 型定義
@@ -165,7 +166,7 @@ export async function executeWebGLAnimationDetection(
 
     // WebGL検出には常にGPU有効化ブラウザを使用
     // 共有ブラウザは --disable-gpu で起動されるため、WebGLコンテキストが取得できない
-    browser = await chromium.launch({
+    browser = await launchChromium({
       headless: true,
       args: [...WEBGL_BROWSER_ARGS],
     });

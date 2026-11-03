@@ -486,7 +486,7 @@ export class MotionEmbedding {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[MotionEmbedding] Initialized with dimension:", MOTION_EMBEDDING_DIM);
+      console.error("[MotionEmbedding] Initialized with dimension:", MOTION_EMBEDDING_DIM);
     }
   }
 
@@ -499,7 +499,7 @@ export class MotionEmbedding {
   public embed(pattern: MotionPattern): number[] {
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[MotionEmbedding] Embedding pattern:", pattern.name);
+      console.error("[MotionEmbedding] Embedding pattern:", pattern.name);
     }
 
     // 各特徴量を抽出
@@ -542,7 +542,7 @@ export class MotionEmbedding {
   public embedBatch(patterns: MotionPattern[]): number[][] {
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[MotionEmbedding] Batch embedding:", patterns.length, "patterns");
+      console.error("[MotionEmbedding] Batch embedding:", patterns.length, "patterns");
     }
 
     return patterns.map((pattern) => this.embed(pattern));

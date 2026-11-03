@@ -1,6 +1,6 @@
 {
   "name": "@reftrixmcp/database",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "license": "AGPL-3.0-only",
   "description": "Database schema and migrations for Reftrix",
   "files": [
@@ -44,15 +44,16 @@
   "prisma": {
     "seed": "tsx src/seed.ts"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@prisma/client": "^6.19.2"
+  },
   "devDependencies": {
     "@reftrixmcp/config": "workspace:*",
     "@vitest/coverage-v8": "^4.1.0",
     "prisma": "^6.19.2",
     "tsx": "^4.0.0",
     "typescript": "^5.9.0",
-    "vitest": "^4.1.0",
-    "@prisma/client": "^6.19.2"
+    "vitest": "^4.1.0"
   },
   "publishConfig": {
     "access": "public",

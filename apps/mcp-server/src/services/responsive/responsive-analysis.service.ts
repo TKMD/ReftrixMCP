@@ -21,6 +21,7 @@ import type {
   MultiViewportCaptureOptions,
   ViewportDiffResult,
 } from "./types";
+import { launchChromium } from "../../utils/launch-chromium";
 
 /**
  * 差分計算用スクリーンショットの高さ上限（px）
@@ -314,8 +315,7 @@ export class ResponsiveAnalysisService {
       return sharedBrowser;
     }
     // chromium.launchを直接呼ぶ代わりに一時キャプチャでブラウザを取得
-    const { chromium } = await import("playwright");
-    return chromium.launch({ args: ["--no-sandbox", "--disable-setuid-sandbox"] });
+    return launchChromium({ args: ["--no-sandbox", "--disable-setuid-sandbox"] });
   }
 
   /**

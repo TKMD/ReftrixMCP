@@ -652,7 +652,7 @@ export class ColorChangeAnalyzer {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[ColorChangeAnalyzer] Extracted dominant colors:", colors.length);
+      console.error("[ColorChangeAnalyzer] Extracted dominant colors:", colors.length);
     }
 
     return { colors };
@@ -838,7 +838,7 @@ export class ColorChangeAnalyzer {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[ColorChangeAnalyzer] Detected fade effects:", fadeEffects.length);
+      console.error("[ColorChangeAnalyzer] Detected fade effects:", fadeEffects.length);
     }
 
     return { fadeEffects };
@@ -911,7 +911,7 @@ export class ColorChangeAnalyzer {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[ColorChangeAnalyzer] Analysis complete:", {
+      console.error("[ColorChangeAnalyzer] Analysis complete:", {
         frames: frameBuffers.length,
         changes: changes.length,
         fadeEffects: fadeResult.fadeEffects.length,

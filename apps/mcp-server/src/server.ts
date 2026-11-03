@@ -8,6 +8,8 @@
  * 認証ミドルウェア統合対応
  */
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -82,29 +84,25 @@ function injectRequestIdIfMissing(result: unknown, requestId: string): unknown {
 /**
  * サーバー設定
  *
- * `version` は MCP handshake の `serverInfo.version` として返却される
- * （`createServer()` → `new Server({ name, version })`）。
- * リリース時は本値を publishable `package.json.version` と一致させること（必須）。
+ * `version` は MCP handshake の `serverInfo.version` として返却される。
+ * 実行時に publishable `package.json`（`dist/server.js` / `src/server.ts` の 1 つ上）から
+ * 導出する。packed tarball 起動検査（INV-PUBLISHED-PACKAGE-LAUNCH-002）が実 version を期待するため。
  *
- * SSOT-derive（package.json からの静的 import / 実行時読込）は採用していない:
- * package.json は `rootDir: ./src` の外にあり、静的 JSON import は tsc の
- * "not under rootDir" で build 契約（`main: ./dist/index.js`）を壊す。実行時
- * readFileSync は CJS `__dirname` 依存 + 起動パスへの I/O 追加という fragility を
- * 生む。代わりに drift は `tests/server-version-coherence.test.ts` が本値と
- * `apps/mcp-server/package.json.version` の equality を CI で毎回検証して検出する。
- *
- * The `version` is returned as the MCP handshake `serverInfo.version`
- * (`createServer()` → `new Server({ name, version })`). On release this MUST be
- * kept in sync with the publishable `package.json.version`. SSOT-derive (static
- * JSON import / runtime read) is intentionally NOT used: package.json lives
- * outside `rootDir: ./src`, so a static JSON import breaks the tsc build
- * contract, and a runtime read adds `__dirname`/startup-I/O fragility. Instead,
- * `tests/server-version-coherence.test.ts` asserts equality between this literal
- * and `apps/mcp-server/package.json.version` on every CI run to catch drift.
+ * The `version` is the MCP handshake `serverInfo.version`; it is read at runtime from the
+ * publishable `package.json` one level above `dist/server.js` / `src/server.ts`.
  */
+function readPackageVersion(): string {
+  const raw: unknown = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-8"));
+  const v = (raw as { version?: unknown }).version;
+  if (typeof v !== "string" || v.length === 0) {
+    throw new Error("package.json has no version");
+  }
+  return v;
+}
+
 export const SERVER_CONFIG = {
   name: "reftrix-mcp-server",
-  version: "0.7.0",
+  version: readPackageVersion(),
 } as const;
 
 /**

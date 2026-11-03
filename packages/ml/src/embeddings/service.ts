@@ -252,7 +252,7 @@ export class EmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] EmbeddingService created with config:", {
+      console.error("[ML] EmbeddingService created with config:", {
         modelId: this.config.modelId,
         device: this.config.device,
         dtype: this.config.dtype,
@@ -285,7 +285,7 @@ export class EmbeddingService {
         const waitMs = CRASH_COOLDOWN_MS - elapsed;
         if (process.env.NODE_ENV === "development") {
           // eslint-disable-next-line no-console
-          console.log("[ML] Waiting %dms before Worker Thread restart (crash cooldown)", waitMs);
+          console.error("[ML] Waiting %dms before Worker Thread restart (crash cooldown)", waitMs);
         }
         await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
       }
@@ -301,7 +301,7 @@ export class EmbeddingService {
 
       if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.log("[ML] Spawning ONNX Worker Thread:", scriptPath);
+        console.error("[ML] Spawning ONNX Worker Thread:", scriptPath);
       }
 
       // Worker threads inherit the parent's execArgv by default.
@@ -364,7 +364,7 @@ export class EmbeddingService {
       if (response.type === "init") {
         this.currentProvider = response.executionProvider === "cuda" ? "cuda" : "cpu";
         // eslint-disable-next-line no-console
-        console.log(
+        console.error(
           "[ML] Worker Thread initialized in %dms (provider: %s)",
           response.loadTimeMs,
           response.executionProvider
@@ -432,7 +432,7 @@ export class EmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] Worker Thread crash, restart count:", this.workerRestartCount);
+      console.error("[ML] Worker Thread crash, restart count:", this.workerRestartCount);
     }
   }
 
@@ -511,7 +511,7 @@ export class EmbeddingService {
       try {
         if (process.env.NODE_ENV === "development") {
           // eslint-disable-next-line no-console
-          console.log(
+          console.error(
             "[ML] Loading embedding model (in-process):",
             this.config.modelId,
             "(device:",
@@ -551,7 +551,7 @@ export class EmbeddingService {
 
         if (process.env.NODE_ENV === "development") {
           // eslint-disable-next-line no-console
-          console.log(
+          console.error(
             "[ML] Model loaded in-process in",
             loadTime,
             "ms (provider:",
@@ -584,7 +584,7 @@ export class EmbeddingService {
     if (this.inferencesSinceRecycle >= threshold) {
       if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.log("[ML] Pipeline recycle threshold reached", {
+        console.error("[ML] Pipeline recycle threshold reached", {
           inferencesSinceRecycle: this.inferencesSinceRecycle,
           threshold,
           totalRecycles: this.totalRecycles,
@@ -600,7 +600,7 @@ export class EmbeddingService {
 
       if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.log("[ML] Pipeline recycled successfully", {
+        console.error("[ML] Pipeline recycled successfully", {
           totalRecycles: this.totalRecycles,
         });
       }
@@ -727,7 +727,7 @@ export class EmbeddingService {
     }
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] Idle timeout set to %dms (0 = disabled)", ms);
+      console.error("[ML] Idle timeout set to %dms (0 = disabled)", ms);
     }
   }
 
@@ -746,7 +746,7 @@ export class EmbeddingService {
       this.idleTimer = null;
       if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.log(
+        console.error(
           "[ML] Idle timeout reached (%dms), disposing ONNX pipeline to free VRAM",
           this.idleTimeoutMs
         );
@@ -813,7 +813,7 @@ export class EmbeddingService {
         this.cacheEvictions++;
         if (process.env.NODE_ENV === "development") {
           // eslint-disable-next-line no-console
-          console.log("[ML] Cache evicted oldest entry, size:", this.cache.size);
+          console.error("[ML] Cache evicted oldest entry, size:", this.cache.size);
         }
       } else {
         break;
@@ -849,7 +849,7 @@ export class EmbeddingService {
       this.cacheHits++;
       if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.log("[ML] Cache hit for:", text.substring(0, 30));
+        console.error("[ML] Cache hit for:", text.substring(0, 30));
       }
       // Cache hits also reset the idle timer (service is still "active")
       this.resetIdleTimer();
@@ -863,7 +863,7 @@ export class EmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] Generating embedding for:", prefixedText.substring(0, 50));
+      console.error("[ML] Generating embedding for:", prefixedText.substring(0, 50));
     }
 
     try {
@@ -888,7 +888,7 @@ export class EmbeddingService {
       const elapsedMs = Date.now() - startTime;
       if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.log("[ML] Embedding generated in", elapsedMs, "ms");
+        console.error("[ML] Embedding generated in", elapsedMs, "ms");
       }
 
       return embedding;
@@ -970,7 +970,7 @@ export class EmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] Generating batch embeddings for", texts.length, "texts");
+      console.error("[ML] Generating batch embeddings for", texts.length, "texts");
     }
 
     try {
@@ -1029,7 +1029,7 @@ export class EmbeddingService {
 
       if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.log("[ML] Batch embeddings generated in", elapsedMs, "ms");
+        console.error("[ML] Batch embeddings generated in", elapsedMs, "ms");
       }
 
       return results.filter((r): r is number[] => r !== undefined);
@@ -1055,7 +1055,7 @@ export class EmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] Disposing ONNX pipeline", {
+      console.error("[ML] Disposing ONNX pipeline", {
         mode: this.useWorkerThread ? "worker-thread" : "in-process",
         inferencesSinceRecycle: this.inferencesSinceRecycle,
         totalRecycles: this.totalRecycles,
@@ -1147,7 +1147,7 @@ export class EmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] Cache cleared");
+      console.error("[ML] Cache cleared");
     }
   }
 
@@ -1185,7 +1185,7 @@ export class EmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] Switching provider: %s → %s", this.currentProvider, provider);
+      console.error("[ML] Switching provider: %s → %s", this.currentProvider, provider);
     }
 
     if (this.useWorkerThread) {
@@ -1299,7 +1299,7 @@ export class EmbeddingService {
   async releaseGpu(): Promise<void> {
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] Releasing GPU resources (current provider: %s)", this.currentProvider);
+      console.error("[ML] Releasing GPU resources (current provider: %s)", this.currentProvider);
     }
 
     if (this.useWorkerThread) {
@@ -1410,7 +1410,7 @@ export class EmbeddingService {
       // T-5: currentProvider is NOT reset — re-spawn will use same provider
 
       // eslint-disable-next-line no-console
-      console.log("[ML] Worker Thread terminated for respawn (planned)");
+      console.error("[ML] Worker Thread terminated for respawn (planned)");
     })();
 
     // T-4: Hold workerInitPromise to block concurrent generateEmbedding() calls

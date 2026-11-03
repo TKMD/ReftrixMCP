@@ -168,7 +168,7 @@ export class FrameCaptureService {
 
     if (this.isDevelopment) {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameCaptureService] Initialized");
+      console.error("[FrameCaptureService] Initialized");
     }
   }
 
@@ -205,7 +205,7 @@ export class FrameCaptureService {
 
     if (this.isDevelopment) {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameCaptureService] Starting capture:", {
+      console.error("[FrameCaptureService] Starting capture:", {
         scrollPxPerFrame,
         frameIntervalMs,
         outputFormat,
@@ -235,7 +235,7 @@ export class FrameCaptureService {
     if (pageHeight > maxPageHeight) {
       if (this.isDevelopment) {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log("[FrameCaptureService] Page height exceeds limit, truncating:", {
+        console.error("[FrameCaptureService] Page height exceeds limit, truncating:", {
           originalPageHeight,
           maxPageHeight,
         });
@@ -254,7 +254,7 @@ export class FrameCaptureService {
     if (totalFrames > maxFrames) {
       if (this.isDevelopment) {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log("[FrameCaptureService] Frame count exceeds limit, truncating:", {
+        console.error("[FrameCaptureService] Frame count exceeds limit, truncating:", {
           originalFrameCount: totalFrames,
           maxFrames,
         });
@@ -266,7 +266,7 @@ export class FrameCaptureService {
 
     if (this.isDevelopment) {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameCaptureService] Page dimensions:", {
+      console.error("[FrameCaptureService] Page dimensions:", {
         originalPageHeight,
         pageHeight,
         viewportHeight,
@@ -293,7 +293,7 @@ export class FrameCaptureService {
       if (elapsed >= timeoutMs) {
         if (this.isDevelopment) {
           // eslint-disable-next-line no-console -- Intentional debug log in development
-          console.log("[FrameCaptureService] Timeout reached, stopping capture:", {
+          console.error("[FrameCaptureService] Timeout reached, stopping capture:", {
             capturedFrames: i,
             totalFrames,
             elapsedMs: elapsed,
@@ -337,7 +337,7 @@ export class FrameCaptureService {
       // 進捗ログ
       if (this.isDevelopment && i > 0 && i % 100 === 0) {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log(`[FrameCaptureService] Captured frame ${i}/${totalFrames}`);
+        console.error(`[FrameCaptureService] Captured frame ${i}/${totalFrames}`);
       }
     }
 
@@ -345,7 +345,7 @@ export class FrameCaptureService {
 
     if (this.isDevelopment) {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameCaptureService] Capture complete:", {
+      console.error("[FrameCaptureService] Capture complete:", {
         capturedFrames: files.length,
         totalFrames,
         durationMs: `${durationMs}ms`,
@@ -407,7 +407,7 @@ export class FrameCaptureService {
 
     if (this.isDevelopment) {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameCaptureService] Initial page metrics:", {
+      console.error("[FrameCaptureService] Initial page metrics:", {
         ...initialMetrics,
         maxHeight: currentHeight,
       });
@@ -418,7 +418,9 @@ export class FrameCaptureService {
     if (currentHeight <= viewportHeight) {
       if (this.isDevelopment) {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log("[FrameCaptureService] Page height equals viewport, waiting for JS render...");
+        console.error(
+          "[FrameCaptureService] Page height equals viewport, waiting for JS render..."
+        );
       }
 
       // JavaScript レンダリング完了を待つ
@@ -438,7 +440,7 @@ export class FrameCaptureService {
 
       if (this.isDevelopment) {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log("[FrameCaptureService] After JS wait:", {
+        console.error("[FrameCaptureService] After JS wait:", {
           ...afterWaitMetrics,
           maxHeight: currentHeight,
         });
@@ -468,7 +470,7 @@ export class FrameCaptureService {
       if (newHeight > currentHeight) {
         if (this.isDevelopment) {
           // eslint-disable-next-line no-console -- Intentional debug log in development
-          console.log("[FrameCaptureService] Page height increased:", {
+          console.error("[FrameCaptureService] Page height increased:", {
             from: currentHeight,
             to: newHeight,
             attempt: attempts,
@@ -479,7 +481,7 @@ export class FrameCaptureService {
         // 高さが変わらなくなったら終了
         if (this.isDevelopment) {
           // eslint-disable-next-line no-console -- Intentional debug log in development
-          console.log("[FrameCaptureService] Page height stabilized at attempt:", attempts);
+          console.error("[FrameCaptureService] Page height stabilized at attempt:", attempts);
         }
         break;
       }
@@ -491,7 +493,7 @@ export class FrameCaptureService {
 
     if (this.isDevelopment) {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameCaptureService] Final page height:", {
+      console.error("[FrameCaptureService] Final page height:", {
         finalHeight: currentHeight,
         viewportHeight,
         scrollableHeight: currentHeight - viewportHeight,
@@ -520,7 +522,7 @@ export class FrameCaptureService {
       await fs.mkdir(dir, { recursive: true });
       if (this.isDevelopment) {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log("[FrameCaptureService] Ensured directory exists:", dir);
+        console.error("[FrameCaptureService] Ensured directory exists:", dir);
       }
     } catch (err) {
       const error = err as { code?: string; message?: string };
@@ -549,7 +551,7 @@ export class FrameCaptureService {
       if (frameFiles.length > 0) {
         if (this.isDevelopment) {
           // eslint-disable-next-line no-console -- Intentional debug log in development
-          console.log(
+          console.error(
             `[FrameCaptureService] Clearing ${frameFiles.length} old frame files from ${dir}`
           );
         }

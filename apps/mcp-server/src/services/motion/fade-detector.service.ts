@@ -162,7 +162,7 @@ export class FadeDetector {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FadeDetector] Created with config:", this.config);
+      console.error("[FadeDetector] Created with config:", this.config);
     }
   }
 

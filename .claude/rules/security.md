@@ -90,11 +90,9 @@ describe("HTMLサニタイズ", () => {
 # 脆弱性スキャン / Vulnerability scan
 pnpm audit --audit-level=high
 
-# ライセンスチェック / License check
-npx license-checker --production \
-  --excludePackages "reftrix@<version>;sharp" \
-  --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;CC0-1.0;CC-BY-4.0;Unlicense;0BSD;AGPL-3.0-only;PostgreSQL;MPL-2.0;Python-2.0;BlueOak-1.0.0"
-# Note: sharp is excluded because its native binding (libvips) is LGPL-3.0-or-later; reviewed individually
+# ライセンスチェック / License check（公開 5 パッケージの production closure / production closure of the 5 published packages）
+bash scripts/ci/check-published-license-closure.sh
+# gate の仕組みと個別レビュー済み一覧は「品質ゲート」節 / gate mechanics and the individually reviewed list: see "Quality Gate" section
 ```
 
 ### SBOM (Software Bill of Materials)
@@ -121,6 +119,7 @@ npx license-checker --production \
   - **許可（その他） / Allowed (Other)**: AGPL-3.0-only（自プロジェクト）, PostgreSQL, Python-2.0, BlueOak-1.0.0
   - **Copyleft互換（CI allowlistに含む） / Copyleft-compatible (included in CI allowlist)**: MPL-2.0（弱コピーレフト。DOMPurify, axe-core等で使用） / MPL-2.0 (weak copyleft; used by DOMPurify, axe-core, etc.)
   - **動的リンク例外 / Dynamic linking exception**: LGPL-3.0-or-later（ネイティブバインディング依存。Sharp/libvips等で使用） / LGPL-3.0-or-later (native binding deps; used by Sharp/libvips, etc.)
+  - **個別レビュー済み（allowlist 外） / Individually reviewed (outside the allowlist)**: MIT-0（`@csstools/color-helpers`、`@csstools/css-syntax-patches-for-csstree`。MIT から帰属表示条項を除いた寛容ライセンスで AGPL-3.0-only と互換。package 単位で許可し allowlist には加えない） / MIT-0 (`@csstools/color-helpers`, `@csstools/css-syntax-patches-for-csstree`; a permissive license that is MIT without the notice clause and is compatible with AGPL-3.0-only; allowed per package and not added to the allowlist)
 - ✅ DOMPurify のセキュリティテストが通過 / DOMPurify security tests pass
 
 ### ❌ FAIL基準 / FAIL Criteria
@@ -144,24 +143,23 @@ if [ $? -ne 0 ]; then
 fi
 
 # ライセンスチェック / License check
-# ルートパッケージ(reftrix@<version>)はAGPL-3.0-onlyだがlicense-checkerが認識しないため除外
-# Root package excluded because license-checker cannot parse its AGPL-3.0-only SPDX ID
-npx license-checker --production \
-  --excludePackages "reftrix@<version>;sharp" \
-  --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;CC0-1.0;CC-BY-4.0;Unlicense;0BSD;AGPL-3.0-only;PostgreSQL;MPL-2.0;Python-2.0;BlueOak-1.0.0'
+# 公開 5 パッケージ (scripts/publish-targets.sh) の production closure を検査する / inspects the production closure of the 5 published packages
+bash scripts/ci/check-published-license-closure.sh
 if [ $? -ne 0 ]; then
-  echo "❌ 許可されていないライセンス検出"
+  echo "❌ 許可されていないライセンス検出、または検査対象が空 / disallowed license, or empty closure"
   exit 1
 fi
 ```
 
 セキュリティ脆弱性（High/Critical）0件でないとマージ不可。
 新規依存追加時はライセンス確認必須。
-LGPL-3.0-or-later 依存は**個別にレビュー記録を残すこと**（この義務は維持する）。なお、上記 gate の `--excludePackages` が列挙するのは `reftrix@<version>` と `sharp` のみであり LGPL パッケージを一切列挙しないため、「LGPL 依存を `--excludePackages` で除外する」という従来の記述は**記述どおりには no-op** である（実測。gate は `@img/*` をそもそも検査していない）。`--onlyAllow` への `LGPL-3.0-or-later` の追加は**引き続き禁止**である。
+**license gate の仕組み**: gate の実体は `scripts/ci/check-published-license-closure.sh`。公開 5 パッケージ（`scripts/publish-targets.sh`）それぞれの production closure を `pnpm --filter <name> licenses list --prod --json` で列挙し、5 つの union で公開 closure を覆う（公開パッケージの `workspace:` runtime 依存はすべて公開対象）。root は `dependencies` を持たないため、root だけの検査は 0 件検査で通っていた。次のいずれかで失敗する: closure が空 / `dependencies` に宣言した依存（`workspace:` 以外）が closure に無い / license 式が allowlist 外（SPDX の `OR` / `AND` を評価）/ 一覧を読めない・解析できない。allowlist は script 内の定数 `LICENSE_ALLOWLIST` で、従来の `--onlyAllow` とバイト一致し、LGPL も MIT-0 も含まない。
+**個別レビュー済み一覧**: 正典は `scripts/ci/license-closure-eval.mjs` の `REVIEWED`（名前と license の完全一致が要る。同じ名前でも license が違えば失敗）。現在の項目: `@img/sharp-libvips-*` = LGPL-3.0-or-later（sharp が N-API で動的リンクし、別パッケージとして置き換え可能。prefix で扱う）/ `@csstools/color-helpers`・`@csstools/css-syntax-patches-for-csstree` = MIT-0（allowlist 外だが個別レビュー済みとして許可）。`REVIEWED` に項目を足すときは、法務レビューの記録（decision）を先に残す。LGPL-3.0-or-later 依存は**個別にレビュー記録を残すこと**（この義務は維持する）。`--onlyAllow` / `LICENSE_ALLOWLIST` への `LGPL-3.0-or-later` の追加は**引き続き禁止**である。gate は CI（linux x64）の install tree の optional 依存だけを見るため、他プラットフォームの sharp バイナリは対象外（tracked: `
 
 No merge allowed with any High/Critical vulnerabilities.
 License verification is mandatory when adding new dependencies.
-LGPL-3.0-or-later dependencies **must be reviewed individually and the review recorded** (this obligation is retained). Note that the gate's `--excludePackages` enumerates only `reftrix@<version>` and `sharp` and no LGPL package, so the former instruction to "exclude LGPL dependencies via `--excludePackages`" is **a no-op as written** (measured: the gate never inspects `@img/*`). Adding `LGPL-3.0-or-later` to `--onlyAllow` **remains prohibited**.
+**How the license gate works**: the gate is `scripts/ci/check-published-license-closure.sh`. It lists the production closure of each of the 5 published packages (`scripts/publish-targets.sh`) with `pnpm --filter <name> licenses list --prod --json`; the union of the 5 closures covers the published closure (every `workspace:` runtime dependency of a published package is itself published). The root package declares no `dependencies`, so a root-only run inspected nothing and still passed. It fails when: a closure is empty; a dependency declared in `dependencies` (other than `workspace:`) is missing from the closure; a license expression is outside the allowlist (SPDX `OR` / `AND` are evaluated); or the listing cannot be read or parsed. The allowlist is the constant `LICENSE_ALLOWLIST` in the script, byte-identical to the former `--onlyAllow` and containing neither LGPL nor MIT-0.
+**Individually reviewed list**: the canonical source is `REVIEWED` in `scripts/ci/license-closure-eval.mjs` (a match needs the name and the exact license; the same name with a different license fails). Current entries: `@img/sharp-libvips-*` = LGPL-3.0-or-later (dynamically linked by sharp through N-API and replaceable as a separate package; matched by prefix) / `@csstools/color-helpers` and `@csstools/css-syntax-patches-for-csstree` = MIT-0 (outside the allowlist, allowed as individually reviewed). Before adding an entry to `REVIEWED`, record the legal review (a decision) first. LGPL-3.0-or-later dependencies **must be reviewed individually and the review recorded** (this obligation is retained). Adding `LGPL-3.0-or-later` to `--onlyAllow` / `LICENSE_ALLOWLIST` **remains prohibited**. The gate sees only the optional dependencies in the CI (linux x64) install tree, so sharp binaries for other platforms are out of its scope (tracked: `
 
 ## エラーメッセージサニタイズ / Error Message Sanitization
 
@@ -170,9 +168,9 @@ LGPL-3.0-or-later dependencies **must be reviewed individually and the review re
 
 ### sanitizeErrorMessage パターン / sanitizeErrorMessage Pattern
 
-v0.2.0で `utils/sanitize-error.ts` に統一ユーティリティとして抽出。<!-- gen:sanitize-usage-count -->122<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->40<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->109<!-- /gen:sanitize-import-count -->ファイルでインポート）。
+v0.2.0で `utils/sanitize-error.ts` に統一ユーティリティとして抽出。<!-- gen:sanitize-usage-count -->123<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->40<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->110<!-- /gen:sanitize-import-count -->ファイルでインポート）。
 
-Extracted as a unified utility in `utils/sanitize-error.ts` in v0.2.0. Applied to <!-- gen:sanitize-usage-count -->122<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->109<!-- /gen:sanitize-import-count --> files importing it).
+Extracted as a unified utility in `utils/sanitize-error.ts` in v0.2.0. Applied to <!-- gen:sanitize-usage-count -->123<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->110<!-- /gen:sanitize-import-count --> files importing it).
 
 エラーコードから汎用メッセージへ変換するヘルパー関数を使用し、内部構造の漏洩を防止する。
 
@@ -589,6 +587,8 @@ if (embedding.some((v) => !Number.isFinite(v))) {
 ## URL/リソースフェッチ / URL/Resource Fetching
 
 - SSRF対策: プライベートIP、メタデータサービスをブロック / SSRF prevention: block private IPs and metadata services
+- ブラウザは必ず `launchChromium()`（`utils/launch-chromium.ts`）で起動する。全リクエスト（リダイレクトの各 hop・iframe・サブリソースを含む）が送信先検査プロキシ（`utils/egress-guard-proxy.ts`）を通り、解決後の IP が公開アドレスの場合だけ接続する。呼び出し元は proxy を指定しない（`INV-SEC-SSRF-EGRESS-GUARD-001`）/ Always start browsers with `launchChromium()`; every request, including each redirect hop, iframes and subresources, goes through the egress guard proxy, which connects only when the resolved IP is public. Callers never set a proxy (`INV-SEC-SSRF-EGRESS-GUARD-001`)
+- ページ由来の URL を Node から取得するときは `@reftrixmcp/core` の `safeFetch`（リダイレクトを手動で追従し、各 hop の名前解決後の全アドレスを検査）か、hop ごとの `checkEgressHost` を使う。素の `fetch(url, { redirect: "follow" })` は使わない（ADR-0054）/ Node fetches of page-derived URLs use `safeFetch` from `@reftrixmcp/core` (manual redirects; every resolved address of every hop checked) or `checkEgressHost` per hop; never a bare `fetch(url, { redirect: "follow" })` (ADR-0054)
 - HTMLサニタイズ必須 / HTML sanitization required
 - タイムアウト設定必須（デフォルト30秒） / Timeout required (default 30s)
 

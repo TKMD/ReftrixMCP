@@ -18,6 +18,24 @@ export { escapeCssIdentifier } from "./utils/css-identifier";
 export * from "./services/description-generator.service";
 export * from "./services/robots-txt.service";
 
+// Egress checks (SSRF): address classification, host check, safeFetch
+export {
+  isNonPublicAddress,
+  checkEgressHost,
+  safeFetch,
+  getEgressDispatcher,
+  egressLookup,
+  EgressBlockedError,
+  setEgressResolverForTesting,
+  clearEgressCacheForTesting,
+} from "./net/egress";
+export type {
+  ResolvedAddress,
+  EgressResolver,
+  EgressHostDecision,
+  SafeFetchInit,
+} from "./net/egress";
+
 // Config utilities (PR7e-β1)
 export { loadEnvLocal } from "./config/env-local";
 export type { LoadEnvLocalOptions, LoadEnvLocalResult } from "./config/env-local";

@@ -110,7 +110,7 @@ export class FrameLoader {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameLoader] Initialized with options:", {
+      console.error("[FrameLoader] Initialized with options:", {
         allowedDirectories: this.allowedDirectories,
         maxFileSize: this.maxFileSize,
         optimizeMemory: this.optimizeMemory,
@@ -400,7 +400,7 @@ export class FrameLoader {
 
       if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log("[FrameLoader] Loaded frame:", {
+        console.error("[FrameLoader] Loaded frame:", {
           path: filePath,
           width: info.width,
           height: info.height,
@@ -468,7 +468,7 @@ export class FrameLoader {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameLoader] Loaded frame pair:", {
+      console.error("[FrameLoader] Loaded frame pair:", {
         frame1: path1,
         frame2: path2,
         size: `${frame1.metadata.width}x${frame1.metadata.height}`,

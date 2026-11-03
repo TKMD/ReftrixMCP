@@ -1839,6 +1839,8 @@ Design tools provide 4 capabilities: image similarity search, similar site searc
 
 **用途 / Purpose**: Base64画像またはURLからDINOv2 visual embeddingを生成し、HNSW + RRF 3ソースで類似デザインを検索 / Generate DINOv2 visual embeddings from Base64 images or URLs and search for similar designs via HNSW + RRF 3-source fusion
 
+**送信先の検査（0.7.1〜）/ Destination check (0.7.1+)**: 画像 URL の取得は、リダイレクトの各 hop で名前解決後の全アドレスを検査し、公開アドレスにだけ接続します。社内アドレスに解決される URL は `SSRF_BLOCKED` で失敗します（[troubleshooting §2.12](./04-troubleshooting.md)）。/ Image URL fetches check every resolved address of every redirect hop and connect only to public addresses; URLs that resolve to internal addresses fail with `SSRF_BLOCKED` (see troubleshooting §2.12).
+
 ```typescript
 // URL指定で類似デザイン検索
 // Search similar designs by URL
@@ -2026,6 +2028,8 @@ Accessibility tools perform WCAG 2.1-compliant accessibility audits, reporting s
 ### 17.1 accessibility.audit -- WCAG監査 / WCAG Audit
 
 **用途 / Purpose**: axe-coreを使用してWCAG 2.1アクセシビリティ監査を実行し、OKLCHコントラスト比チェックも併せて実施 / Run WCAG 2.1 accessibility audit using axe-core with OKLCH contrast ratio checking
+
+**送信先の検査（0.7.1〜）/ Destination check (0.7.1+)**: URL 入力の取得は、リダイレクトの各 hop で名前解決後の全アドレスを検査し、公開アドレスにだけ接続します。社内アドレスに解決されるページは取得に失敗します（[troubleshooting §2.12](./04-troubleshooting.md)）。/ URL fetches check every resolved address of every redirect hop and connect only to public addresses; pages that resolve to internal addresses cannot be fetched (see troubleshooting §2.12).
 
 **基本的な使い方 / Basic Usage**
 

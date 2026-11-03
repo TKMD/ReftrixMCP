@@ -117,7 +117,7 @@ export class AntiAiClicheDetector {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[AntiAiClicheDetector] Initialized with strictMode:", this.strictMode);
+      console.error("[AntiAiClicheDetector] Initialized with strictMode:", this.strictMode);
     }
   }
 
@@ -133,7 +133,7 @@ export class AntiAiClicheDetector {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[AntiAiClicheDetector] Pattern added:", pattern.id);
+      console.error("[AntiAiClicheDetector] Pattern added:", pattern.id);
     }
   }
 
@@ -145,7 +145,7 @@ export class AntiAiClicheDetector {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[AntiAiClicheDetector] Pattern removed:", id, "success:", result);
+      console.error("[AntiAiClicheDetector] Pattern removed:", id, "success:", result);
     }
 
     return result;
@@ -175,7 +175,11 @@ export class AntiAiClicheDetector {
   detect(context: DesignContext): ClicheReport {
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[AntiAiClicheDetector] Starting detection with", this.patterns.size, "patterns");
+      console.error(
+        "[AntiAiClicheDetector] Starting detection with",
+        this.patterns.size,
+        "patterns"
+      );
     }
 
     const detectedPatterns: Array<{
@@ -205,7 +209,7 @@ export class AntiAiClicheDetector {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log(
+      console.error(
         "[AntiAiClicheDetector] Detection complete. Score:",
         totalScore,
         "Detected:",
@@ -330,7 +334,7 @@ export class AntiAiClicheDetector {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[AntiAiClicheDetector] Builtin patterns initialized:", this.patterns.size);
+      console.error("[AntiAiClicheDetector] Builtin patterns initialized:", this.patterns.size);
     }
   }
 

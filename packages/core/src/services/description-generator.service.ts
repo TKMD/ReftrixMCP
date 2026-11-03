@@ -1005,7 +1005,7 @@ export function generateDescription(
 
   if (isDevEnvironment()) {
     // eslint-disable-next-line no-console -- Intentional debug log in development
-    console.log("[DescriptionGenerator] Generating for:", metadata.name);
+    console.error("[DescriptionGenerator] Generating for:", metadata.name);
   }
 
   const parts = buildDescriptionParts(metadata);
@@ -1068,7 +1068,7 @@ export function generateDescription(
 
   if (isDevEnvironment()) {
     // eslint-disable-next-line no-console -- Intentional debug log in development
-    console.log("[DescriptionGenerator] Generated:", description);
+    console.error("[DescriptionGenerator] Generated:", description);
   }
 
   return description;

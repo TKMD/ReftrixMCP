@@ -110,7 +110,7 @@ export function mergeWithRRF(
 
   if (process.env.NODE_ENV === "development") {
     // eslint-disable-next-line no-console
-    console.log("[Search] RRF merge completed:", {
+    console.error("[Search] RRF merge completed:", {
       vectorCount: vectorResults.length,
       fulltextCount: fulltextResults.length,
       mergedCount: merged.length,

@@ -215,7 +215,7 @@ describe("RLS Transaction Utilities", () => {
 
     it("開発環境ではデバッグログが出力されること", async () => {
       process.env.NODE_ENV = "development";
-      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       const mockTx = {
         $executeRawUnsafe: mockExecuteRawUnsafe,
@@ -235,7 +235,7 @@ describe("RLS Transaction Utilities", () => {
 
     it("開発環境で空ユーザーIDの場合はfail-closeログが出力されること", async () => {
       process.env.NODE_ENV = "development";
-      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       const mockTx = {
         $executeRawUnsafe: mockExecuteRawUnsafe,
@@ -255,7 +255,7 @@ describe("RLS Transaction Utilities", () => {
 
     it("本番環境ではデバッグログが出力されないこと", async () => {
       process.env.NODE_ENV = "production";
-      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       const mockTx = {
         $executeRawUnsafe: mockExecuteRawUnsafe,

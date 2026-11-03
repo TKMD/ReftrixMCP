@@ -13,6 +13,8 @@
  * @module utils/sanitize-error
  */
 
+import { BROWSER_MISSING_MESSAGE, isBrowserMissingError } from "./browser-missing";
+
 // =====================================================
 // Prisma Error Code Mapping / Prismaエラーコードマッピング
 // =====================================================
@@ -84,6 +86,13 @@ export function sanitizeErrorMessage(error: unknown): string {
     // Prisma-like error codes (Pxxxx pattern) — generic DB message
     if (prismaError.code && /^P\d{4}$/.test(prismaError.code)) {
       return CATEGORY_MESSAGES.database;
+    }
+
+    // Browser (Chromium) missing: fixed message, checked before keyword branches
+    // ("doesn't exist" would otherwise be classified generically).
+    // ブラウザ欠如: keyword 分岐より前に固定文言を返す
+    if (isBrowserMissingError(error)) {
+      return BROWSER_MISSING_MESSAGE;
     }
 
     // Detect category from error message (keyword-based)

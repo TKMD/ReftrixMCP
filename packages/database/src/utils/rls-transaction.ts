@@ -76,7 +76,7 @@ export async function withRlsContext<T>(
     // Log in development for debugging
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Development-only RLS context logging
-      console.log(`[RLS] Context set: user_id=${safeUserId || "(empty - fail-close)"}`);
+      console.error(`[RLS] Context set: user_id=${safeUserId || "(empty - fail-close)"}`);
     }
 
     return fn(tx);

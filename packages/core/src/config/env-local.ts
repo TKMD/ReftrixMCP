@@ -59,10 +59,10 @@ export interface LoadEnvLocalOptions {
    */
   maxDepth?: number;
   /**
-   * When true, emit a single `console.log` line with the resolved path after
+   * When true, emit a single `console.error (stderr)` line with the resolved path after
    * a successful load. Defaults to false (SEC-β-07).
    *
-   * true のとき、ロード成功時に解決済みのパスを 1 行だけ console.log に出す。
+   * true のとき、ロード成功時に解決済みのパスを 1 行だけ console.error (stderr) に出す。
    * 既定値 false (SEC-β-07)。
    */
   verbose?: boolean;
@@ -159,7 +159,7 @@ export function loadEnvLocal(options: LoadEnvLocalOptions = {}): LoadEnvLocalRes
       }
       if (verbose) {
         // eslint-disable-next-line no-console
-        console.log(`[loadEnvLocal] Loaded .env.local from ${candidate} (${keysLoaded} keys)`);
+        console.error(`[loadEnvLocal] Loaded .env.local from ${candidate} (${keysLoaded} keys)`);
       }
       return { loaded: true, path: candidate, keysLoaded };
     }

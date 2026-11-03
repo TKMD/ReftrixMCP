@@ -490,15 +490,15 @@ Reftrix maintains a **standing regression suite** for 4 critical domains. This s
 
 ### 運用ルール / Operational Rules
 
-| ルール / Rule                                | 詳細 / Details                                                                                                                    |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| **配置 / Location**                          | `tests/regression/standing/<domain>/` 配下に domain 別サブディレクトリ                                                            |
-| **CI 実行 / CI execution**                   | `.github/workflows/` に `regression-standing` job を常設。`pnpm test:regression:standing` で全4ドメイン実行                       |
-| **PR 要件 / PR requirements**                | 標準 `pnpm test` に加え、4ドメインに該当する PR は **standing regression suite が必ず PASS** であること                           |
-| **失敗時 / On failure**                      | **P0 incident** — pipeline-engineer / security-engineer へ即時エスカレート。merge 即時ブロック                                    |
-| **4ドメイン該当変更 / Changes in 4 domains** | IO の Finding Registry で `Regression domain:` フィールド必須記入、該当 domain の standing suite への test landing を required に |
-| **CI-failing 要件 / CI-failing requirement** | standing regression のテストは必ず CI で fail する実行可能テスト。`.skip` / `.todo` / `describe.skip` 禁止                        |
-| **INV-\* との対応 / INV-\* mapping**         | 各 standing test は必ず 1 つ以上の INV-\* に紐付く (test 内で `// INV-PAGE-QUEUE-001` コメントで明示)                             |
+| ルール / Rule                                | 詳細 / Details                                                                                                               |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **配置 / Location**                          | `tests/regression/standing/<domain>/` 配下に domain 別サブディレクトリ                                                       |
+| **CI 実行 / CI execution**                   | `.github/workflows/` に `regression-standing` job を常設。`pnpm test:regression:standing` で全4ドメイン実行                  |
+| **PR 要件 / PR requirements**                | 標準 `pnpm test` に加え、4ドメインに該当する PR は **standing regression suite が必ず PASS** であること                      |
+| **失敗時 / On failure**                      | **P0 incident** — pipeline-engineer / security-engineer へ即時エスカレート。merge 即時ブロック                               |
+| **4ドメイン該当変更 / Changes in 4 domains** | 該当 domain の standing suite への test 追加・更新を同じ PR に含める / Include the standing-suite test change in the same PR |
+| **CI-failing 要件 / CI-failing requirement** | standing regression のテストは必ず CI で fail する実行可能テスト。`.skip` / `.todo` / `describe.skip` 禁止                   |
+| **INV-\* との対応 / INV-\* mapping**         | 各 standing test は必ず 1 つ以上の INV-\* に紐付く (test 内で `// INV-PAGE-QUEUE-001` コメントで明示)                        |
 
 ### テストコマンド / Test Commands
 
@@ -517,14 +517,13 @@ pnpm test:regression:standing --filter schema-enum-sync
 
 standing regression の fail は **P0 incident** 扱い:
 
-1. **即時 merge block** — PR が standing regression で fail → merge 禁止 (IO は自動 BLOCK)
+1. **即時 merge block** — PR が standing regression で fail → merge 禁止
 2. **即時エスカレーション** — pipeline-engineer (worker-lifecycle / large-page) または security-engineer (gdpr-delete) または backend-api-developer (schema-enum-sync) へ通知
 3. **一時的 disable 禁止** — `.skip` で放置することは禁止。必ず fail 原因を修正するか INV-\* を改訂 (ADR 必須) する
 
 ### 関連ドキュメント / Related
 
 - Workflow: `CLAUDE.md` "常設 Regression Suite / Standing Regression Suite" セクション
-- IO: `.claude/agents/integration-owner.md` "Standing Regression Suite" セクション
 - ADR-0007 (Phase 5 Queue-based Backfill): large-page domain の背景
 - ADR-0011 (Worker Dual-run Lock): worker-lifecycle domain の背景
 

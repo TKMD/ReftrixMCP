@@ -29,6 +29,7 @@ import { createDIFactory } from "../utils/di-factory";
 // PR-SS-A D-2 (UB-1): derive the screenshot root default from the SSOT
 // (no duplicated bare literals — CI-detected by the SSOT sweep test).
 import { resolveScreenshotRootRaw } from "./screenshot-persistence.service";
+import { launchChromium } from "../utils/launch-chromium";
 
 // =====================================================
 // Error Codes / エラーコード
@@ -402,11 +403,9 @@ function generateHtmlReport(data: ReportData, title: string): string {
 /** デフォルト PDF 生成器（Playwright） */
 class PlaywrightPdfGenerator implements IPdfGenerator {
   async generatePdf(htmlContent: string): Promise<Buffer> {
-    const { chromium } = await import("playwright");
-
     let browser;
     try {
-      browser = await chromium.launch({ headless: true });
+      browser = await launchChromium({ headless: true });
       const page = await browser.newPage();
       await page.setContent(htmlContent, { waitUntil: "networkidle" });
       const pdf = await page.pdf({

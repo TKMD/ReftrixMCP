@@ -26,7 +26,9 @@ const serverJson = json("server.json");
 
 describe("INV-REGSYNC-VERSION-001 (synced leg)", () => {
   it("maps the mcp-server package name to packages[0].identifier by the rename", () => {
-    const renamed = String(serverPkg.name).replace(/^@reftrixmcp\//, "@reftrixmcp/");
+    const renamed = // Matches both the private scope and the OSS scope; prepare-oss rewrites a literal private-scope
+      // pattern into the OSS one, which made this an identity replacement there (CodeQL js/identity-replacement).
+      String(serverPkg.name).replace(/^@reftrix(?:mcp)?\//, "@reftrixmcp/");
     expect(serverJson.packages[0].identifier).toBe(renamed);
   });
 

@@ -205,7 +205,7 @@ async function initializeSession(modelPath: string): Promise<void> {
   }
 
   // eslint-disable-next-line no-console
-  console.log("[DINOv2Worker] Session initialized (provider: %s):", resolvedProvider, modelPath);
+  console.error("[DINOv2Worker] Session initialized (provider: %s):", resolvedProvider, modelPath);
 }
 
 async function disposeSession(): Promise<void> {

@@ -76,7 +76,11 @@ describe("Prisma Client Singleton", () => {
       // 呼び出し時の引数を確認
       const callArgs = (PrismaClient as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
       expect(callArgs).toBeDefined();
-      expect(callArgs.log).toEqual(["query", "error", "warn"]);
+      expect(callArgs.log).toEqual([
+        { emit: "event", level: "query" },
+        { emit: "event", level: "error" },
+        { emit: "event", level: "warn" },
+      ]);
     });
 
     it("開発環境ではglobalThisにprismaがキャッシュされること", async () => {
@@ -105,7 +109,7 @@ describe("Prisma Client Singleton", () => {
 
       const callArgs = (PrismaClient as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
       expect(callArgs).toBeDefined();
-      expect(callArgs.log).toEqual(["error"]);
+      expect(callArgs.log).toEqual([{ emit: "event", level: "error" }]);
     });
 
     it("本番環境ではglobalThisにprismaがキャッシュされないこと", async () => {

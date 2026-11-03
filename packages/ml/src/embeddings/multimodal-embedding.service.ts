@@ -284,7 +284,7 @@ export interface IEmbeddingService {
  *   originalText: "Hero section design",
  * });
  *
- * console.log(result.combinedEmbedding.length); // 768
+ * console.error(result.combinedEmbedding.length); // 768
  * ```
  */
 export class MultimodalEmbeddingService {
@@ -302,7 +302,7 @@ export class MultimodalEmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] MultimodalEmbeddingService created with config:", {
+      console.error("[ML] MultimodalEmbeddingService created with config:", {
         textWeight: this.config.textWeight,
         visionWeight: this.config.visionWeight,
         embeddingDimension: this.config.embeddingDimension,
@@ -339,7 +339,7 @@ export class MultimodalEmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] Generating multimodal embedding for:", {
+      console.error("[ML] Generating multimodal embedding for:", {
         textRepLength: input.textRepresentation.length,
         hasVisionFeatureText: !!input.visionFeatureText,
         hasOriginalText: !!input.originalText,
@@ -364,7 +364,7 @@ export class MultimodalEmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] Multimodal embedding generated in", processingTimeMs, "ms");
+      console.error("[ML] Multimodal embedding generated in", processingTimeMs, "ms");
     }
 
     return {
@@ -497,7 +497,7 @@ export class MultimodalEmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] createMultimodalEmbedding:", {
+      console.error("[ML] createMultimodalEmbedding:", {
         contentLength: content.length,
         hasVisionFeatures: !!visionFeatures,
         requestedMode: mergedConfig.searchMode,
@@ -550,7 +550,7 @@ export class MultimodalEmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] createMultimodalEmbedding completed in", processingTimeMs, "ms");
+      console.error("[ML] createMultimodalEmbedding completed in", processingTimeMs, "ms");
     }
 
     return {
@@ -597,7 +597,7 @@ export class MultimodalEmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] createBatchMultimodalEmbeddings:", {
+      console.error("[ML] createBatchMultimodalEmbeddings:", {
         count: items.length,
       });
     }
@@ -629,7 +629,7 @@ export class MultimodalEmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] createBatchMultimodalEmbeddings completed:", {
+      console.error("[ML] createBatchMultimodalEmbeddings completed:", {
         total: items.length,
         success: successCount,
         failed: failedCount,
@@ -810,7 +810,7 @@ export class MultimodalEmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] createOptimizedBatchMultimodalEmbeddings:", {
+      console.error("[ML] createOptimizedBatchMultimodalEmbeddings:", {
         count: items.length,
         concurrency,
         itemTimeoutMs,
@@ -956,7 +956,7 @@ export class MultimodalEmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] createOptimizedBatchMultimodalEmbeddings completed:", {
+      console.error("[ML] createOptimizedBatchMultimodalEmbeddings completed:", {
         ...metrics,
       });
     }
@@ -976,7 +976,7 @@ export class MultimodalEmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[ML] Embedding cache cleared");
+      console.error("[ML] Embedding cache cleared");
     }
   }
 

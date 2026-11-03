@@ -10,12 +10,18 @@
  * @module services/page-ingest-adapter
  */
 
-import { chromium, type Browser, type Page, type BrowserContext } from "playwright";
+import { type Browser, type Page, type BrowserContext } from "playwright";
 import { logger, isDevelopment } from "../utils/logger";
 import { GPU_BROWSER_BASE_ARGS } from "../utils/gpu-browser-args";
 import { BrowserProcessManager } from "./browser-process-manager";
 import { isUrlAllowedByRobotsTxt, ROBOTS_TXT } from "@reftrixmcp/core";
 import { McpError, ErrorCode } from "../utils/errors";
+import { BROWSER_MISSING_MESSAGE, isBrowserMissingError } from "../utils/browser-missing";
+import { launchChromium } from "../utils/launch-chromium";
+import { isBlockedHost } from "../utils/url-validator";
+import { isNonPublicAddress } from "@reftrixmcp/core";
+import { sanitizeErrorMessage } from "../utils/sanitize-error";
+import net from "node:net";
 
 // =============================================
 // 型定義
@@ -348,6 +354,25 @@ export interface IngestResult {
   warnings?: IngestWarning[];
 }
 
+/**
+ * 遷移後の URL がブロック対象か (多層防御)。ホスト名と IP リテラルだけを見る
+ * (クエリ文字列の decode や部分一致は使わない。正常なリダイレクト先を誤って拒否しないため)。
+ * Whether the post-navigation URL is blocked (defense in depth). Looks only at the host name
+ * and IP literals, never at decoded query strings, so legitimate redirect targets pass.
+ */
+export function isBlockedFinalUrl(finalUrl: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(finalUrl);
+  } catch {
+    return true;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return true;
+  const host = parsed.hostname.replace(/^\[|\]$/g, "");
+  if (isBlockedHost(host)) return true;
+  return net.isIP(host) !== 0 && isNonPublicAddress(host);
+}
+
 // =============================================
 // DNS リトライ定数・関数
 // =============================================
@@ -379,6 +404,39 @@ const DNS_ERROR_PATTERNS = [
   "EAI_AGAIN",
   "ENOTFOUND",
 ] as const;
+
+const NO_RESPONSE_MESSAGE = "No response received from page";
+
+/**
+ * 取り込み失敗をクライアント向けの文言にする (CWE-209)。
+ * Playwright の生のメッセージには call log やリダイレクト先の URL が入るため返さない。
+ * 自前の McpError と `net::ERR_*` コードだけを残す。生のメッセージはサーバーログに出す。
+ *
+ * Turn an ingest failure into a client-facing message (CWE-209). Playwright's raw
+ * message carries its call log and redirect-target URLs, so it is never returned; only
+ * our own McpError messages and the `net::ERR_*` code are kept. The raw message goes
+ * to the server-side log.
+ */
+export function toClientIngestError(error: unknown): string {
+  if (isBrowserMissingError(error)) {
+    return BROWSER_MISSING_MESSAGE;
+  }
+  if (error instanceof McpError) {
+    return error.message;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  if (message === NO_RESPONSE_MESSAGE) {
+    return message;
+  }
+  const netCode = /\bnet::ERR_[A-Z0-9_]+\b/.exec(message)?.[0];
+  if (/timeout|timed out/i.test(message)) {
+    return "Page load timeout";
+  }
+  if (netCode) {
+    return `Navigation failed (${netCode})`;
+  }
+  return sanitizeErrorMessage(error);
+}
 
 /**
  * エラーがリトライ可能なDNS関連エラーかどうかを判定する
@@ -750,7 +808,7 @@ class PageIngestAdapter {
         const errorMessage = e instanceof Error ? e.message : String(e);
         warnings.push({
           code: "WEBGL_WAIT_ERROR",
-          message: `WebGL adaptive wait failed: ${errorMessage}`,
+          message: `WebGL adaptive wait failed: ${toClientIngestError(e)}`,
         });
         logger.warn("[PageIngestAdapter] WebGL adaptive wait failed, continuing", {
           error: errorMessage,
@@ -1335,7 +1393,7 @@ class PageIngestAdapter {
       if (isDevelopment()) {
         logger.info("[PageIngestAdapter] Launching Chromium browser...");
       }
-      this.browser = await chromium.launch({
+      this.browser = await launchChromium({
         headless: true,
         args: [
           "--disable-gpu",
@@ -1361,7 +1419,7 @@ class PageIngestAdapter {
     if (isDevelopment()) {
       logger.info("[PageIngestAdapter] Launching GPU-enabled Chromium browser...");
     }
-    return chromium.launch({
+    return launchChromium({
       headless: true,
       args: [...GPU_BROWSER_BASE_ARGS],
     });
@@ -1376,7 +1434,7 @@ class PageIngestAdapter {
     if (isDevelopment()) {
       logger.info("[PageIngestAdapter] Launching WebGL-disabled Chromium browser...");
     }
-    return chromium.launch({
+    return launchChromium({
       headless: true,
       args: [
         // 標準のセキュリティ/パフォーマンス設定
@@ -1933,10 +1991,16 @@ class PageIngestAdapter {
       }
 
       if (!response) {
-        throw lastError ?? new Error("No response received from page");
+        throw lastError ?? new Error(NO_RESPONSE_MESSAGE);
       }
 
       const finalUrl = page.url();
+      // 多層防御: 遷移後の URL を再検証する (主防御は launchChromium の送信先検査プロキシ)。
+      // Defense in depth: re-validate the post-navigation URL (the primary defense is the
+      // egress guard proxy in launchChromium). INV-SEC-SSRF-EGRESS-GUARD-001.
+      if (isBlockedFinalUrl(finalUrl)) {
+        throw new McpError(ErrorCode.FORBIDDEN, "Navigation ended at a blocked URL");
+      }
 
       // 特定のセレクターを待機（オプション）
       if (ingestOptions.waitForSelector) {
@@ -2110,7 +2174,7 @@ class PageIngestAdapter {
             screenshotError instanceof Error ? screenshotError.message : String(screenshotError);
           warnings.push({
             code: "SCREENSHOT_FAILED",
-            message: `Screenshot capture failed: ${errorMessage}. Analysis will continue without screenshot.`,
+            message: `Screenshot capture failed: ${toClientIngestError(screenshotError)}. Analysis will continue without screenshot.`,
           });
 
           logger.warn("[PageIngestAdapter] Screenshot failed, continuing without screenshot", {
@@ -2198,10 +2262,12 @@ class PageIngestAdapter {
         error: errorMessage,
       });
 
-      // エラー結果を返す
+      // エラー結果を返す。client には toClientIngestError の文言だけを返す (raw は上の log に残る)
+      // Return only the toClientIngestError text to clients (the raw message stays in
+      // the server-side log above).
       return {
         success: false,
-        error: errorMessage,
+        error: toClientIngestError(error),
         url,
         finalUrl: url,
         html: "",

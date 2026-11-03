@@ -12,6 +12,11 @@
  */
 
 import { PrismaClient } from "../generated/prisma";
+import {
+  forwardPrismaLogsToStderr,
+  prismaEventLogConfig,
+  prismaLogLevels,
+} from "./prisma-stderr-log";
 
 /**
  * Admin Prisma Client (RLS Bypass)
@@ -41,12 +46,14 @@ function getAdminClient(): PrismaClient | null {
   }
 
   if (!globalForPrismaAdmin.prismaAdmin) {
+    const levels = prismaLogLevels();
     globalForPrismaAdmin.prismaAdmin = new PrismaClient({
       datasources: {
         db: { url: adminUrl },
       },
-      log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+      log: prismaEventLogConfig(levels),
     });
+    forwardPrismaLogsToStderr(globalForPrismaAdmin.prismaAdmin, levels);
   }
 
   return globalForPrismaAdmin.prismaAdmin;

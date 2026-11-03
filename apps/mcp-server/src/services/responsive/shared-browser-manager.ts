@@ -11,9 +11,10 @@
  * @module services/responsive/shared-browser-manager
  */
 
-import { chromium, type Browser } from "playwright";
+import { type Browser } from "playwright";
 import { ROBOTS_TXT } from "@reftrixmcp/core";
 import { logger, isDevelopment } from "../../utils/logger";
+import { launchChromium } from "../../utils/launch-chromium";
 
 /**
  * ReftrixBot 識別子
@@ -58,11 +59,11 @@ export class SharedBrowserManager {
 
   /**
    * ブラウザを取得（シングルトン）
-   * ブラウザが未起動の場合は chromium.launch() で起動する。
+   * ブラウザが未起動の場合は launchChromium() で起動する。
    */
   async getBrowser(): Promise<Browser> {
     if (!this.browser) {
-      this.browser = await chromium.launch({
+      this.browser = await launchChromium({
         headless: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
       });

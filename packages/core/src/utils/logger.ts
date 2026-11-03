@@ -24,7 +24,7 @@ export const logger = {
   info: (...args: unknown[]): void => {
     if (isDev) {
       // eslint-disable-next-line no-console -- Logger utility intentionally uses console
-      console.log("[INFO]", ...args);
+      console.error("[INFO]", ...args);
     }
   },
 
@@ -52,7 +52,7 @@ export const logger = {
   debug: (...args: unknown[]): void => {
     if (isDev) {
       // eslint-disable-next-line no-console -- Logger utility intentionally uses console
-      console.log("[DEBUG]", ...args);
+      console.error("[DEBUG]", ...args);
     }
   },
 };

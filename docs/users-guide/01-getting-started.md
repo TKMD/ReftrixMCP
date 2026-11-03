@@ -144,6 +144,38 @@ Chromium is required for web page crawling (`page.analyze`, `layout.ingest`).
 pnpm exec playwright install chromium
 ```
 
+npm パッケージ（`@reftrixmcp/mcp-server`）として使う場合は、どのディレクトリでも次を実行してください。版を固定しているため、同じ revision のブラウザが入ります。
+
+When you use the npm package (`@reftrixmcp/mcp-server`), run the following in any directory. The version is pinned, so the same browser revision is installed.
+
+```bash
+npx playwright@1.57.0 install chromium
+```
+
+**ブラウザの取得について / Getting the browser**
+
+- (a) ブラウザは本パッケージに含まれず、利用者ご自身が Playwright の配布サーバー（Microsoft）から取得する第三者のソフトウェアです。
+- (b) Linux arm64 以外（Linux x64、macOS の Intel / Apple Silicon、Windows x64）では **Google の Chrome for Testing** が入ります。Google の著作物で、Google の利用規約（chrome://terms）に服し、オープンソースではない部品を含みます。Linux arm64 では Chromium が入ります。あわせて ffmpeg（LGPL-2.1-or-later）も取得されます。
+- (c) 本プロジェクトの AGPL-3.0-only はこれらのブラウザには及びません。本プロジェクトはブラウザを再配布しません。各ブラウザの利用条件は、取得した利用者に適用されます。
+- (d) 版は本パッケージが使う Playwright の版（<!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright -->）に固定しています。版を指定しない `npx playwright install` は別の revision のブラウザを入れることがあります。
+- ブラウザは本パッケージの SBOM に含まれません。
+
+English:
+
+- (a) The browser is not included in this package; it is third-party software you download yourself from Playwright's distribution server (Microsoft).
+- (b) On every platform except Linux arm64 (Linux x64, macOS on Intel or Apple Silicon, Windows x64) this installs **Google's Chrome for Testing**, which is Google's software, is subject to Google's Terms of Service (chrome://terms), and contains components that are not open source. On Linux arm64 it installs Chromium. ffmpeg (LGPL-2.1-or-later) is downloaded as well.
+- (c) This project's AGPL-3.0-only license does not extend to these browsers, and this project does not redistribute them. Each browser's terms apply to you as the person who downloads it.
+- (d) The version is pinned to the Playwright version this package uses (<!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright -->). Running `npx playwright install` without a version may install a browser from a different revision.
+- The browser is not part of this package's SBOM.
+
+npm パッケージを `npm install --ignore-scripts` で入れた場合は Prisma client の生成が走りません。install したディレクトリで次を実行してください。
+
+If you installed the npm package with `npm install --ignore-scripts`, the Prisma client is not generated. Run the following in the directory where you installed it:
+
+```bash
+npm rebuild @prisma/client
+```
+
 #### 環境変数の設定 / Configure Environment Variables
 
 ```bash

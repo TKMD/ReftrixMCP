@@ -217,7 +217,7 @@ export class DINOv2Service {
 
       if (response.type === "init") {
         // eslint-disable-next-line no-console
-        console.log("[DINOv2] Worker Thread initialized in %dms", response.loadTimeMs);
+        console.error("[DINOv2] Worker Thread initialized in %dms", response.loadTimeMs);
       }
     } catch (error) {
       this.workerInitPromise = null;
@@ -341,7 +341,7 @@ export class DINOv2Service {
     }
 
     // eslint-disable-next-line no-console
-    console.log(
+    console.error(
       "[DINOv2] Session initialized in-process (provider: %s):",
       effectiveProvider,
       this.modelPath

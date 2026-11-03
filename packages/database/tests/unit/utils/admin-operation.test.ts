@@ -311,7 +311,11 @@ describe("Admin Operation Utilities", () => {
 
       expect(mockPrismaClient).toHaveBeenCalledWith(
         expect.objectContaining({
-          log: ["query", "error", "warn"],
+          log: [
+            { emit: "event", level: "query" },
+            { emit: "event", level: "error" },
+            { emit: "event", level: "warn" },
+          ],
         })
       );
     });
@@ -326,7 +330,7 @@ describe("Admin Operation Utilities", () => {
 
       expect(mockPrismaClient).toHaveBeenCalledWith(
         expect.objectContaining({
-          log: ["error"],
+          log: [{ emit: "event", level: "error" }],
         })
       );
     });

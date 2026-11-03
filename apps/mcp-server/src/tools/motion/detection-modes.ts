@@ -40,6 +40,7 @@ import {
   adaptServiceResult,
 } from "./pattern-converter";
 import { getMotionDetectorService } from "../../services/page/motion-detector.service";
+import { launchChromium } from "../../utils/launch-chromium";
 
 // =====================================================
 // エラークラス
@@ -262,13 +263,11 @@ export async function executeFrameCapture(
     throw new SSRFBlockedError(urlValidation.error ?? "URL is blocked for security reasons");
   }
 
-  const { chromium } = await import("playwright");
-
   let browser: Browser | null = null;
 
   try {
     // ブラウザ起動（タイムアウト30秒）
-    browser = await chromium.launch({
+    browser = await launchChromium({
       headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
       timeout: 30000,
@@ -382,13 +381,11 @@ export async function executeRuntimeDetection(
     throw new SSRFBlockedError(urlValidation.error ?? "URL is blocked for security reasons");
   }
 
-  const { chromium } = await import("playwright");
-
   let browser = null;
   let page: Page | null = null;
 
   try {
-    browser = await chromium.launch({
+    browser = await launchChromium({
       headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
     });

@@ -36,6 +36,7 @@ import type {
   ContrastCheckService,
   ContrastIssue,
 } from "../../services/quality/contrast-check.service";
+import { safeFetch } from "@reftrixmcp/core";
 
 // =====================================================
 // エラーコード / Error Codes
@@ -199,7 +200,8 @@ export async function accessibilityAuditHandler(input: unknown): Promise<Accessi
   // URL入力の場合はFetchで取得
   if (validated.url && !html) {
     try {
-      const response = await fetch(validated.url, {
+      // 各 hop の宛先を検査 (SSRF) / check every hop (SSRF)
+      const response = await safeFetch(validated.url, {
         signal: AbortSignal.timeout(30000),
         headers: {
           "User-Agent": "Reftrix-AccessibilityAudit/1.0",

@@ -39,6 +39,7 @@ import {
   setCachedResult,
 } from "../../services/search-cache.service";
 import { formatIssueLine } from "../../utils/issue-path";
+import { checkEgressHost, getEgressDispatcher } from "@reftrixmcp/core";
 
 // =====================================================
 // 定数
@@ -238,12 +239,21 @@ function decodeBase64Image(input: string): Buffer {
  * returned raw so the caller can re-validate the Location header (SEC-W3-H2 / CWE-918).
  */
 async function fetchImageHopManual(safeUrl: string): Promise<Response> {
+  // 名前解決後の全アドレスが公開であること (公開名→内部 IP を拒否、INV-SEC-SSRF-EGRESS-GUARD-001)
+  // Every resolved address must be public (refuses public names that resolve inside)
+  const egress = await checkEgressHost(new URL(safeUrl).hostname);
+  if (!egress.allowed) {
+    throw new Error("SSRF blocked: the image host resolves to a non-public address");
+  }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), IMAGE_FETCH_TIMEOUT_MS);
   try {
     return await fetch(safeUrl, {
       // CWE-918: never auto-follow — a 302 to 169.254.169.254 would bypass the initial gate.
       redirect: "manual",
+      // 接続時の名前解決も検査し、検査済みアドレスに固定する (rebinding 対策)
+      // Connection-time lookup is checked and pinned too (rebinding)
+      ...({ dispatcher: getEgressDispatcher() } as RequestInit),
       signal: controller.signal,
       headers: {
         "User-Agent": "Reftrix/1.0 (design-search)",

@@ -8,17 +8,27 @@
 import { PrismaClient as _RuntimePrismaClient } from "./generated/prisma";
 import { Prisma } from "@prisma/client";
 import type { PrismaClient } from "@prisma/client";
+import {
+  forwardPrismaLogsToStderr,
+  prismaEventLogConfig,
+  prismaLogLevels,
+} from "./utils/prisma-stderr-log";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
   hnswIterativeScanInitialized: boolean | undefined;
 };
 
-export const prisma =
-  globalForPrisma.prisma ??
-  (new _RuntimePrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-  }) as unknown as PrismaClient);
+function createPrismaClient(): PrismaClient {
+  const levels = prismaLogLevels();
+  const client = new _RuntimePrismaClient({
+    log: prismaEventLogConfig(levels),
+  }) as unknown as PrismaClient;
+  forwardPrismaLogsToStderr(client, levels);
+  return client;
+}
+
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;

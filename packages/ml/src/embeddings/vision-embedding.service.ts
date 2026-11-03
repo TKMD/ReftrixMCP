@@ -83,7 +83,7 @@ export class VisionEmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[VisionEmbedding] Service created with maxCacheSize:", this.maxCacheSize);
+      console.error("[VisionEmbedding] Service created with maxCacheSize:", this.maxCacheSize);
     }
   }
 
@@ -102,7 +102,7 @@ export class VisionEmbeddingService {
       this.cacheHits++;
       if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console
-        console.log("[VisionEmbedding] Cache hit");
+        console.error("[VisionEmbedding] Cache hit");
       }
       return cached;
     }
@@ -114,7 +114,7 @@ export class VisionEmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[VisionEmbedding] Generating embedding for:", text.substring(0, 80));
+      console.error("[VisionEmbedding] Generating embedding for:", text.substring(0, 80));
     }
 
     // EmbeddingServiceを使用して埋め込み生成
@@ -140,7 +140,7 @@ export class VisionEmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[VisionEmbedding] Batch processing", featuresArray.length, "items");
+      console.error("[VisionEmbedding] Batch processing", featuresArray.length, "items");
     }
 
     // キャッシュチェックと未キャッシュアイテムの特定
@@ -214,7 +214,7 @@ export class VisionEmbeddingService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console
-      console.log("[VisionEmbedding] Cache cleared");
+      console.error("[VisionEmbedding] Cache cleared");
     }
   }
 
@@ -243,7 +243,7 @@ export class VisionEmbeddingService {
         this.cacheEvictions++;
         if (process.env.NODE_ENV === "development") {
           // eslint-disable-next-line no-console
-          console.log("[VisionEmbedding] Cache evicted oldest entry");
+          console.error("[VisionEmbedding] Cache evicted oldest entry");
         }
       } else {
         break;

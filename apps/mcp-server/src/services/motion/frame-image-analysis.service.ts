@@ -81,7 +81,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameImageAnalysisService] Initialized:", this.config);
+      console.error("[FrameImageAnalysisService] Initialized:", this.config);
     }
   }
 
@@ -170,7 +170,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
 
       if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log("[FrameImageAnalysisService] Analysis complete:", {
+        console.error("[FrameImageAnalysisService] Analysis complete:", {
           totalFrames: result.data!.totalFrames,
           processingTimeMs: result.data!.processingTimeMs,
         });
@@ -219,7 +219,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameImageAnalysisService] Disposed");
+      console.error("[FrameImageAnalysisService] Disposed");
     }
   }
 
@@ -320,7 +320,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
 
         if (process.env.NODE_ENV === "development") {
           // eslint-disable-next-line no-console -- Intentional debug log in development
-          console.log(
+          console.error(
             `[FrameImageAnalysisService] Loaded frame ${index + 1}/${framePaths.length}:`,
             {
               path: framePath,
@@ -532,7 +532,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
       if (process.env.NODE_ENV === "development") {
         const stats = workerPool.getStats();
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log("[FrameImageAnalysisService] Parallel diff analysis complete:", {
+        console.error("[FrameImageAnalysisService] Parallel diff analysis complete:", {
           totalPairs: tasks.length,
           completedTasks: stats.completedTasks,
           failedTasks: stats.failedTasks,
@@ -1028,7 +1028,7 @@ export class FrameImageAnalysisService implements IFrameImageAnalysisService {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameImageAnalysisService] Color change detection:", {
+      console.error("[FrameImageAnalysisService] Color change detection:", {
         totalEvents: events.length,
         fadeInCount,
         fadeOutCount,

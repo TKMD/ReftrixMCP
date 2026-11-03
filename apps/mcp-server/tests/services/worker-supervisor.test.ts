@@ -198,6 +198,9 @@ describe("WorkerSupervisor", () => {
           cwd: expect.any(String),
         })
       );
+      // INV-PUBLISHED-STDOUT-SILENT-001: the child's stdout must be piped, never inherited,
+      // or start-workers output would reach the MCP stdio JSON-RPC stream.
+      expect(mockFork.mock.calls[0]?.[2]?.stdio?.[1]).toBe("pipe");
       expect(supervisor.getState()).toBe("running");
     });
 

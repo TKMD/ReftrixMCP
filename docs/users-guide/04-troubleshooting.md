@@ -308,6 +308,72 @@ Error: ETIMEDOUT
 
 ---
 
+### 2.9 ブラウザが未取得（固定文言） / Browser Not Installed (Fixed Message)
+
+**症状 / Symptoms:**
+
+```
+Browser for page crawling is not installed. Run: npx playwright@1.57.0 install chromium
+```
+
+**原因と解決策 / Cause and Solution:**
+
+ページ取得に使う Chromium がこの環境に無い場合、`layout.ingest` / `layout.batch_ingest` は内部 path を含まない上記の固定文言を返します。`page.analyze`（同期実行）の文言は固定文言で始まり、末尾に ` (after N attempt(s))` が付くことがあります。表示された `npx playwright@<版> install chromium` をそのまま実行してください（版が固定されているため、実行ディレクトリは問いません）。元のエラー本文はサーバー側ログに残ります。`PLAYWRIGHT_BROWSERS_PATH` を変えている場合は、MCP サーバーと同じ値を設定した状態で install してください。
+
+When the Chromium used for page crawling is not available in this environment, `layout.ingest` / `layout.batch_ingest` return the fixed message above, with no internal path. For `page.analyze` (synchronous run) the message starts with the fixed message and may end with ` (after N attempt(s))`. Run the printed `npx playwright@<version> install chromium` as-is (the version is pinned, so the working directory does not matter). The raw error text stays in the server-side log. If you have changed `PLAYWRIGHT_BROWSERS_PATH`, run the install with the same value the MCP server uses.
+
+---
+
+### 2.10 `Cannot find module 'playwright'`（0.7.0 以前の npm パッケージ） / `Cannot find module 'playwright'` (npm Package 0.7.0 and Earlier)
+
+**症状 / Symptoms:**
+
+```
+Error: Cannot find module 'playwright'
+```
+
+**原因と解決策 / Cause and Solution:**
+
+0.7.0 以前の npm パッケージ `@reftrixmcp/mcp-server` は `playwright` を実行時の依存として宣言していません（既知の問題）。そのため npm で入れた環境では、ページ取得を使うツールの実行時にこのエラーになります。回避策として、パッケージを install したディレクトリで版を固定して `playwright` を追加し、続けてブラウザを取得してください。
+
+The npm package `@reftrixmcp/mcp-server` 0.7.0 and earlier does not declare `playwright` as a runtime dependency (known issue), so an npm installation fails with this error when a tool that fetches pages runs. As a workaround, add `playwright` with the pinned version in the directory where you installed the package, then get the browser:
+
+```bash
+npm install playwright@1.57.0
+npx playwright@1.57.0 install chromium
+```
+
+---
+
+### 2.11 `--ignore-scripts` で install した後に Prisma client が無い / Prisma Client Missing After Installing with `--ignore-scripts`
+
+**原因と解決策 / Cause and Solution:**
+
+`npm install --ignore-scripts` では Prisma client の生成が走りません。パッケージを install したディレクトリで次を実行してください。
+
+`npm install --ignore-scripts` skips generating the Prisma client. Run the following in the directory where you installed the package:
+
+```bash
+npm rebuild @prisma/client
+```
+
+### 2.12 社内ページや proxy 経由で解析できない（0.7.1 以降） / Cannot Analyze Intranet Pages or Use a Proxy (0.7.1 and Later)
+
+**原因 / Cause:**
+
+0.7.1 から、ブラウザの全リクエスト（リダイレクト先・iframe・画像などを含む）と、ページ由来の URL を取る Node 側の取得は、名前解決後のアドレスが公開アドレスの場合だけ接続します（SSRF 対策）。そのため次の場合は失敗します。
+
+From 0.7.1, every browser request (including redirect targets, iframes and images) and every Node-side fetch of a page-derived URL connects only when the resolved addresses are public (SSRF defense). The following therefore fail:
+
+- 名前が private・loopback・link-local のアドレスに解決されるページ（社内サイトなど）/ pages whose names resolve to private, loopback or link-local addresses (such as intranet sites)
+- 上流の HTTP proxy（企業 proxy）を経由しないと外に出られない環境。ブラウザに proxy を設定することはできません / environments that can only reach the internet through an upstream HTTP proxy; a browser proxy cannot be configured
+
+ブラウザ側では `net::ERR_TUNNEL_CONNECTION_FAILED` や `net::ERR_EMPTY_RESPONSE` として、サーバーの log には `[egress-guard] Blocked browser request` として現れます。現時点では回避する設定はありません。
+
+In the browser this shows up as `net::ERR_TUNNEL_CONNECTION_FAILED` or `net::ERR_EMPTY_RESPONSE`, and in the server log as `[egress-guard] Blocked browser request`. There is currently no setting to bypass it.
+
+---
+
 ## 3. 検索の問題 / Search Issues
 
 ### 3.1 Layout/Motion検索結果が表示されない / No Layout/Motion Search Results

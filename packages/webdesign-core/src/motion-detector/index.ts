@@ -121,7 +121,7 @@ export class MotionDetector {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[MotionDetector] Initialized with options:", this.options);
+      console.error("[MotionDetector] Initialized with options:", this.options);
     }
   }
 
@@ -135,7 +135,7 @@ export class MotionDetector {
   public detect(html: string, css?: string): MotionDetectionResult {
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[MotionDetector] Starting detection...");
+      console.error("[MotionDetector] Starting detection...");
     }
 
     // 状態をリセット
@@ -240,7 +240,7 @@ export class MotionDetector {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[MotionDetector] Detection complete. Patterns:", filteredPatterns.length);
+      console.error("[MotionDetector] Detection complete. Patterns:", filteredPatterns.length);
     }
 
     return {
@@ -327,7 +327,7 @@ export class MotionDetector {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[MotionDetector] Parsed keyframes:", Array.from(keyframes.keys()));
+      console.error("[MotionDetector] Parsed keyframes:", Array.from(keyframes.keys()));
     }
 
     return keyframes;

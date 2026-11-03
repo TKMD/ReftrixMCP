@@ -254,7 +254,7 @@ export class FrameWorkerPool {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameWorkerPool] Created:", {
+      console.error("[FrameWorkerPool] Created:", {
         workerCount: this.config.workerCount,
         cpuCount,
       });
@@ -283,7 +283,7 @@ export class FrameWorkerPool {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameWorkerPool] Initialized with", this.workers.length, "workers");
+      console.error("[FrameWorkerPool] Initialized with", this.workers.length, "workers");
     }
   }
 
@@ -372,7 +372,7 @@ export class FrameWorkerPool {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameWorkerPool] Shutdown complete");
+      console.error("[FrameWorkerPool] Shutdown complete");
     }
   }
 

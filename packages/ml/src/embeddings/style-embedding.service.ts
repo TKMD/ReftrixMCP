@@ -19,7 +19,7 @@ const isDevelopment = process.env.NODE_ENV === "development";
 const log = (message: string, data?: unknown): void => {
   if (isDevelopment) {
     // eslint-disable-next-line no-console
-    console.log(`[StyleEmbedding] ${message}`, data ?? "");
+    console.error(`[StyleEmbedding] ${message}`, data ?? "");
   }
 };
 

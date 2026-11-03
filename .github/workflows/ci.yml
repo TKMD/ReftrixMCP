@@ -44,12 +44,15 @@ jobs:
   lint:
     name: Lint & Type Check
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # fetch-depth: 2 for docs-impact to access parent commit (github.event.before)
-          fetch-depth: 2
+          # Full history: steps that read git history (parent commit, blame) must not see a shallow
+          # clone. Nothing here pushes, so the token is not kept.
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -537,14 +540,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Check licenses
-        # license-checker が AGPL-3.0-only SPDX ID を認識しないため、ルートパッケージを除外。
-        # ルートパッケージのライセンスは LICENSE ファイルと package.json で AGPL-3.0-only を明示済み。
-        # sharp は libvips (LGPL-3.0-or-later) を動的リンク (N-API/addon) で使用。
-        # LGPL動的リンク例外により AGPL-3.0 と互換。詳細: THIRDPARTY_LICENSES.md
-        run: >-
-          npx license-checker --production
-          --excludePackages "reftrixmcp@$(node -p "require('./package.json').version");sharp"
-          --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;CC0-1.0;CC-BY-4.0;Unlicense;0BSD;AGPL-3.0-only;PostgreSQL;MPL-2.0;Python-2.0;BlueOak-1.0.0"
+        # 公開 5 パッケージ (scripts/publish-targets.sh) それぞれの production closure を検査する (5 つの union が公開 closure)。
+        # root は dependencies を持たないため、root だけの license-checker は 0 件検査で exit 0 だった。
+        # 空の closure・宣言依存の欠落・allowlist 外の license はいずれも失敗する。
+        # sharp の libvips (LGPL-3.0-or-later) は動的リンク (N-API/addon) で個別レビュー済み。
+        # @csstools の 2 パッケージ (MIT-0) も allowlist 外だが個別レビュー済み (正典: scripts/ci/license-closure-eval.mjs の REVIEWED)。
+        # 詳細: scripts/ci/check-published-license-closure.sh / THIRDPARTY_LICENSES.md
+        run: bash scripts/ci/check-published-license-closure.sh
 
       - name: Generate SBOM (CycloneDX)
         # EU CRA 2026/9/11 vulnerability reporting obligation compliance

@@ -28,7 +28,6 @@
  */
 
 import type { Browser, BrowserContext, Page } from "playwright";
-import { chromium } from "playwright";
 import type { PrismaClient, Prisma } from "@prisma/client";
 import { ROBOTS_TXT, escapeCssIdentifier } from "@reftrixmcp/core";
 import { validateExternalUrl } from "../../utils/url-validator";
@@ -38,6 +37,7 @@ import { getLazyScrollMaxIterations } from "../page-ingest-adapter";
 import { truncateId } from "./schemas";
 import { waitForRafSettle } from "./section-selector.helper";
 import { TAG_TO_PART_TYPE } from "./types";
+import { launchChromium } from "../../utils/launch-chromium";
 
 // ============================================================================
 // Constants / 定数
@@ -425,7 +425,7 @@ export async function resolvePartBoundingBoxes(
     if (usingSharedBrowser) {
       browser = params.sharedBrowser!;
     } else {
-      browser = await chromium.launch({
+      browser = await launchChromium({
         headless: true,
         args: [
           "--no-sandbox",

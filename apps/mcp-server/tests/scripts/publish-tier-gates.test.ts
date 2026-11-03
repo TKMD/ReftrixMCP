@@ -48,9 +48,9 @@ const TIERS = ([1, 2, 3] as const).map((n) =>
 );
 const ALL = TIERS.flat();
 const docUrl = (name: string): string =>
-  `https://registry.npmjs.org/${name.replace("/", "%2F")}/${VER}`;
+  `https://registry.npmjs.org/${name.replaceAll("/", "%2F")}/${VER}`;
 const attUrl = (name: string): string =>
-  `https://registry.npmjs.org/-/npm/v1/attestations/${name.replace("/", "%2f")}@${VER}`;
+  `https://registry.npmjs.org/-/npm/v1/attestations/${name.replaceAll("/", "%2f")}@${VER}`;
 const REPUBLISH =
   "npm error code E403\nnpm error 403 Forbidden - You cannot publish over the previously published versions: 0.6.1.\n::error::pwned\n##[error]pwned2\n";
 
@@ -110,6 +110,11 @@ function runTiers(env: Record<string, string> = {}): ReturnType<Harness["run"]> 
       RELEASE_DIST_TAG: "latest",
       TAG_COMMIT_SHA: GOOD_COMMIT,
       GITHUB_OUTPUT: outFile,
+      // what the verify job reports through its job output; the step requires the artifact to equal it
+      CHECKSUMS: spawnSync("sh", ["-c", "sha256sum ./*.tgz"], {
+        cwd: join(ws, "tarballs"),
+        encoding: "utf-8",
+      }).stdout,
       ...env,
     },
     ws

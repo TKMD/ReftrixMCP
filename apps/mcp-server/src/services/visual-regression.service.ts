@@ -26,6 +26,7 @@ import { validateExternalUrl } from "../utils/url-validator";
 // PR-SS-A D-2 (UB-1): derive the screenshot root default from the SSOT
 // (no duplicated bare literals — CI-detected by the SSOT sweep test).
 import { resolveScreenshotRootRaw } from "./screenshot-persistence.service";
+import { launchChromium } from "../utils/launch-chromium";
 
 // =====================================================
 // Constants / 定数
@@ -154,11 +155,9 @@ async function captureScreenshot(
   }
 
   // Dynamic import to avoid loading Playwright at module level
-  const { chromium } = await import("playwright");
-
   let browser;
   try {
-    browser = await chromium.launch({ headless: true });
+    browser = await launchChromium({ headless: true });
     const page = await browser.newPage({
       viewport: { width: viewportWidth, height: viewportHeight },
     });

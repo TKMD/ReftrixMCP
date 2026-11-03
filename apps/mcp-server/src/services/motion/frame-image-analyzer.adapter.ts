@@ -216,7 +216,7 @@ export class FrameImageAnalyzerAdapter {
   constructor() {
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameImageAnalyzerAdapter] Initialized");
+      console.error("[FrameImageAnalyzerAdapter] Initialized");
     }
   }
 
@@ -245,7 +245,7 @@ export class FrameImageAnalyzerAdapter {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameImageAnalyzerAdapter] Starting analysis:", {
+      console.error("[FrameImageAnalyzerAdapter] Starting analysis:", {
         framesDir,
         sampleInterval,
         diffThreshold,
@@ -280,7 +280,7 @@ export class FrameImageAnalyzerAdapter {
     if (maxFrames !== undefined && maxFrames > 0 && frameFiles.length > maxFrames) {
       if (process.env.NODE_ENV === "development") {
         // eslint-disable-next-line no-console -- Intentional debug log in development
-        console.log("[FrameImageAnalyzerAdapter] Limiting frames:", {
+        console.error("[FrameImageAnalyzerAdapter] Limiting frames:", {
           foundFrames: frameFiles.length,
           maxFrames,
           trimmedCount: frameFiles.length - maxFrames,
@@ -291,7 +291,7 @@ export class FrameImageAnalyzerAdapter {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameImageAnalyzerAdapter] Found frames:", {
+      console.error("[FrameImageAnalyzerAdapter] Found frames:", {
         totalFrames: frameFiles.length,
         expectedPairs: Math.floor(frameFiles.length / sampleInterval),
         maxFramesLimit: maxFrames ?? "unlimited",
@@ -350,7 +350,7 @@ export class FrameImageAnalyzerAdapter {
           // 進捗ログ
           if (process.env.NODE_ENV === "development" && results.length % 10 === 0) {
             // eslint-disable-next-line no-console -- Intentional debug log in development
-            console.log(`[FrameImageAnalyzerAdapter] Analyzed ${results.length} frame pairs...`);
+            console.error(`[FrameImageAnalyzerAdapter] Analyzed ${results.length} frame pairs...`);
           }
         }
       } catch (err) {
@@ -379,7 +379,7 @@ export class FrameImageAnalyzerAdapter {
 
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameImageAnalyzerAdapter] Analysis complete:", {
+      console.error("[FrameImageAnalyzerAdapter] Analysis complete:", {
         totalFrames: frameFiles.length,
         analyzedPairs: results.length,
         avgDiff: avgDiff.toFixed(2),
@@ -431,7 +431,7 @@ export class FrameImageAnalyzerAdapter {
     this.disposed = true;
     if (process.env.NODE_ENV === "development") {
       // eslint-disable-next-line no-console -- Intentional debug log in development
-      console.log("[FrameImageAnalyzerAdapter] Disposed");
+      console.error("[FrameImageAnalyzerAdapter] Disposed");
     }
   }
 

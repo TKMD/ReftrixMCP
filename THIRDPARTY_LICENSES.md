@@ -25,14 +25,14 @@ npx license-checker --production
 
 ## License Summary / ライセンスサマリー
 
-| License                     | Key Packages                    |
-| --------------------------- | ------------------------------- |
-| MIT                         | ~81% of dependencies            |
-| Apache-2.0                  | ~5% of dependencies             |
-| ISC                         | ~5% of dependencies             |
-| BSD-2-Clause / BSD-3-Clause | ~5% of dependencies             |
-| MPL-2.0                     | DOMPurify, axe-core             |
-| LGPL-3.0-or-later           | Sharp/libvips (dynamic linking) |
+| License                     | Key Packages                              |
+| --------------------------- | ----------------------------------------- |
+| MIT                         | ~81% of dependencies                      |
+| Apache-2.0                  | ~5% of dependencies                       |
+| ISC                         | ~5% of dependencies                       |
+| BSD-2-Clause / BSD-3-Clause | ~5% of dependencies                       |
+| MPL-2.0                     | DOMPurify, axe-core, @axe-core/playwright |
+| LGPL-3.0-or-later           | Sharp/libvips (dynamic linking)           |
 
 依存関係の約81%がMITライセンスで、残りはApache-2.0、ISC、BSDなどの寛容なライセンスです。
 MPL-2.0およびLGPL-3.0-or-laterの依存関係は、AGPL-3.0との互換性が確認済みです。
@@ -63,6 +63,9 @@ MPL-2.0およびLGPL-3.0-or-laterの依存関係は、AGPL-3.0との互換性が
 | postcss                   | 8.x     | MIT                                                                | https://github.com/postcss/postcss                     |
 | robots-parser             | 3.x     | MIT                                                                | https://github.com/nickmccurdy/robots-parser           |
 | playwright                | 1.57.x  | Apache-2.0                                                         | https://github.com/microsoft/playwright                |
+| playwright-core           | 1.57.x  | Apache-2.0                                                         | https://github.com/microsoft/playwright                |
+| @axe-core/playwright      | 4.11.x  | MPL-2.0                                                            | https://github.com/dequelabs/axe-core-npm              |
+| uuid                      | 14.x    | MIT                                                                | https://github.com/uuidjs/uuid                         |
 
 ---
 
@@ -115,6 +118,17 @@ All third-party dependencies have been verified for compatibility with AGPL-3.0-
   **LGPL-3.0-or-later**: Sharpは動的リンク（N-API/addon）を介してlibvipsを使用しており、再リンクを許可するLGPLの要件を満たしています。
 - **Apache-2.0**: Compatible with AGPL-3.0 per GPLv3 Section 7.
   **Apache-2.0**: GPLv3第7条に基づき、AGPL-3.0と互換性があります。
+
+### Playwright (Microsoft) NOTICE
+
+```
+Playwright
+Copyright (c) Microsoft Corporation
+
+This software contains code derived from the Puppeteer project
+(https://github.com/puppeteer/puppeteer), available under the Apache 2.0 license
+(https://github.com/puppeteer/puppeteer/blob/master/LICENSE).
+```
 
 See individual package directories in `node_modules/` for full license texts
 of all transitive dependencies.

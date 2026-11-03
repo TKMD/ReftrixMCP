@@ -626,12 +626,11 @@ export async function layoutIngestHandler(
 
     // インジェスト失敗チェック
     if (!ingestResult.success) {
-      if (isDevelopment()) {
-        logger.error("[MCP Tool] layout.ingest failed", {
-          url: validated.url,
-          error: ingestResult.error,
-        });
-      }
+      // catch 系パスは全環境でログ出力 (security.md: isDevelopment() ガード禁止)
+      logger.error("[MCP Tool] layout.ingest failed", {
+        url: validated.url,
+        error: ingestResult.error,
+      });
 
       return {
         success: false,

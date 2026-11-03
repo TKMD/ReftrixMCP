@@ -158,8 +158,8 @@ describe("loadEnvLocal", () => {
     expect(result.loaded).toBe(true);
   });
 
-  it("verbose=false (デフォルト) では console.log が呼ばれない / verbose=false suppresses logs", () => {
-    const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+  it("verbose=false (デフォルト) では console.error が呼ばれない / verbose=false suppresses logs", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     writeEnvFile(tempLeaf, "MY_SECRET=shhh\n");
     delete process.env["MY_SECRET"];
     loadEnvLocal({ cwd: tempLeaf });
@@ -170,7 +170,7 @@ describe("loadEnvLocal", () => {
   });
 
   it("verbose=true では path のみ (値を含まない) / verbose=true logs only the path", () => {
-    const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     writeEnvFile(tempLeaf, "MY_SECRET_2=supersecret\n");
     delete process.env["MY_SECRET_2"];
     const result = loadEnvLocal({ cwd: tempLeaf, verbose: true });

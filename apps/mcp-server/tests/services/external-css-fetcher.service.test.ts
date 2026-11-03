@@ -19,7 +19,13 @@
  * @module tests/services/external-css-fetcher.service.test
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from "vitest";
+import { setEgressResolverForTesting } from "@reftrixmcp/core";
+
+// テストのホスト名はすべて公開アドレスに解決させる (実 DNS に依存しない)
+// Resolve every test host name to a public address (no real DNS)
+beforeAll(() => setEgressResolverForTesting(async () => [{ address: "93.184.215.14", family: 4 }]));
+afterAll(() => setEgressResolverForTesting(null));
 
 // =====================================================
 // TDD Red フェーズ: 実装ファイルが存在しないことを確認するテスト
