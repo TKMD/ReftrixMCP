@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] / [Unreleased]
 
+### Changed / 変更
+
+- **EN — 0.7.x support ended on 2026-11-05**: SECURITY.md now lists 0.7.x as not supported. Update to 0.8.x; see the 0.8.0 Upgrade notes for the removed and merged MCP tools. No 0.7.2 or later fix release will be made.
+- **JP — 0.7.x のサポートを 2026-11-05 で終了**: SECURITY.md で 0.7.x をサポート対象外にした。0.8.x に更新すること（削除・統合した MCP ツールの移行先は 0.8.0 の Upgrade notes）。0.7.2 以降の修正版は出さない。
+
 ## [0.8.0] — 2026-11-04 / [0.8.0] — 2026-11-04
 
 ### Upgrade notes / アップグレード時の注意
