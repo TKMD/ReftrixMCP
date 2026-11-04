@@ -23,8 +23,16 @@
 
 import { logger } from "../utils/logger";
 import { cosineSimilarity, parseVectorString as parseVectorStringUtil } from "../utils/vector-math";
-import { truncateId } from "../tools/preference/schemas";
-import type { IPrismaClient } from "./preference-profile.service";
+import { truncateId } from "../utils/truncate-id";
+
+/**
+ * PrismaClientインターフェース（部分的、リランキングの読み取り専用クエリ用）
+ * PrismaClient interface (partial, for the read-only reranking queries)
+ */
+export interface IPrismaClient {
+  $queryRawUnsafe: <T>(query: string, ...values: unknown[]) => Promise<T>;
+  $executeRawUnsafe: (query: string, ...values: unknown[]) => Promise<number>;
+}
 
 // =====================================================
 // 定数 / Constants

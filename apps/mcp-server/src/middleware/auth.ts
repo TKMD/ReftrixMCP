@@ -119,7 +119,6 @@ export const PERMISSIONS = {
   // デザイン系
   DESIGN_REVIEW: "design:review",
   DESIGN_WRITE: "design:write",
-  // スタイル系
   STYLE_READ: "style:read",
   // ナラティブ系
   NARRATIVE_READ: "narrative:read",
@@ -127,7 +126,6 @@ export const PERMISSIONS = {
   BACKGROUND_READ: "background:read",
   // レスポンシブ系
   RESPONSIVE_READ: "responsive:read",
-  // 嗜好プロファイリング系
   PREFERENCE_READ: "preference:read",
   PREFERENCE_WRITE: "preference:write",
 } as const;
@@ -197,14 +195,12 @@ export const ROLES: Record<Role, string[]> = {
  */
 export const TOOL_PERMISSIONS: Record<string, string[]> = {
   // スタイル系
-  "style.get_palette": [PERMISSIONS.STYLE_READ],
 
   // レイアウト系
   "layout.inspect": [PERMISSIONS.LAYOUT_READ],
   "layout.search": [PERMISSIONS.LAYOUT_READ],
   "layout.ingest": [PERMISSIONS.LAYOUT_WRITE],
   "layout.generate_code": [PERMISSIONS.LAYOUT_TRANSFORM],
-  "layout.batch_ingest": [PERMISSIONS.LAYOUT_WRITE],
 
   // 品質系
   "quality.evaluate": [PERMISSIONS.QUALITY_READ],
@@ -222,23 +218,12 @@ export const TOOL_PERMISSIONS: Record<string, string[]> = {
   // レスポンシブ系（セマンティック検索）
   "responsive.search": [PERMISSIONS.RESPONSIVE_READ],
 
-  // 嗜好プロファイリング系
-  "preference.hear": [PERMISSIONS.PREFERENCE_WRITE],
-  "preference.get": [PERMISSIONS.PREFERENCE_READ],
-  "preference.reset": [PERMISSIONS.PREFERENCE_WRITE],
-
-  // ブリーフ系（デザインレビュー）
-  "brief.validate": [PERMISSIONS.DESIGN_REVIEW],
-
   // [REMOVED v0.3.0] project.get / project.list — バックエンドAPI未実装のため登録解除
 
   // パーツ系（Part-Level Analysis）
   "part.search": [PERMISSIONS.LAYOUT_READ],
   "part.inspect": [PERMISSIONS.LAYOUT_READ],
   "part.compare": [PERMISSIONS.LAYOUT_READ],
-
-  // セクション系（セクションハンドル解決、WebUI v1 W6 Issue A PR-1）
-  "section.inspect": [PERMISSIONS.LAYOUT_READ],
 
   // ページ系（統合Web分析）
   "page.analyze": [PERMISSIONS.LAYOUT_READ, PERMISSIONS.MOTION_READ, PERMISSIONS.QUALITY_READ],
@@ -248,7 +233,6 @@ export const TOOL_PERMISSIONS: Record<string, string[]> = {
     PERMISSIONS.MOTION_READ,
     PERMISSIONS.QUALITY_READ,
   ],
-  "page.getBatchStatus": [PERMISSIONS.LAYOUT_READ],
 
   // 横断検索系（Unified Search）
   "search.unified": [PERMISSIONS.LAYOUT_READ],
@@ -269,28 +253,14 @@ export const TOOL_PERMISSIONS: Record<string, string[]> = {
   "data.delete": [PERMISSIONS.SYSTEM_ADMIN],
   "data.export": [PERMISSIONS.SYSTEM_READ],
 
-  // Embedding品質監視系（v0.3.0 T2-EMB）
-  "embedding.quality": [PERMISSIONS.QUALITY_READ],
-
   // アクセシビリティ監査系（v0.3.0 T2-WCAG）
   "accessibility.audit": [PERMISSIONS.QUALITY_READ],
 
   // パフォーマンス評価系（v0.3.0 T2-CWV）
   "performance.evaluate": [PERMISSIONS.QUALITY_READ],
 
-  // ファセット検索系（v0.3.0 T2-FAC）
-  "search.facets": [PERMISSIONS.LAYOUT_READ],
-
   // レスポンシブキャプチャ系（v0.3.0 T2-10）
   "responsive.capture": [PERMISSIONS.RESPONSIVE_READ],
-
-  // デザイン変更追跡系（v0.3.0 T2-DCT）
-  "design.track_changes": [PERMISSIONS.DESIGN_WRITE],
-  // ビジュアル回帰テスト（v0.4.0）
-  "design.regression_test": [PERMISSIONS.DESIGN_WRITE],
-
-  // レポート生成系（v0.4.0）
-  "report.generate": [PERMISSIONS.LAYOUT_READ],
 
   // システム系（公開ツール）
   "system.health": [PERMISSIONS.SYSTEM_HEALTH],

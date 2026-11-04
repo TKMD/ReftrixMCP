@@ -1,8 +1,8 @@
 # データ保持ポリシー / Data Retention Policy
 
 **対象 / Scope**: Reftrix Preference Profiling, Part-Level Analysis, Section Visual Embedding & v0.3.0 Tables
-**最終更新 / Last Updated**: 2026-05-03
-**バージョン / Version**: 2.17.0
+**最終更新 / Last Updated**: 2026-11-04
+**バージョン / Version**: 2.20.0
 
 ---
 
@@ -26,7 +26,7 @@
 
 ### データの性質 / Nature of Data
 
-- **処理目的 / Purpose of Processing**: デザイン検索結果のパーソナライズ（嗜好に基づくリランキング） / Personalization of design search results (preference-based reranking)
+- **処理目的 / Purpose of Processing**: デザイン検索結果のパーソナライズ（嗜好に基づくリランキング）。プロファイルを作成・更新する MCP ツール（`preference.hear` / `preference.get` / `preference.reset`）は 2026-11-04 に廃止。並べ替えは、廃止前に作成されたプロファイルのIDが検索ツールの `profile_id` に渡された場合だけ行われる / Personalization of design search results (preference-based reranking). The MCP tools that create and update profiles (`preference.hear` / `preference.get` / `preference.reset`) were withdrawn on 2026-11-04; reranking happens only when the ID of a profile created before the withdrawal is passed as `profile_id` to a search tool
 - **データ主体 / Data Subjects**: Reftrixツールを使用する個人ユーザー（ローカルファースト・シングルユーザー構成） / Individual users of the Reftrix tool (local-first, single-user architecture)
 - **個人データの種類 / Types of Personal Data**: デザイン嗜好テキスト、フィードバック評価（positive/negative/neutral）、コメント / Design preference text, feedback ratings (positive/negative/neutral), comments
 
@@ -36,9 +36,9 @@
 
 ### 方針 / Policy
 
-嗜好プロファイルデータは、ユーザーが明示的に削除するまで保持されます。自動的な期限切れや定期削除はありません。
+嗜好プロファイルデータは、ユーザーが明示的に削除するまで保持されます。自動的な期限切れや定期削除はありません。2026-11-04 の Preference Profiling ツール廃止後も、既存のデータとテーブルは残り、`data.delete`（target: `profile`）で削除するまで保持されます。
 
-Preference profile data is retained until the user explicitly deletes it. There is no automatic expiration or scheduled deletion.
+Preference profile data is retained until the user explicitly deletes it. There is no automatic expiration or scheduled deletion. After the Preference Profiling tools were withdrawn on 2026-11-04, existing data and the tables remain and are retained until deleted with `data.delete` (target: `profile`).
 
 ### 根拠 / Rationale
 
@@ -59,26 +59,23 @@ Reftrix is designed as a local-first, single-user MCP tool. Data is stored in th
 
 ## 3. 削除方法 / Deletion Methods
 
-### 3.1 ソフトリセット / Soft Reset
+### 3.1 ソフトリセット（廃止） / Soft Reset (Withdrawn)
 
-```
-preference.reset(profile_id: "<uuid>", confirm: true)
-```
+ソフトリセットを行っていた `preference.reset` は 2026-11-04 に廃止しました。嗜好データを消してプロファイル枠だけを残す手段は、現在のバージョンにはありません。削除は 3.2 の完全削除で行います。
 
-- **動作 / Behavior**: `preference_text`, `preference_embedding` をクリアし、`interaction_count` を 0 にリセット。`preference_signals` は CASCADE 削除。プロファイルレコード自体は残存。 / Clears `preference_text`, `preference_embedding`, resets `interaction_count` to 0. `preference_signals` are CASCADE deleted. The profile record itself remains.
-- **用途 / Use Case**: 嗜好をリセットして最初からやり直す場合。 / When the user wants to reset preferences and start fresh.
-- **可逆性 / Reversibility**: シグナルデータは不可逆的に削除されます。プロファイルの枠は保持されます。 / Signal data is irreversibly deleted. The profile shell is preserved.
+`preference.reset`, which performed the soft reset, was withdrawn on 2026-11-04. The current version has no way to clear preference data while keeping the profile shell. Use the hard delete in 3.2 instead.
 
 ### 3.2 完全削除（ハードデリート） / Hard Delete
 
 ```
-preference.reset(profile_id: "<uuid>", confirm: true, hard_delete: true)
+data.delete(target: "profile", id: "<uuid>", reason: "<reason>", confirm: true)
 ```
 
-- **動作 / Behavior**: `preference_profiles` レコードおよび関連する `preference_signals` を完全に削除。データベースから全痕跡を消去。 / Permanently deletes the `preference_profiles` record and all associated `preference_signals`. All traces are erased from the database.
+- **動作 / Behavior**: 1 つのトランザクションで、関連する `preference_signals` を削除し、`search_logs` に記録された当該プロファイルIDを NULL 化し、`preference_profiles` レコードを削除する。 / In one transaction, deletes the associated `preference_signals`, sets that profile ID to NULL in `search_logs`, and deletes the `preference_profiles` record.
 - **用途 / Use Case**: GDPR「忘れられる権利」（Art. 17）に基づくデータ消去要求。 / GDPR Right to Erasure (Art. 17) data deletion request.
 - **可逆性 / Reversibility**: 完全に不可逆。バックアップからの復元のみ。 / Completely irreversible. Recovery only from backups.
-- **監査ログ / Audit Log**: 全環境で `logger.warn` による監査証跡を出力（PII truncate済み）。 / Audit trail via `logger.warn` in all environments (PII truncated).
+- **監査ログ / Audit Log**: `audit_logs` に `action: "data.delete"` / `targetType: "preference_profile"` の行を記録（`targetId` は truncate 済み）。全環境で `logger.warn` も出力（PII truncate済み）。 / Records a row in `audit_logs` with `action: "data.delete"` / `targetType: "preference_profile"` (`targetId` truncated). `logger.warn` is also output in all environments (PII truncated).
+- **プロファイルIDの確認 / Finding the profile ID**: IDが分からない場合は、データベースの `preference_profiles` テーブルを直接参照して確認する。 / If the ID is not known, look it up directly in the `preference_profiles` table of the database.
 
 #### pgvector 11 tables 削除契約 (data.delete(webPageId)) / pgvector 11-Table Deletion Contract (data.delete(webPageId))
 
@@ -100,9 +97,9 @@ preference.reset(profile_id: "<uuid>", confirm: true, hard_delete: true)
 | 10  | `quality_benchmarks`             | **二経路 OR delete** (direct `web_page_id` + indirect via `section_pattern_id`) — `gdpr-deletion.service.ts:443-450` で両経路を OR で DELETE (PAGE_RELATED_EMBEDDING_TABLES) |
 | 11  | `design_snapshot_sections`       | CASCADE via `design_snapshots` (PAGE_RELATED_PATTERN_TABLES); Prisma `onDelete: Cascade`                                                                                     |
 
-**対象外 / Out of scope for data.delete(page)**: `preference_profiles.preference_embedding` / `preference_signals.embedding` は profile 経路 (`deleteProfile()`) で削除される。
+**対象外 / Out of scope for data.delete(page)**: `preference_profiles.preference_embedding` / `preference_signals.embedding` は profile 経路 (`data.delete(target: "profile")` → `deleteProfile()`) で削除される。
 
-**Out of scope for data.delete(page)**: `preference_profiles.preference_embedding` / `preference_signals.embedding` are deleted via the profile path (`deleteProfile()`), not the page path.
+**Out of scope for data.delete(page)**: `preference_profiles.preference_embedding` / `preference_signals.embedding` are deleted via the profile path (`data.delete(target: "profile")` → `deleteProfile()`), not the page path.
 
 **3s SLA 契約 / 3s SLA Contract**: 11 table 合計削除 latency は **3 秒以内** が契約 (GDPR Art.17 "reasonable time" 実装)。standing regression `INV-DATA-DELETE-002` で測定 (M2 実測値 27.39ms、limit の 1% 未満で十分な余裕) (ADR-0016 Amendment 3-B 参照)。
 
@@ -148,10 +145,10 @@ As of v0.4.0 PR-D-9, the PR2d LCC-M-2 synchronous deletion contract is reinforce
 ### 監査証跡の例 / Audit Trail Example
 
 ```
-[WARN] [PreferenceProfileService] Deleting profile (hard delete / GDPR erasure)
-  { profileId: "01234567...", action: "hard_delete" }
-[WARN] [PreferenceProfileService] Profile hard delete completed (GDPR erasure)
-  { profileId: "01234567...", action: "hard_delete_completed" }
+[WARN] [GdprDeletionService] Profile deletion initiated (GDPR Art.17)
+  { profileId: "01234567...", action: "profile_delete", reason: "..." }
+[WARN] [GdprDeletionService] Profile deletion completed (GDPR Art.17)
+  { profileId: "01234567...", profileIdHash: "...", action: "profile_delete_completed", deletedRecords: { ... } }
 ```
 
 ---
@@ -161,10 +158,10 @@ As of v0.4.0 PR-D-9, the PR2d LCC-M-2 synchronous deletion contract is reinforce
 ### GDPR Art. 20 — データポータビリティの権利 / Right to Data Portability
 
 ```
-preference.get(profile_id: "<uuid>", include_signals: true)
+data.export(target: "profile", id: "<uuid>")
 ```
 
-- **動作 / Behavior**: プロファイルの全データ（`profile_id`, `name`, `preference_text`, `interaction_count`, `created_at`, `updated_at`）に加え、全シグナルデータ（`signal_type`, `signal_weight`, `target_type`, `target_id`, `feedback_text`, `created_at`）を構造化JSONで返却。 / Returns all profile data plus all signal data in structured JSON format.
+- **動作 / Behavior**: プロファイルのデータ（`id`, `name`, `preference_text`, `interaction_count`, `created_at`, `updated_at`）に加え、全シグナルデータ（`id`, `signal_type`, `signal_weight`, `target_type`, `target_id`, `feedback_text`, `created_at`）を構造化JSONで返却。エクスポートは `audit_logs` に記録される。 / Returns the profile data plus all signal data in structured JSON format. The export is recorded in `audit_logs`.
 - **出力形式 / Output Format**: JSON（機械可読、構造化、一般的に使用される形式） / JSON (machine-readable, structured, commonly used format)
 - **用途 / Use Case**: ユーザーが自身のデータを確認・取得する場合。別システムへのデータ移行。 / When users want to review/retrieve their data. Data migration to another system.
 
@@ -175,22 +172,31 @@ preference.get(profile_id: "<uuid>", include_signals: true)
   "success": true,
   "data": {
     "profile_id": "uuid",
-    "name": "default",
-    "preference_text": "...",
-    "interaction_count": 5,
-    "created_at": "2026-03-08T00:00:00.000Z",
-    "updated_at": "2026-03-08T12:00:00.000Z",
-    "signals": [
-      {
+    "export_format": "json",
+    "data": {
+      "profile": {
         "id": "uuid",
-        "signal_type": "hearing_positive",
-        "signal_weight": 1.0,
-        "target_type": "web_page",
-        "target_id": "uuid",
-        "feedback_text": "...",
-        "created_at": "2026-03-08T01:00:00.000Z"
-      }
-    ]
+        "name": "default",
+        "preference_text": "...",
+        "interaction_count": 5,
+        "created_at": "2026-03-08T00:00:00.000Z",
+        "updated_at": "2026-03-08T12:00:00.000Z"
+      },
+      "signals": [
+        {
+          "id": "uuid",
+          "signal_type": "hearing_positive",
+          "signal_weight": 1.0,
+          "target_type": "web_page",
+          "target_id": "uuid",
+          "feedback_text": "...",
+          "created_at": "2026-03-08T01:00:00.000Z"
+        }
+      ]
+    },
+    "pii_fields": ["profile_id", "preference_text", "feedback_text"],
+    "gdpr_notice": "...",
+    "exported_at": "2026-11-04T00:00:00.000Z"
   }
 }
 ```
@@ -201,30 +207,28 @@ preference.get(profile_id: "<uuid>", include_signals: true)
 
 ### 適用されるGDPR条項 / Applicable GDPR Articles
 
-| 条項 / Article   | 内容 / Subject                                         | Reftrixでの対応 / Reftrix Implementation                                                                                                              |
-| ---------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Art. 5(1)(e)** | 保存制限の原則 / Storage limitation                    | ユーザーが明示的に削除可能。自動期限切れなし（ローカルツールとして適切）。 / User can explicitly delete. No auto-expiry (appropriate for local tool). |
-| **Art. 6(1)(f)** | 正当な利益 / Legitimate interest                       | ユーザーの自発的な使用に基づくパーソナライズ。 / Personalization based on voluntary user engagement.                                                  |
-| **Art. 13/14**   | 情報提供義務 / Information obligations                 | 本ドキュメントおよび `preference.hear` の `profiling_notice` で通知。 / Informed via this document and `profiling_notice` in `preference.hear`.       |
-| **Art. 17**      | 忘れられる権利 / Right to erasure                      | `preference.reset(hard_delete: true)` で完全削除。 / Full deletion via `preference.reset(hard_delete: true)`.                                         |
-| **Art. 20**      | データポータビリティの権利 / Right to data portability | `preference.get(include_signals: true)` でJSON形式エクスポート。 / JSON export via `preference.get(include_signals: true)`.                           |
+| 条項 / Article   | 内容 / Subject                                         | Reftrixでの対応 / Reftrix Implementation                                                                                                                                                                                         |
+| ---------------- | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Art. 5(1)(e)** | 保存制限の原則 / Storage limitation                    | ユーザーが明示的に削除可能。自動期限切れなし（ローカルツールとして適切）。 / User can explicitly delete. No auto-expiry (appropriate for local tool).                                                                            |
+| **Art. 6(1)(f)** | 正当な利益 / Legitimate interest                       | ユーザーの自発的な使用に基づくパーソナライズ。 / Personalization based on voluntary user engagement.                                                                                                                             |
+| **Art. 13/14**   | 情報提供義務 / Information obligations                 | 本ドキュメントで通知。廃止前のバージョンは `preference.hear` の `profiling_notice` でも通知していた。 / Informed via this document; versions before the withdrawal also gave notice via `profiling_notice` in `preference.hear`. |
+| **Art. 17**      | 忘れられる権利 / Right to erasure                      | `data.delete(target: "profile")` で完全削除。 / Full deletion via `data.delete(target: "profile")`.                                                                                                                              |
+| **Art. 20**      | データポータビリティの権利 / Right to data portability | `data.export(target: "profile")` でJSON形式エクスポート。 / JSON export via `data.export(target: "profile")`.                                                                                                                    |
 
 ### データ処理のライフサイクル / Data Processing Lifecycle
 
 ```
 1. 収集 / Collection
-   preference.hear (Mode A) → サンプル提示 / Present samples
-   preference.hear (Mode B) → フィードバック受信・プロファイル更新 / Receive feedback & update profile
+   2026-11-04 に廃止（preference.hear）。現在のバージョンは収集しない / Withdrawn on 2026-11-04 (preference.hear); the current version does not collect
 
 2. 利用 / Usage
-   検索リランキング / Search reranking (preference_embedding × search results)
+   検索リランキング（検索ツールに profile_id が渡された場合のみ） / Search reranking, only when profile_id is passed to a search tool (preference_embedding × search results)
 
 3. エクスポート / Export
-   preference.get (include_signals: true) → 全データJSON出力 / Full data JSON export
+   data.export (target: "profile") → 全データJSON出力 / Full data JSON export
 
 4. 削除 / Deletion
-   preference.reset (confirm: true) → ソフトリセット / Soft reset
-   preference.reset (confirm: true, hard_delete: true) → 完全削除 / Hard delete
+   data.delete (target: "profile", confirm: true) → 完全削除 / Hard delete
 ```
 
 ---
@@ -279,13 +283,13 @@ MCP tool usage telemetry log (opt-in). Only generated when `TOOL_USAGE_LOG_ENABL
 
 ## 6. セキュリティ措置 / Security Measures
 
-| 措置 / Measure                                          | 実装状況 / Implementation                                                                                   |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 入力バリデーション / Input validation                   | Zodスキーマによる全入力検証 / All inputs validated via Zod schemas                                          |
-| エラーメッセージサニタイズ / Error message sanitization | `sanitizeErrorMessage()` でDB構造の漏洩防止 / `sanitizeErrorMessage()` prevents DB structure leakage        |
-| PII配慮ログ / PII-aware logging                         | `profileId.slice(0, 8) + '...'` でtruncate / Truncated with `profileId.slice(0, 8) + '...'`                 |
-| 監査証跡 / Audit trail                                  | `hard_delete` は全環境で `logger.warn` 出力 / `hard_delete` outputs `logger.warn` in all environments       |
-| CASCADE削除 / CASCADE deletion                          | `preference_signals` はプロファイル削除時に自動削除 / `preference_signals` auto-deleted on profile deletion |
+| 措置 / Measure                                          | 実装状況 / Implementation                                                                                                                                                                           |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 入力バリデーション / Input validation                   | Zodスキーマによる全入力検証 / All inputs validated via Zod schemas                                                                                                                                  |
+| エラーメッセージサニタイズ / Error message sanitization | `sanitizeErrorMessage()` でDB構造の漏洩防止 / `sanitizeErrorMessage()` prevents DB structure leakage                                                                                                |
+| PII配慮ログ / PII-aware logging                         | `profileId.slice(0, 8) + '...'` でtruncate / Truncated with `profileId.slice(0, 8) + '...'`                                                                                                         |
+| 監査証跡 / Audit trail                                  | プロファイル削除（`data.delete`）は `audit_logs` に記録し、全環境で `logger.warn` 出力 / Profile deletion (`data.delete`) is recorded in `audit_logs` and outputs `logger.warn` in all environments |
+| CASCADE削除 / CASCADE deletion                          | `preference_signals` はプロファイル削除時に自動削除 / `preference_signals` auto-deleted on profile deletion                                                                                         |
 
 ### 6.1 運用手順: Worker 二重稼働防止 (v0.4.0 PR7d-2+) / Operational procedures: Worker Dual-Run Prevention
 
@@ -962,12 +966,12 @@ Per ADR-0040 Decision 1, the cache is bounded by three orthogonal layers (no ded
 
 **JP**: 内部 read API の撤去で、legacy crop の表示という目的は無くなった。それでも legacy crop は `data.delete` まで残る契約である。目的が終わったデータを残し続けることは、EU では GDPR Art.5(1)(e)（保存期間の制限）の観点から正当化しにくく、実質的に削除が求められると考える。日本では、ページ単位で保存した画像が個人データに当たる場合は、個人情報保護法第22条が、利用する必要がなくなった個人データを遅滞なく消去する努力義務を置いていると読む。いずれも法的結論を断定するものではなく、管理者（controller）は運用者である。project の責務は、削除手段の提供と事実どおりの記載までである。そのため運用者には、legacy crop の一括削除を求める。
 
-- **今できること / Available now**: `data.delete`（ページ単位・全件、crop dir cascade）、または運用者が crops ディレクトリ（`$REFTRIX_SCREENSHOT_ROOT/crops`、未設定なら `${XDG_DATA_HOME:-$HOME/.local/share}/reftrix/screenshots/crops`）を手で削除する。ファイルを消しても `crop_storage_path` の値は残り、`section.inspect` の `hasCrop` は無くなったファイルを「ある」と報告する（実害はこの field のみ）。
+- **今できること / Available now**: `data.delete`（ページ単位・全件、crop dir cascade）、または運用者が crops ディレクトリ（`$REFTRIX_SCREENSHOT_ROOT/crops`、未設定なら `${XDG_DATA_HOME:-$HOME/.local/share}/reftrix/screenshots/crops`）を手で削除する。ファイルを消しても `crop_storage_path` の値は残り、無くなったファイルを指したままになる（この値を読む MCP ツールは無い。`section.inspect` は 2026-11-04 に削除した）。
 - **提供予定 / Planned**: 一括削除の operator script（crop ファイルの削除、`crop_storage_path` の NULL 化、削除件数が 0 を超える run の audit_logs 記録、orphan の削除）。次の release で提供予定。
 
 **EN**: With the internal read API removed, the display purpose of legacy crops is gone, yet the contract still keeps them until `data.delete`. We read keeping data whose purpose has ended as hard to justify in the EU under GDPR Art.5(1)(e) (storage limitation), so deletion is in practice expected; in Japan, where a page image stored per page counts as personal data, we read Article 22 of the Act on the Protection of Personal Information as an effort obligation to erase personal data without delay once it is no longer needed. Neither is asserted as a legal conclusion, and the controller is the operator; the project's responsibility stops at providing the deletion means and describing the facts accurately. Operators are therefore asked to bulk-delete legacy crops.
 
-- **Available now**: `data.delete` (per page or all data, with the crop-directory cascade), or deleting the crops directory by hand (`$REFTRIX_SCREENSHOT_ROOT/crops`, or `${XDG_DATA_HOME:-$HOME/.local/share}/reftrix/screenshots/crops` when unset). Deleting the files leaves the `crop_storage_path` values, so `section.inspect` `hasCrop` reports a file that no longer exists (the only effect is that field).
+- **Available now**: `data.delete` (per page or all data, with the crop-directory cascade), or deleting the crops directory by hand (`$REFTRIX_SCREENSHOT_ROOT/crops`, or `${XDG_DATA_HOME:-$HOME/.local/share}/reftrix/screenshots/crops` when unset). Deleting the files leaves the `crop_storage_path` values pointing at files that no longer exist (no MCP tool reads that value; `section.inspect` was removed on 2026-11-04).
 - **Planned**: an operator bulk-deletion script (delete the crop files, set `crop_storage_path` to NULL, write an audit_logs row for any run that deletes more than 0 items, delete orphans). Planned for the next release.
 
 ### 配布形態別信号 + storage growth (§9.6 / ADR-0041 parity) / Per-distribution signals + storage growth
@@ -1939,10 +1943,10 @@ The canonical source of the action / actor literals is `apps/mcp-server/src/audi
 
 ### 対象データ / Data in Scope
 
-| テーブル / Table           | カラム / Columns                                                                                                          | 内容 / Description                                                                                                                                                                       |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `design_snapshots`         | `id`, `web_page_id`, `snapshot_at`, `section_count`, `overall_score`, `metadata`, `created_at`                            | 特定時点のWebページデザイン状態を記録するスナップショット。デザイン変更の時系列追跡に使用。 / Point-in-time snapshot of web page design state. Used for temporal design change tracking. |
-| `design_snapshot_sections` | `id`, `snapshot_id`, `section_type`, `section_name`, `position_index`, `text_embedding`, `vision_embedding`, `created_at` | スナップショット内の個別セクションデータ（Embedding含む）。 / Individual section data within a snapshot (including embeddings).                                                          |
+| テーブル / Table           | カラム / Columns                                                                                                          | 内容 / Description                                                                                                                                                                                                                                                                                                               |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `design_snapshots`         | `id`, `web_page_id`, `snapshot_at`, `section_count`, `overall_score`, `metadata`, `created_at`                            | 特定時点のWebページデザイン状態を記録するスナップショット。`page.analyze` の `auto_snapshot` で保存する。0.8.0 以降は読み出すツールが無く、`data.delete` で削除される。 / Point-in-time snapshot of web page design state, saved by `page.analyze` `auto_snapshot`. From 0.8.0 no tool reads it; it is removed by `data.delete`. |
+| `design_snapshot_sections` | `id`, `snapshot_id`, `section_type`, `section_name`, `position_index`, `text_embedding`, `vision_embedding`, `created_at` | スナップショット内の個別セクションデータ（Embedding含む）。 / Individual section data within a snapshot (including embeddings).                                                                                                                                                                                                  |
 
 ### PII評価 / PII Assessment
 
@@ -2304,6 +2308,7 @@ No changes to existing retention policies (screenshot 7d TTL / audit_logs 365d /
 
 | 日付 / Date | バージョン / Version | 内容 / Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | ----------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-04  | 2.20.0               | **0.8.0 (MCP tools 40 → 27)**: `preference.*` 3 ツールの廃止（残ったプロファイルは `data.export` / `data.delete` の target `profile`）、`section.inspect` 削除に伴う記述の訂正、§13 `design_snapshots` の目的を「`auto_snapshot` で保存、0.8.0 以降は読み出すツールなし」に更新 / Withdrawal of the 3 `preference.*` tools (remaining profiles via `data.export` / `data.delete` target `profile`), corrections after removing `section.inspect`, and §13 `design_snapshots` purpose updated (saved by `auto_snapshot`; no reader tool from 0.8.0)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | 2026-05-17  | 2.19.0               | **Plan v4.2 PR-A/B/C landing (Phase 3 docs sync)**: Worker lifecycle pattern を callback-based exit (BullMQ native `worker.once('completed', () => process.exit(0))` pre-registered listener) に変更、AST gate `scripts/verify-completed-listener-sync.mjs` で listener body の synchronous-only 強制 (SEC M-NEW-1)。新規 `audit_logs` action 追加なし (Plan v4.1 で proposed された `worker_timeout_fired` / `worker_job_orphan_detected` は Option B timeout-less 採用により drop、orphan detection は BullMQ native `stalled` event + 既存 `worker_job_lifecycle.event_type=release` で代替)。新規 retention horizon 追加なし、既存 365d retention / `truncateTargetId` SSOT PII minimisation / `system:<role>` actor naming convention すべて継承、SBOM drift ゼロ (新規依存追加なし、既存 `bullmq` / `ioredis` API のみ使用、EU CRA 2026-09-11 compliance 保持)。GDPR Art.30 records of processing coverage は既存 365d retention 契約で継承、Art.32(1)(b) processing integrity (BullMQ Lua transaction completion guarantee) + APPI 第23条 安全管理措置 (operational reliability 向上) を充足。本 PR は GDPR Art.33 / APPI 第26条 personal data breach trigger に**該当しない** (worker lifecycle internals only、PII path 不変)。ADR-0034 (Accepted) + ADR-0009 (Bug 1 portion Superseded by ADR-0034) + ADR-0030 Amendment 2 Decision 8 (24h Integration Smoke Pre-Merge Gate, T+2d ADR-bound exception) + Plan v4.2 anchor `019e2c7e-3b25` + IO Plan Decision V2 anchor `019e2c88-7d5f` + PR-A implementation anchor `019e2cbb-15b0` 参照。 / **Plan v4.2 PR-A/B/C landing (Phase 3 docs sync)**: Worker lifecycle pattern changed to callback-based exit (BullMQ native `worker.once('completed', () => process.exit(0))` pre-registered listener); AST gate `scripts/verify-completed-listener-sync.mjs` enforces synchronous-only listener body (SEC M-NEW-1). No new `audit_logs` actions added (Plan v4.1's proposed `worker_timeout_fired` / `worker_job_orphan_detected` dropped due to Option B timeout-less; orphan detection replaced by BullMQ native `stalled` event + existing `worker_job_lifecycle.event_type=release`). No new retention horizon added; existing 365d retention / `truncateTargetId` SSOT PII minimisation / `system:<role>` actor naming convention all inherited; zero SBOM drift (no new dependency; uses existing `bullmq` / `ioredis` APIs only; EU CRA 2026-09-11 compliance preserved). GDPR Art.30 records of processing coverage continues under existing 365d retention contract; satisfies Art.32(1)(b) processing integrity (BullMQ Lua transaction completion guarantee) + APPI Article 23 安全管理措置 (operational reliability improvement). This PR **does not** trigger GDPR Art.33 / APPI Article 26 personal data breach (worker lifecycle internals only, PII path unchanged). See ADR-0034 (Accepted) + ADR-0009 (Bug 1 portion Superseded by ADR-0034) + ADR-0030 Amendment 2 Decision 8 (24h Integration Smoke Pre-Merge Gate, T+2d ADR-bound exception) + Plan v4.2 anchor `019e2c7e-3b25` + IO Plan Decision V2 anchor `019e2c88-7d5f` + PR-A implementation anchor `019e2cbb-15b0`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | 2026-05-04  | 2.18.0               | **PR-V3-T1a Phase 2 Step 5+6 implementation landing (Phase 3 docs sync, V2-CO-02)**: §11 audit_logs.action 列挙表に `parent_rss_ceiling_scaled` row を追加 (actor `system:phase5-init`, targetType `(none)`, retention 365d, PII-free `details` payload `{before_mb, after_mb, trigger, commit_sha}` numeric/fixed-string only, idempotent per-Phase-5-init emission)。本 row は LCC F-M-07 cluster sign-off (V1-CO-05, deadline 2026-05-20、CONDITIONAL APPROVE rendered 16-day early) の docs sync 経路で land、PR-V3-T1a Phase 2 Step 7 LCC Impl Audit FIND-IMPL-LCC-L-01 closure。365d retention / `truncateTargetId` SSOT (`AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH = 8`) PII minimisation / `system:` prefix actor naming convention は既存 PR-D-8 SSOT contract から完全継承、新規 retention horizon 追加なし。GDPR Art.30 records of processing activities + Art.5(1)(c) data minimisation + Art.32(1)(b) integrity of processing 契約を充足、L3 CRIT breach notification gate には影響なし (`embedding_parity_schema_drift` sentinel が唯一 trigger)。SBOM drift ゼロ (新規依存追加なし、`audit-actions.ts` SSOT const-tuple のみ追加、EU CRA 2026-09-11 compliance 保持)。本 PR は GDPR Art.33 / APPI 第26条 personal data breach trigger に**該当しない** (Phase 5 init system event、PII path 不変)。ADR-0013 Amendment 1 §Consequences (actor naming mandate `system:phase5-init` 整合化、FIND-IMPL-LCC-M-01 Path A landing) + ADR-0007 Amendment 1 §Consequences (PR-D-8 SSOT inheritance paragraph 追加、FIND-IMPL-LCC-L-02 landing) も同 Phase 3 docs sync で land。PR-V3-T1a Phase 2 Step 8 IO V1 Impl Decision anchor `019df508-e803` + LCC Impl Audit anchor `019df4f1-fe2e` 参照。 / **PR-V3-T1a Phase 2 Step 5+6 implementation landing (Phase 3 docs sync, V2-CO-02)**: Added `parent_rss_ceiling_scaled` row to the §11 audit_logs.action enumeration table (actor `system:phase5-init`, targetType `(none)`, 365d retention, PII-free `details` payload with `{before_mb, after_mb, trigger, commit_sha}` numeric/fixed-string fields only, idempotent per-Phase-5-init emission). This row is landed via the docs sync route for LCC F-M-07 cluster sign-off (V1-CO-05, deadline 2026-05-20, CONDITIONAL APPROVE rendered 16 days early), closing PR-V3-T1a Phase 2 Step 7 LCC Impl Audit FIND-IMPL-LCC-L-01. 365d retention / `truncateTargetId` SSOT (`AUDIT_LOG_CONSTANTS.TARGET_ID_TRUNCATE_LENGTH = 8`) PII minimisation / `system:` prefix actor naming convention are fully inherited from the existing PR-D-8 SSOT contract; no new retention horizon added. Satisfies GDPR Art.30 records of processing activities + Art.5(1)(c) data minimisation + Art.32(1)(b) integrity of processing contracts; no impact on the L3 CRIT breach-notification gate (`embedding_parity_schema_drift` sentinel remains the sole trigger). Zero SBOM drift (no new dependency; only `audit-actions.ts` SSOT const-tuple addition; EU CRA 2026-09-11 compliance preserved). This PR **does not** trigger GDPR Art.33 / APPI Article 26 personal data breach (Phase 5 init system event, PII path unchanged). ADR-0013 Amendment 1 §Consequences (actor-naming mandate aligned to `system:phase5-init`, FIND-IMPL-LCC-M-01 Path A landing) + ADR-0007 Amendment 1 §Consequences (PR-D-8 SSOT inheritance paragraph added, FIND-IMPL-LCC-L-02 landing) are landed in the same Phase 3 docs sync. See PR-V3-T1a Phase 2 Step 8 IO V1 Impl Decision anchor `019df508-e803` + LCC Impl Audit anchor `019df4f1-fe2e`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | 2026-05-03  | 2.17.0               | **Plan v2 §1 base contract landing (PR-Bα-1, Unreleased)**: Worker lifecycle 内部実装の改修 (S1.1 pre-return pause + dispose helper の success-path 限定 type-level 復活、S1.2 `IPC_SHUTDOWN_GRACE_MS` env-overridable IIFE 化 default 30,000ms / range 1,000-120,000ms / `WORKER_IPC_SHUTDOWN_GRACE_MS`、Cond 7 `EmbeddingBackfillQueue.attempts:1` contract-level 統一)、6 件の INV-\* CI-failing executable test を `tests/regression/standing/worker-lifecycle/` に新設、commit `5865e4a7`、`apps/mcp-server/` 内 LoC delta +945/−89 (net +856)。**保持契約への影響なし / no-impact note**: 本 PR は GDPR Art.17 削除契約 (`data.delete` 経由 11 pgvector tables 同期削除、3s SLA、M2 実測 27.39ms) / Art.30 audit_logs retention (365日、`truncateTargetId` PII minimisation、`system:<role>` actor naming) / screenshot 7d TTL contract (`<REFTRIX_SCREENSHOT_ROOT>/phase5/<webPageId>.png` の TTL cron 削除、PR6 経路) / preference profile retention / search log retention のいずれにも影響しない (Worker ライフサイクル改修と retention contract は orthogonal)。Personal data 処理経路 (page.analyze pipeline / preference profiling / search / data.delete / data.export) は不変。新規 retention horizon 追加なし、SBOM drift ゼロ (新規依存追加なし、既存 `bullmq` / `ioredis` API のみ使用、EU CRA 2026-09-11 compliance 保持)。GDPR Art.32(1)(b) processing integrity に貢献 (BullMQ silent stall regression 解消による operational reliability 向上)、APPI 第23条 安全管理措置 (technical reliability 向上)。本 PR は GDPR Art.33 / APPI 第26条 personal data breach trigger に**該当しない** (test infra + worker lifecycle internals only、PII path 不変)。3-CHANGELOG `[Unreleased]` PR-Bα-1 entry + Plan v2 §1 base anchor `019de97f-1dcf` + IO Impl Decision anchor `019dee28-3604` 参照。 / **Plan v2 §1 base contract landing (PR-Bα-1, Unreleased)**: Worker lifecycle internals refactor (S1.1 success-path-only type-level restoration of pre-return pause + dispose helper; S1.2 `IPC_SHUTDOWN_GRACE_MS` env-overridable IIFE — default 30,000ms / range 1,000-120,000ms / `WORKER_IPC_SHUTDOWN_GRACE_MS`; Cond 7 `EmbeddingBackfillQueue.attempts:1` unified at contract level), with 6 new INV-\* CI-failing executable tests landed under `tests/regression/standing/worker-lifecycle/`, commit `5865e4a7`, LoC delta within `apps/mcp-server/` +945/−89 (net +856). **No-impact note**: This PR has no effect on the GDPR Art.17 deletion contract (`data.delete` 11-pgvector-table synchronous deletion, 3s SLA, M2 measured 27.39ms) / Art.30 audit_logs retention (365d, `truncateTargetId` PII minimisation, `system:<role>` actor naming) / screenshot 7d TTL contract (`<REFTRIX_SCREENSHOT_ROOT>/phase5/<webPageId>.png` deletion via the PR6 TTL cron path) / preference profile retention / search log retention — worker lifecycle internals and retention contracts are orthogonal. Personal-data processing paths (page.analyze pipeline / preference profiling / search / data.delete / data.export) are unchanged. No new retention horizon added; SBOM drift zero (no new dependency; uses existing `bullmq` / `ioredis` APIs only; EU CRA 2026-09-11 compliance preserved). Contributes to GDPR Art.32(1)(b) processing integrity (resolution of BullMQ silent stall regression improves operational reliability); APPI Article 23 安全管理措置 (technical reliability improvement). This PR **does not** trigger GDPR Art.33 / APPI Article 26 personal data breach (test infra + worker lifecycle internals only, PII path unchanged). See 3-CHANGELOG `[Unreleased]` PR-Bα-1 entry + Plan v2 §1 base anchor `019de97f-1dcf` + IO Impl Decision anchor `019dee28-3604`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |

@@ -13,7 +13,6 @@
  *  (3) input echo through the raw-joined default message is a closed set (SEC-B1-02): it may only
  *      shrink, never spread to a new case.
  */
-import { readFileSync } from "node:fs";
 import * as path from "node:path";
 
 import { describe, it, expect } from "vitest";
@@ -56,10 +55,10 @@ describe("INV-ZOD-ERROR-RAWJOIN-SNAPSHOT-001 (4b) fixed AST set", () => {
     expect(counts).toEqual(expected);
   });
 
-  it("client-reaching set has 25 call sites in 24 files", () => {
+  it("client-reaching set has 16 call sites in 15 files", () => {
     const files = Object.keys(CLIENT_REACHING_MESSAGE_JOIN_SITES);
-    expect(files).toHaveLength(24);
-    expect(Object.values(CLIENT_REACHING_MESSAGE_JOIN_SITES).reduce((a, b) => a + b, 0)).toBe(25);
+    expect(files).toHaveLength(15);
+    expect(Object.values(CLIENT_REACHING_MESSAGE_JOIN_SITES).reduce((a, b) => a + b, 0)).toBe(16);
   });
 
   it("formatZodError is called from exactly the 5 audited tools", () => {
@@ -70,12 +69,11 @@ describe("INV-ZOD-ERROR-RAWJOIN-SNAPSHOT-001 (4b) fixed AST set", () => {
 
 /**
  * Places that read one issue by index and then its default message: file -> kind -> count.
- * client-reaching: only style-get-palette.ts (the message goes into the error text returned to the client).
+ * client-reaching: none since style-get-palette.ts was removed (2026-11-04); both remaining reads are log-only.
  */
 export const FIRST_ISSUE_SITES: Readonly<
   Record<string, { clientReaching: boolean; read: number; message: number }>
 > = {
-  "src/tools/style-get-palette.ts": { clientReaching: true, read: 1, message: 1 },
   "src/workers/phases/embedding-backfill-fork-orchestrator.ts": {
     clientReaching: false, // log line for an invalid IPC child message (code and path only, SEC-C1B2R-L-01)
     read: 1,
@@ -104,31 +102,10 @@ describe("INV-ZOD-ERROR-RAWJOIN-SNAPSHOT-001 (1b) fixed set of first-issue reads
     expect(actual).toEqual(expected);
   });
 
-  it("style-get-palette.ts reads the first issue and its message at the two anchored lines (client-reaching)", () => {
-    // Lines are derived from content anchors, never fixed: scripts/prepare-oss.sh inserts a SPDX header
-    // (+3 lines) into src files that lack one, so an absolute line number differs between the private
-    // tree and the OSS tree. Each anchor must occur exactly once, so a second read or a moved message
-    // read cannot hide behind a derived line (SEC-OSSCI C-2: the client-reaching positions stay asserted).
-    const FILE = "src/tools/style-get-palette.ts";
-    const lines = readFileSync(path.join(PKG_ROOT, FILE), "utf8").split("\n");
-    const lineOf = (anchor: string): number[] =>
-      lines.flatMap((l, i) => (l.includes(anchor) ? [i + 1] : []));
-    const readLines = lineOf("const firstError = error.issues[0];");
-    const messageLines = lineOf("${firstError.message}");
-    expect(readLines, "first-issue read anchor must occur exactly once").toHaveLength(1);
-    expect(messageLines, "message read anchor must occur exactly once").toHaveLength(1);
-
-    const palette = sites.filter((s) => s.file === FILE).map((s) => `${s.kind}@${s.line}`);
-    expect(palette).toEqual([
-      `first-issue-read@${readLines[0]}`,
-      `first-issue-message@${messageLines[0]}`,
-    ]);
-  });
-
-  it("totals: 5 site rows in 3 files, 1 file client-reaching", () => {
-    expect(sites).toHaveLength(5);
-    expect(Object.keys(FIRST_ISSUE_SITES)).toHaveLength(3);
-    expect(Object.values(FIRST_ISSUE_SITES).filter((v) => v.clientReaching)).toHaveLength(1);
+  it("totals: 3 site rows in 2 files, 0 files client-reaching", () => {
+    expect(sites).toHaveLength(3);
+    expect(Object.keys(FIRST_ISSUE_SITES)).toHaveLength(2);
+    expect(Object.values(FIRST_ISSUE_SITES).filter((v) => v.clientReaching)).toHaveLength(0);
   });
 });
 

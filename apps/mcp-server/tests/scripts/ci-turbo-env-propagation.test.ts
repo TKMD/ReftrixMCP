@@ -118,8 +118,8 @@ describe("CI test env propagation through turbo (CO-R2-61 (1))", () => {
     expect(REQUIRED_TEST_UNIT_ENV.filter((name) => !declared.includes(name))).toEqual([]);
   });
 
-  // IO-PR0C-02: the mcp-server DB suites (page-analyze.e2e, visual-features-search.e2e,
-  // report-template.integration) run under `test`; strict env mode dropped DATABASE_URL and
+  // IO-PR0C-02: the mcp-server DB suites (page-analyze.e2e, visual-features-search.e2e)
+  // run under `test`; strict env mode dropped DATABASE_URL and
   // they failed authentication when the full run went through turbo
   it.each(["test", "test:coverage"])("turbo.json passes DATABASE_URL to the %s task", (task) => {
     expect(readTaskEnv(task)).toContain("DATABASE_URL");

@@ -25,9 +25,9 @@
  * 2. camelCaseをsnake_caseに変換（大文字の前にアンダースコアを挿入）
  * 3. 全体を大文字に変換
  *
- * 例: "style.get_palette" → "STYLE_GET_PALETTE"
+ * 例: "layout.search" → "LAYOUT_SEARCH"
  *     "page.getJobStatus" → "PAGE_GET_JOB_STATUS"
- *     "design.track_changes" → "DESIGN_TRACK_CHANGES"
+ *     "design.similar_site" → "DESIGN_SIMILAR_SITE"
  *
  * @param name - ドット区切りのツール名
  * @returns SCREAMING_SNAKE_CASE形式のキー

@@ -329,18 +329,6 @@ function getToolsOperationalStatus(patternServices?: PatternServicesStatus): Too
     ...(isQualityFullMode ? {} : { details: "Quality evaluation running in fallback mode" }),
   };
 
-  // style.get_palette - 常に動作可能
-  tools["style.get_palette"] = {
-    status: "operational",
-    mode: "full",
-  };
-
-  // brief.validate - 常に動作可能
-  tools["brief.validate"] = {
-    status: "operational",
-    mode: "full",
-  };
-
   // [REMOVED v0.3.0] project.get / project.list — バックエンドAPI未実装のため登録解除
 
   // page.getJobStatus - 常に動作可能

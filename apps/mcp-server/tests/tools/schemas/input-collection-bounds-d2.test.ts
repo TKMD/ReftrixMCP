@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * 入力配列の上限 (style.get_palette / layout.search / layout.ingest / quality.evaluate /
- * motion.detect / motion.search / page.analyze)
+ * 入力配列の上限 (layout.search / layout.ingest / quality.evaluate / motion.detect /
+ * motion.search / page.analyze)
  *
- * Input array bounds for the seven tools above. For every bounded field:
+ * Input array bounds for the six tools above. For every bounded field:
  *   - Zod accepts exactly N items and rejects N + 1
  *   - the hand-written JSON Schema advertises `maxItems: N` (when the property is advertised)
  *   - for enum-element arrays N equals the enum's option count
@@ -14,7 +14,6 @@
 import { describe, it, expect } from "vitest";
 import type { ZodType } from "zod";
 import { allToolDefinitions } from "../../../src/tools/index";
-import { styleGetPaletteInputSchema } from "../../../src/tools/schemas/style-schemas";
 import {
   layoutSearchInputSchema,
   layoutIngestInputSchema,
@@ -61,17 +60,6 @@ const generatePattern = (properties: unknown): unknown => ({
 });
 
 const CASES: readonly BoundCase[] = [
-  {
-    label: "style.get_palette gradient_options.token_pairs",
-    tool: "style.get_palette",
-    schema: styleGetPaletteInputSchema,
-    max: 20,
-    build: (n) => ({
-      gradient_options: { token_pairs: Array.from({ length: n }, () => ["a", "b"]) },
-    }),
-    issuePath: ["gradient_options", "token_pairs"],
-    jsonPath: "gradient_options.token_pairs",
-  },
   {
     label: "layout.search vision_search_query.visualFeatures.colors",
     tool: "layout.search",
@@ -201,7 +189,7 @@ const CASES: readonly BoundCase[] = [
   },
 ];
 
-describe("input collection bounds (style/layout/quality/motion/page)", () => {
+describe("input collection bounds (layout/quality/motion/page)", () => {
   for (const c of CASES) {
     describe(c.label, () => {
       it(`Zod accepts exactly ${c.max} items`, () => {

@@ -23,7 +23,7 @@ import {
   type RerankResult,
   type EmbeddingDomain,
 } from "../../src/services/preference-rerank.helper";
-import type { IPrismaClient } from "../../src/services/preference-profile.service";
+import type { IPrismaClient } from "../../src/services/preference-rerank.helper";
 
 // =====================================================
 // Test Helpers

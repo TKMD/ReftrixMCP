@@ -1,6 +1,6 @@
 # page.analyze 詳細ガイド / page.analyze Deep Dive - Web分析フローとデータ構造 / Web Analysis Flow and Data Structure
 
-**Version**: 0.7.1 | **Last Updated**: 2026-04-29
+**Version**: 0.8.0 | **Last Updated**: 2026-04-29
 
 このドキュメントでは、`page.analyze` MCPツールがWebページを分析する際の詳細なフロー、分析内容、およびデータベースに保存されるデータ構造を、実際の分析例（https://www.spaceandtime.io/）を用いて解説します。
 
@@ -764,11 +764,11 @@ Phase 7.5の各サブフェーズは、対応する独立ツールのラッパ�
 
 Each Phase 7.5 sub-phase wraps a corresponding standalone tool. Standalone tools remain available independently.
 
-| Phase 7.5 サブフェーズ / Sub-Phase | 独立ツール / Standalone Tool | 違い / Difference                                                     |
-| ---------------------------------- | ---------------------------- | --------------------------------------------------------------------- |
-| Accessibility Audit                | `accessibility.audit`        | Phase 7.5はタイムアウト10秒、独立ツールは制限なし / 10s vs no timeout |
-| Performance Evaluation             | `performance.evaluate`       | Phase 7.5はタイムアウト40秒、独立ツールは制限なし / 40s vs no timeout |
-| Auto Snapshot                      | `design.track_changes`       | Phase 7.5は`snapshot`アクションのみ / snapshot action only            |
+| Phase 7.5 サブフェーズ / Sub-Phase | 独立ツール / Standalone Tool | 違い / Difference                                                                                                                   |
+| ---------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Accessibility Audit                | `accessibility.audit`        | Phase 7.5はタイムアウト10秒、独立ツールは制限なし / 10s vs no timeout                                                               |
+| Performance Evaluation             | `performance.evaluate`       | Phase 7.5はタイムアウト40秒、独立ツールは制限なし / 40s vs no timeout                                                               |
+| Auto Snapshot                      | （なし / none）              | デザインスナップショット記録を保存するのみ（読み出す MCP ツールは無い）/ saves a design snapshot record only (no MCP tool reads it) |
 
 > **Tip**: Phase 7.5は「ついでに」実行する軽量チェックです。詳細な分析が必要な場合は独立ツールを直接使用してください。
 >

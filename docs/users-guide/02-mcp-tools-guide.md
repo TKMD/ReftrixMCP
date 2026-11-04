@@ -8,9 +8,9 @@
 
 ## はじめに / Introduction
 
-Reftrixは **WebDesign専用プラットフォーム** です。このガイドでは、**<!-- gen:tool-count -->40<!-- /gen:tool-count -->のWebDesign専用MCPツール**を活用して、Webページの解析・品質評価・コード生成・嗜好プロファイリング・横断検索・画像類似検索・アクセシビリティ監査・パフォーマンス評価・デザイン変更追跡を行う方法を解説します。
+Reftrixは **WebDesign専用プラットフォーム** です。このガイドでは、**<!-- gen:tool-count -->27<!-- /gen:tool-count -->のWebDesign専用MCPツール**を活用して、Webページの解析・品質評価・コード生成・横断検索・画像類似検索・アクセシビリティ監査・パフォーマンス評価を行う方法を解説します。
 
-Reftrix is a **WebDesign-specialized platform**. This guide explains how to use **<!-- gen:tool-count -->40<!-- /gen:tool-count --> WebDesign-focused MCP tools** to analyze web pages, evaluate design quality, generate code, personalize search results through preference profiling, perform unified cross-service search, find visually similar designs, audit accessibility, evaluate performance, and track design changes.
+Reftrix is a **WebDesign-specialized platform**. This guide explains how to use **<!-- gen:tool-count -->27<!-- /gen:tool-count --> WebDesign-focused MCP tools** to analyze web pages, evaluate design quality, generate code, perform unified cross-service search, find visually similar designs, audit accessibility, and evaluate performance.
 
 > **重要 / Important**: v0.1.0でSVG機能は削除されました。本ガイドはWebDesign専用ツールのみを扱います。
 > All SVG features were removed in v0.1.0. This guide covers WebDesign-only tools.
@@ -20,8 +20,6 @@ Reftrix is a **WebDesign-specialized platform**. This guide explains how to use 
 - Webページレイアウトの解析と検索（セマンティックサーチ）/ Web page layout analysis and search (semantic search)
 - CSSアニメーション・モーションパターンの検出とフレーム画像分析 / CSS animation and motion pattern detection with frame image analysis
 - デザイン品質の3軸評価（Originality, Craftsmanship, Contextuality）/ Design quality evaluation on 3 axes (Originality, Craftsmanship, Contextuality)
-- ブランドカラーパレットの取得と適用 / Brand color palette retrieval and application
-- プロジェクト管理とデザインブリーフの検証 / Project management and design brief verification
 
 ---
 
@@ -32,25 +30,21 @@ Reftrix is a **WebDesign-specialized platform**. This guide explains how to use 
 3. [Layout（レイアウト）ツール](#3-layoutレイアウトツール)
 4. [Motion（モーション）ツール](#4-motionモーションツール)
 5. [Quality（品質）ツール](#5-quality品質ツール)
-6. [Style（スタイル）ツール](#6-styleスタイルツール)
-7. [Brief（ブリーフ）ツール](#7-briefブリーフツール)
-8. [Page（ページ）ツール](#8-pageページツール)
-9. [System（システム）ツール](#9-systemシステムツール)
-10. [Narrative（ナラティブ）ツール](#10-narrativeナラティブツール)
-11. [Background（背景）ツール](#11-background背景ツール)
-12. [Responsive（レスポンシブ）ツール](#12-responsiveレスポンシブツール)
-13. [Preference（嗜好プロファイリング）ツール](#13-preference嗜好プロファイリングツール)
-14. [Part（パーツ）ツール](#14-partパーツツール)
-15. [Search（横断検索）ツール](#15-search横断検索ツール)
-16. [Design（デザイン）ツール](#16-designデザインツール)
-17. [Accessibility（アクセシビリティ）ツール](#17-accessibilityアクセシビリティツール)
-18. [Performance（パフォーマンス）ツール](#18-performanceパフォーマンスツール)
-19. [Embedding（品質モニタリング）ツール](#19-embedding品質モニタリングツール)
-20. [Data（データ管理）ツール](#20-dataデータ管理ツール)
-21. [Audit（監査）ツール](#21-audit監査ツール)
-22. [実践ワークフロー](#22-実践ワークフロー)
-23. [パフォーマンス最適化](#23-パフォーマンス最適化)
-24. [トラブルシューティング](#24-トラブルシューティング)
+6. [Page（ページ）ツール](#8-pageページツール)
+7. [System（システム）ツール](#9-systemシステムツール)
+8. [Narrative（ナラティブ）ツール](#10-narrativeナラティブツール)
+9. [Background（背景）ツール](#11-background背景ツール)
+10. [Responsive（レスポンシブ）ツール](#12-responsiveレスポンシブツール)
+11. [Part（パーツ）ツール](#14-partパーツツール)
+12. [Search（横断検索）ツール](#15-search横断検索ツール)
+13. [Design（デザイン）ツール](#16-designデザインツール)
+14. [Accessibility（アクセシビリティ）ツール](#17-accessibilityアクセシビリティツール)
+15. [Performance（パフォーマンス）ツール](#18-performanceパフォーマンスツール)
+16. [Data（データ管理）ツール](#20-dataデータ管理ツール)
+17. [Audit（監査）ツール](#21-audit監査ツール)
+18. [実践ワークフロー](#22-実践ワークフロー)
+19. [パフォーマンス最適化](#23-パフォーマンス最適化)
+20. [トラブルシューティング](#24-トラブルシューティング)
 
 ---
 
@@ -105,29 +99,25 @@ const result = await page.analyze({
 
 ## 2. ツールカテゴリ概要 / Tool Category Overview
 
-### WebDesign MCPツール（<!-- gen:tool-count -->40<!-- /gen:tool-count -->ツール） / WebDesign MCP Tools (<!-- gen:tool-count -->40<!-- /gen:tool-count --> Tools)
+### WebDesign MCPツール（<!-- gen:tool-count -->27<!-- /gen:tool-count -->ツール） / WebDesign MCP Tools (<!-- gen:tool-count -->27<!-- /gen:tool-count --> Tools)
 
-| カテゴリ / Category | ツール数 / Count | 主な用途 / Primary Purpose                                                                                                                   |
-| ------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| **System**          | 1                | ヘルスチェック / Health check                                                                                                                |
-| **Style**           | 1                | ブランドパレット取得 / Brand palette retrieval                                                                                               |
-| **Brief**           | 1                | デザインブリーフ検証 / Design brief verification                                                                                             |
-| **Layout**          | 5                | Webページ構造の収集・解析・検索・コード生成・バッチ処理 / Web page structure collection, analysis, search, code generation, batch processing |
-| **Motion**          | 2                | CSSアニメーション検出・セマンティック検索 / CSS animation detection and semantic search                                                      |
-| **Quality**         | 1                | デザイン品質評価・改善提案 / Design quality evaluation and improvement suggestions                                                           |
-| **Page**            | 2                | 統合ページ解析・非同期ジョブステータス / Unified page analysis and async job status                                                          |
-| **Narrative**       | 1                | 世界観・レイアウト構成セマンティック検索 / Worldview and layout semantic search                                                              |
-| **Background**      | 1                | バックグラウンドデザインパターン検索 / Background design pattern search                                                                      |
-| **Responsive**      | 2                | レスポンシブ分析検索・マルチデバイスキャプチャ / Responsive analysis search and multi-device capture                                         |
-| **Preference**      | 3                | 嗜好プロファイリング・検索パーソナライズ / Preference profiling and search personalization                                                   |
-| **Part**            | 3                | UIパーツ検索・詳細取得・比較 / UI part search, inspection, and comparison                                                                    |
-| **Search**          | 2                | 横断検索・ファセット検索 / Cross-service unified search and facet search                                                                     |
-| **Design**          | 4                | 画像類似検索・類似サイト・デザイン比較・変更追跡 / Image similarity, similar sites, design comparison, and change tracking                   |
-| **Accessibility**   | 1                | WCAG 2.1 AAアクセシビリティ監査 / WCAG 2.1 AA accessibility audit                                                                            |
-| **Performance**     | 1                | Core Web Vitalsパフォーマンス評価 / Core Web Vitals performance evaluation                                                                   |
-| **Embedding**       | 1                | Embedding品質モニタリング / Embedding quality monitoring                                                                                     |
-| **Data**            | 2                | GDPR準拠データ削除・エクスポート / GDPR-compliant data deletion and export                                                                   |
-| **Audit**           | 1                | 監査ログ検索 / Audit log query                                                                                                               |
+| カテゴリ / Category | ツール数 / Count | 主な用途 / Primary Purpose                                                                                        |
+| ------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **System**          | 1                | ヘルスチェック / Health check                                                                                     |
+| **Layout**          | 4                | Webページ構造の収集・解析・検索・コード生成 / Web page structure collection, analysis, search, code generation    |
+| **Motion**          | 2                | CSSアニメーション検出・セマンティック検索 / CSS animation detection and semantic search                           |
+| **Quality**         | 1                | デザイン品質評価・改善提案 / Design quality evaluation and improvement suggestions                                |
+| **Page**            | 3                | 統合ページ解析・バッチ解析・ジョブ/バッチステータス / Unified page analysis, batch analysis, and job/batch status |
+| **Narrative**       | 1                | 世界観・レイアウト構成セマンティック検索 / Worldview and layout semantic search                                   |
+| **Background**      | 1                | バックグラウンドデザインパターン検索 / Background design pattern search                                           |
+| **Responsive**      | 2                | レスポンシブ分析検索・マルチデバイスキャプチャ / Responsive analysis search and multi-device capture              |
+| **Part**            | 3                | UIパーツ検索・詳細取得・比較 / UI part search, inspection, and comparison                                         |
+| **Search**          | 1                | 横断検索（ファセット集計付き）/ Cross-service unified search with facets                                          |
+| **Design**          | 3                | 画像類似検索・類似サイト・デザイン比較 / Image similarity, similar sites, and design comparison                   |
+| **Accessibility**   | 1                | WCAG 2.1 AAアクセシビリティ監査 / WCAG 2.1 AA accessibility audit                                                 |
+| **Performance**     | 1                | Core Web Vitalsパフォーマンス評価 / Core Web Vitals performance evaluation                                        |
+| **Data**            | 2                | GDPR準拠データ削除・エクスポート / GDPR-compliant data deletion and export                                        |
+| **Audit**           | 1                | 監査ログ検索 / Audit log query                                                                                    |
 
 ### ツール選択のフローチャート / Tool Selection Flowchart
 
@@ -154,20 +144,13 @@ const result = await page.analyze({
 ├─ デザインを改善したい
 │  └─ 品質評価 → quality.evaluate
 │
-├─ 検索結果を自分好みにしたい
-│  ├─ 嗜好ヒアリング → preference.hear
-│  ├─ プロファイル確認 → preference.get
-│  └─ リセット/削除 → preference.reset
-│
-├─ デザインを比較・追跡したい
+├─ デザインを比較したい
 │  ├─ 類似サイト検索 → design.similar_site
-│  ├─ デザイン比較 → design.compare
-│  └─ 変更追跡 → design.track_changes
+│  └─ デザイン比較 → design.compare
 │
 ├─ 品質監査を行いたい
 │  ├─ アクセシビリティ → accessibility.audit
-│  ├─ パフォーマンス → performance.evaluate
-│  └─ Embedding品質 → embedding.quality
+│  └─ パフォーマンス → performance.evaluate
 │
 ├─ データ管理
 │  ├─ データ削除（GDPR） → data.delete
@@ -175,8 +158,6 @@ const result = await page.analyze({
 │  └─ 監査ログ → audit.query
 │
 └─ その他
-   ├─ ブランドパレット → style.get_palette
-   ├─ ブリーフ検証 → brief.validate
    └─ レスポンシブキャプチャ → responsive.capture
 ```
 
@@ -388,7 +369,7 @@ const code = await layout.generate_code({
     framework: "react",
     typescript: true,
     tailwind: true,
-    paletteId: "brand-palette-id", // style.get_paletteで取得
+    paletteId: "brand-palette-id",
   },
 });
 
@@ -406,54 +387,6 @@ const code = await layout.generate_code({
   },
 });
 ```
-
----
-
-### 3.5 layout.batch_ingest - バッチWebページ取得 / Batch Web Page Collection
-
-**用途 / Purpose**: 複数URLからWebページを一括取得（最大100件）/ Batch collect web pages from multiple URLs (up to 100)
-
-**基本的な使い方**
-
-```typescript
-const result = await layout.batch_ingest({
-  urls: [
-    "https://awwwards.com/sites/site1",
-    "https://awwwards.com/sites/site2",
-    "https://awwwards.com/sites/site3",
-  ],
-  options: {
-    save_to_db: true, // デフォルト: true
-    auto_analyze: true, // デフォルト: true
-    concurrency: 5, // 並列数（デフォルト: 5）
-  },
-});
-
-// レスポンス:
-// - succeeded: [{ url: '...', page_id: '...' }, ...]
-// - failed: [{ url: '...', error: '...' }]
-// - stats: { total: 3, succeeded: 3, failed: 0, duration_ms: 15000 }
-```
-
-**エラーハンドリング**
-
-```typescript
-const result = await layout.batch_ingest({
-  urls: urls,
-  options: {
-    on_error: "skip", // skip（デフォルト）| abort
-  },
-});
-
-// 'skip': 失敗したURLをスキップして続行
-// 'abort': 最初のエラーで中断
-```
-
-**ベストプラクティス**
-
-- 大量収集時は `concurrency: 5`（デフォルト）以下を推奨（サーバー負荷軽減）
-- `on_error: 'skip'` で部分的な失敗を許容
-- 結果の `failed` 配列で失敗したURLを確認
 
 ---
 
@@ -841,108 +774,6 @@ const result = await quality.evaluate({
 
 ---
 
-## 6. Style（スタイル）ツール / Style Tools
-
-スタイルツールは、ブランドカラーパレットの取得と適用を提供します。
-
-Style tools provide brand color palette retrieval and application.
-
-### 6.1 style.get_palette - パレット取得 / Palette Retrieval
-
-**用途 / Purpose**: ブランドパレットの取得 / Retrieve brand palettes
-
-**ID指定で詳細取得**
-
-```typescript
-const result = await style.get_palette({
-  id: "palette-id",
-  include_gradients: true,
-});
-
-// レスポンス:
-// - name: 'Brand Palette'
-// - mode: 'light' | 'dark' | 'both'
-// - tokens: [{ token_name: 'primary', oklch_l: 0.5, oklch_c: 0.1, oklch_h: 200 }]
-// - gradients: [{ name: 'hero-gradient', stops: [...] }]
-```
-
-**ブランド名で検索**
-
-```typescript
-const result = await style.get_palette({
-  brand_name: "Reftrix",
-  mode: "light", // light | dark | both
-});
-```
-
-**パレット一覧**
-
-```typescript
-const result = await style.get_palette({});
-
-// レスポンス:
-// - palettes: [{ id: '...', name: '...', mode: '...' }]
-```
-
----
-
-## 7. Brief（ブリーフ）ツール / Brief Tools
-
-### 7.1 brief.validate - ブリーフ検証 / Brief Verification
-
-**用途 / Purpose**: デザインブリーフの完成度と品質を評価 / Evaluate design brief completeness and quality
-
-**基本的な使い方**
-
-```typescript
-const result = await brief.validate({
-  brief: {
-    projectName: "New Landing Page",
-    description: "A modern landing page for SaaS product...",
-    targetAudience: "B2B software developers",
-    industry: "technology",
-    tone: ["professional", "minimal"],
-    colorPreferences: {
-      primary: "#3B82F6",
-      secondary: "#10B981",
-    },
-    references: [{ url: "https://example.com", note: "Love the hero section" }],
-  },
-});
-
-// レスポンス:
-// レスポンス（{ success: true, data: { ... } } 形式）:
-// - isValid: true（エラーなし）
-// - completenessScore: 85（0-100）
-// - readyForDesign: true（isValid && score >= 60）
-// - issues: []
-// - suggestions: ['Add more reference sites']
-```
-
-**厳格モード**
-
-```typescript
-const result = await brief.validate({
-  brief: { ... },
-  strictMode: true  // description≥100文字、references≥2件必須
-});
-```
-
-**完成度スコアのフィールド別Weight**
-
-| フィールド       | Weight | 達成条件               |
-| ---------------- | ------ | ---------------------- |
-| projectName      | 10     | 3文字以上              |
-| description      | 20     | 50文字以上             |
-| targetAudience   | 15     | 20文字以上             |
-| industry         | 10     | 非空                   |
-| tone             | 15     | 非空配列               |
-| colorPreferences | 15     | primary色あり          |
-| references       | 10     | 非空配列               |
-| constraints      | 5      | mustHave/mustAvoidあり |
-
----
-
 ## 8. Page（ページ）ツール / Page Tools
 
 ### 8.1 page.analyze - 統合ページ解析 / Unified Page Analysis
@@ -1058,9 +889,9 @@ The response includes a `visionUsed: boolean` field that accurately indicates wh
 
 ---
 
-### 8.2 page.getJobStatus - 非同期ジョブステータス確認 / Async Job Status Check
+### 8.2 page.getJobStatus - ジョブ・バッチのステータス確認 / Job and Batch Status Check
 
-**用途 / Purpose**: `page.analyze` の非同期モード（`async: true`）で実行したジョブのステータスを確認 / Check the status of jobs executed in async mode (`async: true`) of `page.analyze`
+**用途 / Purpose**: `page.analyze` の非同期モード（`async: true`）で実行したジョブ（`job_id`）、または `page.batch_analyze` で投入したバッチ（`batch_id`）のステータスを確認。`job_id` と `batch_id` のどちらか一方だけを指定する（2026-11-04 に `page.getBatchStatus` を統合）/ Check the status of a job run in async mode (`async: true`) of `page.analyze` (`job_id`) or of a batch submitted via `page.batch_analyze` (`batch_id`). Pass exactly one of `job_id` or `batch_id` (`page.getBatchStatus` was merged into this tool on 2026-11-04)
 
 **基本的な使い方**
 
@@ -1140,12 +971,10 @@ const batch = await page.batch_analyze({
 - analysis tier (10 RPM) レート制御 / analysis tier rate limiting
 - 全URLにSSRF事前検証 / SSRF pre-validation on all URLs
 
-### 8.4 page.getBatchStatus - バッチステータス確認 / Batch Status Check (v0.4.0)
-
-**用途 / Purpose**: `page.batch_analyze` で投入したバッチジョブの進捗確認・結果取得 / Check progress and retrieve results of batch jobs submitted via `page.batch_analyze`
+**バッチの進捗確認 / Batch status**: `page.getJobStatus` に `batch_id` を渡す（`job_id` とは併用しない）/ Pass `batch_id` to `page.getJobStatus` (do not combine with `job_id`)
 
 ```typescript
-const status = await page.getBatchStatus({
+const status = await page.getJobStatus({
   batch_id: batch.data.batchId,
 });
 // → { success: true, data: { state: "completed", progress: 100, summary: {...}, jobs: [...] } }
@@ -1161,19 +990,18 @@ const status = await page.getBatchStatus({
 上限を超える配列は検証エラーになります。`layout.ingest` と `page.analyze` の `viewports` は以前から 10 件が上限で、今回ツール定義(JSON Schema)の `maxItems` にも広告するようになりました。列挙値の配列(`quality.evaluate` の `categories`、`motion.detect` の `lighthouse_options.categories`)の上限は列挙値の数(それぞれ 6 と 4)です。
 Arrays over the limit fail validation. The `viewports` of `layout.ingest` and `page.analyze` already had a limit of 10; the tool definition (JSON Schema) now advertises it as `maxItems` as well. For arrays of enum values (`categories` of `quality.evaluate`, `lighthouse_options.categories` of `motion.detect`) the limit is the number of enum values (6 and 4 respectively).
 
-| ツール / Tool       | 引数 / Argument                             | 上限 / Max |
-| ------------------- | ------------------------------------------- | ---------- |
-| `style.get_palette` | `gradient_options.token_pairs`              | 20         |
-| `layout.search`     | `vision_search_query.visualFeatures.colors` | 10         |
-| `layout.ingest`     | `options.responsive.viewports`              | 10         |
-| `quality.evaluate`  | `responsive_evaluation.viewports`           | 10         |
-| `quality.evaluate`  | `categories`                                | 6 †        |
-| `motion.detect`     | `lighthouse_options.categories`             | 4 †        |
-| `motion.search`     | `samplePattern.properties`                  | 50         |
-| `motion.search`     | `pattern.properties`                        | 50         |
-| `motion.search`     | `pattern.properties[].keyframes`            | 100        |
-| `motion.search`     | `generation_options.project_css_paths`      | 20 †       |
-| `page.analyze`      | `responsiveOptions.viewports`               | 10         |
+| ツール / Tool      | 引数 / Argument                             | 上限 / Max |
+| ------------------ | ------------------------------------------- | ---------- |
+| `layout.search`    | `vision_search_query.visualFeatures.colors` | 10         |
+| `layout.ingest`    | `options.responsive.viewports`              | 10         |
+| `quality.evaluate` | `responsive_evaluation.viewports`           | 10         |
+| `quality.evaluate` | `categories`                                | 6 †        |
+| `motion.detect`    | `lighthouse_options.categories`             | 4 †        |
+| `motion.search`    | `samplePattern.properties`                  | 50         |
+| `motion.search`    | `pattern.properties`                        | 50         |
+| `motion.search`    | `pattern.properties[].keyframes`            | 100        |
+| `motion.search`    | `generation_options.project_css_paths`      | 20 †       |
+| `page.analyze`     | `responsiveOptions.viewports`               | 10         |
 
 † ツール定義(JSON Schema)には広告されていない引数 / Not advertised in the tool definition (JSON Schema).
 
@@ -1592,116 +1420,6 @@ const result = await responsive.capture({
 
 ---
 
-## 13. Preference（嗜好プロファイリング）ツール / Preference (Profiling) Tools
-
-嗜好プロファイリングツールは、ユーザーのデザイン嗜好をインタラクティブに学習し、検索結果をパーソナライズします。フィードバックセッションを通じて嗜好プロファイルを構築し、全検索ツール（layout/motion/background/narrative/responsive search）にpreference rerankingを適用します。
-
-Preference profiling tools interactively learn user design preferences and personalize search results. They build preference profiles through feedback sessions and apply preference reranking across all search tools (layout/motion/background/narrative/responsive search).
-
-> **プライバシー / Privacy**: 嗜好プロファイリングはGDPR準拠で設計されています。新規プロファイル作成時にはArt.13/14に基づく通知が返却されます。詳細は [PRIVACY.md](../../apps/mcp-server/PRIVACY.md) および [DATA_RETENTION.md](../../apps/mcp-server/DATA_RETENTION.md) を参照してください。
->
-> Preference profiling is designed with GDPR compliance. A notification based on Art.13/14 is returned when a new profile is created. See [PRIVACY.md](../../apps/mcp-server/PRIVACY.md) and [DATA_RETENTION.md](../../apps/mcp-server/DATA_RETENTION.md) for details.
-
-### 13.1 preference.hear - 嗜好ヒアリング / Preference Hearing
-
-**用途 / Purpose**: ユーザーのデザイン嗜好をインタラクティブにヒアリング / Interactively learn user design preferences
-
-**省略時の既定値 / Defaults when omitted**: `limit` は 1、`offset` は 0 / `limit` defaults to 1 and `offset` to 0
-
-**動作モード / Operation Modes**:
-
-| モード / Mode                | トリガー / Trigger | 動作 / Behavior                                                                                                                      |
-| ---------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Mode A（サンプル提示）       | フィードバックなし | DBからサンプルデザインを提示し、2因子confidence進捗をトラッキング / Present sample designs from DB with 2-factor confidence tracking |
-| Mode B（フィードバック記録） | フィードバックあり | フィードバックを記録し、嗜好プロファイルを更新 / Record feedback and update preference profile                                       |
-
-**基本的な使い方 / Basic Usage**
-
-```typescript
-// ステップ1: ヒアリング開始（サンプル取得） / Step 1: Start hearing (get samples)
-const result = await preference.hear({});
-// → Mode A: サンプルデザインと新規profile_idが返却
-// → 初回はprofiling_noticeも含まれる（GDPR Art.13/14）
-
-// ステップ2: フィードバック送信 / Step 2: Send feedback
-const result2 = await preference.hear({
-  profile_id: result.data.profile_id,
-  feedback: {
-    sample_id: result.data.samples[0].id,
-    rating: "positive",
-    comment: "このグラデーション背景が好き",
-  },
-  exclude_ids: [result.data.samples[0].id],
-});
-
-// ステップ3: confidence閾値（0.8）に達するまで繰り返し（最大15回）
-// Step 3: Repeat until confidence threshold (0.8) reached (max 15 hearings)
-```
-
-**confidenceモデル / Confidence Model**
-
-| 因子 / Factor           | 重み / Weight | 説明 / Description                                                                                  |
-| ----------------------- | ------------- | --------------------------------------------------------------------------------------------------- |
-| MoodCategory Coverage   | 0.6           | 多様なデザインカテゴリへのフィードバック網羅率 / Feedback coverage across diverse design categories |
-| Interaction Sufficiency | 0.4           | フィードバック回数の十分性 / Sufficiency of feedback count                                          |
-| 閾値 / Threshold        | 0.8           | プロファイル完成判定 / Profile completion threshold                                                 |
-
----
-
-### 13.2 preference.get - プロファイル取得 / Get Profile
-
-**用途 / Purpose**: 嗜好プロファイルの詳細取得・データエクスポート / Retrieve profile details and export data
-
-**基本的な使い方 / Basic Usage**
-
-```typescript
-// プロファイル概要取得 / Get profile summary
-const profile = await preference.get({
-  profile_id: "<uuid>",
-});
-
-// 全シグナルデータ含むエクスポート（GDPR Art. 20 データポータビリティ）
-// Export with all signal data (GDPR Art. 20 Data Portability)
-const exportData = await preference.get({
-  profile_id: "<uuid>",
-  include_signals: true,
-});
-```
-
----
-
-### 13.3 preference.reset - プロファイルリセット / Reset Profile
-
-**用途 / Purpose**: 嗜好プロファイルのリセットまたは完全削除 / Reset or permanently delete preference profile
-
-**基本的な使い方 / Basic Usage**
-
-```typescript
-// ソフトリセット（嗜好データクリア、プロファイル枠は維持）
-// Soft reset (clear preference data, keep profile shell)
-await preference.reset({
-  profile_id: "<uuid>",
-  confirm: true,
-});
-
-// 完全削除（GDPR Art. 17 忘れられる権利）
-// Hard delete (GDPR Art. 17 Right to Erasure)
-await preference.reset({
-  profile_id: "<uuid>",
-  confirm: true,
-  hard_delete: true,
-});
-```
-
-**ベストプラクティス / Best Practices**
-
-- ヒアリングは5-10回のフィードバックで十分なconfidenceに到達可能 / 5-10 feedback rounds typically reach sufficient confidence
-- `exclude_ids` で既に表示したサンプルを除外し、重複を防止 / Use `exclude_ids` to exclude already-shown samples and prevent duplicates
-- プロファイル完成後は全検索ツール（layout/motion/background/narrative/responsive search）で自動的にリランキングが適用 / After profile completion, reranking is automatically applied across all search tools
-- ユーザーのデータ権利（アクセス・エクスポート・削除）はすべてMCPツール経由で行使可能 / All user data rights (access, export, deletion) can be exercised via MCP tools
-
----
-
 ## 14. Part（パーツ）ツール / Part Tools
 
 Part-Level Analysis（v0.1.5）で追加されたUIパーツ検索・詳細取得・比較ツールです。`page.analyze` で分析されたWebページのパーツ（ボタン、ナビゲーション、カード等）を16タイプに分類し、セマンティック検索や比較が可能です。
@@ -1781,7 +1499,7 @@ const results = await mcp__reftrix__search_unified({
 
 ---
 
-### 15.2 search.facets -- ファセット検索 / Facet Search
+### 15.2 search.unified のファセット集計 / Facets via search.unified
 
 **用途 / Purpose**: 検索結果をsectionType・industry・audience・tagsで分類し、各値の件数を返却。UIでの絞り込みフィルター構築に活用 / Classify search results by sectionType, industry, audience, and tags with counts. Useful for building filter UIs
 
@@ -1790,8 +1508,9 @@ const results = await mcp__reftrix__search_unified({
 ```typescript
 // 全ファセットフィールドのカウントを取得
 // Get counts for all facet fields
-const result = await search.facets({
+const result = await search.unified({
   query: "modern hero section",
+  include_facets: true,
 });
 
 // レスポンス / Response:
@@ -1807,8 +1526,9 @@ const result = await search.facets({
 **特定フィールドのみ取得 / Get Specific Fields Only**
 
 ```typescript
-const result = await search.facets({
+const result = await search.unified({
   query: "gradient background",
+  include_facets: true,
   facet_fields: ["sectionType", "industry"], // 特定のフィールドのみ
   limit: 20,
   industry: "technology", // 業種フィルター
@@ -1820,6 +1540,7 @@ const result = await search.facets({
 | パラメータ / Parameter | 型 / Type | デフォルト / Default | 説明 / Description                                                          |
 | ---------------------- | --------- | -------------------- | --------------------------------------------------------------------------- |
 | `query`                | string    | （必須 / required）  | 検索クエリ（1-500文字） / Search query (1-500 chars)                        |
+| `include_facets`       | boolean   | false                | ファセット集計を返却に含める / Include facet counts in the response         |
 | `facet_fields`         | string[]  | all                  | ファセットフィールド (sectionType, industry, audience, tags) / Facet fields |
 | `limit`                | number    | 50                   | 取得件数（1-50） / Result limit                                             |
 | `webPageId`            | string    | -                    | WebページIDでフィルター / Filter by web page UUID                           |
@@ -1831,9 +1552,9 @@ const result = await search.facets({
 
 ## 16. Design（デザイン）ツール / Design Tools
 
-デザインツールは、画像類似検索・類似サイト検索・デザイン比較・デザイン変更追跡の4つの機能を提供します。
+デザインツールは、画像類似検索・類似サイト検索・デザイン比較の3つの機能を提供します。
 
-Design tools provide 4 capabilities: image similarity search, similar site search, design comparison, and design change tracking.
+Design tools provide 3 capabilities: image similarity search, similar site search, and design comparison.
 
 ### 16.1 design.search_by_image -- 画像類似検索 / Image Similarity Search
 
@@ -1951,74 +1672,6 @@ const result = await design.compare({
 
 ---
 
-### 16.4 design.track_changes -- デザイン変更追跡 / Design Change Tracking
-
-**用途 / Purpose**: 同一URLのデザイン変更を時系列で追跡。スナップショット保存、差分比較、履歴管理、自動変更検出 / Track design changes for the same URL over time. Supports snapshot saving, diff comparison, history management, and automatic change detection
-
-**スナップショット保存 / Save Snapshot**
-
-```typescript
-// 現在のデザイン状態をスナップショットとして保存
-// Save current design state as a snapshot
-const result = await design.track_changes({
-  url: "https://example.com",
-  action: "snapshot",
-});
-
-// レスポンス / Response:
-// - snapshot: { id: 'snapshot-uuid', createdAt: '2026-04-01T...' }
-```
-
-**スナップショット間の比較 / Compare Snapshots**
-
-```typescript
-const result = await design.track_changes({
-  url: "https://example.com",
-  action: "compare",
-  snapshot_ids: ["snapshot-uuid-1", "snapshot-uuid-2"],
-});
-
-// レスポンス / Response:
-// - comparison: { similarity_score: 0.75, changes: [...] }
-```
-
-**変更履歴の取得 / Get Change History**
-
-```typescript
-const result = await design.track_changes({
-  url: "https://example.com",
-  action: "history",
-  limit: 20,
-});
-```
-
-**自動変更検出 / Automatic Change Detection**
-
-```typescript
-const result = await design.track_changes({
-  url: "https://example.com",
-  action: "detect", // 最新のスナップショットと現在の状態を自動比較
-});
-```
-
-**主要パラメータ / Key Parameters**
-
-| パラメータ / Parameter | 型 / Type | デフォルト / Default | 説明 / Description                                                                                         |
-| ---------------------- | --------- | -------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `url`                  | string    | （必須 / required）  | 対象URL / Target URL                                                                                       |
-| `action`               | string    | （必須 / required）  | アクション: snapshot, compare, history, detect / Action type                                               |
-| `snapshot_ids`         | string[]  | -                    | compare時の比較対象スナップショットID（2件） / Snapshot IDs for comparison (2 required for compare action) |
-| `limit`                | number    | 10                   | history時の取得件数（1-50） / Result limit for history action                                              |
-| `auto_snapshot`        | boolean   | false                | page.analyze完了後に自動スナップショット生成するか / Auto-generate snapshot after page.analyze             |
-
-**ベストプラクティス / Best Practices**
-
-- 定期的に `action: "snapshot"` でデザイン状態を記録 / Regularly record design state with `action: "snapshot"`
-- `page.analyze` の `auto_snapshot: true` オプションで自動記録も可能 / Use `auto_snapshot: true` in `page.analyze` for automatic recording
-- `action: "detect"` で前回からの変更を自動検出 / Use `action: "detect"` to automatically detect changes since last snapshot
-
----
-
 ## 17. Accessibility（アクセシビリティ）ツール / Accessibility Tools
 
 アクセシビリティツールは、WCAG 2.1準拠のアクセシビリティ監査を実行し、スコア・違反・コントラスト問題を報告します。
@@ -2132,48 +1785,6 @@ const result = await performance.evaluate({
 > **注意 / Note**: `page.analyze` の `performanceOptions: { enabled: true }` でも同等の評価を統合パイプラインの一部として実行できます。
 >
 > You can also run equivalent evaluations as part of the integrated pipeline via `page.analyze` with `performanceOptions: { enabled: true }`.
-
----
-
-## 19. Embedding（品質モニタリング）ツール / Embedding (Quality Monitoring) Tools
-
-Embeddingツールは、DINOv2/e5-baseのEmbedding品質をモニタリングし、カバレッジ・異常検出・ドリフト検出を実行します。
-
-Embedding tools monitor DINOv2/e5-base embedding quality, performing coverage analysis, anomaly detection, and drift detection.
-
-### 19.1 embedding.quality -- Embedding品質モニタリング / Embedding Quality Monitoring
-
-**用途 / Purpose**: セクション・パーツのEmbedding品質を監視し、カバレッジ不足や異常ベクトルを検出 / Monitor embedding quality for sections and parts, detecting coverage gaps and anomalous vectors
-
-**基本的な使い方 / Basic Usage**
-
-```typescript
-const result = await embedding.quality({});
-
-// レスポンス / Response:
-// - coverage: { sections: { total: 150, withEmbedding: 142, rate: 0.947 }, parts: { ... } }
-// - anomalies: [{ id: '...', type: 'zero_vector', ... }]
-```
-
-**特定ページに限定 / Scope to Specific Page**
-
-```typescript
-const result = await embedding.quality({
-  scope: "sections", // sections のみ監視
-  web_page_id: "page-uuid",
-  include_distribution: true, // 分布統計を含める
-});
-
-// - distribution: { mean: 0.42, std: 0.15, min: 0.01, max: 0.98, l2_norm: { ... } }
-```
-
-**主要パラメータ / Key Parameters**
-
-| パラメータ / Parameter | 型 / Type | デフォルト / Default | 説明 / Description                                                                   |
-| ---------------------- | --------- | -------------------- | ------------------------------------------------------------------------------------ |
-| `scope`                | string    | all                  | 監視スコープ: all, sections, parts / Monitoring scope                                |
-| `web_page_id`          | string    | -                    | 特定ページに限定（UUID） / Scope to specific page (UUID)                             |
-| `include_distribution` | boolean   | false                | 分布統計を含めるか（mean, std, min, max, L2 norm） / Include distribution statistics |
 
 ---
 
@@ -2395,35 +2006,6 @@ const reEvaluation = await quality.evaluate({
 
 ---
 
-### ワークフロー3: ブランドパレットを適用したデザイン生成 / Workflow 3: Generate Design with Brand Palette
-
-```typescript
-// ステップ1: ブランドパレットを取得
-const palette = await style.get_palette({
-  brand_name: "Reftrix",
-  mode: "light",
-});
-
-// ステップ2: レイアウトパターンを検索
-const layouts = await layout.search({
-  query: "landing page hero",
-  limit: 5,
-});
-
-// ステップ3: パレット適用してコード生成
-const code = await layout.generate_code({
-  patternId: layouts.results[0].id,
-  options: {
-    framework: "react",
-    typescript: true,
-    tailwind: true,
-    paletteId: palette.id,
-  },
-});
-```
-
----
-
 ## 23. パフォーマンス最適化 / Performance Optimization
 
 ### summary=true の活用 / Leveraging summary=true
@@ -2607,9 +2189,9 @@ await page.analyze({
 
 ## まとめ / Summary
 
-このガイドでは、Reftrixの<!-- gen:tool-count -->40<!-- /gen:tool-count --> WebDesign MCPツールを活用してWebページの解析・品質評価・コード生成・嗜好プロファイリング・アクセシビリティ監査・パフォーマンス評価・デザイン変更追跡を行う方法を解説しました。
+このガイドでは、Reftrixの<!-- gen:tool-count -->27<!-- /gen:tool-count --> WebDesign MCPツールを活用してWebページの解析・品質評価・コード生成・アクセシビリティ監査・パフォーマンス評価を行う方法を解説しました。
 
-This guide explained how to use Reftrix's <!-- gen:tool-count -->40<!-- /gen:tool-count --> WebDesign MCP tools for web page analysis, quality evaluation, code generation, preference profiling, accessibility auditing, performance evaluation, and design change tracking.
+This guide explained how to use Reftrix's <!-- gen:tool-count -->27<!-- /gen:tool-count --> WebDesign MCP tools for web page analysis, quality evaluation, code generation, accessibility auditing, and performance evaluation.
 
 ### 次のステップ / Next Steps
 

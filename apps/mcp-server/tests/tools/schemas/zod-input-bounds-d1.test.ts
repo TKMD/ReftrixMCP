@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * 入力コレクションの上限 (search.unified / search.facets / part.compare / brief.validate /
- * design.compare / data.delete / preference.hear)。
+ * 入力コレクションの上限 (search.unified / part.compare / design.compare /
+ * data.delete)。
  *
  * 1 件ごとに次の 3 点を確かめる / for each limit:
  *   1. Zod: ちょうど上限の件数は受理、+1 件は拒否 / exactly N accepted, N+1 rejected
@@ -15,16 +15,12 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { toneSchema, briefValidateInputSchema } from "../../../src/tools/brief/schemas";
 import { allToolDefinitions } from "../../../src/tools/index";
 import { dataDeleteInputSchema } from "../../../src/tools/data/data.tool";
 import {
   designCompareDimensionSchema,
   designCompareInputSchema,
 } from "../../../src/tools/design/compare.tool";
-import { preferenceHearInputSchema } from "../../../src/tools/preference/schemas";
-import { facetFieldSchema as facetsFieldSchema } from "../../../src/tools/search/facets.tool";
-import { searchFacetsInputSchema } from "../../../src/tools/search/facets.tool";
 import {
   facetFieldSchema as unifiedFacetFieldSchema,
   searchTargetTypeSchema,
@@ -86,15 +82,6 @@ const CASES: BoundCase[] = [
     build: (n) => ({ query: "q", facet_fields: repeat("tags", n) }),
   },
   {
-    label: "search.facets facet_fields",
-    tool: "search.facets",
-    jsonPath: ["facet_fields"],
-    schema: searchFacetsInputSchema,
-    max: 4,
-    enumSize: facetsFieldSchema.options.length,
-    build: (n) => ({ query: "q", facet_fields: repeat("tags", n) }),
-  },
-  {
     label: "part.compare compare_aspects",
     tool: "part.compare",
     jsonPath: ["compare_aspects"],
@@ -102,31 +89,6 @@ const CASES: BoundCase[] = [
     max: 4,
     enumSize: partCompareAspectSchema.options.length,
     build: (n) => ({ part_ids: [UUID, UUID], compare_aspects: repeat("styles", n) }),
-  },
-  {
-    label: "brief.validate brief.constraints.mustHave",
-    tool: "brief.validate",
-    jsonPath: ["brief", "constraints", "mustHave"],
-    schema: briefValidateInputSchema,
-    max: 20,
-    build: (n) => ({ brief: { projectName: "p", constraints: { mustHave: repeat("x", n) } } }),
-  },
-  {
-    label: "brief.validate brief.constraints.mustAvoid",
-    tool: "brief.validate",
-    jsonPath: ["brief", "constraints", "mustAvoid"],
-    schema: briefValidateInputSchema,
-    max: 20,
-    build: (n) => ({ brief: { projectName: "p", constraints: { mustAvoid: repeat("x", n) } } }),
-  },
-  {
-    label: "brief.validate brief.tone",
-    tool: "brief.validate",
-    jsonPath: ["brief", "tone"],
-    schema: briefValidateInputSchema,
-    max: 8,
-    enumSize: toneSchema.options.length,
-    build: (n) => ({ brief: { projectName: "p", tone: repeat("bold", n) } }),
   },
   {
     label: "design.compare dimensions",
@@ -151,19 +113,11 @@ const CASES: BoundCase[] = [
       page_ids: repeat(UUID, n),
     }),
   },
-  {
-    label: "preference.hear feedback",
-    tool: "preference.hear",
-    jsonPath: ["feedback"],
-    schema: preferenceHearInputSchema,
-    max: 50,
-    build: (n) => ({ feedback: repeat({ sample_id: UUID, rating: "positive" }, n) }),
-  },
 ];
 
 describe("D1 input collection bounds (Zod boundary + advertised maxItems)", () => {
-  it("covers the 10 limits of this change", () => {
-    expect(CASES).toHaveLength(10);
+  it("covers the 5 limits of this change", () => {
+    expect(CASES).toHaveLength(5);
   });
 
   for (const c of CASES) {
@@ -192,7 +146,9 @@ describe("D1 input collection bounds (Zod boundary + advertised maxItems)", () =
 
   it("leaves the under-limit inputs of the same shape unchanged (min boundaries intact)", () => {
     expect(searchUnifiedInputSchema.safeParse({ query: "q", types: [] }).success).toBe(false);
-    expect(searchFacetsInputSchema.safeParse({ query: "q", facet_fields: [] }).success).toBe(false);
+    expect(searchUnifiedInputSchema.safeParse({ query: "q", facet_fields: [] }).success).toBe(
+      false
+    );
     expect(searchUnifiedInputSchema.safeParse({ query: "q", types: ["layout"] }).success).toBe(
       true
     );

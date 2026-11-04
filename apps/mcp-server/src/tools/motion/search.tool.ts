@@ -50,7 +50,7 @@ import {
   type NewAnimationPattern,
 } from "../../services/motion/existing-animation-detector.service";
 import { applyPreferenceReranking } from "../../services/preference-rerank.helper";
-import type { IPrismaClient } from "../../services/preference-profile.service";
+import type { IPrismaClient } from "../../services/preference-rerank.helper";
 
 // 分割モジュールからのインポート
 import { generateImplementation, type GenerationResult } from "./code-generators";

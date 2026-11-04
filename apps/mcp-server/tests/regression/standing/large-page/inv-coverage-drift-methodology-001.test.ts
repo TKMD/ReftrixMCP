@@ -16,8 +16,8 @@
  *     `embedding_quality.coverage` (textCoveragePercent + visionCoveragePercent).
  *   - Drift gate = 5% absolute pp.
  *   - NaN / Infinity defense via clampCoveragePercent (CWE-682).
- *   - Verdict = `within_gate` (production flip allowed) / `exceeds_gate`
- *     (rollback path per Plan v3 V2 §17 R-1).
+ *   - Verdict = `within_gate` / `exceeds_gate` (a coverage regression in the
+ *     comparison).
  *
  * Standing regression locking the canonical
  * `embedding_quality.coverage <5% pp` drift gate per TPA winning contract.
@@ -25,7 +25,8 @@
  *
  * @see  §3.3
  * @see  V1-CO-04
- * @see services/embedding-coverage-drift.service.ts
+ * @see ../_shared/coverage-drift.ts (moved from src on 2026-11-04, TS-M-09 / ADR-0055 Amendment 1:
+ *   the invariant now locks the methodology for future coverage comparisons, not a production KPI)
  *
  * @module tests/regression/standing/large-page/inv-coverage-drift-methodology-001
  */
@@ -36,7 +37,7 @@ import {
   computeCoverageDrift,
   isCoverageDriftWithinGate,
   DEFAULT_COVERAGE_DRIFT_GATE_PP,
-} from "../../../../src/services/embedding-coverage-drift.service";
+} from "../_shared/coverage-drift";
 
 describe("INV-COVERAGE-DRIFT-METHODOLOGY-001: PR-V3-T1a §3.3 drift gate methodology", () => {
   beforeEach(() => {

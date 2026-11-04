@@ -89,9 +89,9 @@ npm rebuild @prisma/client
 
 ### ブラウザ未取得時の固定文言 / Fixed Message When the Browser Is Missing
 
-ページ取得（`layout.ingest` / `layout.batch_ingest` / `page.analyze`）に使う Chromium が未取得の場合、クライアントには内部 path や Call log を含まない固定文言 `Browser for page crawling is not installed. Run: npx playwright@<!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright --> install chromium` を返します。`layout.ingest` / `layout.batch_ingest` の文言は固定文言そのもので、`page.analyze`（同期実行）の文言は固定文言で始まり、末尾に ` (after N attempt(s))` が付くことがあります。版を固定しているため、実行ディレクトリに依らず同じ revision が入ります。元のエラー本文はサーバー側ログにのみ残ります。
+ページ取得（`layout.ingest` / `page.analyze`）に使う Chromium が未取得の場合、クライアントには内部 path や Call log を含まない固定文言 `Browser for page crawling is not installed. Run: npx playwright@<!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright --> install chromium` を返します。`layout.ingest` の文言は固定文言そのもので、`page.analyze`（同期実行）の文言は固定文言で始まり、末尾に ` (after N attempt(s))` が付くことがあります。版を固定しているため、実行ディレクトリに依らず同じ revision が入ります。元のエラー本文はサーバー側ログにのみ残ります。
 
-When the Chromium used for page crawling (`layout.ingest` / `layout.batch_ingest` / `page.analyze`) is not installed, clients receive the fixed message `Browser for page crawling is not installed. Run: npx playwright@<!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright --> install chromium`, with no internal path or call log. For `layout.ingest` / `layout.batch_ingest` the message is exactly the fixed message; for `page.analyze` (synchronous run) it starts with the fixed message and may end with ` (after N attempt(s))`. The version is pinned, so the same revision is installed regardless of the working directory. The raw error text stays in the server-side log only.
+When the Chromium used for page crawling (`layout.ingest` / `page.analyze`) is not installed, clients receive the fixed message `Browser for page crawling is not installed. Run: npx playwright@<!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright --> install chromium`, with no internal path or call log. For `layout.ingest` the message is exactly the fixed message; for `page.analyze` (synchronous run) it starts with the fixed message and may end with ` (after N attempt(s))`. The version is pinned, so the same revision is installed regardless of the working directory. The raw error text stays in the server-side log only.
 
 ブラウザを起動するすべてのツール（`layout.ingest` / `page.analyze` / `motion.detect` / `responsive.capture` / `accessibility.audit` など）は、ブラウザ未取得のとき Playwright の起動エラーをそのまま返さず、固定文言を返します（固定文言のみ、またはより長い文言の一部として）。Chromium の起動は `src/utils/launch-chromium.ts` の 1 箇所に集約しています。
 
@@ -129,9 +129,9 @@ pnpm start
 }
 ```
 
-## MCPツール一覧（<!-- gen:tool-count -->40<!-- /gen:tool-count -->ツール） / MCP Tool List (<!-- gen:tool-count -->40<!-- /gen:tool-count --> Tools)
+## MCPツール一覧（<!-- gen:tool-count -->27<!-- /gen:tool-count -->ツール） / MCP Tool List (<!-- gen:tool-count -->27<!-- /gen:tool-count --> Tools)
 
-### Layoutツール（5ツール） / Layout Tools (5 Tools)
+### Layoutツール（4ツール） / Layout Tools (4 Tools)
 
 #### `layout.ingest` - Webページ取得 / Web Page Ingestion
 
@@ -216,24 +216,6 @@ HTMLを解析し、セクション構成・グリッド・タイポグラフィ�
     typescript?: boolean;
     tailwind?: boolean;
     componentName?: string;
-  };
-}
-```
-
-#### `layout.batch_ingest` - バッチWebページ取得 / Batch Web Page Ingestion
-
-複数URLからWebページを一括取得します。 / Batch-retrieves web pages from multiple URLs.
-
-**入力スキーマ**:
-
-```typescript
-{
-  urls: string[];           // 取得対象URL配列（1-100件）
-  options?: {
-    save_to_db?: boolean;   // DB保存（デフォルトtrue）
-    auto_analyze?: boolean; // 自動解析（デフォルトtrue）
-    concurrency?: number;   // 並列数（1-10、デフォルト5）
-    on_error?: 'skip' | 'abort'; // エラー時の動作（デフォルトskip）
   };
 }
 ```
@@ -390,34 +372,7 @@ Webデザインの品質を3軸（独自性・技巧・文脈適合性）で評�
 
 ---
 
-### Styleツール（1ツール） / Style Tools (1 Tool)
-
-#### `style.get_palette` - ブランドパレット取得 / Brand Palette Retrieval
-
-ブランドパレットを取得します。 / Retrieves brand palettes.
-
-**入力スキーマ**:
-
-```typescript
-{
-  id?: string;              // パレットID
-  brand_name?: string;      // ブランド名で部分一致検索
-  mode?: 'light' | 'dark' | 'both';
-  include_gradients?: boolean;
-}
-```
-
----
-
-### Briefツール（1ツール） / Brief Tools (1 Tool)
-
-#### `brief.validate` - デザインブリーフ検証 / Design Brief Validation
-
-デザインブリーフを検証し、完成度スコアと改善提案を返します。 / Validates design briefs and returns completeness scores and improvement suggestions.
-
----
-
-### Pageツール（4ツール） / Page Tools (4 Tools)
+### Pageツール（3ツール） / Page Tools (3 Tools)
 
 #### `page.analyze` - 統合Web分析 / Unified Web Analysis
 
@@ -445,15 +400,16 @@ Performs unified Layout + Motion + Quality analysis for a given URL. Uses BullMQ
 >
 > **Advertised-schema string coercion of inputs**: the `page.analyze` advertised inputSchema exposes its boolean/number/object fields (`async`, `summary`, `timeout`, `timeout_strategy`, `partial_results`, `layoutTimeout`/`motionTimeout`/`qualityTimeout`, `auto_retry`/`max_retries`, `layout_first`, `narrativeOptions`/`visionOptions`, etc.). When an MCP client sends a boolean/number as a string (e.g. `"true"` / `"600000"`), the tool-layer `coerceArgs` uses the advertised type hints to coerce them to the correct type before Zod validation, preventing `VALIDATION_ERROR` from string-typed arguments.
 
-#### `page.getJobStatus` - 非同期ジョブステータス確認 / Async Job Status
+#### `page.getJobStatus` - ジョブ・バッチのステータス確認 / Job and Batch Status
 
-`page.analyze`の非同期モード（`async: true`）で実行したジョブのステータスを確認します。 / Checks the status of jobs executed in `page.analyze`'s async mode (`async: true`).
+`page.analyze`の非同期モード（`async: true`）で実行したジョブ、または`page.batch_analyze`で投入したバッチのステータスを確認します。read-only、冪等。`job_id` と `batch_id` のどちらか一方だけを指定します（2026-11-04 に `page.getBatchStatus` を統合）。 / Checks the status of a job run in `page.analyze`'s async mode (`async: true`) or of a batch submitted with `page.batch_analyze`. Read-only, idempotent. Pass exactly one of `job_id` or `batch_id` (`page.getBatchStatus` was merged into this tool on 2026-11-04).
 
 **入力スキーマ**:
 
 ```typescript
 {
-  job_id: string; // ジョブID（UUID形式、必須）
+  job_id?: string;   // ジョブID（UUID形式） / Job ID (UUID)
+  batch_id?: string; // バッチID（page.batch_analyze の戻り値） / Batch ID returned by page.batch_analyze
 }
 ```
 
@@ -467,6 +423,8 @@ Performs unified Layout + Motion + Quality analysis for a given URL. Uses BullMQ
   error?: string;           // 失敗時のエラー詳細
 }
 ```
+
+`batch_id` を指定した場合は、バッチの state（`waiting` / `active` / `completed` / `failed` / `partial`）・progress・summary（total / completed / failed / skipped）・各ジョブの結果（state と webPageId）を返します。 / With `batch_id`, it returns the batch state (`waiting` / `active` / `completed` / `failed` / `partial`), progress, summary (total / completed / failed / skipped) and each job's result (state and webPageId).
 
 #### `page.batch_analyze` - バッチ一括分析 / Batch Analysis (v0.4.0)
 
@@ -485,18 +443,6 @@ Performs unified Layout + Motion + Quality analysis for a given URL. Uses BullMQ
 ```
 
 **制限**: 最大50 URL、同時1バッチ（CWE-770）、analysis tier 10 RPM、全URLにSSRF事前検証。
-
-#### `page.getBatchStatus` - バッチステータス確認 / Batch Status Check (v0.4.0)
-
-`page.batch_analyze`で投入したバッチジョブの進捗確認。read-only、冪等。 / Check batch job progress. Read-only, idempotent.
-
-**入力スキーマ**:
-
-```typescript
-{
-  batch_id: string; // バッチジョブID（必須）
-}
-```
 
 ---
 
@@ -540,63 +486,6 @@ Semantic search over responsive analysis results (viewport differences, breakpoi
   offset?: number;            // オフセット / Pagination offset
 }
 ```
-
----
-
-### Preferenceツール（3ツール） / Preference Tools (3 Tools)
-
-#### `preference.hear` - 嗜好ヒアリング / Preference Hearing
-
-ユーザーのデザイン嗜好をインタラクティブにヒアリングします。ステートレス設計：フィードバックなし → Mode A（サンプル提示 + 進捗トラッキング）、フィードバックあり → Mode B（フィードバック記録 + プロファイル更新）。新規プロファイル作成時は `profiling_notice` を返却（GDPR Art.13/14対応）。
-
-Interactively learns user design preferences. Stateless design: no feedback → Mode A (present samples with progress tracking), feedback present → Mode B (record feedback and update profile). Returns `profiling_notice` on new profile creation (GDPR Art.13/14 compliance).
-
-**入力スキーマ / Input Schema**:
-
-```typescript
-{
-  profile_id?: string;        // プロファイルID（省略時は新規作成） / Profile ID (creates new if omitted)
-  feedback?: {
-    sample_id: string;        // フィードバック対象のサンプルID / Target sample ID
-    rating: 'positive' | 'negative' | 'neutral';
-    comment?: string;         // 任意のコメント / Optional comment
-  };
-  exclude_ids?: string[];     // 除外するサンプルID（クライアント管理） / Sample IDs to exclude (client-managed)
-}
-```
-
-#### `preference.get` - プロファイル取得 / Get Profile
-
-嗜好プロファイルの詳細を取得します。GDPRデータポータビリティ（Art. 20）に対応し、`include_signals: true` で全フィードバックシグナルを含む構造化JSONをエクスポートできます。
-
-Retrieves preference profile details. Supports GDPR data portability (Art. 20) — use `include_signals: true` to export structured JSON including all feedback signals.
-
-**入力スキーマ / Input Schema**:
-
-```typescript
-{
-  profile_id: string;         // プロファイルID（UUID形式、必須） / Profile ID (UUID, required)
-  include_signals?: boolean;  // 全シグナルデータを含める（デフォルト: false） / Include all signal data (default: false)
-}
-```
-
-#### `preference.reset` - プロファイルリセット / Reset Profile
-
-嗜好プロファイルをリセットまたは完全削除します。ソフトリセット（デフォルト）は嗜好データをクリアしプロファイル枠を維持。`hard_delete: true` で完全に物理削除（GDPR Art. 17 忘れられる権利）。
-
-Resets or permanently deletes a preference profile. Soft reset (default) clears preference data while keeping the profile shell. `hard_delete: true` permanently deletes all data (GDPR Art. 17 Right to Erasure).
-
-**入力スキーマ / Input Schema**:
-
-```typescript
-{
-  profile_id: string;         // プロファイルID（UUID形式、必須） / Profile ID (UUID, required)
-  confirm: boolean;           // 確認フラグ（必須、trueで実行） / Confirmation flag (required, true to execute)
-  hard_delete?: boolean;      // 完全削除（デフォルト: false） / Permanent deletion (default: false)
-}
-```
-
-> **プライバシー / Privacy**: 嗜好プロファイリングの詳細は [PRIVACY.md](./PRIVACY.md) および [DATA_RETENTION.md](./DATA_RETENTION.md) を参照してください。 / See [PRIVACY.md](./PRIVACY.md) and [DATA_RETENTION.md](./DATA_RETENTION.md) for details on preference profiling.
 
 ---
 
@@ -805,14 +694,14 @@ stdout is reserved for JSON-RPC. Server logs (`console.error` and the loggers) g
 
 ### レート制限 / Rate Limiting
 
-Token Bucket + Redis Lua（CWE-770 DoS対策）。全<!-- gen:tool-count -->40<!-- /gen:tool-count -->ツールに自動適用。
-Token Bucket + Redis Lua (CWE-770 DoS prevention). Auto-applied to all <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools.
+Token Bucket + Redis Lua（CWE-770 DoS対策）。全<!-- gen:tool-count -->27<!-- /gen:tool-count -->ツールに自動適用。
+Token Bucket + Redis Lua (CWE-770 DoS prevention). Auto-applied to all <!-- gen:tool-count -->27<!-- /gen:tool-count --> tools.
 
-| ティア / Tier | RPM | 対象ツール / Target Tools                                                                                                                                                                     |
-| ------------- | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| analysis      | 10  | page.analyze, page.batch_analyze, layout.ingest, layout.batch_ingest, accessibility.audit, performance.evaluate, design.track_changes, design.regression_test, report.generate                |
-| search        | 120 | layout.search, motion.search, narrative.search, background.search, responsive.search, part.search, search.unified, design.search_by_image, design.similar_site, design.compare, search.facets |
-| default       | 60  | その他すべて / All others                                                                                                                                                                     |
+| ティア / Tier | RPM | 対象ツール / Target Tools                                                                                                                                                      |
+| ------------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| analysis      | 10  | page.analyze, page.batch_analyze, layout.ingest, accessibility.audit, performance.evaluate                                                                                     |
+| search        | 120 | layout.search, motion.search, narrative.search, background.search, responsive.search, part.search, search.unified, design.search_by_image, design.similar_site, design.compare |
+| default       | 60  | その他すべて / All others                                                                                                                                                      |
 
 Graceful Degradation: Redis未接続時はインメモリフォールバック / Falls back to in-memory when Redis unavailable
 
@@ -823,8 +712,8 @@ npm で `@reftrixmcp/mcp-server` を利用する場合、リポジトリ root �
 
 ### エラーメッセージサニタイズ / Error Message Sanitization (CWE-209)
 
-`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。<!-- gen:sanitize-usage-count -->123<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->40<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->110<!-- /gen:sanitize-import-count -->ファイルでインポート）。
-`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to <!-- gen:sanitize-usage-count -->123<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->110<!-- /gen:sanitize-import-count --> import files).
+`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。<!-- gen:sanitize-usage-count -->108<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->27<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->99<!-- /gen:sanitize-import-count -->ファイルでインポート）。
+`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to <!-- gen:sanitize-usage-count -->108<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->27<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->99<!-- /gen:sanitize-import-count --> import files).
 
 ---
 
@@ -1053,9 +942,6 @@ apps/mcp-server/
 │   │   ├── light-response-controller.ts # レスポンスサイズ制御
 │   │   └── response-size-warning.ts   # レスポンスサイズ警告
 │   ├── schemas/              # 共有スキーマ
-│   │   ├── creative/
-│   │   │   ├── index.ts
-│   │   │   └── palette.schema.ts
 │   │   └── mood-brandtone-filters.ts
 │   ├── types/                # 型定義
 │   │   └── creative/
@@ -1063,11 +949,9 @@ apps/mcp-server/
 │   │   ├── layout/           # レイアウトツール
 │   │   ├── motion/           # モーションツール
 │   │   ├── quality/          # 品質評価ツール
-│   │   ├── brief/            # ブリーフツール
 │   │   ├── narrative/        # ナラティブツール
 │   │   ├── background/       # バックグラウンドツール
 │   │   ├── responsive/       # レスポンシブツール
-│   │   ├── preference/       # 嗜好プロファイリングツール
 │   │   ├── page/             # page.analyze ツール
 │   │   └── schemas/          # 共有Zodスキーマ
 │   ├── workers/              # BullMQワーカー

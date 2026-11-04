@@ -77,13 +77,9 @@ export const TOOL_TIER_MAP: Record<string, RateLimitTier> = {
   // 分析系（重い処理、10 RPM）
   "page.analyze": "analysis",
   "layout.ingest": "analysis",
-  "layout.batch_ingest": "analysis",
   "accessibility.audit": "analysis",
   "performance.evaluate": "analysis",
-  "design.track_changes": "analysis",
-  "design.regression_test": "analysis",
   "page.batch_analyze": "analysis",
-  "report.generate": "analysis",
   // 検索系（軽い処理、120 RPM）
   "layout.search": "search",
   "motion.search": "search",
@@ -95,7 +91,6 @@ export const TOOL_TIER_MAP: Record<string, RateLimitTier> = {
   "design.search_by_image": "search",
   "design.similar_site": "search",
   "design.compare": "search",
-  "search.facets": "search",
 };
 
 /** Redis key prefix for rate limiter buckets */

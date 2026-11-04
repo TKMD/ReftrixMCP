@@ -283,14 +283,14 @@ describe("INV-ZOD-RECORD-KEY-REDACTION-001 (b) scan controls", () => {
 describe("INV-ZOD-RECORD-KEY-REDACTION-001 (c) path text", () => {
   it("replaces the key after a record field name, at every level", () => {
     expect(formatIssuePath(["styles", "color"])).toBe(`styles.${RECORD_KEY_PLACEHOLDER}`);
-    expect(formatIssuePath(["items", 2, "tokens", "primary", "hex"])).toBe(
-      `items.2.tokens.${RECORD_KEY_PLACEHOLDER}.hex`
+    expect(formatIssuePath(["items", 2, "cssStyles", "primary", "hex"])).toBe(
+      `items.2.cssStyles.${RECORD_KEY_PLACEHOLDER}.hex`
     );
   });
 
   it("leaves other paths and array indexes alone", () => {
     expect(formatIssuePath(["options", "viewport", "width"])).toBe("options.viewport.width");
-    expect(formatIssuePath(["tokens", 0, "hex"])).toBe("tokens.0.hex");
+    expect(formatIssuePath(["cssStyles", 0, "hex"])).toBe("cssStyles.0.hex");
     expect(formatIssuePath(["styles"])).toBe("styles");
     expect(formatIssuePath([])).toBe("");
   });

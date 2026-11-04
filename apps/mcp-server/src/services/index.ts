@@ -87,21 +87,6 @@ export {
 } from "./motion-search-service";
 
 // ====================================================
-// Palette Service
-// ====================================================
-
-export {
-  executeGetPalette,
-  type GetPaletteInput,
-  type GetPaletteResult,
-  type GetPaletteOptions,
-  type PaletteDetail,
-  type PaletteListItem,
-  type ColorTokenApi,
-  type GradientApi,
-} from "./palette-service-export";
-
-// ====================================================
 // Layout Generate Code Service
 // ====================================================
 

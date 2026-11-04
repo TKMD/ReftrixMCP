@@ -4,7 +4,7 @@
 /**
  * Regression domain: schema-enum-sync (contract test, not standing)
  *
- * INV-ZOD-DEFAULT-OPTIONAL-GOLDEN-001 (DEP1-02 / IO-DEP-06): the 20 `.default(x).optional()` sites
+ * INV-ZOD-DEFAULT-OPTIONAL-GOLDEN-001 (DEP1-02 / IO-DEP-06): the 18 `.default(x).optional()` sites (20 before the preference.hear removal)
  * are written `.optional().default(x)`, so an omitted key yields `x` on zod 3 exactly as it does on
  * zod 4 (zod 3 returns no key for the old order, so "same output before and after" is NOT the
  * contract; the parse output now carries the default).
@@ -13,10 +13,10 @@
  *      `.nullish()` of the same chain under apps/mcp-server/src or packages/<pkg>/src, and every
  *      default passes its own inner schema (zod 4 does not run the inner min / max on a default,
  *      so this pins the range check that zod 3 did on parse)
- *  (b) consumer equivalence for the 20 keys: the value the tool-layer reader used when the key was
+ *  (b) consumer equivalence for the 18 keys: the value the tool-layer reader used when the key was
  *      omitted (measured before the reorder) equals the parsed default, or the change is declared
  *  (c) no site has a transform / refine, and no refine / transform / superRefine / preprocess /
- *      catch body of an ancestor schema reads one of the 20 keys, so the zod 4 short-circuit (the
+ *      catch body of an ancestor schema reads one of the 18 keys, so the zod 4 short-circuit (the
  *      default skips the inner transform) cannot change a result; the probe shows the difference
  *
  * There is no separate zod 4 assert per site: "zod" is zod 4 now, so the parse assert and the
@@ -31,7 +31,6 @@ import { z as z4 } from "zod";
 
 import * as layoutSchemas from "../../src/tools/layout/schemas";
 import * as motionSchemas from "../../src/tools/motion/detect.schemas";
-import * as preferenceSchemas from "../../src/tools/preference/schemas";
 
 const SRC_ROOT = path.resolve(__dirname, "../../src");
 const PACKAGES_ROOT = path.resolve(__dirname, "../../../../packages");
@@ -61,7 +60,6 @@ const ENTRIES = golden.entries;
 const MODULES: Record<string, Record<string, unknown>> = {
   "src/tools/layout/schemas.ts": layoutSchemas,
   "src/tools/motion/detect.schemas.ts": motionSchemas,
-  "src/tools/preference/schemas.ts": preferenceSchemas,
 };
 
 function parseFile(rel: string): ts.SourceFile {
@@ -264,9 +262,9 @@ function mentionsKey(node: ts.Node, key: string): boolean {
 }
 
 describe("INV-ZOD-DEFAULT-OPTIONAL-GOLDEN-001", () => {
-  it("golden has exactly the 20 AST-fixed sites", () => {
-    expect(ENTRIES).toHaveLength(20);
-    expect(new Set(ENTRIES.map((e) => e.id)).size).toBe(20);
+  it("golden has exactly the 18 AST-fixed sites", () => {
+    expect(ENTRIES).toHaveLength(18);
+    expect(new Set(ENTRIES.map((e) => e.id)).size).toBe(18);
   });
 
   describe("(a) reordered schema returns the default (golden taken on zod 3, run on the installed zod 4)", () => {
@@ -336,14 +334,17 @@ describe("INV-ZOD-DEFAULT-OPTIONAL-GOLDEN-001", () => {
     );
 
     it("probe: an explicit value still wins over the default", () => {
-      const s = MODULES["src/tools/preference/schemas.ts"]?.["preferenceHearInputSchema"] as {
+      const s = MODULES["src/tools/motion/detect.schemas.ts"]?.["frameAnalysisOptionsSchema"] as {
         parse(v: unknown): Record<string, unknown>;
       };
-      expect(s.parse({ limit: 7, offset: 3 })).toMatchObject({ limit: 7, offset: 3 });
+      expect(s.parse({ fps: 7, gap_tolerance_ms: 3 })).toMatchObject({
+        fps: 7,
+        gap_tolerance_ms: 3,
+      });
     });
   });
 
-  describe("(b) consumer equivalence for the 20 keys", () => {
+  describe("(b) consumer equivalence for the 18 keys", () => {
     it.each(ENTRIES.map((e) => [e.id, e] as const))("%s", (_id, e) => {
       const schema = MODULES[e.module]?.[e.schema] as {
         parse(v: unknown): Record<string, unknown>;

@@ -37,7 +37,7 @@ import {
   type InferredContext,
 } from "../../services/query-context-analyzer";
 import { applyPreferenceReranking } from "../../services/preference-rerank.helper";
-import type { IPrismaClient } from "../../services/preference-profile.service";
+import type { IPrismaClient } from "../../services/preference-rerank.helper";
 import { buildEmbeddingFailureError } from "../_shared/embedding-failure-response";
 import {
   ProjectContextAnalyzer,

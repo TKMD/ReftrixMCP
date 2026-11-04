@@ -247,8 +247,8 @@ describe("MCP Documentation Completeness", () => {
   });
 
   describe("APIリファレンス", () => {
-    it("全MCPツール（35ツール）のリストが含まれること", () => {
-      // WebDesign専用35ツール（v0.3.0、project削除済み、quality.batch_evaluate/getJobStatus削除済み）
+    it("主要MCPツールのリストが含まれること", () => {
+      // 主要ツール（2026-11-04 に style.get_palette / brief.validate を含む未使用 9 ツールを削除）
       const requiredTools = [
         // Layout (4)
         "layout.ingest",
@@ -260,10 +260,6 @@ describe("MCP Documentation Completeness", () => {
         "motion.search",
         // Quality (1)
         "quality.evaluate",
-        // Style (1)
-        "style.get_palette",
-        // Brief (1)
-        "brief.validate",
         // Page (2)
         "page.analyze",
         "page.getJobStatus",

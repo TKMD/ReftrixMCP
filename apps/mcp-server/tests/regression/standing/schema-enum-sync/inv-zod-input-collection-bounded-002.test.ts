@@ -13,7 +13,7 @@
  * `.max(N)` / `.length(N)` with N resolvable to a numeric literal (or a const initialised by one)
  * and N <= 1000. Unresolvable forms are treated as unbounded (fail-closed).
  *
- * 件数 / counts (AST 実測): array 36 / set 0 / map 0 / record 1 / tuple 1。
+ * 件数 / counts (AST 実測): array 25 / set 0 / map 0 / record 1 / tuple 0（2026-11-04 未使用 9 tool 削除と layout.batch_ingest 削除の後 / after removing 9 unused tools and layout.batch_ingest）。
  * record と tuple は件数と位置を固定する (tuple は固定長、record のキー数上限は tracked)。
  *
  * 未完了一覧 / pending list: まだ上限のない array の `file:line`。無言では増やせない
@@ -46,9 +46,9 @@ const PENDING_MAX = 0;
 /** まだ上限のない array (file:line)。上限を付けた分だけ外し、最終的に 0 件にする。 */
 const PENDING_UNBOUNDED_ARRAYS: readonly string[] = [];
 
-const EXPECTED_COUNTS = { array: 36, set: 0, map: 0, record: 1, tuple: 1 } as const;
+const EXPECTED_COUNTS = { array: 25, set: 0, map: 0, record: 1, tuple: 0 } as const;
 const EXPECTED_RECORD_SITES = ["src/tools/page/input.schemas.ts:1023"];
-const EXPECTED_TUPLE_SITES = ["src/tools/schemas/style-schemas.ts:40"];
+const EXPECTED_TUPLE_SITES: readonly string[] = [];
 
 /** 上限として受理できるか (整数、1 以上、天井以下)。null は fail-closed で不受理。 */
 function isAcceptableBound(bound: number | null): boolean {
@@ -93,7 +93,7 @@ describe("INV-ZOD-INPUT-COLLECTION-BOUNDED-002: tool input collections are bound
     expect(scan.unresolved).toEqual([]);
   });
 
-  it("collection counts are fixed (array 36 / set 0 / map 0 / record 1 / tuple 1)", () => {
+  it("collection counts are fixed (array 25 / set 0 / map 0 / record 1 / tuple 0)", () => {
     const count = (k: string): number => scan.collections.filter((c) => c.kind === k).length;
     expect({
       array: count("array"),

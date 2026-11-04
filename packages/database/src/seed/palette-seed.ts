@@ -4,7 +4,7 @@
 /**
  * Reftrix Brand Palette Seed Script
  *
- * MCPツール style.get_palette, style.apply で使用するブランドパレットの初期データ
+ * ブランドパレットの初期データ（2026-11-04 以降、これらのパレットを読む MCP ツールは無い / no MCP tool reads these palettes since 2026-11-04）
  * OKLCHカラースペースでの色値を保持（モダンCSS対応）
  *
  * @see schema.prisma - BrandPalette, ColorToken models

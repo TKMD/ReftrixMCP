@@ -29,12 +29,5 @@ export {
   type ProcessingMeta,
 } from "./shared";
 
-// style系スキーマ（style.get_palette用）
-export {
-  styleGetPaletteInputSchema,
-  paletteModeSchema,
-  type StyleGetPaletteInput,
-} from "./style-schemas";
-
 // [REMOVED v0.3.0] project系スキーマ・ソースファイルは削除済み（バックエンドAPI未実装のため）
 // project schemas and source files deleted in v0.3.0 (backend API not implemented)

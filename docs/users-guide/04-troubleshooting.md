@@ -318,9 +318,9 @@ Browser for page crawling is not installed. Run: npx playwright@1.57.0 install c
 
 **原因と解決策 / Cause and Solution:**
 
-ページ取得に使う Chromium がこの環境に無い場合、`layout.ingest` / `layout.batch_ingest` は内部 path を含まない上記の固定文言を返します。`page.analyze`（同期実行）の文言は固定文言で始まり、末尾に ` (after N attempt(s))` が付くことがあります。表示された `npx playwright@<版> install chromium` をそのまま実行してください（版が固定されているため、実行ディレクトリは問いません）。元のエラー本文はサーバー側ログに残ります。`PLAYWRIGHT_BROWSERS_PATH` を変えている場合は、MCP サーバーと同じ値を設定した状態で install してください。
+ページ取得に使う Chromium がこの環境に無い場合、`layout.ingest` は内部 path を含まない上記の固定文言を返します。`page.analyze`（同期実行）の文言は固定文言で始まり、末尾に ` (after N attempt(s))` が付くことがあります。表示された `npx playwright@<版> install chromium` をそのまま実行してください（版が固定されているため、実行ディレクトリは問いません）。元のエラー本文はサーバー側ログに残ります。`PLAYWRIGHT_BROWSERS_PATH` を変えている場合は、MCP サーバーと同じ値を設定した状態で install してください。
 
-When the Chromium used for page crawling is not available in this environment, `layout.ingest` / `layout.batch_ingest` return the fixed message above, with no internal path. For `page.analyze` (synchronous run) the message starts with the fixed message and may end with ` (after N attempt(s))`. Run the printed `npx playwright@<version> install chromium` as-is (the version is pinned, so the working directory does not matter). The raw error text stays in the server-side log. If you have changed `PLAYWRIGHT_BROWSERS_PATH`, run the install with the same value the MCP server uses.
+When the Chromium used for page crawling is not available in this environment, `layout.ingest` returns the fixed message above, with no internal path. For `page.analyze` (synchronous run) the message starts with the fixed message and may end with ` (after N attempt(s))`. Run the printed `npx playwright@<version> install chromium` as-is (the version is pinned, so the working directory does not matter). The raw error text stays in the server-side log. If you have changed `PLAYWRIGHT_BROWSERS_PATH`, run the install with the same value the MCP server uses.
 
 ---
 
@@ -746,11 +746,11 @@ Error: RATE_LIMIT_EXCEEDED
 
 > **レート制限仕様 / Rate Limit Specification**: Token Bucketアルゴリズムによるレート制限が実装されています（v0.2.0）。3ティアに分類されます:
 >
-> | ティア / Tier | RPM | 対象ツール / Tools                                                                                                            |
-> | ------------- | --- | ----------------------------------------------------------------------------------------------------------------------------- |
-> | `analysis`    | 10  | `page.analyze`, `layout.ingest`, `layout.batch_ingest`, `accessibility.audit`, `performance.evaluate`, `design.track_changes` |
-> | `search`      | 120 | `layout.search`, `motion.search`, `narrative.search`, `background.search`, `responsive.search`, `part.search`                 |
-> | `default`     | 60  | その他すべてのツール / All other tools                                                                                        |
+> | ティア / Tier | RPM | 対象ツール / Tools                                                                                            |
+> | ------------- | --- | ------------------------------------------------------------------------------------------------------------- |
+> | `analysis`    | 10  | `page.analyze`, `page.batch_analyze`, `layout.ingest`, `accessibility.audit`, `performance.evaluate`          |
+> | `search`      | 120 | `layout.search`, `motion.search`, `narrative.search`, `background.search`, `responsive.search`, `part.search` |
+> | `default`     | 60  | その他すべてのツール / All other tools                                                                        |
 >
 > Redis利用時はLuaスクリプトによるアトミック制御、Redis非接続時はインメモリフォールバック。環境変数 `RATE_LIMIT_RPM` でデフォルトティアのRPMを変更可能。`RATE_LIMIT_ENABLED=false` で無効化可能。
 >
@@ -1169,9 +1169,9 @@ Web pages collected by layout.ingest are for reference and analysis only. Creati
 
 ### Q5: 一度に何件まで収集できますか？ / How many can I collect at once?
 
-**A:** layout.batch_ingestで複数URLを一括取得できます（最大100件）。concurrency: 5（デフォルト）以下を推奨します。
+**A:** page.batch_analyzeで複数URLを一括解析できます（最大50件、同時1バッチ）。concurrency は 1-5（デフォルト 3）です。進捗は page.getJobStatus に batch_id を渡して確認します。
 
-You can batch collect multiple URLs with layout.batch_ingest (up to 100). concurrency: 5 (default) or less is recommended.
+You can analyze multiple URLs in one batch with page.batch_analyze (up to 50, one batch at a time). concurrency is 1-5 (default 3). Check progress by passing batch_id to page.getJobStatus.
 
 ### Q6: レート制限に達した場合は？ / What if I hit the rate limit?
 

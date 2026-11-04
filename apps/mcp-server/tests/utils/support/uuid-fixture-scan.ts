@@ -40,8 +40,12 @@ export const UUID_SHAPE =
  * stays within [MIN_OSS_MATCHES, ceil(1.15 * MIN_OSS_MATCHES)], so a stale value is caught.
  * Measured on: base 0e6f1b14 with this change applied, transformed by prepare-oss.sh (oss/), N = 821
  * (floor(0.92 * 821) = 755); the private sibling's ossOutputFiles() count on the same tree is N_oss = 821 (equal).
+ * Re-measured 2026-11-04 (base 7a12715a with the change applied, private tree, not a prepare-oss
+ * tree) after removing the 9 unused tools and their tests (branch
+ * refactor/remove-unused-mcp-tools): the private sibling's ossOutputFiles() count N_oss = 691
+ * (floor(0.92 * 691) = 635).
  */
-export const MIN_OSS_MATCHES = 755;
+export const MIN_OSS_MATCHES = 635;
 
 export function walk(dir: string, out: string[]): void {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {

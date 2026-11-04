@@ -12,7 +12,7 @@
  *  (a) the set of `z.record` calls whose key is not `z.string()` is exactly the 4 known sites (AST)
  *      - the callee is matched by its syntax (`z` . `record`), so `z\n  .record(...)` is counted
  *      - positive controls: one-line, multi-line and enum-key forms in fixture text are detected
- *      - every `z.record` call in src is counted (26, of which 2 are multi-line), so a scan that
+ *      - every `z.record` call in src is counted (25 since the palette schema removal on 2026-11-04, of which 2 are multi-line), so a scan that
  *        silently skips a form fails here
  *  (b) golden: a partial-key input parses to exactly the given keys at each site (unchanged since zod 3)
  *  (c) probe: zod 4 rejects the same partial input for an enum-keyed record
@@ -129,7 +129,7 @@ function enumKeyedRecords(): string[] {
 }
 
 /** Total `z.record` calls in src, and the multi-line ones (fixed so a skipped form fails). */
-const TOTAL_RECORD_CALLS = 26;
+const TOTAL_RECORD_CALLS = 25;
 const MULTI_LINE_RECORD_CALLS = [
   { file: "tools/motion/shared.schemas.ts", key: "rotationAngles" },
   { file: "tools/narrative/schemas.ts", key: "css_variables" },

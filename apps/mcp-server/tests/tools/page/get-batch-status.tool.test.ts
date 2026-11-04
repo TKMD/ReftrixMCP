@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * page.getBatchStatus MCPツールのテスト
- * Batch Status Tool Tests (v0.4.0 T3-BATCH)
+ * page.getJobStatus の batch_id 経路のテスト（旧 page.getBatchStatus、2026-11-04 統合）
+ * Tests for the batch_id path of page.getJobStatus (former page.getBatchStatus, merged 2026-11-04)
  *
  * テスト対象:
- * - Zodスキーマバリデーション (3テスト)
- * - ハンドラー統合テスト (6テスト)
- * - ツール定義の検証 (3テスト)
- * - セキュリティ (3テスト)
+ * - Zodスキーマバリデーション
+ * - ハンドラー統合テスト
+ * - page.getJobStatus への統合（定義・入力・振り分け）
+ * - セキュリティ
  *
  * @module tests/tools/page/get-batch-status.tool.test
  */
@@ -73,10 +73,13 @@ import {
   GET_BATCH_STATUS_ERROR_CODES,
 } from "../../../src/tools/page/batch-analyze.schemas";
 
+import { pageGetBatchStatusHandler } from "../../../src/tools/page/get-batch-status.tool";
 import {
-  pageGetBatchStatusHandler,
-  pageGetBatchStatusToolDefinition,
-} from "../../../src/tools/page/get-batch-status.tool";
+  INVALID_TARGET_MESSAGE,
+  pageGetJobStatusHandler,
+  pageGetJobStatusToolDefinition,
+} from "../../../src/tools/page/get-job-status.tool";
+import { pageGetJobStatusInputSchema } from "../../../src/tools/page/output.schemas";
 
 // =====================================================
 // Test Data
@@ -103,7 +106,7 @@ function createBatchMetadata(overrides: Record<string, unknown> = {}): string {
 // Test Suite
 // =====================================================
 
-describe("page.getBatchStatus Tool", () => {
+describe("page.getJobStatus(batch_id) — former page.getBatchStatus", () => {
   const mockQueue = {
     getJob: vi.fn(),
     close: vi.fn(),
@@ -323,19 +326,85 @@ describe("page.getBatchStatus Tool", () => {
   // Tool Definition / ツール定義
   // =====================================================
 
-  describe("ツール定義", () => {
-    it("ツール名が page.getBatchStatus である", () => {
-      expect(pageGetBatchStatusToolDefinition.name).toBe("page.getBatchStatus");
+  describe("page.getJobStatus への統合 / merged into page.getJobStatus", () => {
+    it("page.getJobStatus の inputSchema が job_id と batch_id を持ち、どちらも必須にしない", () => {
+      const schema = pageGetJobStatusToolDefinition.inputSchema as {
+        properties: Record<string, unknown>;
+        required?: string[];
+      };
+      expect(Object.keys(schema.properties).sort()).toEqual(["batch_id", "job_id"]);
+      expect(schema.required ?? []).toEqual([]);
     });
 
-    it("annotationsにreadOnlyHint=true, idempotentHint=trueが設定されている", () => {
-      expect(pageGetBatchStatusToolDefinition.annotations).toBeDefined();
-      expect(pageGetBatchStatusToolDefinition.annotations.readOnlyHint).toBe(true);
-      expect(pageGetBatchStatusToolDefinition.annotations.idempotentHint).toBe(true);
+    it("annotations は readOnlyHint=true, idempotentHint=true のまま", () => {
+      expect(pageGetJobStatusToolDefinition.annotations.readOnlyHint).toBe(true);
+      expect(pageGetJobStatusToolDefinition.annotations.idempotentHint).toBe(true);
     });
 
-    it("inputSchemaのrequiredにbatch_idが含まれる", () => {
-      expect(pageGetBatchStatusToolDefinition.inputSchema.required).toContain("batch_id");
+    it("job_id と batch_id のちょうど一方だけを受理する", () => {
+      const jobId = "0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
+      expect(pageGetJobStatusInputSchema.safeParse({ job_id: jobId }).success).toBe(true);
+      expect(pageGetJobStatusInputSchema.safeParse({ batch_id: VALID_BATCH_ID }).success).toBe(
+        true
+      );
+      expect(pageGetJobStatusInputSchema.safeParse({}).success).toBe(false);
+      expect(
+        pageGetJobStatusInputSchema.safeParse({ job_id: jobId, batch_id: VALID_BATCH_ID }).success
+      ).toBe(false);
+    });
+
+    it("UUID でない batch_id を拒否する（batch_id は常に uuidv7 で発行される）", () => {
+      expect(pageGetJobStatusInputSchema.safeParse({ batch_id: "not-a-uuid" }).success).toBe(false);
+      expect(getBatchStatusInputSchema.safeParse({ batch_id: "x".repeat(1000) }).success).toBe(
+        false
+      );
+    });
+
+    it.each([
+      ["どちらも無い", {}],
+      ["両方ある", { job_id: "0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b", batch_id: VALID_BATCH_ID }],
+    ])("%s入力には「どちらか一方」を示す固定文言を返す", async (_label, input) => {
+      const result = await pageGetJobStatusHandler(input);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe("VALIDATION_ERROR");
+        expect(result.error.message).toBe(INVALID_TARGET_MESSAGE);
+        expect(result.error.message).toContain("job_id");
+        expect(result.error.message).toContain("batch_id");
+      }
+    });
+
+    it("形式が不正なときは UUID を求める固定文言を返す", async () => {
+      const result = await pageGetJobStatusHandler({ batch_id: "not-a-uuid" });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toBe(
+          "Invalid input parameters: job_id and batch_id must be UUIDs"
+        );
+      }
+    });
+
+    it("router が注入した _request_id をバッチ経路の応答に引き継ぐ", async () => {
+      (isRedisAvailable as Mock).mockResolvedValue(false);
+
+      const result = (await pageGetJobStatusHandler({
+        batch_id: VALID_BATCH_ID,
+        _request_id: "router-request-id-001",
+      })) as { metadata: { request_id: string } };
+
+      expect(result.metadata.request_id).toBe("router-request-id-001");
+    });
+
+    it("batch_id を渡すとバッチ経路の結果を返す", async () => {
+      (isRedisAvailable as Mock).mockResolvedValue(false);
+
+      const result = await pageGetJobStatusHandler({ batch_id: VALID_BATCH_ID });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe(GET_BATCH_STATUS_ERROR_CODES.REDIS_UNAVAILABLE);
+        expect(result.error.message).toContain("batch status");
+      }
     });
   });
 

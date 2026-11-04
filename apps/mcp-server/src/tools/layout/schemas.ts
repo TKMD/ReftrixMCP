@@ -12,7 +12,6 @@
  * - layout.inspect: HTMLを解析しセクション・グリッド・タイポグラフィを抽出
  * - layout.search: レイアウトパターンをセマンティック検索
  * - layout.generate_code: パターンからReact/Vue/HTMLコードを生成
- * - layout.batch_ingest: 複数URLを一括取得しレイアウト解析用データを準備
  */
 import { z } from "zod";
 import { moodFilterSchema, brandToneFilterSchema } from "../../schemas/mood-brandtone-filters";
@@ -1481,119 +1480,6 @@ export const layoutPatternsOutputSchema = z.object({
 export type LayoutPatternsOutput = z.infer<typeof layoutPatternsOutputSchema>;
 
 // ============================================================================
-// layout.batch_ingest Schemas
-// ============================================================================
-
-/**
- * layout.batch_ingest オプションスキーマ
- *
- * @property concurrency - 並列処理数（1-10、デフォルト5）
- * @property on_error - エラー時の動作（skip/abort、デフォルトskip）
- * @property save_to_db - DBに保存するか（デフォルトtrue）
- * @property auto_analyze - 自動解析するか（デフォルトtrue）
- */
-export const layoutBatchIngestOptionsSchema = z.object({
-  concurrency: z
-    .number()
-    .int({ message: "concurrencyは整数である必要があります" })
-    .min(1, { message: "concurrencyは1以上10以下である必要があります" })
-    .max(10, { message: "concurrencyは1以上10以下である必要があります" })
-    .optional()
-    .default(5),
-  on_error: z.enum(["skip", "abort"]).optional().default("skip"),
-  save_to_db: z.boolean().optional().default(true),
-  auto_analyze: z.boolean().optional().default(true),
-});
-export type LayoutBatchIngestOptions = z.infer<typeof layoutBatchIngestOptionsSchema>;
-
-/**
- * layout.batch_ingest 入力スキーマ
- *
- * @property urls - インジェスト対象のURL配列（1-100件、必須）
- * @property options - オプション設定（オプション）
- */
-export const layoutBatchIngestInputSchema = z.object({
-  urls: z
-    .array(z.string().url({ message: "有効なURL形式を指定してください" }))
-    .min(1, { message: "URLは1件以上100件以下で指定してください" })
-    .max(100, { message: "URLは1件以上100件以下で指定してください" }),
-  options: layoutBatchIngestOptionsSchema.optional(),
-  /** robots.txtを尊重するかどうか（RFC 9309）。falseで無視 */
-  respect_robots_txt: z.boolean().optional(),
-});
-export type LayoutBatchIngestInput = z.infer<typeof layoutBatchIngestInputSchema>;
-
-/**
- * バッチインジェスト結果アイテムスキーマ
- */
-export const batchIngestResultItemSchema = z.object({
-  url: z.string().url(),
-  status: z.enum(["success", "failed"]),
-  page_id: z.string().uuid().optional(),
-  error: z.string().optional(),
-  patterns_extracted: z.number().int().nonnegative().optional(),
-});
-export type BatchIngestResultItem = z.infer<typeof batchIngestResultItemSchema>;
-
-/**
- * バッチインジェストサマリースキーマ
- */
-export const batchIngestSummarySchema = z.object({
-  success_rate: z.number().min(0).max(100),
-  total_patterns: z.number().int().nonnegative(),
-  processing_time_ms: z.number().nonnegative(),
-});
-export type BatchIngestSummary = z.infer<typeof batchIngestSummarySchema>;
-
-/**
- * layout.batch_ingest 成功レスポンスデータスキーマ
- */
-export const layoutBatchIngestDataSchema = z.object({
-  job_id: z.string().uuid(),
-  total: z.number().int().nonnegative(),
-  completed: z.number().int().nonnegative(),
-  failed: z.number().int().nonnegative(),
-  results: z.array(batchIngestResultItemSchema),
-  summary: batchIngestSummarySchema,
-});
-export type LayoutBatchIngestData = z.infer<typeof layoutBatchIngestDataSchema>;
-
-/**
- * layout.batch_ingest エラー情報スキーマ
- */
-export const layoutBatchIngestErrorInfoSchema = z.object({
-  code: z.string(),
-  message: z.string(),
-  details: z.unknown().optional(),
-});
-export type LayoutBatchIngestErrorInfo = z.infer<typeof layoutBatchIngestErrorInfoSchema>;
-
-/**
- * layout.batch_ingest 成功レスポンススキーマ
- */
-export const layoutBatchIngestSuccessOutputSchema = z.object({
-  success: z.literal(true),
-  data: layoutBatchIngestDataSchema,
-});
-
-/**
- * layout.batch_ingest 失敗レスポンススキーマ
- */
-export const layoutBatchIngestErrorOutputSchema = z.object({
-  success: z.literal(false),
-  error: layoutBatchIngestErrorInfoSchema,
-});
-
-/**
- * layout.batch_ingest 出力スキーマ（統合）
- */
-export const layoutBatchIngestOutputSchema = z.discriminatedUnion("success", [
-  layoutBatchIngestSuccessOutputSchema,
-  layoutBatchIngestErrorOutputSchema,
-]);
-export type LayoutBatchIngestOutput = z.infer<typeof layoutBatchIngestOutputSchema>;
-
-// ============================================================================
 // Error Codes
 // ============================================================================
 
@@ -1668,11 +1554,6 @@ export const layoutMcpTools = {
     name: "layout.generate_code",
     description: "パターンからReact/Vue/Svelte/Astro/HTMLコードを生成します",
     inputSchema: layoutToCodeInputSchema,
-  },
-  "layout.batch_ingest": {
-    name: "layout.batch_ingest",
-    description: "複数URLを一括取得しレイアウト解析用データを準備します",
-    inputSchema: layoutBatchIngestInputSchema,
   },
 } as const;
 

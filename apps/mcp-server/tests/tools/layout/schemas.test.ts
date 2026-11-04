@@ -10,7 +10,6 @@
  * - layout.inspect: HTMLを解析しセクション・グリッド・タイポグラフィを抽出
  * - layout.search: レイアウトパターンをセマンティック検索
  * - layout.generate_code: パターンからReact/Vue/HTMLコードを生成
- * - layout.batch_ingest: 複数URLを一括取得しレイアウト解析用データを準備
  */
 import { describe, it, expect, beforeAll } from "vitest";
 import { z } from "zod";

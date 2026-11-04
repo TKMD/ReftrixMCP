@@ -70,10 +70,10 @@ Features:
 - Configurable concurrency (1-5, default: 3)
 - SSRF validation for all URLs before submission
 - Graceful degradation: individual failures don't affect the batch
-- Progress tracking via page.getBatchStatus
+- Progress tracking via page.getJobStatus(batch_id)
 - Rate limiting within analysis tier (10 RPM)
 
-Use page.getBatchStatus to poll for results.`,
+Use page.getJobStatus with batch_id to poll for results.`,
   annotations: {
     title: "Batch Page Analyzer",
     readOnlyHint: false,
@@ -339,7 +339,7 @@ export async function pageBatchAnalyzeHandler(input: unknown): Promise<BatchAnal
         message:
           `Batch ${batchId.slice(0, 8)}... submitted: ${validatedUrls.length} URL(s) queued` +
           (skippedUrls.length > 0 ? `, ${skippedUrls.length} skipped (SSRF/robots.txt)` : "") +
-          `. Use page.getBatchStatus with batch_id to check progress.`,
+          `. Use page.getJobStatus with batch_id to check progress.`,
       },
       requestId,
       { processing_time_ms: Date.now() - startTime }

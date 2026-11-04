@@ -3,7 +3,7 @@
 
 /**
  * INV-SEC-BROWSER-MISSING-FIXED-MESSAGE-001 経路テスト / route tests
- * adapter → layout.ingest / layout.batch_ingest / page.analyze sync / worker Phase 0 の client 文言。
+ * adapter → layout.ingest / page.analyze sync / worker Phase 0 の client 文言。
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -41,7 +41,6 @@ import { logger } from "../../src/utils/logger";
 import { BROWSER_MISSING_MESSAGE } from "../../src/utils/browser-missing";
 import { pageIngestAdapter } from "../../src/services/page-ingest-adapter";
 import { layoutIngestHandler } from "../../src/tools/layout/ingest.tool";
-import { layoutBatchIngestHandler } from "../../src/tools/layout/batch-ingest.tool";
 import { executeSyncProcessing } from "../../src/tools/page/handlers/sync-processing";
 import { pageAnalyzeInputSchema } from "../../src/tools/page/schemas";
 import { processIngestPhase } from "../../src/workers/phases/phase-0-ingest";
@@ -80,16 +79,6 @@ describe("browser-missing client routes", () => {
     })) as { success: boolean; error?: { message: string } };
     expect(r.success).toBe(false);
     expectFixed(r.error?.message);
-  });
-
-  it("layout.batch_ingest (batch-ingest.tool.ts:110 path) exposes only the fixed message", async () => {
-    const r = (await layoutBatchIngestHandler({
-      urls: ["https://example.com"],
-      options: { on_error: "skip" },
-    })) as { data?: { results: Array<{ status: string; error?: string }> } };
-    const item = r.data?.results?.[0];
-    expect(item?.status).toBe("failed");
-    expectFixed(item?.error);
   });
 
   it("page.analyze sync starts with the fixed message; only the ' (after N attempt(s))' suffix is allowed", async () => {

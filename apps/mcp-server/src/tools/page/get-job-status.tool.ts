@@ -30,6 +30,8 @@ import {
 } from "./schemas";
 import { logger, isDevelopment } from "../../utils/logger";
 import { sanitizeErrorMessage, sanitizeAnalysisErrorForClient } from "../../utils/sanitize-error";
+import { pageGetBatchStatusHandler } from "./get-batch-status.tool";
+import type { GetBatchStatusCombinedOutput } from "./batch-analyze.schemas";
 import {
   generateRequestId,
   createSuccessResponseWithRequestId,
@@ -50,6 +52,9 @@ export const GET_JOB_STATUS_ERROR_CODES = {
   INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
 
+/** job_id と batch_id の両方・どちらも無いときの固定文言 / fixed message for none or both */
+export const INVALID_TARGET_MESSAGE = "Specify exactly one of job_id or batch_id";
+
 // ============================================================================
 // Tool Definition
 // ============================================================================
@@ -59,28 +64,40 @@ export const GET_JOB_STATUS_ERROR_CODES = {
  */
 export const pageGetJobStatusToolDefinition = {
   name: "page.getJobStatus",
-  description: `Check the status of an async page analysis job.
+  description: `Check the status of an async page analysis job or of a batch.
 
-Use this tool to poll for the status and results of a job that was submitted
-with page.analyze(async=true).
+Pass exactly one of:
+- job_id: the job ID returned by page.analyze(async=true)
+- batch_id: the batch ID returned by page.batch_analyze
 
-Returns:
+Returns for job_id:
 - Job state (waiting, active, completed, failed)
 - Progress percentage (0-100)
 - Result summary when completed
 - Error details when failed
 
-Note: Requires Redis to be running. Jobs are retained for 24 hours after completion.`,
+Returns for batch_id:
+- Batch state (waiting, active, completed, failed, partial)
+- Progress percentage (0-100)
+- Summary (total, completed, failed, skipped counts)
+- Individual job results with states and webPageIds
+
+Note: Requires Redis to be running. Jobs are retained for 24 hours after completion; batches for 48 hours.`,
   inputSchema: {
     type: "object" as const,
     properties: {
       job_id: {
         type: "string",
         format: "uuid",
-        description: "The job ID returned by page.analyze(async=true)",
+        description:
+          "The job ID returned by page.analyze(async=true). Do not combine with batch_id.",
+      },
+      batch_id: {
+        type: "string",
+        format: "uuid",
+        description: "The batch ID returned by page.batch_analyze. Do not combine with job_id.",
       },
     },
-    required: ["job_id"],
     additionalProperties: false,
   },
   annotations: {
@@ -101,7 +118,9 @@ Note: Requires Redis to be running. Jobs are retained for 24 hours after complet
  * @param input - Raw input from MCP
  * @returns 統一レスポンス形式（success: true/false + data/error + metadata.request_id）
  */
-export async function pageGetJobStatusHandler(input: unknown): Promise<PageGetJobStatusOutput> {
+export async function pageGetJobStatusHandler(
+  input: unknown
+): Promise<PageGetJobStatusOutput | GetBatchStatusCombinedOutput> {
   // router.tsから注入された_request_idを使用、フォールバックとして自動生成
   const requestId =
     ((input as Record<string, unknown> | null)?._request_id as string | undefined) ??
@@ -123,14 +142,25 @@ export async function pageGetJobStatusHandler(input: unknown): Promise<PageGetJo
       error: error instanceof Error ? error.message : String(error),
       requestId,
     });
+    // 固定文言だけを返す（Zod の issue 文字列はクライアントに出さない）/ fixed messages only
+    const raw = (input ?? {}) as Record<string, unknown>;
+    const hasJobId = raw.job_id !== undefined;
+    const hasBatchId = raw.batch_id !== undefined;
     return createErrorResponseWithRequestId(
       GET_JOB_STATUS_ERROR_CODES.VALIDATION_ERROR,
-      "Invalid input parameters",
+      hasJobId === hasBatchId
+        ? INVALID_TARGET_MESSAGE
+        : "Invalid input parameters: job_id and batch_id must be UUIDs",
       requestId
     );
   }
 
-  const jobId = validated.job_id;
+  if (validated.batch_id !== undefined) {
+    return pageGetBatchStatusHandler({ batch_id: validated.batch_id, _request_id: requestId });
+  }
+
+  // refine guarantees job_id is present when batch_id is absent
+  const jobId = validated.job_id as string;
 
   // Check Redis availability
   const redisAvailable = await isRedisAvailable();

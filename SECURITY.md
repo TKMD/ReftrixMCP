@@ -16,12 +16,13 @@ Reftrixプロジェクトのセキュリティを真剣に受け止めていま�
 
 現在、以下のバージョンがセキュリティアップデートの対象です:
 
-| バージョン | サポート状況      |
-| ---------- | ----------------- |
-| 0.7.x      | ✅ サポート中     |
-| < 0.7.0    | ❌ サポート対象外 |
+| バージョン          | サポート状況            |
+| ------------------- | ----------------------- |
+| 0.8.x               | ✅ サポート中           |
+| 0.7.x（0.7.1 以降） | ✅ セキュリティ修正のみ |
+| < 0.7.0             | ❌ サポート対象外       |
 
-0.7.0 未満の版には起動時の検査が無く、2026-10-21 のセキュリティリリースより古い Node.js でも動作します。0.7.x に更新し（Node.js `^22.23.4 || ^24.22.1 || ^26.12.1`）、Node.js 自体も最新に保ってください。
+0.7.0 未満の版には起動時の検査が無く、2026-10-21 のセキュリティリリースより古い Node.js でも動作します。0.8.x（0.7.x から MCP ツールを削除・統合しているため、移行先は CHANGELOG 0.8.0 の Upgrade notes を参照）か 0.7.1 以降の 0.7.x に更新し（Node.js `^22.23.4 || ^24.22.1 || ^26.12.1`）、Node.js 自体も最新に保ってください。0.7.x への修正は v0.7.1 から派生させて 0.7.2 以降として出します。0.7.x のサポート終了時期は決まり次第この表で告知します。
 
 **注意**: Reftrixは現在初期リリースフェーズです。本番環境での使用は十分なテストの上で行ってください。
 
@@ -193,7 +194,11 @@ Reftrixでは、Webページクロール時に取得したHTMLをDOMPurify v3.4.
 
 ### v0.1.0以降
 
-現在、公開されている脆弱性はありません。
+| 公開日     | 重大度 | 概要                                                                                    | 影響範囲                           | 修正版  |
+| ---------- | ------ | --------------------------------------------------------------------------------------- | ---------------------------------- | ------- |
+| 2026-11-03 | High   | `page.analyze` における HTTP リダイレクト経由の SSRF フィルタ回避（遷移後の再検証なし） | `@reftrixmcp/mcp-server` `< 0.7.1` | `0.7.1` |
+
+詳細: [公開済みのセキュリティアドバイザリ](https://github.com/TKMD/ReftrixMCP/security/advisories?state=published)。0.7.1 より前の版は npm で deprecated です。
 
 ---
 
@@ -260,12 +265,13 @@ We take the security of the ReftrixMCP project seriously. This document outlines
 
 The following versions are currently receiving security updates:
 
-| Version | Support Status   |
-| ------- | ---------------- |
-| 0.7.x   | ✅ Supported     |
-| < 0.7.0 | ❌ Not Supported |
+| Version                | Support Status         |
+| ---------------------- | ---------------------- |
+| 0.8.x                  | ✅ Supported           |
+| 0.7.x (0.7.1 or later) | ✅ Security fixes only |
+| < 0.7.0                | ❌ Not Supported       |
 
-Releases before 0.7.0 have no start-up check and run on Node.js releases older than the 2026-10-21 security releases; update to 0.7.x (Node.js `^22.23.4 || ^24.22.1 || ^26.12.1`) and keep Node.js itself up to date.
+Releases before 0.7.0 have no start-up check and run on Node.js releases older than the 2026-10-21 security releases; update to 0.8.x (it removes and merges MCP tools from 0.7.x; see the 0.8.0 Upgrade notes in the CHANGELOG for replacements) or 0.7.x (0.7.1 or later) (Node.js `^22.23.4 || ^24.22.1 || ^26.12.1`) and keep Node.js itself up to date. Fixes for 0.7.x are cut from v0.7.1 and released as 0.7.2 or later. The end of 0.7.x support will be announced in this table once decided.
 
 **Note**: ReftrixMCP is in its initial release phase. Please test thoroughly before production use.
 
@@ -438,7 +444,11 @@ The `page.analyze` quality evaluation pipeline (aXe accessibility testing) uses 
 
 ### Since v0.1.0
 
-No publicly disclosed vulnerabilities at this time.
+| Published  | Severity | Summary                                                                                  | Affected                           | Fixed in |
+| ---------- | -------- | ---------------------------------------------------------------------------------------- | ---------------------------------- | -------- |
+| 2026-11-03 | High     | SSRF filter bypass in `page.analyze` via HTTP redirect (no post-navigation revalidation) | `@reftrixmcp/mcp-server` `< 0.7.1` | `0.7.1`  |
+
+Details: [published security advisories](https://github.com/TKMD/ReftrixMCP/security/advisories?state=published). Versions before 0.7.1 are deprecated on npm.
 
 ---
 

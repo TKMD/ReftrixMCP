@@ -107,7 +107,7 @@ import { LlamaVisionAdapter } from "./vision-adapter/llama-vision.adapter";
 import type { IVisionAnalyzer, VisionAnalysisResult } from "./vision-adapter/interface";
 
 // Preference型インポート（リランキング用PrismaClientFactory登録で使用）
-import type { IPrismaClient as IPreferencePrismaClient } from "./preference-profile.service";
+import type { IPrismaClient as IPreferencePrismaClient } from "./preference-rerank.helper";
 
 // Quality関連インポート
 import {

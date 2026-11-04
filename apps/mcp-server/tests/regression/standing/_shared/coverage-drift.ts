@@ -2,44 +2,55 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * Embedding Coverage Drift Service — PR-V3-T1a §3.3 V1-CO-04 closure
+ * Embedding coverage drift formula — PR-V3-T1a §3.3 V1-CO-04 closure
+ *
+ * 2026-11-04 (TS-M-09, ADR-0055 Amendment 1): moved from
+ * `src/services/embedding-coverage-drift.service.ts` to standing-test support code. It had no
+ * importer in src after `embedding.quality` was removed, and it shipped in the npm package. It now
+ * holds only the drift methodology that INV-COVERAGE-DRIFT-METHODOLOGY-001 locks for any future
+ * coverage A/B comparison (e.g. the TS-L-08 operator script); nothing in production computes it.
+ * src から standing のテスト補助コードへ移した（src に importer が無く、npm に同梱されていたため）。
+ * 守るのは将来のカバレッジ比較（TS-L-08 の運用 script など）で使う drift の方法論だけで、本番に
+ * これを計算するコードは無い。
  *
  * Computes the drift between two `CoverageMetrics` snapshots (T1a-on vs.
  * T1a-off / chunked vs. unchunked baseline) for the canonical
  * `embedding_quality.coverage` <5% drift gate per Plan v3 V2 §17 R-1
- * mitigation. Used both by the staging A/B test protocol (design §3.3.3)
- * and by the standing regression suite (INV-COVERAGE-DRIFT-METHODOLOGY-001).
+ * mitigation (original design §3.3.3). Used today only by the standing regression suite
+ * (INV-COVERAGE-DRIFT-METHODOLOGY-001); it is the methodology for future coverage comparisons,
+ * not a production gate.
  *
  * Drift contract (per IO V0 §C-3 ruling, TPA winning contract; the旧案
  * `cosine ≥0.95` deterministic-equivalence contract is overruled and shall
  * not return):
  *
- *   - Drift unit = absolute percentage-point delta on the production-observed
- *     KPI `embedding_quality.coverage` (textCoveragePercent +
+ *   - Drift unit = absolute percentage-point delta on the KPI formerly served
+ *     by `embedding.quality` as `coverage` (textCoveragePercent +
  *     visionCoveragePercent, both 0-100).
- *   - Drift gate = 5% absolute pp; exceeding the gate fails CI / blocks the
- *     production flip.
+ *   - Drift gate = 5% absolute pp; a comparison that exceeds the gate reports
+ *     `exceeds_gate`.
  *   - NaN / Infinity defense: input metrics outside [0, 100] are clamped to
  *     the nearest endpoint to avoid silent contract corruption (CWE-682
  *     incorrect-calculation defense).
  *
- * Pure / side-effect-free / deterministic. Reusable from the standing
- * Rules — H severity" requirement).
+ * Pure / side-effect-free / deterministic. Locked by the standing
+ * regression suite.
  *
  * @see  §3.3
  * @see  V1-CO-04
- * @see embedding-quality-monitor.service.ts (CoverageMetrics shape source)
+ * The `CoverageMetrics` shape came from embedding-quality-monitor.service, removed together with
+ * the embedding.quality tool on 2026-11-04; these functions and their standing test remain until
+ * the exit condition in ADR-0055 Amendment 1.
  *
- * @module services/embedding-coverage-drift.service
+ * @module tests/regression/standing/_shared/coverage-drift
  */
 
 /**
  * Coverage drift band relative to the 5% absolute pp gate.
  *
- *   - `within_gate` — drift |Δtext| ≤ gate AND |Δvision| ≤ gate; production
- *     flip is allowed.
- *   - `exceeds_gate` — at least one axis exceeds the gate; rollback path
- *     activated per Plan v3 V2 §17 R-1 mitigation.
+ *   - `within_gate` — drift |Δtext| ≤ gate AND |Δvision| ≤ gate.
+ *   - `exceeds_gate` — at least one axis exceeds the gate (the comparison
+ *     shows a coverage regression).
  *
  * Coverage drift band relative to the 5% gate.
  */
@@ -80,9 +91,8 @@ export interface CoverageDriftResult {
 }
 
 /**
- * Coverage snapshot input. Mirrors `CoverageMetrics` from
- * `embedding-quality-monitor.service.ts` so existing callers can pass that
- * type directly without an adapter.
+ * Coverage snapshot input. Mirrors the `CoverageMetrics` shape of the former
+ * embedding-quality-monitor service (removed 2026-11-04 with the embedding.quality tool).
  *
  * Coverage snapshot input. Compatible with `CoverageMetrics`.
  */

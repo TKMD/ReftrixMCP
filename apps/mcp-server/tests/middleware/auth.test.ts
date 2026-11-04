@@ -92,6 +92,19 @@ vi.mock("../../src/utils/logger", () => {
   };
 });
 
+/** 2026-11-04 に削除した未使用ツール / Unused tools removed on 2026-11-04 */
+const REMOVED_TOOL_NAMES = [
+  "style.get_palette",
+  "brief.validate",
+  "preference.hear",
+  "preference.get",
+  "preference.reset",
+  "section.inspect",
+  "design.track_changes",
+  "design.regression_test",
+  "search.facets",
+] as const;
+
 describe("認証ミドルウェア (Auth Middleware)", () => {
   // 環境変数のバックアップ
   let originalEnv: NodeJS.ProcessEnv;
@@ -394,28 +407,25 @@ describe("認証ミドルウェア (Auth Middleware)", () => {
     });
 
     /**
-     * テスト: ADMIN権限で新規登録6ツール全てにアクセス可能
-     * Finding 2修正: deny-by-defaultで拒否されていた6ツールの検証
+     * テスト: ADMIN権限で新規登録の検索3ツールにアクセス可能
+     * Finding 2修正: deny-by-defaultで拒否されていたツールの検証
      */
-    it("ADMIN権限で新規登録6ツール（narrative/background/responsive/preference）にアクセス可能", async () => {
+    it("ADMIN権限で新規登録3ツール（narrative/background/responsive）にアクセス可能", async () => {
       // Arrange
       process.env.MCP_AUTH_ENABLED = "true";
       const authContext = await validateApiKey(TEST_API_KEYS.ADMIN_KEY);
       expect(authContext).not.toBeNull();
 
-      // Act & Assert: 全6ツールにADMINはアクセス可能
+      // Act & Assert
       expect(checkPermission(authContext!, "narrative.search")).toBe(true);
       expect(checkPermission(authContext!, "background.search")).toBe(true);
       expect(checkPermission(authContext!, "responsive.search")).toBe(true);
-      expect(checkPermission(authContext!, "preference.hear")).toBe(true);
-      expect(checkPermission(authContext!, "preference.get")).toBe(true);
-      expect(checkPermission(authContext!, "preference.reset")).toBe(true);
     });
 
     /**
-     * テスト: VIEWER権限でread系新規ツールにアクセス可能、write系にはアクセス不可
+     * テスト: VIEWER権限でread系新規ツールにアクセス可能
      */
-    it("VIEWER権限でnarrative/background/responsive検索とpreference.getにアクセス可能", async () => {
+    it("VIEWER権限でnarrative/background/responsive検索にアクセス可能", async () => {
       // Arrange
       process.env.MCP_AUTH_ENABLED = "true";
       const authContext = await validateApiKey(TEST_API_KEYS.VIEWER_KEY);
@@ -425,36 +435,19 @@ describe("認証ミドルウェア (Auth Middleware)", () => {
       expect(checkPermission(authContext!, "narrative.search")).toBe(true);
       expect(checkPermission(authContext!, "background.search")).toBe(true);
       expect(checkPermission(authContext!, "responsive.search")).toBe(true);
-      expect(checkPermission(authContext!, "preference.get")).toBe(true);
     });
 
     /**
-     * テスト: VIEWER権限でpreference.hear/resetにアクセス不可（write権限が必要）
+     * テスト: 削除済みツール名は ADMIN でも deny-by-default で拒否される（2026-11-04 削除の 9 ツール）
+     * Removed tool names are denied by default, even for ADMIN (the 9 tools removed on 2026-11-04)
      */
-    it("VIEWER権限でpreference.hear/resetにアクセス不可（write権限が必要）", async () => {
-      // Arrange
+    it("削除済み9ツールはADMINでも拒否される / removed tools are denied even for ADMIN", async () => {
       process.env.MCP_AUTH_ENABLED = "true";
-      const authContext = await validateApiKey(TEST_API_KEYS.VIEWER_KEY);
+      const authContext = await validateApiKey(TEST_API_KEYS.ADMIN_KEY);
       expect(authContext).not.toBeNull();
-
-      // Act & Assert: write系はアクセス不可
-      expect(checkPermission(authContext!, "preference.hear")).toBe(false);
-      expect(checkPermission(authContext!, "preference.reset")).toBe(false);
-    });
-
-    /**
-     * テスト: USER権限でpreference全ツールにアクセス可能
-     */
-    it("USER権限でpreference全ツール（hear/get/reset）にアクセス可能", async () => {
-      // Arrange
-      process.env.MCP_AUTH_ENABLED = "true";
-      const authContext = await validateApiKey(TEST_API_KEYS.USER_KEY);
-      expect(authContext).not.toBeNull();
-
-      // Act & Assert: USERはpreference:read + preference:writeを持つ
-      expect(checkPermission(authContext!, "preference.hear")).toBe(true);
-      expect(checkPermission(authContext!, "preference.get")).toBe(true);
-      expect(checkPermission(authContext!, "preference.reset")).toBe(true);
+      for (const name of REMOVED_TOOL_NAMES) {
+        expect(checkPermission(authContext!, name)).toBe(false);
+      }
     });
   });
 
@@ -589,29 +582,13 @@ describe("認証ミドルウェア (Auth Middleware)", () => {
     });
 
     /**
-     * テスト: preference.hearにはpreference:writeパーミッションが必要
-     * フィードバック記録を伴うためwrite権限
+     * テスト: 削除済みツールに権限マッピングが残っていない
+     * No permission mapping remains for the removed tools
      */
-    it("preference.hearにはpreference:writeパーミッションが必要", () => {
-      const requiredPermissions = TOOL_PERMISSIONS["preference.hear"];
-      expect(requiredPermissions).toContain(PERMISSIONS.PREFERENCE_WRITE);
-    });
-
-    /**
-     * テスト: preference.getにはpreference:readパーミッションが必要
-     */
-    it("preference.getにはpreference:readパーミッションが必要", () => {
-      const requiredPermissions = TOOL_PERMISSIONS["preference.get"];
-      expect(requiredPermissions).toContain(PERMISSIONS.PREFERENCE_READ);
-    });
-
-    /**
-     * テスト: preference.resetにはpreference:writeパーミッションが必要
-     * データ削除を伴うためwrite権限
-     */
-    it("preference.resetにはpreference:writeパーミッションが必要", () => {
-      const requiredPermissions = TOOL_PERMISSIONS["preference.reset"];
-      expect(requiredPermissions).toContain(PERMISSIONS.PREFERENCE_WRITE);
+    it("削除済み9ツールの権限マッピングが無い / no mapping for removed tools", () => {
+      for (const name of REMOVED_TOOL_NAMES) {
+        expect(TOOL_PERMISSIONS[name]).toBeUndefined();
+      }
     });
   });
 

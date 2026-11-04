@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * page.batch_analyze / page.getBatchStatus MCPツールのスキーマ定義
+ * page.batch_analyze / page.getJobStatus(batch_id) のスキーマ定義（旧 page.getBatchStatus は 2026-11-04 に page.getJobStatus へ統合）
  * Batch API for multi-URL analysis
  *
  * @module @reftrixmcp/mcp-server/tools/page/batch-analyze.schemas
@@ -25,7 +25,7 @@ export const BATCH_ANALYZE_ERROR_CODES = {
 export type BatchAnalyzeErrorCode =
   (typeof BATCH_ANALYZE_ERROR_CODES)[keyof typeof BATCH_ANALYZE_ERROR_CODES];
 
-/** page.getBatchStatus エラーコード / Error codes */
+/** page.getJobStatus(batch_id) エラーコード / Error codes */
 export const GET_BATCH_STATUS_ERROR_CODES = {
   VALIDATION_ERROR: "VALIDATION_ERROR",
   REDIS_UNAVAILABLE: "REDIS_UNAVAILABLE",
@@ -142,12 +142,12 @@ export const batchAnalyzeInputSchema = z.object({
 export type BatchAnalyzeInput = z.infer<typeof batchAnalyzeInputSchema>;
 
 /**
- * page.getBatchStatus 入力スキーマ
+ * page.getJobStatus(batch_id) 入力スキーマ
  * Batch status query input schema
  */
 export const getBatchStatusInputSchema = z.object({
   /** バッチジョブID / Batch job ID */
-  batch_id: z.string().min(1, "batch_id is required"),
+  batch_id: z.string().uuid(),
 });
 
 export type GetBatchStatusInput = z.infer<typeof getBatchStatusInputSchema>;
@@ -227,7 +227,7 @@ export type BatchAnalyzeErrorOutput = z.infer<typeof batchAnalyzeErrorOutputSche
 /** page.batch_analyze 出力（Union）/ Combined output */
 export type BatchAnalyzeOutput = BatchAnalyzeAsyncOutput | BatchAnalyzeErrorOutput;
 
-/** page.getBatchStatus 出力 / Batch status output */
+/** page.getJobStatus(batch_id) 出力 / Batch status output */
 export const getBatchStatusOutputSchema = z.object({
   success: z.literal(true),
   data: z.object({
@@ -253,12 +253,12 @@ export const getBatchStatusOutputSchema = z.object({
 
 export type GetBatchStatusOutput = z.infer<typeof getBatchStatusOutputSchema>;
 
-/** page.getBatchStatus エラー出力 / Error output */
+/** page.getJobStatus(batch_id) エラー出力 / Error output */
 export type GetBatchStatusErrorOutput = {
   success: false;
   error: { code: string; message: string };
   metadata?: Record<string, unknown>;
 };
 
-/** page.getBatchStatus 統合出力 / Combined output */
+/** page.getJobStatus(batch_id) 統合出力 / Combined output */
 export type GetBatchStatusCombinedOutput = GetBatchStatusOutput | GetBatchStatusErrorOutput;

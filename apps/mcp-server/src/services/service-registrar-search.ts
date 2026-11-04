@@ -4,7 +4,7 @@
 /**
  * Service Registrar - Search & Auxiliary
  *
- * Narrative, Background, Responsive, Preference, DesignSearch,
+ * Narrative, Background, Responsive, DesignSearch,
  * EmbeddingBackfill, Page ドメインのDIファクトリ登録。
  * service-initializer.ts から分離。
  *
@@ -67,18 +67,7 @@ import {
 } from "../tools/responsive/search.tool";
 import { createResponsiveSearchService } from "./responsive-search.service";
 
-// Preference関連インポート
-import {
-  setPreferenceHearServiceFactory,
-  setPreferenceGetServiceFactory,
-  setPreferenceResetServiceFactory,
-} from "../tools/preference";
-import {
-  createPreferenceProfileServiceFactory,
-  setPreferencePrismaClientFactory,
-  setPreferenceEmbeddingServiceFactory,
-  type IPrismaClient as IPreferencePrismaClient,
-} from "./preference-profile.service";
+import type { IPrismaClient as IPreferencePrismaClient } from "./preference-rerank.helper";
 
 // Design Search関連インポート（design.search_by_image用）
 import {
@@ -116,17 +105,11 @@ import {
 // Embedding Handler関連インポート（backfill DI用）
 import { setMotionLayoutEmbeddingServiceFactory } from "../tools/page/handlers/embedding-handler";
 
-// Design Change Tracker関連インポート（design.track_changes用）
+// Design Change Tracker関連インポート（page.analyze auto_snapshot用）
 import {
   setDesignChangeTrackerPrismaClientFactory,
   type DesignChangeTrackerPrismaClient,
 } from "./design-change-tracker.service";
-
-// Visual Regression関連インポート（design.regression_test用、v0.4.0）
-import {
-  setVisualRegressionPrismaClientFactory,
-  type IVisualRegressionPrismaClient,
-} from "./visual-regression.service";
 
 // Audit Log関連インポート（audit.query用、v0.3.0 T2-AUD）
 import {
@@ -162,13 +145,6 @@ import {
   type IScreenshotPersistencePrismaClient,
 } from "./screenshot-persistence.service";
 
-// Embedding Quality関連インポート（embedding.quality用、v0.3.0 T2-EMB）
-import {
-  EmbeddingQualityMonitorService,
-  type EmbeddingQualityPrismaClient,
-} from "./embedding-quality-monitor.service";
-import { setEmbeddingQualityServiceFactory } from "../tools/embedding/quality.tool";
-
 // Accessibility Audit関連インポート（accessibility.audit用、v0.3.0 T2-WCAG）
 import { createAccessibilityAuditService } from "./quality/accessibility-audit.service";
 import { createContrastCheckService } from "./quality/contrast-check.service";
@@ -181,9 +157,6 @@ import {
 import { MultiDeviceCaptureService } from "./responsive/multi-device-capture.service";
 import { ResponsiveDiffService } from "./responsive/responsive-diff.service";
 import { setResponsiveCaptureServiceFactory } from "../tools/responsive/capture.tool";
-
-// Report Generate関連インポート（report.generate用、v0.4.0）
-import { setReportPrismaClientFactory, type IReportPrismaClient } from "./report-template.service";
 
 // =====================================================
 // 検索・補助サービス初期化結果
@@ -248,7 +221,7 @@ function recordInitError(
 // =====================================================
 
 /**
- * Page, Narrative, Background, Responsive, Preference,
+ * Page, Narrative, Background, Responsive,
  * DesignSearch, EmbeddingBackfill の全サービスを初期化する。
  *
  * initializeAllServices() から呼び出される。
@@ -280,9 +253,6 @@ export function initializeSearchAndAuxiliaryServices(
   // Responsive サービス初期化
   initializeResponsiveService(config, result);
 
-  // Preference サービス初期化
-  initializePreferenceService(config, result);
-
   // Design Search サービス初期化
   initializeDesignSearchService(config, result);
 
@@ -304,26 +274,17 @@ export function initializeSearchAndAuxiliaryServices(
   // Design Change Tracker サービス初期化
   initializeDesignChangeTrackerService(config, result);
 
-  // Visual Regression サービス初期化（v0.4.0）
-  initializeVisualRegressionService(config, result);
-
   // Audit Log サービス初期化（v0.3.0 T2-AUD）
   initializeAuditLogService(config, result);
 
   // GDPR Deletion サービス初期化（v0.3.0 T2-GDPR）
   initializeGdprDeletionService(config, result);
 
-  // Embedding Quality Monitor サービス初期化（v0.3.0 T2-EMB）
-  initializeEmbeddingQualityService(config, result);
-
   // Accessibility Audit サービス初期化（v0.3.0 T2-WCAG）
   initializeAccessibilityAuditService(result);
 
   // Responsive Capture サービス初期化（v0.3.0 T2-10）
   initializeResponsiveCaptureService(result);
-
-  // Report Generate サービス初期化（v0.4.0）
-  initializeReportService(config, result);
 
   return result;
 }
@@ -451,32 +412,6 @@ function initializeResponsiveService(
     logger.info("[ServiceInitializer] responsiveSearch factory registered");
   } catch (error) {
     recordInitError(result, "Responsive", ["responsiveSearch"], error);
-  }
-}
-
-function initializePreferenceService(
-  config: ServiceInitializerConfig,
-  result: SearchRegistrarResult
-): void {
-  try {
-    // PrismaClient と EmbeddingService の DI ファクトリを先に登録
-    setPreferencePrismaClientFactory(() => config.prisma as unknown as IPreferencePrismaClient);
-    setPreferenceEmbeddingServiceFactory(() => config.embeddingService);
-
-    const preferenceFactory = createPreferenceProfileServiceFactory();
-    setPreferenceHearServiceFactory(preferenceFactory);
-    setPreferenceGetServiceFactory(preferenceFactory);
-    setPreferenceResetServiceFactory(preferenceFactory);
-    result.registeredFactories.push("preferenceHear", "preferenceGet", "preferenceReset");
-    result.categories.push("preference");
-    logger.info("[ServiceInitializer] preference factories registered (hear, get, reset)");
-  } catch (error) {
-    recordInitError(
-      result,
-      "Preference",
-      ["preferenceHear", "preferenceGet", "preferenceReset"],
-      error
-    );
   }
 }
 
@@ -712,29 +647,6 @@ function initializeDesignChangeTrackerService(
   }
 }
 
-function initializeVisualRegressionService(
-  config: ServiceInitializerConfig,
-  result: SearchRegistrarResult
-): void {
-  try {
-    // VisualRegressionService の DI 登録（Prisma designSnapshot model）
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma model access requires any cast from IPrismaClientMinimal
-    const prismaWithDesignSnapshot = config.prisma as any;
-    setVisualRegressionPrismaClientFactory(
-      () =>
-        ({
-          designSnapshot: prismaWithDesignSnapshot.designSnapshot,
-        }) as IVisualRegressionPrismaClient
-    );
-
-    result.registeredFactories.push("visualRegressionPrisma");
-    result.categories.push("visualRegression");
-    logger.info("[ServiceInitializer] visualRegression factory registered (prisma)");
-  } catch (error) {
-    recordInitError(result, "VisualRegression", ["visualRegressionPrisma"], error);
-  }
-}
-
 // =====================================================
 // v0.3.0 Tier 2 新サービス初期化
 // v0.3.0 Tier 2 new service initialization
@@ -851,29 +763,6 @@ function initializeGdprDeletionService(
   }
 }
 
-function initializeEmbeddingQualityService(
-  config: ServiceInitializerConfig,
-  result: SearchRegistrarResult
-): void {
-  try {
-    // EmbeddingQualityMonitorService は PrismaClient ($queryRawUnsafe) を要求
-    const embeddingQualityPrisma = {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- IPrismaClientMinimal.$queryRawUnsafe returns Promise<unknown>, cast to generic version
-      $queryRawUnsafe: config.prisma.$queryRawUnsafe.bind(config.prisma) as any,
-    } as EmbeddingQualityPrismaClient;
-
-    setEmbeddingQualityServiceFactory(
-      () => new EmbeddingQualityMonitorService(embeddingQualityPrisma)
-    );
-
-    result.registeredFactories.push("embeddingQualityService");
-    result.categories.push("embeddingQuality");
-    logger.info("[ServiceInitializer] embeddingQuality factory registered");
-  } catch (error) {
-    recordInitError(result, "EmbeddingQuality", ["embeddingQualityService"], error);
-  }
-}
-
 function initializeAccessibilityAuditService(result: SearchRegistrarResult): void {
   try {
     // AccessibilityAuditService + ContrastCheckService（DI依存なし、自己完結）
@@ -911,25 +800,5 @@ function initializeResponsiveCaptureService(result: SearchRegistrarResult): void
       ["responsiveCaptureService", "responsiveDiffService"],
       error
     );
-  }
-}
-
-/**
- * Report Generate サービス初期化（v0.4.0）
- * report.generate ツール用の PrismaClient DI ファクトリを登録
- */
-function initializeReportService(
-  config: ServiceInitializerConfig,
-  result: SearchRegistrarResult
-): void {
-  try {
-    const prisma = config.prisma as unknown as IReportPrismaClient;
-    setReportPrismaClientFactory(() => prisma);
-
-    result.registeredFactories.push("reportPrismaClient");
-    result.categories.push("report");
-    logger.info("[ServiceInitializer] report factory registered (prisma)");
-  } catch (error) {
-    recordInitError(result, "Report", ["reportPrismaClient"], error);
   }
 }

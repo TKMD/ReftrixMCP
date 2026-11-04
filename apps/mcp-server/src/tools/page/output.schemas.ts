@@ -1535,13 +1535,22 @@ export type PageAnalyzeAsyncOutput = z.infer<typeof pageAnalyzeAsyncOutputSchema
 /**
  * page.getJobStatus 入力スキーマ
  */
-export const pageGetJobStatusInputSchema = z.object({
-  /**
-   * ジョブID（page.analyze async=true で返されたjob_id）
-   * MCP命名規約に沿ってsnake_case
-   */
-  job_id: z.string().uuid(),
-});
+export const pageGetJobStatusInputSchema = z
+  .object({
+    /**
+     * ジョブID（page.analyze async=true で返されたjob_id）
+     * MCP命名規約に沿ってsnake_case
+     */
+    job_id: z.string().uuid().optional(),
+    /**
+     * バッチID（page.batch_analyze で返された batch_id）。旧 page.getBatchStatus を統合（2026-11-04）
+     * Batch ID returned by page.batch_analyze (former page.getBatchStatus, merged 2026-11-04)
+     */
+    batch_id: z.string().uuid().optional(),
+  })
+  .refine((v) => (v.job_id === undefined) !== (v.batch_id === undefined), {
+    message: "Specify exactly one of job_id or batch_id",
+  });
 export type PageGetJobStatusInput = z.infer<typeof pageGetJobStatusInputSchema>;
 
 /**
@@ -1809,7 +1818,9 @@ export const pageGetJobStatusErrorOutputSchema = z.object({
 export type PageGetJobStatusErrorOutput = z.infer<typeof pageGetJobStatusErrorOutputSchema>;
 
 /**
- * page.getJobStatus 出力スキーマ（統合：success=true/false）
+ * page.getJobStatus 出力スキーマ（統合：success=true/false）。job_id 経路の形だけを表す。
+ * batch_id 経路の出力は batch-analyze.schemas.ts の getBatchStatusCombinedOutputSchema。
+ * Output schema of the job_id path only; the batch_id path returns GetBatchStatusCombinedOutput.
  */
 export const pageGetJobStatusOutputSchema = z.discriminatedUnion("success", [
   pageGetJobStatusSuccessOutputSchema,

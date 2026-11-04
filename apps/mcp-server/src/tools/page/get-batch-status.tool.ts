@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * page.getBatchStatus - MCP Tool for checking batch analysis status
+ * Batch status lookup used by page.getJobStatus(batch_id)
  *
- * バッチジョブの進捗確認・結果取得ツール
- * Check batch job progress and retrieve results
+ * バッチジョブの進捗確認・結果取得。2026-11-04 に MCP ツール page.getBatchStatus を
+ * page.getJobStatus へ統合し、本ファイルはその batch_id 経路の実装になった。
+ * Implements the batch_id path of page.getJobStatus; the standalone page.getBatchStatus
+ * tool was merged into page.getJobStatus on 2026-11-04.
  *
  * @module tools/page/get-batch-status.tool
  */
@@ -29,51 +31,19 @@ import {
 } from "../../utils/mcp-response";
 
 // ============================================================================
-// Tool Definition
-// ============================================================================
-
-/**
- * page.getBatchStatus ツール定義（MCP登録用）
- */
-export const pageGetBatchStatusToolDefinition = {
-  name: "page.getBatchStatus",
-  description: `Check the status of a batch analysis job submitted via page.batch_analyze.
-
-Returns:
-- Batch state (waiting, active, completed, failed, partial)
-- Progress percentage (0-100)
-- Summary (total, completed, failed, skipped counts)
-- Individual job results with states and webPageIds
-
-Use the batch_id returned by page.batch_analyze to query status.`,
-  annotations: {
-    title: "Batch Status Checker",
-    readOnlyHint: true,
-    idempotentHint: true,
-  },
-  inputSchema: {
-    type: "object" as const,
-    properties: {
-      batch_id: {
-        type: "string" as const,
-        description: "Batch job ID returned by page.batch_analyze",
-      },
-    },
-    required: ["batch_id"],
-  },
-};
-
-// ============================================================================
 // Handler
 // ============================================================================
 
 /**
- * page.getBatchStatus ハンドラー
+ * batch_id 経路のハンドラー（page.getJobStatus から呼ばれる） / batch_id path handler
  */
 export async function pageGetBatchStatusHandler(
   input: unknown
 ): Promise<GetBatchStatusCombinedOutput> {
-  const requestId = generateRequestId();
+  // page.getJobStatus から渡された router の _request_id を引き継ぐ / keep the router's request id
+  const requestId =
+    ((input as Record<string, unknown> | null)?._request_id as string | undefined) ??
+    generateRequestId();
   const startTime = Date.now();
 
   // 入力バリデーション
@@ -257,7 +227,7 @@ export async function pageGetBatchStatusHandler(
       { processing_time_ms: Date.now() - startTime }
     ) as GetBatchStatusCombinedOutput;
   } catch (error) {
-    logger.warn("[page.getBatchStatus] Failed to query job statuses", {
+    logger.warn("[page.getJobStatus:batch] Failed to query job statuses", {
       error: (error as Error).message,
     });
     await closeQueue(queue);

@@ -54,14 +54,12 @@ interface ToolDefinitionWithAnnotations {
  * 検索・取得・解析系のツール
  */
 const READ_ONLY_TOOLS = [
-  "style.get_palette",
   "system.health",
   "layout.inspect",
   "layout.search",
   "quality.evaluate",
   "motion.detect",
   "motion.search",
-  "brief.validate",
   "page.analyze",
   "background.search",
   "narrative.search",
@@ -262,14 +260,14 @@ describe("MCP Tool Annotations", () => {
   // =========================================================================
   // ツール数検証 (22 WebDesign tools)
   // Phase3-2: page.getJobStatus ツール追加
-  // MCP-TOOL-01: layout.batch_ingest ツール追加
   // Phase4: quality.getJobStatus ツール追加
   // narrative.search, background.search ツール追加
   // preference.hear, preference.get, preference.reset ツール追加
+  // 2026-11-04: 未使用 9 ツール削除（40→31）
   // =========================================================================
   describe("ツール数", () => {
-    it("allToolDefinitionsが40ツール（WebDesign専用 + v0.3.0 Tier 2全11ツール + batch 3ツール + report.generate + section.inspect (W6 Issue A PR-1)、project削除済み、quality.batch_evaluate/getJobStatus削除済み）を含むこと", () => {
-      expect(allToolDefinitions).toHaveLength(40);
+    it("allToolDefinitionsが27ツール（WebDesign専用 + v0.3.0 Tier 2 + page.batch_analyze、2026-11-04 未使用9ツール削除・report.generate/embedding.quality/layout.batch_ingest削除・page.getBatchStatus統合済み、project削除済み、quality.batch_evaluate/getJobStatus削除済み）を含むこと", () => {
+      expect(allToolDefinitions).toHaveLength(27);
     });
   });
 });

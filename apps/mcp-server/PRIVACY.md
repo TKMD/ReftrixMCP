@@ -1,8 +1,12 @@
 # プライバシーポリシー / Privacy Policy
 
 **対象 / Scope**: Reftrix Preference Profiling, Part-Level Analysis & Section Visual Embedding
-**最終更新 / Last Updated**: 2026-03-13
-**バージョン / Version**: 1.2.0
+**最終更新 / Last Updated**: 2026-11-04
+**バージョン / Version**: 1.3.0
+
+> **Preference Profiling ツールの廃止（2026-11-04） / Withdrawal of the Preference Profiling tools (2026-11-04)**: `preference.hear` / `preference.get` / `preference.reset` の 3 つの MCP ツールは 2026-11-04 に廃止しました。現在のバージョンには、嗜好プロファイルを新たに作成するツールも、フィードバックを記録するツールもありません。廃止前に作成されたプロファイルが残っている場合は、`data.delete`（target: `profile`）で削除し、`data.export`（target: `profile`）でエクスポートできます。データベースのテーブル（`preference_profiles` / `preference_signals`）は残しています。以下の各節は、この廃止を反映しています。
+>
+> The three MCP tools `preference.hear` / `preference.get` / `preference.reset` were withdrawn on 2026-11-04. The current version has no tool that creates a preference profile or records feedback. Any profile created before the withdrawal can be deleted with `data.delete` (target: `profile`) and exported with `data.export` (target: `profile`). The database tables (`preference_profiles` / `preference_signals`) are kept. The sections below reflect the withdrawal.
 
 ---
 
@@ -11,6 +15,10 @@
 Reftrixは、デザイン検索結果をユーザーの嗜好に基づいてパーソナライズするためにプロファイリングを行います。具体的には、ユーザーのデザインに対するフィードバック（好み・不満・コメント）を蓄積し、嗜好プロファイルを構築します。このプロファイルは検索結果のリランキング（スコア調整）に使用され、ユーザーにとってより関連性の高いデザインパターンが上位に表示されるようになります。
 
 Reftrix performs profiling to personalize design search results based on user preferences. Specifically, it accumulates user feedback on designs (likes, dislikes, comments) to build a preference profile. This profile is used for search result reranking (score adjustment), ensuring that design patterns more relevant to the user appear higher in results.
+
+2026-11-04 以降、プロファイルを作成・更新するツールはありません。並べ替えが行われるのは、廃止前に作成されたプロファイルが残っており、そのIDが検索ツールの `profile_id` 引数に渡され、条件を満たした場合だけです。
+
+Since 2026-11-04 there is no tool that creates or updates a profile. Reranking happens only when a profile created before the withdrawal remains, its ID is passed in the `profile_id` argument of a search tool, and its conditions are met.
 
 **主な用途 / Primary Uses**:
 
@@ -49,10 +57,10 @@ This profiling is solely for adjusting the display order of search results. It d
 
 ### GDPR Art. 6(1) — 処理の適法性 / Lawfulness of Processing
 
-| 法的根拠 / Legal Basis           | 条項 / Article | 適用 / Application                                                                                                                                                                                                 |
-| -------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 同意 / Consent                   | Art. 6(1)(a)   | ユーザーが `preference.hear` MCPツールを明示的に使用することでフィードバックを提供。自発的な操作に基づく。 / User explicitly provides feedback by using the `preference.hear` MCP tool. Based on voluntary action. |
-| 正当な利益 / Legitimate interest | Art. 6(1)(f)   | ユーザーが自発的にツールを使用し、検索結果のパーソナライズを求めた場合。 / When the user voluntarily uses the tool and seeks personalized search results.                                                          |
+| 法的根拠 / Legal Basis           | 条項 / Article | 適用 / Application                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 同意 / Consent                   | Art. 6(1)(a)   | 廃止前のバージョンで、ユーザーが `preference.hear` MCPツールを明示的に使用することでフィードバックを提供した。自発的な操作に基づく（同ツールは 2026-11-04 に廃止）。 / With a version before the withdrawal, the user explicitly provided feedback by using the `preference.hear` MCP tool. Based on voluntary action (the tool was withdrawn on 2026-11-04). |
+| 正当な利益 / Legitimate interest | Art. 6(1)(f)   | ユーザーが自発的にツールを使用し、検索結果のパーソナライズを求めた場合。 / When the user voluntarily uses the tool and seeks personalized search results.                                                                                                                                                                                                     |
 
 ### GDPR Art. 22 — 自動化された個人の意思決定 / Automated Individual Decision-Making
 
@@ -62,11 +70,11 @@ Reftrix's profiling is limited to search result score adjustment (reranking) and
 
 - **法的効果なし / No legal effects**: 検索結果の表示順序変更は、データ主体に対する法的効果や契約上の影響を生じさせない / Changes to search result display order do not produce legal effects or contractual impacts on the data subject
 - **重大な影響なし / No similarly significant effects**: デザインパターンの表示順序は、データ主体の権利・自由・利益に対して重大な影響を及ぼさない / Design pattern display order does not significantly affect the data subject's rights, freedoms, or interests
-- **ユーザーコントロール / User control**: ユーザーはいつでもプロファイルをリセットまたは完全削除可能 / Users can reset or completely delete their profile at any time
+- **ユーザーコントロール / User control**: ユーザーはいつでも `data.delete` でプロファイルを完全削除できる。また、検索ツールに `profile_id` を渡さなければ、プロファイルは並べ替えに使われない / Users can completely delete their profile at any time with `data.delete`; a profile is not used for reranking unless its ID is passed as `profile_id` to a search tool
 
 ### 透明性 / Transparency
 
-- **GDPR Art. 13/14**: 新規プロファイル作成時に `profiling_notice` をレスポンスに含めて通知（セクション7参照） / Notification via `profiling_notice` in response when creating a new profile (see Section 7)
+- **GDPR Art. 13/14**: 廃止前のバージョンでは、新規プロファイル作成時に `profiling_notice` をレスポンスに含めて通知していた。現在のバージョンは新規プロファイルを作成しないため、この通知は発生しない（セクション7参照） / Versions before the withdrawal gave notice via `profiling_notice` in the response when creating a new profile. The current version creates no new profile, so this notice no longer occurs (see Section 7)
 - **GDPR Art. 12**: 本ドキュメントおよび `DATA_RETENTION.md` により、処理に関する情報を明確かつ平易な言語で提供 / This document and `DATA_RETENTION.md` provide clear and plain language information about processing
 
 ---
@@ -85,10 +93,11 @@ Preference profile data is **retained until the user explicitly deletes it**. Th
 
 ### 削除方法 / Deletion Methods
 
-| 方法 / Method               | MCPツール / MCP Tool                                             | 動作 / Behavior                                                                                                                                                                                                                                                                                                  |
-| --------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ソフトリセット / Soft reset | `preference.reset(profile_id, confirm: true)`                    | `preference_text`, `preference_embedding` をクリア。`interaction_count` を 0 にリセット。`preference_signals` はCASCADE削除。プロファイルレコード自体は残存。 / Clears `preference_text`, `preference_embedding`. Resets `interaction_count` to 0. `preference_signals` CASCADE deleted. Profile record remains. |
-| 完全削除 / Hard delete      | `preference.reset(profile_id, confirm: true, hard_delete: true)` | プロファイルレコードおよび全関連シグナルを完全に物理削除。完全に不可逆。 / Permanently deletes profile record and all associated signals. Completely irreversible.                                                                                                                                               |
+| 方法 / Method          | MCPツール / MCP Tool                                                      | 動作 / Behavior                                                                                                                                                                                                                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 完全削除 / Hard delete | `data.delete(target: "profile", id: <profile_id>, reason, confirm: true)` | プロファイルレコードおよび全関連シグナルを物理削除し、`search_logs` に記録された当該プロファイルIDを NULL 化。完全に不可逆。削除は `audit_logs` に記録される。 / Permanently deletes the profile record and all associated signals, and sets that profile ID to NULL in `search_logs`. Completely irreversible. The deletion is recorded in `audit_logs`. |
+
+ソフトリセット（`preference.reset` による嗜好データのクリア）は、同ツールの廃止（2026-11-04）により提供していません。 / Soft reset (clearing preference data with `preference.reset`) is no longer offered since that tool was withdrawn (2026-11-04).
 
 詳細は `DATA_RETENTION.md` を参照してください。 / See `DATA_RETENTION.md` for details.
 
@@ -102,107 +111,70 @@ Under the GDPR, data subjects can exercise the following rights. In Reftrix, all
 
 ### アクセス権 / Right of Access (Art. 15)
 
-`preference.get` MCPツールにより、プロファイルに保存されている全データ（嗜好テキスト、フィードバック回数、作成日時、更新日時）を閲覧できます。
+`data.export(target: "profile")` MCPツールにより、プロファイルに保存されているデータ（ID、名前、嗜好テキスト、フィードバック回数、作成日時、更新日時）と全シグナルを閲覧できます。
 
-The `preference.get` MCP tool allows viewing all data stored in the profile (preference text, interaction count, creation date, update date).
+The `data.export(target: "profile")` MCP tool returns the data stored in the profile (ID, name, preference text, interaction count, creation date, update date) together with all its signals.
 
 ### データポータビリティ権 / Right to Data Portability (Art. 20)
 
-`preference.get({ include_signals: true })` により、全シグナルデータを含む構造化JSON形式でプロファイルデータをエクスポートできます。この形式は機械可読であり、別のシステムへのデータ移行にも使用可能です。
+`data.export(target: "profile")` により、全シグナルデータを含む構造化JSON形式でプロファイルデータをエクスポートできます。この形式は機械可読であり、別のシステムへのデータ移行にも使用可能です。
 
-`preference.get({ include_signals: true })` exports profile data in structured JSON format including all signal data. This format is machine-readable and can be used for data migration to another system.
+`data.export(target: "profile")` exports profile data in structured JSON format including all signal data. This format is machine-readable and can be used for data migration to another system.
 
 ### 訂正権 / Right to Rectification (Art. 16)
 
-プロファイルをリセット（`preference.reset`）した後、新規フィードバックを`preference.hear`で提供することにより、プロファイルを再構築できます。
+プロファイルを作成・更新するツールは 2026-11-04 に廃止したため、MCPツールによる訂正の手段はありません。訂正が必要な場合は、`data.delete` でプロファイルを削除するか、ユーザーが管理するデータベース上で直接訂正してください。
 
-After resetting the profile (`preference.reset`), the profile can be rebuilt by providing new feedback via `preference.hear`.
+The tools that create and update profiles were withdrawn on 2026-11-04, so there is no MCP tool for rectification. If rectification is needed, delete the profile with `data.delete` or correct it directly in the database the user manages.
 
 ### 削除権 / 忘れられる権利 / Right to Erasure / Right to be Forgotten (Art. 17)
 
-`preference.reset({ hard_delete: true })` により、プロファイルレコードおよび全関連シグナルを完全に物理削除できます。この操作は不可逆であり、監査証跡として全環境で`logger.warn`が出力されます（PII truncate済み）。
+`data.delete(target: "profile")` により、プロファイルレコードおよび全関連シグナルを完全に物理削除できます。この操作は不可逆です。削除は `audit_logs` に記録され、全環境で `logger.warn` も出力されます（いずれも PII truncate 済み）。
 
-`preference.reset({ hard_delete: true })` permanently deletes the profile record and all associated signals. This operation is irreversible, and an audit trail is output via `logger.warn` in all environments (PII truncated).
+`data.delete(target: "profile")` permanently deletes the profile record and all associated signals. This operation is irreversible. The deletion is recorded in `audit_logs`, and `logger.warn` is also output in all environments (both with PII truncated).
 
 ### 処理の制限権 / Right to Restriction of Processing (Art. 18)
 
-`preference.reset()` （ソフトリセット）により、嗜好データをクリアしつつプロファイル枠を維持できます。リセット後は、嗜好に基づくリランキングが適用されなくなります。
+ソフトリセット（`preference.reset`）は 2026-11-04 に廃止しました。プロファイルは、検索ツールの `profile_id` 引数にそのIDが渡された場合にだけ並べ替えに使われるため、IDを渡さなければ並べ替えには使われません。
 
-`preference.reset()` (soft reset) clears preference data while maintaining the profile shell. After reset, preference-based reranking is no longer applied.
+Soft reset (`preference.reset`) was withdrawn on 2026-11-04. A profile is used for reranking only when its ID is passed in the `profile_id` argument of a search tool, so it is not used for reranking when the ID is not passed.
 
 ---
 
 ## 6. MCPツールによる権利行使方法 / Exercising Rights via MCP Tools
 
-| 権利 / Right                         | GDPR条項 / GDPR Article | MCPツール / MCP Tool | パラメータ / Parameters                            |
-| ------------------------------------ | ----------------------- | -------------------- | -------------------------------------------------- |
-| データアクセス / Data access         | Art. 15                 | `preference.get`     | `profile_id`                                       |
-| データエクスポート / Data export     | Art. 20                 | `preference.get`     | `profile_id`, `include_signals: true`              |
-| プロファイルリセット / Profile reset | Art. 18                 | `preference.reset`   | `profile_id`, `confirm: true`                      |
-| 完全削除 / Full deletion             | Art. 17                 | `preference.reset`   | `profile_id`, `confirm: true`, `hard_delete: true` |
+| 権利 / Right                                       | GDPR条項 / GDPR Article | MCPツール / MCP Tool | パラメータ / Parameters                              |
+| -------------------------------------------------- | ----------------------- | -------------------- | ---------------------------------------------------- |
+| データアクセス・エクスポート / Data access, export | Art. 15, Art. 20        | `data.export`        | `target: "profile"`, `id`                            |
+| 完全削除 / Full deletion                           | Art. 17                 | `data.delete`        | `target: "profile"`, `id`, `reason`, `confirm: true` |
+
+プロファイルIDが分からない場合は、ユーザーが管理するデータベースの `preference_profiles` テーブルを直接参照して確認できます。 / If the profile ID is not known, it can be looked up directly in the `preference_profiles` table of the database the user manages.
 
 ### 使用例 / Usage Examples
 
 ```
-# データアクセス（プロファイル閲覧） / Data access (view profile)
-preference.get(profile_id: "<uuid>")
-
-# データエクスポート（シグナル含む） / Data export (including signals)
-preference.get(profile_id: "<uuid>", include_signals: true)
-
-# プロファイルリセット（ソフト） / Profile reset (soft)
-preference.reset(profile_id: "<uuid>", confirm: true)
+# データアクセス・エクスポート（シグナル含む） / Data access and export (including signals)
+data.export(target: "profile", id: "<uuid>")
 
 # 完全削除（GDPR忘れられる権利） / Full deletion (GDPR Right to Erasure)
-preference.reset(profile_id: "<uuid>", confirm: true, hard_delete: true)
+data.delete(target: "profile", id: "<uuid>", reason: "<reason>", confirm: true)
 ```
 
 ---
 
 ## 7. Profiling Notice（GDPR Art. 13/14）
 
-### 通知タイミング / Notification Timing
+### 現在のバージョン / Current Version
 
-新規プロファイルが作成された際（初回の `preference.hear` 呼び出し時）、レスポンスに `profiling_notice` フィールドが含まれます。これはGDPR Art. 13（データ主体から直接収集する場合の情報提供義務）およびArt. 14に基づく透明性要件を満たすものです。
+`preference.hear` は 2026-11-04 に廃止しました。現在のバージョンは新規プロファイルを作成しないため、`profiling_notice` を返しません。プロファイリングに関する情報は、本ドキュメントおよび `DATA_RETENTION.md` からいつでも参照可能です。
 
-When a new profile is created (on the first `preference.hear` call), the response includes a `profiling_notice` field. This fulfills the transparency requirements under GDPR Art. 13 (information obligations when collecting data directly from the data subject) and Art. 14.
+`preference.hear` was withdrawn on 2026-11-04. The current version creates no new profile, so it does not return `profiling_notice`. Information about profiling is available at any time from this document and `DATA_RETENTION.md`.
 
-### 通知内容 / Notice Content
+### 廃止前のバージョン / Versions Before the Withdrawal
 
-`profiling_notice` には以下の情報が含まれます:
+廃止前のバージョンでは、新規プロファイルが作成された際（初回の `preference.hear` 呼び出し時）、レスポンスに `profiling_notice` フィールドを含めていました（メッセージ・目的・削除方法・保持ポリシー）。その通知で案内していた削除方法（`preference.reset`）は廃止されたため、現在は `data.delete(target: "profile")` で削除してください（セクション6参照）。保持ポリシー（明示的削除まで保持、自動消去なし）は変わっていません。
 
-The `profiling_notice` includes the following information:
-
-| 項目 / Item                     | 内容 / Content                                                                           |
-| ------------------------------- | ---------------------------------------------------------------------------------------- |
-| メッセージ / Message            | プロファイリングの開始を通知するメッセージ / Message notifying the start of profiling    |
-| 目的 / Purpose                  | デザイン検索結果のパーソナライズ / Personalization of design search results              |
-| 削除方法 / Deletion method      | `preference.reset` ツールによる削除手順 / Deletion procedure via `preference.reset` tool |
-| 保持ポリシー / Retention policy | 明示的削除まで保持（自動消去なし） / Retained until explicit deletion (no auto-purge)    |
-
-### レスポンス例 / Response Example
-
-```json
-{
-  "success": true,
-  "data": {
-    "profile_id": "01926a3b-...",
-    "samples": [...],
-    "profiling_notice": {
-      "message": "A new preference profile has been created. Your design feedback will be used to personalize search results.",
-      "purpose": "Search result personalization via preference-based reranking",
-      "deletion_method": "Use preference.reset with hard_delete: true to permanently delete all profile data",
-      "retention_policy": "Data is retained until you explicitly delete it. No automatic expiration."
-    }
-  }
-}
-```
-
-### 2回目以降の呼び出し / Subsequent Calls
-
-2回目以降の `preference.hear` 呼び出しでは、`profiling_notice` は含まれません。プロファイリングに関する情報は、本ドキュメントおよび `DATA_RETENTION.md` からいつでも参照可能です。
-
-On subsequent `preference.hear` calls, `profiling_notice` is not included. Information about profiling is available at any time from this document and `DATA_RETENTION.md`.
+In versions before the withdrawal, the response included a `profiling_notice` field when a new profile was created (on the first `preference.hear` call), covering the message, purpose, deletion method and retention policy. The deletion method it pointed to (`preference.reset`) has been withdrawn, so delete with `data.delete(target: "profile")` instead (see Section 6). The retention policy (retained until explicit deletion, no auto-purge) is unchanged.
 
 ---
 
@@ -301,7 +273,7 @@ Deletion follows the same CASCADE pattern as Part-Level Analysis — automatical
 This document is intended to provide general legal information and does not constitute legal advice for any specific case.
 If specific legal judgment is needed, please consult a qualified attorney.
 
-法的調査日 / Legal Research Date: 2026-03-13
+法的調査日 / Legal Research Date: 2026-11-04
 
 ### 法的リサーチソース / Legal Research Sources
 
@@ -315,8 +287,9 @@ If specific legal judgment is needed, please consult a qualified attorney.
 
 ## 変更履歴 / Changelog
 
-| 日付 / Date | バージョン / Version | 内容 / Description                                                                                                                                                                    |
-| ----------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-03-13  | 1.2.0                | Section Visual Embedding プライバシー情報追加（PII保護、高さ制限、CASCADE削除） / Added Section Visual Embedding privacy information (PII protection, height limit, CASCADE deletion) |
-| 2026-03-13  | 1.1.0                | Part-Level Analysis プライバシーセクション追加（PII保護措置、CASCADE削除） / Added Part-Level Analysis privacy section (PII protection measures, CASCADE deletion)                    |
-| 2026-03-08  | 1.0.0                | 初版作成（LCC-5: プロファイリングセクション） / Initial version (LCC-5: Profiling section)                                                                                            |
+| 日付 / Date | バージョン / Version | 内容 / Description                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ----------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-04  | 1.3.0                | Preference Profiling ツール（`preference.hear` / `preference.get` / `preference.reset`）の廃止を反映。権利行使の経路を `data.export` / `data.delete`（target: `profile`）に変更し、ソフトリセットと `profiling_notice` を廃止前の記録とした / Reflected the withdrawal of the Preference Profiling tools; rights are now exercised through `data.export` / `data.delete` (target: `profile`); soft reset and `profiling_notice` recorded as pre-withdrawal behavior |
+| 2026-03-13  | 1.2.0                | Section Visual Embedding プライバシー情報追加（PII保護、高さ制限、CASCADE削除） / Added Section Visual Embedding privacy information (PII protection, height limit, CASCADE deletion)                                                                                                                                                                                                                                                                               |
+| 2026-03-13  | 1.1.0                | Part-Level Analysis プライバシーセクション追加（PII保護措置、CASCADE削除） / Added Part-Level Analysis privacy section (PII protection measures, CASCADE deletion)                                                                                                                                                                                                                                                                                                  |
+| 2026-03-08  | 1.0.0                | 初版作成（LCC-5: プロファイリングセクション） / Initial version (LCC-5: Profiling section)                                                                                                                                                                                                                                                                                                                                                                          |

@@ -254,8 +254,8 @@ async function countBboxResolvedParts(prisma: PrismaClient, webPageId: string): 
 
 /**
  * Computes part visual coverage = (parts with visual_embedding) / (total parts)
- * for a page, using a real-DB JOIN. Mirrors the `embedding.quality` coverage
- * computation shape (visionCoveragePercent).
+ * for a page, using a real-DB JOIN. Mirrors the coverage computation shape
+ * (visionCoveragePercent) of the former `embedding.quality` tool (removed 2026-11-04).
  */
 async function computeVisualCoverage(
   prisma: PrismaClient,

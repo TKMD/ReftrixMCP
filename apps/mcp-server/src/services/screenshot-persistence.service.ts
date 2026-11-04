@@ -81,9 +81,9 @@ export function resolveDefaultScreenshotRoot(): string {
  * (PR-SS-A D-2 / UB-1)。
  *
  * `REFTRIX_SCREENSHOT_ROOT` env var → 未設定時は XDG default。bare literal の
- * 重複定義を禁止し、root default を参照する全 callsite (現在の consumer:
- * `visual-regression.service.ts` / `report-template.service.ts` の allowlist
- * root) は本 export を import して derive すること。drift は
+ * 重複定義を禁止し、root default を参照する全 callsite は本 export を import して
+ * derive すること（2026-11-04 に report.generate を削除してからは、本ファイル内の
+ * 解決処理だけが consumer）。drift は
  * `tests/services/screenshot-root-ssot-sweep.test.ts` が CI で検出する。
  *
  * Raw (sync, no realpath) SSOT resolution of the screenshot root:
@@ -244,12 +244,12 @@ const resolvedRootCache = new Map<string, string>();
  * Screenshot 永続化ルートディレクトリを環境変数から解決する（symlink 正規化付き）
  * Resolve screenshot persistence root from env var (with symlink normalization)
  *
- * `REFTRIX_SCREENSHOT_ROOT` 環境変数を visual-regression.service.ts と共有する。
+ * `REFTRIX_SCREENSHOT_ROOT` 環境変数を `resolveScreenshotRootRaw()` 経由で解決する。
  * 初回呼出時に `fs.realpath()` で symlink を解決しキャッシュする。ディレクトリが
  * まだ存在しない場合は `path.resolve()` の結果をそのまま返す（path traversal
  * チェックは startsWith 検証に依拠）。
  *
- * Shares the `REFTRIX_SCREENSHOT_ROOT` env var with visual-regression.service.ts.
+ * Resolves the `REFTRIX_SCREENSHOT_ROOT` env var through `resolveScreenshotRootRaw()`.
  * On first call, resolves symlinks via `fs.realpath()` and caches the result.
  * If the directory does not yet exist, returns `path.resolve()` as-is (traversal
  * defense relies on startsWith check).

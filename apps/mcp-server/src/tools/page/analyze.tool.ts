@@ -1367,7 +1367,7 @@ export const pageAnalyzeToolDefinition = {
         type: "boolean",
         default: false,
         description:
-          "Auto-save design snapshot after analysis (default: false). Creates a point-in-time record for design.track_changes comparison.",
+          "Auto-save design snapshot after analysis (default: false). Creates a point-in-time design snapshot record.",
       },
       accessibilityOptions: {
         type: "object",

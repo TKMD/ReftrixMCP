@@ -12,11 +12,8 @@ export const CLIENT_REACHING_MESSAGE_JOIN_SITES: Readonly<Record<string, number>
   "src/tools/background/search.tool.ts": 1,
   "src/tools/data/data.tool.ts": 2,
   "src/tools/design/compare.tool.ts": 1,
-  "src/tools/design/regression-test.tool.ts": 1,
   "src/tools/design/search-by-image.tool.ts": 1,
   "src/tools/design/similar-site.tool.ts": 1,
-  "src/tools/design/track-changes.tool.ts": 1,
-  "src/tools/embedding/quality.tool.ts": 1,
   "src/tools/layout/search.tool.ts": 1,
   "src/tools/layout/to-code.tool.ts": 1,
   "src/tools/narrative/analyze.tool.ts": 1,
@@ -24,14 +21,8 @@ export const CLIENT_REACHING_MESSAGE_JOIN_SITES: Readonly<Record<string, number>
   "src/tools/part/compare.tool.ts": 1,
   "src/tools/part/inspect.tool.ts": 1,
   "src/tools/part/search.tool.ts": 1,
-  "src/tools/preference/get.tool.ts": 1,
-  "src/tools/preference/hear.tool.ts": 1,
-  "src/tools/preference/reset.tool.ts": 1,
-  "src/tools/report/generate.tool.ts": 1,
   "src/tools/responsive/capture.tool.ts": 1,
   "src/tools/responsive/search.tool.ts": 1,
-  "src/tools/section/inspect.tool.ts": 1,
-  "src/tools/style-get-palette.ts": 1,
 };
 
 /** Same join expression, but the text never reaches the client (log only / startup). */
@@ -52,11 +43,10 @@ export const NOT_CLIENT_REACHING_SITE_COUNTS: Readonly<Record<string, number>> =
 
 /**
  * Files that reference formatZodError (details.received / message reach the client through these
- * 5 tools). Found by scanFormatZodErrorCallers (AST: calls, aliases, namespace access, re-exports).
+ * 4 tools). Found by scanFormatZodErrorCallers (AST: calls, aliases, namespace access, re-exports).
  */
 export const FORMAT_ZOD_ERROR_CALLERS: readonly string[] = [
   "src/tools/accessibility/audit.tool.ts",
-  "src/tools/layout/batch-ingest.tool.ts",
   "src/tools/layout/ingest.tool.ts",
   "src/tools/motion/detect.tool.ts",
   "src/tools/quality/evaluate.tool.ts",

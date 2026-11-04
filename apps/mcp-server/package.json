@@ -1,6 +1,6 @@
 {
   "name": "@reftrixmcp/mcp-server",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "license": "AGPL-3.0-only",
   "description": "MCP Server for Reftrix - AI agent integration for web design analysis, layout extraction, motion detection, and quality evaluation",
   "files": [
@@ -20,11 +20,6 @@
       "import": "./dist/services/index.js",
       "require": "./dist/services/index.js"
     },
-    "./tools/brief": {
-      "types": "./dist/tools/brief/index.d.ts",
-      "import": "./dist/tools/brief/index.js",
-      "require": "./dist/tools/brief/index.js"
-    },
     "./config/redis": {
       "types": "./dist/config/redis.d.ts",
       "import": "./dist/config/redis.js",
@@ -40,7 +35,7 @@
     "reftrix-mcp": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc && cp -r src/templates dist/",
+    "build": "tsc",
     "dev": "NODE_ENV=development tsx watch src/index.ts",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
@@ -85,7 +80,6 @@
     "culori": "^4.0.2",
     "dompurify": "^3.4.16",
     "express": "^5.2.1",
-    "handlebars": "^4.7.10",
     "ioredis": "^5.9.2",
     "jsdom": "^27.2.0",
     "lru-cache": "^11.2.7",

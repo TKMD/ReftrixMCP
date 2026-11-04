@@ -969,11 +969,11 @@ export const pageAnalyzeInputSchema = z.object({
    * page.analyze完了後にデザインスナップショットを自動生成するか (v0.3.0 T2-DCT)
    *
    * true: 分析完了後に design_snapshots テーブルにスナップショットを自動保存。
-   * デザイン変更の時系列追跡（design.track_changes ツール）に使用される。
+   * （読み出す MCP ツールは 2026-11-04 に design.track_changes を削除して以降なし）
    *
    * Auto-create design snapshot after page.analyze completion (v0.3.0 T2-DCT)
    * true: auto-save snapshot to design_snapshots table after analysis.
-   * Used for temporal design change tracking (design.track_changes tool).
+   * (No MCP tool reads it since design.track_changes was removed on 2026-11-04.)
    *
    * @default false
    */

@@ -1,6 +1,34 @@
 # 法務ドキュメント変更履歴 / Legal Document Changelog
 
-**法的調査日 / Legal Research Date**: 2026-03-08
+**法的調査日 / Legal Research Date**: 2026-11-04
+
+---
+
+## [0.1.2] - 2026-11-04 (Preference Profiling Tools Withdrawn)
+
+> 0.8.0（2026-11-04）で公開したソフトウェア変更（MCP ツール 40 → 27。この版で preference ツール 3 個を含む 9 個を削除）に対応 / Corresponds to the software change released in 0.8.0 (2026-11-04; MCP tools 40 → 27, including the removal of 9 tools with the 3 preference tools)
+
+### Preference Profiling ツール廃止に伴う法務ドキュメント更新 / Legal Document Updates for the Withdrawal of the Preference Profiling Tools
+
+#### PRIVACY_POLICY.md (更新 / Updated: v0.1.1 → v0.1.2)
+
+- **第1条7項更新 / Section 1.7 updated**: `preference.hear` / `preference.get` / `preference.reset` を 2026-11-04 に廃止したこと、廃止前のデータとテーブルが残り得ること、残ったデータは `data.delete` / `data.export`（target: `profile`）で削除・エクスポートできること、検索ツールに残ったプロファイルの `profile_id` を渡すと並べ替えに使われ得ることを記載 / Stated that the three tools were withdrawn on 2026-11-04, that pre-withdrawal data and the tables may remain, that remaining data is deleted and exported with `data.delete` / `data.export` (target: `profile`), and that passing a remaining profile's `profile_id` to a search tool can still reorder results
+- **第2条5項更新 / Section 2 item 5 updated**: 利用目的「検索結果のパーソナライズ」を、残ったプロファイルのIDが検索ツールに渡された場合に限る記載に変更 / Limited the "search result personalization" purpose to the case where a remaining profile's ID is passed to a search tool
+- **第5条4項更新 / Section 5.4 updated**: `preference.reset` によるソフトリセット・ハードデリートの案内を削除し、`data.delete` / `data.export`（target: `profile`）とプロファイルIDの確認方法に置き換え / Replaced the `preference.reset` soft reset / hard delete instructions with `data.delete` / `data.export` (target: `profile`) and how to find the profile ID
+
+#### `apps/mcp-server/PRIVACY.md` (更新 / Updated: v1.2.0 → v1.3.0)
+
+- **冒頭に廃止の告知を追加 / Withdrawal notice added at the top**
+- **第3〜6節更新 / Sections 3-6 updated**: 権利行使（Art. 15 / 17 / 20）の経路を `data.export` / `data.delete` に変更。訂正（Art. 16）と処理の制限（Art. 18）は MCP ツールの手段が無くなったことを記載 / Rights (Art. 15 / 17 / 20) are now exercised through `data.export` / `data.delete`; stated that rectification (Art. 16) and restriction (Art. 18) no longer have an MCP tool
+- **第7節更新 / Section 7 updated**: `profiling_notice` を廃止前のバージョンの動作として記録 / Recorded `profiling_notice` as the behavior of versions before the withdrawal
+
+#### `apps/mcp-server/DATA_RETENTION.md` (嗜好ツール参照のみ更新 / Preference-tool references only)
+
+- **第1〜6節の嗜好ツール参照 / Preference-tool references in Sections 1-6**: ソフトリセットを廃止と記載、完全削除とエクスポートの手順を `data.delete` / `data.export`（target: `profile`）に変更、監査証跡の例を実際のログに合わせて更新 / Marked soft reset as withdrawn, changed the hard delete and export procedures to `data.delete` / `data.export` (target: `profile`), and updated the audit trail example to the actual log lines
+
+### 変更しない事項 / Unchanged
+
+- 保持期間（明示的削除まで保持、自動消去なし）、DB テーブル、`data.delete` / `data.export` の動作は変更なし。新たな処理や外部送信は追加していない / The retention period (until explicit deletion, no auto-purge), the DB tables and the behavior of `data.delete` / `data.export` are unchanged. No new processing or external transmission is added
 
 ---
 

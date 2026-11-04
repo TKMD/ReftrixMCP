@@ -29,7 +29,7 @@ import type {
   ResponsiveSearchOptions,
 } from "../../services/responsive-search.service";
 import { applyPreferenceReranking } from "../../services/preference-rerank.helper";
-import type { IPrismaClient } from "../../services/preference-profile.service";
+import type { IPrismaClient } from "../../services/preference-rerank.helper";
 import { buildEmbeddingFailureError } from "../_shared/embedding-failure-response";
 import type { DegradedReason } from "../../services/_shared/resolve-query-embedding";
 import {

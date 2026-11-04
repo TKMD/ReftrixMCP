@@ -143,10 +143,7 @@ export {
 
 // === Batch Analyze (v0.4.0) ===
 export { pageBatchAnalyzeHandler, pageBatchAnalyzeToolDefinition } from "./batch-analyze.tool";
-export {
-  pageGetBatchStatusHandler,
-  pageGetBatchStatusToolDefinition,
-} from "./get-batch-status.tool";
+export { pageGetBatchStatusHandler } from "./get-batch-status.tool";
 export {
   BATCH_ANALYZE_ERROR_CODES,
   GET_BATCH_STATUS_ERROR_CODES,

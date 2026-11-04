@@ -41,7 +41,7 @@ import type {
   NarrativeSearchResult,
 } from "../../services/narrative/types/narrative.types";
 import { applyPreferenceReranking } from "../../services/preference-rerank.helper";
-import type { IPrismaClient } from "../../services/preference-profile.service";
+import type { IPrismaClient } from "../../services/preference-rerank.helper";
 import { formatIssuePath, formatIssueMessage } from "../../utils/issue-path";
 
 // ============================================================================

@@ -99,15 +99,11 @@ export const PERMISSIONS = {
 
 ```typescript
 export const TOOL_PERMISSIONS: Record<string, Permission[]> = {
-  // スタイル系 / Style
-  "style.get_palette": [PERMISSIONS.STYLE_READ],
-
   // レイアウト系 / Layout
   "layout.inspect": [PERMISSIONS.LAYOUT_READ],
   "layout.search": [PERMISSIONS.LAYOUT_READ],
   "layout.ingest": [PERMISSIONS.LAYOUT_WRITE],
   "layout.generate_code": [PERMISSIONS.LAYOUT_TRANSFORM],
-  "layout.batch_ingest": [PERMISSIONS.LAYOUT_WRITE],
 
   // 品質系 / Quality
   "quality.evaluate": [PERMISSIONS.QUALITY_READ],
@@ -126,14 +122,6 @@ export const TOOL_PERMISSIONS: Record<string, Permission[]> = {
 
   // レスポンシブ系（セマンティック検索） / Responsive (Semantic Search)
   "responsive.search": [PERMISSIONS.RESPONSIVE_READ],
-
-  // 嗜好プロファイリング系 / Preference Profiling
-  "preference.hear": [PERMISSIONS.PREFERENCE_WRITE],
-  "preference.get": [PERMISSIONS.PREFERENCE_READ],
-  "preference.reset": [PERMISSIONS.PREFERENCE_WRITE],
-
-  // ブリーフ系（デザインレビュー） / Brief (Design Review)
-  "brief.validate": [PERMISSIONS.DESIGN_REVIEW],
 
   // プロジェクト系 / Project
   "project.get": [PERMISSIONS.PROJECT_READ],

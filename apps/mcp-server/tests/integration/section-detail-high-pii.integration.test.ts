@@ -5,7 +5,7 @@
  * Real-DB leg for `getHighPiiSectionIds` / `getSectionDetail` (services/section-detail.service).
  *
  * Carries over the real-DB part of the former gallery-pii leg (a) for the section high-PII SSOT
- * (INV-CROP-PII-EXCLUDED-001 surface 4/4b, INV-SECTION-INSPECT-PII-REDACTION-001): against a real
+ * (INV-CROP-PII-EXCLUDED-001 surface 4/4b; INV-SECTION-INSPECT-PII-REDACTION-001 was retired with section.inspect): against a real
  * Postgres a section holding a high-PII part is in the set and has its `htmlSnippet` nulled, while
  * a non-PII sibling is not and keeps it.
  *

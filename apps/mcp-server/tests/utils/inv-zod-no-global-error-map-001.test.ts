@@ -144,7 +144,7 @@ describe("INV-ZOD-NO-GLOBAL-ERROR-MAP-001", () => {
 
   it("(b) the source trees install no error map", () => {
     const files = SCAN_ROOTS.flatMap((root) => walkTsFiles(root));
-    expect(files.length).toBeGreaterThan(500);
+    expect(files.length).toBeGreaterThan(490);
     expect(files.flatMap((f) => errorMapInstallers(f, fs.readFileSync(f, "utf8")))).toEqual([]);
   });
 

@@ -62,11 +62,3 @@ export {
   resetLayoutInspectServiceFactory,
   type ILayoutInspectService,
 } from "./inspect";
-
-// layout.batch_ingest ツールのエクスポート
-export {
-  layoutBatchIngestHandler,
-  layoutBatchIngestToolDefinition,
-  type LayoutBatchIngestInput,
-  type LayoutBatchIngestOutput,
-} from "./batch-ingest.tool";

@@ -67,7 +67,7 @@ describe("HTMLサニタイズ", () => {
 - ✅ Token Bucket + Redis Luaスクリプトによるアトミック制御 / Atomic control via Token Bucket + Redis Lua script
 - ✅ 3ティア構成: analysis(10RPM), search(120RPM), default(60RPM) / 3-tier configuration
 - ✅ Graceful Degradation: Redis未接続時はインメモリフォールバック / In-memory fallback when Redis unavailable
-- ✅ 全<!-- gen:tool-count -->40<!-- /gen:tool-count --> MCPツールに自動適用 / Auto-applied to all <!-- gen:tool-count -->40<!-- /gen:tool-count --> MCP tools
+- ✅ 全<!-- gen:tool-count -->27<!-- /gen:tool-count --> MCPツールに自動適用 / Auto-applied to all <!-- gen:tool-count -->27<!-- /gen:tool-count --> MCP tools
 
 ### ❌ FAIL基準 / FAIL Criteria
 
@@ -168,9 +168,9 @@ License verification is mandatory when adding new dependencies.
 
 ### sanitizeErrorMessage パターン / sanitizeErrorMessage Pattern
 
-v0.2.0で `utils/sanitize-error.ts` に統一ユーティリティとして抽出。<!-- gen:sanitize-usage-count -->123<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->40<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->110<!-- /gen:sanitize-import-count -->ファイルでインポート）。
+v0.2.0で `utils/sanitize-error.ts` に統一ユーティリティとして抽出。<!-- gen:sanitize-usage-count -->108<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->27<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->99<!-- /gen:sanitize-import-count -->ファイルでインポート）。
 
-Extracted as a unified utility in `utils/sanitize-error.ts` in v0.2.0. Applied to <!-- gen:sanitize-usage-count -->123<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->110<!-- /gen:sanitize-import-count --> files importing it).
+Extracted as a unified utility in `utils/sanitize-error.ts` in v0.2.0. Applied to <!-- gen:sanitize-usage-count -->108<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->27<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->99<!-- /gen:sanitize-import-count --> files importing it).
 
 エラーコードから汎用メッセージへ変換するヘルパー関数を使用し、内部構造の漏洩を防止する。
 
@@ -317,22 +317,23 @@ When logging personally identifiable information (PII), truncate to minimize lea
 
 ### truncateId() ユーティリティ / truncateId() Utility
 
-PII truncateユーティリティ関数。現在2箇所に定義: (1) `src/tools/preference/schemas.ts`（undefined対応版）、(2) `src/services/part/schemas.ts`（length引数版）。将来的に統一を検討。
+PII truncateユーティリティ関数。現在2箇所に定義: (1) `src/utils/truncate-id.ts`（undefined対応・length引数版）、(2) `src/services/part/schemas.ts`（length引数版）。将来的に統一を検討。
 
-A PII truncation utility function. Currently defined in 2 locations: (1) `src/tools/preference/schemas.ts` (handles undefined), (2) `src/services/part/schemas.ts` (with length parameter). Future unification planned.
+A PII truncation utility function. Currently defined in 2 locations: (1) `src/utils/truncate-id.ts` (undefined-safe, with length parameter), (2) `src/services/part/schemas.ts` (with length parameter). Future unification planned.
 
 > **Tracked: migration CLI local `truncateId(id, 8)` co-migration (FIND-IMPL-SS-L-09, L, deadline 2026-06-14 = T+1d)**: PR-SS-A (ADR-0041) の `apps/mcp-server/scripts/migrate-screenshots-to-persistent-root.ts` は local `truncateId(id, 8)` (`:94-96`) を持ち、SSOT `truncateAuditTargetId` を非経由 + `repair-truncated-screenshot-terminals.ts:105` と論理重複する (`details.targetWebPageIdTruncated` (`:365`) も同 local helper 由来)。**実害なし根拠**: length=8 は SSOT 値と一致 (現状 PII 漏洩 0)、主経路 (audit_logs targetId) は AuditLogService 境界で SSOT truncate 済、repair script precedent 整合。**defense-in-depth 候補 (将来 PR、owner backend-api-developer)**: project-wide `truncateId` SSOT 統一時に上記 migration CLI / repair script の local helper を co-migration し、§"Canonical CWE-209 PII Protection Pattern" の SSOT-derive rigor を log/details path にも適用する。
 >
 > **Tracked: migration CLI local `truncateId(id, 8)` co-migration (FIND-IMPL-SS-L-09, L, deadline 2026-06-14 = T+1d)**: PR-SS-A's (ADR-0041) `migrate-screenshots-to-persistent-root.ts` has a local `truncateId(id, 8)` (`:94-96`) that bypasses the SSOT `truncateAuditTargetId` and logically duplicates `repair-truncated-screenshot-terminals.ts:105` (`details.targetWebPageIdTruncated` at `:365` is from the same local helper). No current real harm because length=8 matches the SSOT value (0 PII leakage), the main path (audit_logs targetId) is SSOT-truncated at the AuditLogService boundary, and it is consistent with the repair-script precedent. Defense-in-depth candidate (future PR, owner backend-api-developer): co-migrate these local helpers during project-wide `truncateId` SSOT unification, applying the §"Canonical CWE-209 PII Protection Pattern" SSOT-derive rigor to the log/details path.
 
 ```typescript
-// schemas.ts から提供 / Provided by schemas.ts
-export function truncateId(id: string, length: number = 8): string {
-  return `${id.slice(0, length)}...`;
+// utils/truncate-id.ts から提供 / Provided by utils/truncate-id.ts
+export function truncateId(id: string | undefined, length: number = 8): string {
+  if (!id) return "undefined";
+  return id.length > length ? id.slice(0, length) + "..." : id;
 }
 
 // ✅ 良い例: truncateId()を使用 / Good example: using truncateId()
-import { truncateId } from "./schemas";
+import { truncateId } from "../../utils/truncate-id";
 logger.info(`Profile updated: ${truncateId(profileId)}`);
 logger.warn("Reranking failed", { profileId: truncateId(profileId) });
 
@@ -387,9 +388,9 @@ expect(log.profileId).toBe(profileId.substring(0, 8) + "..."); // ❌ length も
 **GDPR Art.30 audit trail consistency**: `audit_logs.target_id` truncation length is a GDPR Art.30 PII minimisation contract. SSOT unification structurally eliminates discrepancies.
 **CWE-209 information exposure defense**: Guarantees all PII truncation paths (production / test / log) follow the same length contract, eliminating the latent risk that a specific path leaks full PII.
 
-**適用範囲 / Scope**: `audit_logs.target_id` truncation のすべての callsite (production code、unit test、integration test、standing regression test)。`truncateId()` ユーティリティ (`src/tools/preference/schemas.ts` / `src/services/part/schemas.ts`) も将来の統一時に SSOT 定数導出パターンへ移行検討。
+**適用範囲 / Scope**: `audit_logs.target_id` truncation のすべての callsite (production code、unit test、integration test、standing regression test)。`truncateId()` ユーティリティ (`src/utils/truncate-id.ts` / `src/services/part/schemas.ts`) も将来の統一時に SSOT 定数導出パターンへ移行検討。
 
-Applies to all callsites truncating `audit_logs.target_id` (production code, unit tests, integration tests, standing regression). The `truncateId()` utilities (`src/tools/preference/schemas.ts` / `src/services/part/schemas.ts`) are also candidates for migration to SSOT-derived patterns during future unification.
+Applies to all callsites truncating `audit_logs.target_id` (production code, unit tests, integration tests, standing regression). The `truncateId()` utilities (`src/utils/truncate-id.ts` / `src/services/part/schemas.ts`) are also candidates for migration to SSOT-derived patterns during future unification.
 
 **Cross-ref**: Registry §13.14 C-IMPL-PATCH-W5-08 (L) / FIND-IMPL-LCC-PATCH-W5-02 / FIND-IMPL-TDA-PATCH-W5-01 (M, hardcoded `"embeddin..."` literal coupling) / `apps/mcp-server/src/services/audit-log.service.ts` (SSOT) / `tests/regression/standing/worker-lifecycle/inv-worker-lock-003-embedding-backfill-supervisor.test.ts` line 2317 (Wave 5 fix exemplar).
 

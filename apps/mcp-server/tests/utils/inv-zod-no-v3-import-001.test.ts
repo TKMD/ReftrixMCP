@@ -100,7 +100,7 @@ describe("INV-ZOD-NO-V3-IMPORT-001", () => {
   it("(b) the source trees import no zod/v3", () => {
     const files = SCAN_ROOTS.flatMap((root) => walkTsFiles(root));
     expect(SCAN_ROOTS.length).toBeGreaterThanOrEqual(5);
-    expect(files.length).toBeGreaterThan(500);
+    expect(files.length).toBeGreaterThan(490);
     expect(files.flatMap((f) => v3Imports(f, fs.readFileSync(f, "utf8")))).toEqual([]);
   });
 });

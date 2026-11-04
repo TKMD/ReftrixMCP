@@ -27,6 +27,10 @@
  * The U2 registry counted 44 pairs; 4 of them are, by estimate, the same declarations counted more
  * than once by the registry's AST walk (the 36 declarations are unchanged). The runtime walk measures 40 distinct (tool, position) array pairs + 1 tuple, of which
  * 5 are not advertised in the JSON Schema.
+ * 2026-11-04: 未使用 9 tool の削除で 30 対 + タプル 0 になった（削除分は brief.validate /
+ * design.track_changes / preference.hear / style.get_palette / search.facets の配列 10 対と palette のタプル 1）。
+ * 2026-11-04: removing the 9 unused tools leaves 30 pairs + 0 tuples (the removed 10 pairs and the one
+ * tuple came from brief.validate / design.track_changes / preference.hear / style.get_palette / search.facets).
  *
  * 完全性 (全 z.array に上限があること) は INV-ZOD-INPUT-COLLECTION-BOUNDED-002 の責務。
  * Completeness (every array bounded) belongs to INV-ZOD-INPUT-COLLECTION-BOUNDED-002.
@@ -39,63 +43,52 @@ import { assertInvName } from "../_setup/inv-assert";
 import { allToolDefinitions } from "../../../../src/tools/index";
 import { collectJsonArrays, collectZodArrays, type ArrayBound } from "./_zod-array-paths";
 import { searchUnifiedInputSchema } from "../../../../src/tools/search-unified.tool";
-import { searchFacetsInputSchema } from "../../../../src/tools/search/facets.tool";
 import {
   partCompareInputSchema,
   partSearchInputSchema,
 } from "../../../../src/services/part/schemas";
-import { briefValidateInputSchema } from "../../../../src/tools/brief/schemas";
 import { designCompareInputSchema } from "../../../../src/tools/design/compare.tool";
 import { dataDeleteInputSchema } from "../../../../src/tools/data/data.tool";
-import { designTrackChangesInputSchema } from "../../../../src/tools/design/track-changes.tool";
 import {
   layoutSearchInputSchema,
   layoutIngestInputSchema,
-  layoutBatchIngestInputSchema,
 } from "../../../../src/tools/layout/schemas";
 import { motionDetectInputSchema } from "../../../../src/tools/motion/detect.schemas";
 import { motionSearchInputSchema } from "../../../../src/tools/motion/search.schemas";
 import { narrativeSearchInputSchema } from "../../../../src/tools/narrative/schemas";
 import { pageAnalyzeInputSchema } from "../../../../src/tools/page/input.schemas";
 import { batchAnalyzeInputSchema } from "../../../../src/tools/page/batch-analyze.schemas";
-import { preferenceHearInputSchema } from "../../../../src/tools/preference/schemas";
 import { qualityEvaluateInputSchema } from "../../../../src/tools/quality/schemas";
 import { responsiveCaptureInputSchema } from "../../../../src/tools/responsive/capture.schemas";
 import { responsiveSearchInputSchema } from "../../../../src/tools/responsive/schemas";
 import { backgroundSearchInputSchema } from "../../../../src/tools/background/schemas";
-import { styleGetPaletteInputSchema } from "../../../../src/tools/schemas/style-schemas";
 
 const INV = "INV-ZOD-ADVERTISED-MAXITEMS-SYNC-001";
 
 /** tool 名 → 入力 Zod スキーマ (handler が .parse するもの) / tool name → input Zod schema */
 const TOOL_INPUT_SCHEMAS: Readonly<Record<string, unknown>> = {
   "search.unified": searchUnifiedInputSchema,
-  "search.facets": searchFacetsInputSchema,
   "part.search": partSearchInputSchema,
   "part.compare": partCompareInputSchema,
-  "brief.validate": briefValidateInputSchema,
   "design.compare": designCompareInputSchema,
-  "design.track_changes": designTrackChangesInputSchema,
   "data.delete": dataDeleteInputSchema,
   "layout.search": layoutSearchInputSchema,
   "layout.ingest": layoutIngestInputSchema,
-  "layout.batch_ingest": layoutBatchIngestInputSchema,
   "motion.detect": motionDetectInputSchema,
   "motion.search": motionSearchInputSchema,
   "narrative.search": narrativeSearchInputSchema,
   "page.analyze": pageAnalyzeInputSchema,
   "page.batch_analyze": batchAnalyzeInputSchema,
-  "preference.hear": preferenceHearInputSchema,
   "quality.evaluate": qualityEvaluateInputSchema,
   "responsive.capture": responsiveCaptureInputSchema,
   "responsive.search": responsiveSearchInputSchema,
   "background.search": backgroundSearchInputSchema,
-  "style.get_palette": styleGetPaletteInputSchema,
 };
 
 /** 実測値 (件数固定) / measured counts (fixed) */
-const EXPECTED_ARRAY_PAIRS = 40;
-const EXPECTED_TUPLES = 1;
+// 2026-11-04: 29 after layout.batch_ingest (urls array) was removed / layout.batch_ingest 削除で −1
+const EXPECTED_ARRAY_PAIRS = 29;
+const EXPECTED_TUPLES = 0;
 
 /**
  * Zod には上限があるが、JSON Schema (tool 定義) にプロパティ自体が無い組。
@@ -156,7 +149,7 @@ describe(`${INV}: Zod array bounds match advertised JSON Schema maxItems`, () =>
   const arrays = pairs.filter((p) => p.zod.kind === "array");
   const tuples = pairs.filter((p) => p.zod.kind === "tuple");
 
-  it(`${INV}: measured pair counts are fixed (${EXPECTED_ARRAY_PAIRS} arrays / ${EXPECTED_TUPLES} tuple)`, () => {
+  it(`${INV}: measured pair counts are fixed (${EXPECTED_ARRAY_PAIRS} arrays / ${EXPECTED_TUPLES} tuples)`, () => {
     expect(arrays.length).toBe(EXPECTED_ARRAY_PAIRS);
     expect(tuples.length).toBe(EXPECTED_TUPLES);
   });

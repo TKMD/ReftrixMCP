@@ -2,18 +2,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * Section detail read-only service (section.inspect SSOT).
+ * Section detail read-only service (high-PII section SSOT).
  *
- * Moved verbatim from `api/internal/page-detail.service.ts` (behavior-preserving move) so the
- * `section.inspect` MCP tool no longer depends on the internal read API layer. Fully read-only —
+ * No production caller since `section.inspect` was removed on 2026-11-04 (ADR-0052 Amendment 1,
+ * tracked TS-L-03). It stays because the gdpr-delete standing `INV-CROP-PII-EXCLUDED-001`
+ * (surfaces 4 / 4b) pins the `getHighPiiSectionIds` export. Originally moved verbatim from
+ * `api/internal/page-detail.service.ts` for `section.inspect`. Fully read-only —
  * no create / update / delete. High-PII redaction (ADR-0042 Amendment 1 §A1.3): parts with
  * `pii_risk_level === 'high'` have `htmlSnippet` / `attributes` / `cssClasses` stripped at this
  * boundary (the marker is preserved), and a section containing a high-PII part has its
- * `htmlSnippet` nulled (`INV-SECTION-INSPECT-PII-REDACTION-001`,
- * `INV-WEBUI-HIGHPII-NEVER-IN-RESPONSE-001`, `INV-CROP-PII-EXCLUDED-001`).
+ * `htmlSnippet` nulled (`INV-CROP-PII-EXCLUDED-001`; the former section.inspect pin
+ * `INV-SECTION-INSPECT-PII-REDACTION-001` was retired with the tool).
  *
- * section.inspect が依存する section 詳細の read-only service。page-detail.service.ts から
- * 挙動を変えずに移設した。
+ * high-PII section 判定の read-only service。2026-11-04 の section.inspect 削除で本番の呼び出し元は
+ * 無い（ADR-0052 Amendment 1、TS-L-03）。gdpr-delete 常設 INV-CROP-PII-EXCLUDED-001 が export を固定するため残す。
  *
  * @module services/section-detail.service
  */
@@ -58,8 +60,8 @@ export interface PartSummary {
  * A single-section read result (W6 Issue A PR-1, the section.inspect SSOT). Metadata-only +
  * section-linked-redacted structure preview source: when this section contains a high-PII part,
  * `htmlSnippet` is nulled via the SAME `getHighPiiSectionIds` SSOT used by the section read paths, so
- * the section.inspect tool's sanitized structure-preview sink can never carry high-PII markup
- * (`INV-SECTION-INSPECT-PII-REDACTION-001`, extends `INV-WEBUI-HIGHPII-NEVER-IN-RESPONSE-001`).
+ * a sanitized structure-preview sink built on it could never carry high-PII markup (the former
+ * section.inspect sink; its pin was retired with the tool on 2026-11-04).
  */
 export interface SectionDetail {
   id: string;

@@ -13,7 +13,7 @@
 
 import { describe, it, expect } from "vitest";
 
-import { truncateId } from "../../src/tools/preference/schemas";
+import { truncateId } from "../../src/utils/truncate-id";
 
 // =====================================================
 // テスト / Tests

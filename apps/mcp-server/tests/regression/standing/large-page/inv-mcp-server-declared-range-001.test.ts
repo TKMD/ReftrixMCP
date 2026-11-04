@@ -8,14 +8,14 @@
  * 宣言レンジが脆弱版を admit する形に戻っても、lockfile / install / override harness は GREEN の
  * まま **公開 tarball だけが脆弱レンジを出荷する**。この silent path を package 表で機械 gate にする
  * (`INV-SHARP-DECLARED-RANGE-001` と同じ理由。sharp 版は R2-SH が触るため本 file は別に置く)。
- * 対象は CO-R2-97 の 2 package: handlebars (GHSA-8r5x-fm3f-whwj / GHSA-p8wg-vrv2-v86f) と
- * `@modelcontextprotocol/sdk` (GHSA-6qxp-vccf-f47h)。
+ * 対象は CO-R2-97 の `@modelcontextprotocol/sdk` (GHSA-6qxp-vccf-f47h)。handlebars
+ * (GHSA-8r5x-fm3f-whwj / GHSA-p8wg-vrv2-v86f) は 2026-11-04 に依存ごと削除したので実 repo の対象から外した。
  *
  * Root overrides only affect installs inside this monorepo. If a published workspace package's
  * declared range regressed to admit a vulnerable version, the lockfile, the install and the
  * override harness would all stay GREEN while the published tarball alone ships the vulnerable
- * range. This table-driven test turns that path into a machine gate for the two CO-R2-97
- * packages (handlebars and `@modelcontextprotocol/sdk`).
+ * range. This table-driven test turns that path into a machine gate for the CO-R2-97 package
+ * `@modelcontextprotocol/sdk` (handlebars left the tree on 2026-11-04 and is only a fixture sample).
  *
  * | leg  | 対象 / target                                             | 契約 / contract                                                   |
  * | ---- | --------------------------------------------------------- | ----------------------------------------------------------------- |
@@ -92,7 +92,11 @@ const SDK_ROW: DeclaredRow = {
   patchedFloor: "1.32.1",
   vulnerableProbes: ["1.12.0", "1.30.1", "1.31.0"],
 };
-const DECLARED_TABLE: readonly DeclaredRow[] = [HANDLEBARS_ROW, SDK_ROW];
+// 2026-11-04: report.generate の削除で handlebars を依存ごと外したので、実 repo の契約は sdk のみ。
+// HANDLEBARS_ROW は fixture で検査ロジックを試す見本として残す（実 repo には当てない）。
+// 2026-11-04: handlebars was removed with report.generate, so the real-repo contract covers the sdk only;
+// HANDLEBARS_ROW stays as a fixture sample for the checker logic and is never applied to the real repo.
+const DECLARED_TABLE: readonly DeclaredRow[] = [SDK_ROW];
 
 /** 公開 workspace manifest (repo root 相対) / published workspace manifests */
 const PUBLISHED_MANIFESTS: readonly string[] = [
@@ -307,6 +311,8 @@ describe("INV-MCP-SERVER-DECLARED-RANGE-001 (large-page)", () => {
   });
 
   it("(c) 空虚化 guard: 実 lockfile から全行の key 行を検出できる", () => {
+    // 表が空なら何も検査せずに通るため、行数を固定する / pin the row count so an empty table cannot pass
+    expect(DECLARED_TABLE).toHaveLength(1);
     for (const row of DECLARED_TABLE) {
       expect(collectLockVersions(readLock(REPO_ROOT), row.name).length).toBeGreaterThan(0);
     }

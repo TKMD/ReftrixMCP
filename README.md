@@ -21,9 +21,9 @@ ReftrixMCPは、Webデザインパターンをベクトル検索(pgvector HNSW)�
 RAGで検索可能なナレッジベースに集約し、MCPツール経由でClaude等の
 AIエージェントと統合するプラットフォームです。
 
-**主要機能**: レイアウト分析 / モーション検出 / 品質評価 / セマンティック検索 / 横断検索 / 画像類似検索 / レスポンシブ解析 / 嗜好プロファイリング / パーツ分析 / レート制限 / 検索キャッシュ / BullMQ UI / SBOM
+**主要機能**: レイアウト分析 / モーション検出 / 品質評価 / セマンティック検索 / 横断検索 / 画像類似検索 / レスポンシブ解析 / パーツ分析 / レート制限 / 検索キャッシュ / BullMQ UI / SBOM
 
-**<!-- gen:tool-count -->40<!-- /gen:tool-count -->のMCPツール**を提供: Layout(5) / Motion(2) / Quality(1) / Page(4) / Narrative(1) / Background(1) / Responsive(2) / Preference(3) / Part(3) / Style(1) / Brief(1) / System(1) / Search(2) / Design(5) / Data(2) / Audit(1) / Embedding(1) / Accessibility(1) / Performance(1) / Report(1)
+**<!-- gen:tool-count -->27<!-- /gen:tool-count -->のMCPツール**を提供: Layout(4) / Motion(2) / Quality(1) / Page(3) / Narrative(1) / Background(1) / Responsive(2) / Part(3) / System(1) / Search(1) / Design(3) / Data(2) / Audit(1) / Accessibility(1) / Performance(1)
 
 詳細な日本語ドキュメント: [docs/README.ja.md](docs/README.ja.md)
 
@@ -35,7 +35,6 @@ AIエージェントと統合するプラットフォームです。
 - **Motion detection** -- discover CSS/JS animations with frame capture (15 px/frame video mode), CLS detection via Pixelmatch
 - **Quality evaluation** -- score designs on three axes (originality, craftsmanship, contextuality) with anti-AI-cliche detection
 - **Semantic search** -- find layout, motion, narrative, background, and responsive patterns via pgvector HNSW hybrid search
-- **Preference profiling** -- learn user design preferences through feedback sessions and personalize search results via reranking (GDPR-compliant)
 - **Part-level analysis** -- extract 16 UI part types (button, icon, heading, etc.) with DINOv2 visual embeddings for visual similarity search
 - **Vision integration** -- Ollama llama3.2-vision for richer layout, motion, and narrative understanding
 - **Section post-processing** -- auto merge/split sections by type, heading, and height (Rule 1-4) for optimal structure
@@ -51,15 +50,15 @@ AIエージェントと統合するプラットフォームです。
 
 ## Why ReftrixMCP
 
-|                      |                                                                                                             |
-| -------------------- | ----------------------------------------------------------------------------------------------------------- |
-| **Layout-aware**     | Sections, grids, and typography extracted as structured data -- not just screenshots                        |
-| **Motion-aware**     | CSS static analysis + frame-by-frame video capture for real animation behavior                              |
-| **Quality-aware**    | Three-axis scoring with actionable improvement suggestions                                                  |
-| **Searchable**       | 768-dim multilingual embeddings (e5-base) with HNSW index and hybrid RRF ranking                            |
-| **Preference-aware** | User preference profiling with feedback-driven reranking across all search tools                            |
-| **Part-aware**       | 16 UI part types extracted with DINOv2 visual embeddings for cross-site component comparison                |
-| **MCP-native**       | <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools purpose-built for Claude Desktop and MCP Client CLI |
+|                      |                                                                                                                                                    |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Layout-aware**     | Sections, grids, and typography extracted as structured data -- not just screenshots                                                               |
+| **Motion-aware**     | CSS static analysis + frame-by-frame video capture for real animation behavior                                                                     |
+| **Quality-aware**    | Three-axis scoring with actionable improvement suggestions                                                                                         |
+| **Searchable**       | 768-dim multilingual embeddings (e5-base) with HNSW index and hybrid RRF ranking                                                                   |
+| **Preference-aware** | Search tools accept an optional `profile_id` and rerank with an existing profile from an older version; profile creation was removed on 2026-11-04 |
+| **Part-aware**       | 16 UI part types extracted with DINOv2 visual embeddings for cross-site component comparison                                                       |
+| **MCP-native**       | <!-- gen:tool-count -->27<!-- /gen:tool-count --> tools purpose-built for Claude Desktop and MCP Client CLI                                        |
 
 ## Quickstart
 
@@ -142,7 +141,7 @@ Add to your MCP config:
 
 ## Example tools
 
-ReftrixMCP provides **<!-- gen:tool-count -->40<!-- /gen:tool-count --> MCP tools**. Key examples:
+ReftrixMCP provides **<!-- gen:tool-count -->27<!-- /gen:tool-count --> MCP tools**. Key examples:
 
 - `layout.ingest` -- fetch a web page, take a screenshot, and extract section patterns
 - `layout.search` -- semantic search over layout sections by natural-language query
@@ -150,9 +149,6 @@ ReftrixMCP provides **<!-- gen:tool-count -->40<!-- /gen:tool-count --> MCP tool
 - `quality.evaluate` -- score design quality on originality, craftsmanship, and contextuality
 - `page.analyze` -- unified analysis: layout + motion + quality + responsive in one call (async via BullMQ), with opt-in Phase 7.5: accessibility audit, performance evaluation, and auto snapshot
 - `responsive.search` -- search responsive analysis results by viewport and breakpoint
-- `preference.hear` -- interactive preference hearing sessions with sample presentation and feedback collection
-- `preference.get` -- retrieve preference profiles (with GDPR data portability support)
-- `preference.reset` -- reset or permanently delete preference profiles (GDPR Right to Erasure)
 - `part.search` -- semantic search over UI parts with visual (DINOv2) or text embeddings
 - `part.inspect` -- get detailed part info including computed styles, bounding box, and accessibility
 - `part.compare` -- compare 2-5 parts side by side on styles, layout, and interaction
@@ -162,7 +158,7 @@ Full tool reference: [MCP Tools Guide](docs/users-guide/02-mcp-tools-guide.md)
 ## Architecture
 
 ```
-MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (<!-- gen:tool-count -->40<!-- /gen:tool-count --> tools, Zod)
+MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (<!-- gen:tool-count -->27<!-- /gen:tool-count --> tools, Zod)
   +-- Service Layer: Playwright, Sharp+Pixelmatch, DOMPurify
   +-- ML Layer: ONNX Runtime (multilingual-e5-base + DINOv2 ViT-B/14, 768-dim)
   +-- BullMQ Workers: page.analyze, quality.evaluate
@@ -174,7 +170,7 @@ MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (<!-- gen:tool-count 
 | Guide                                                                   | Description                                                                     |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | [Getting Started](docs/users-guide/01-getting-started.md)               | Installation, setup, and first analysis                                         |
-| [MCP Tools Guide](docs/users-guide/02-mcp-tools-guide.md)               | All <!-- gen:tool-count -->40<!-- /gen:tool-count --> tools with usage examples |
+| [MCP Tools Guide](docs/users-guide/02-mcp-tools-guide.md)               | All <!-- gen:tool-count -->27<!-- /gen:tool-count --> tools with usage examples |
 | [page.analyze Deep Dive](docs/users-guide/03-page-analyze-deep-dive.md) | Async analysis flow and data structures                                         |
 | [Troubleshooting](docs/users-guide/04-troubleshooting.md)               | Common issues and solutions                                                     |
 

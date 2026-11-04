@@ -46,7 +46,6 @@ export const RECORD_KEY_FIELD_NAMES: ReadonlySet<string> = new Set([
   "rotationAngles",
   "sectionTypes",
   "styles",
-  "tokens",
 ]);
 
 /** The text that stands in for a client-chosen record key. */

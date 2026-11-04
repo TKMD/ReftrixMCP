@@ -55,14 +55,12 @@ Webページを「単なるスクリーンショット」ではなく、ベク�
 
 以下の機能はMCPツールで提供されています。
 
-- **ブランドパレット**: style.get_paletteでカラーパレット取得
 - **統合解析**: page.analyzeでLayout+Motion+Quality一括実行
-- **デザインブリーフ**: brief.validateで要件完全性チェック
 
 ### 🤖 MCP統合
 
 - **Model Context Protocol**: Claude等のAIエージェントと直接統合
-- **40のMCPツール**: WebDesign専用の分析・検索・評価ツール
+- **<!-- gen:tool-count -->27<!-- /gen:tool-count -->のMCPツール**: WebDesign専用の分析・検索・評価ツール
 
 ### 🔍 Vision統合
 
@@ -75,7 +73,7 @@ Webページを「単なるスクリーンショット」ではなく、ベク�
 
 - **HTMLサニタイズ**: Webページ取得時のHTMLサニタイズ処理（DOMPurify 3.3.x）
 - **SSRF対策**: プライベートIP・メタデータサービスへのアクセスブロック
-- **レート制限**: Token Bucket + Redis Luaスクリプトによるアトミック制御（CWE-770 DoS対策）。3ティア構成: analysis 10RPM / search 120RPM / default 60RPM。Graceful Degradation: Redis未接続時はインメモリフォールバック。全40 MCPツールに自動適用
+- **レート制限**: Token Bucket + Redis Luaスクリプトによるアトミック制御（CWE-770 DoS対策）。3ティア構成: analysis 10RPM / search 120RPM / default 60RPM。Graceful Degradation: Redis未接続時はインメモリフォールバック。全<!-- gen:tool-count -->27<!-- /gen:tool-count --> MCPツールに自動適用
 - **入力検証**: Zodスキーマによる厳格な検証
 - **SBOM**: CycloneDX 1.6 JSON形式の自動生成（EU CRA 2026/9/11脆弱性報告義務対応）
 
@@ -281,14 +279,13 @@ const analysis = await mcp__reftrix__page_analyze({
 
 ## MCP ツール一覧
 
-Reftrixは**40のMCPツール**を提供しています（WebDesign専用）。
+Reftrixは**<!-- gen:tool-count -->27<!-- /gen:tool-count -->のMCPツール**を提供しています（WebDesign専用）。
 
-### レイアウト解析（5ツール）
+### レイアウト解析（4ツール）
 
 | ツール名               | 説明                                                               |
 | ---------------------- | ------------------------------------------------------------------ |
 | `layout.ingest`        | Webページ取得・スクリーンショット（save_to_db, auto_analyze対応）  |
-| `layout.batch_ingest`  | 複数URLの一括インジェスト                                          |
 | `layout.inspect`       | レイアウト解析（セクション・グリッド・タイポグラフィ、Vision統合） |
 | `layout.search`        | セマンティックセクション検索                                       |
 | `layout.generate_code` | React/Vue/HTMLコード生成                                           |
@@ -306,13 +303,6 @@ Reftrixは**40のMCPツール**を提供しています（WebDesign専用）。
 | ------------------ | ----------------------------------------------------- |
 | `quality.evaluate` | デザイン品質評価（3軸評価、suggest_improvements統合） |
 
-### ブランド・スタイル（2ツール）
-
-| ツール名            | 説明                 |
-| ------------------- | -------------------- |
-| `style.get_palette` | ブランドパレット取得 |
-| `brief.validate`    | デザインブリーフ検証 |
-
 ### ナラティブ・バックグラウンド（2ツール）
 
 | ツール名            | 説明                                 |
@@ -325,14 +315,6 @@ Reftrixは**40のMCPツール**を提供しています（WebDesign専用）。
 | ツール名            | 説明                                                                                                   |
 | ------------------- | ------------------------------------------------------------------------------------------------------ |
 | `responsive.search` | レスポンシブ分析結果のセマンティック検索（ビューポート差異・ブレークポイント・スクリーンショット差分） |
-
-### 嗜好プロファイリング（3ツール）
-
-| ツール名           | 説明                                                                              |
-| ------------------ | --------------------------------------------------------------------------------- |
-| `preference.hear`  | 嗜好ヒアリングセッション（サンプル提示・フィードバック収集・2ファクタconfidence） |
-| `preference.get`   | 嗜好プロファイル取得（GDPRシグナルエクスポート対応）                              |
-| `preference.reset` | プロファイルリセットまたは完全削除（GDPRデータ消去権対応）                        |
 
 ### パーツ解析（3ツール）
 
@@ -354,12 +336,13 @@ Reftrixは**40のMCPツール**を提供しています（WebDesign専用）。
 | ------------------------ | ---------------------------------------------------------------------------------------------------- |
 | `design.search_by_image` | 画像類似検索 — Base64/URLからDINOv2 visual embeddingを生成し、HNSW + RRF 3ソースで類似デザインを検索 |
 
-### 統合解析（2ツール）
+### 統合解析（3ツール）
 
-| ツール名            | 説明                                                             |
-| ------------------- | ---------------------------------------------------------------- |
-| `page.analyze`      | 統合Web解析（layout+motion+quality、Vision統合、video mode対応） |
-| `page.getJobStatus` | 非同期ジョブステータス確認                                       |
+| ツール名             | 説明                                                               |
+| -------------------- | ------------------------------------------------------------------ |
+| `page.analyze`       | 統合Web解析（layout+motion+quality、Vision統合、video mode対応）   |
+| `page.batch_analyze` | 複数URLの一括解析（最大50件）                                      |
+| `page.getJobStatus`  | 非同期ジョブ（`job_id`）またはバッチ（`batch_id`）のステータス確認 |
 
 ### システム（1ツール）
 
@@ -375,7 +358,7 @@ Reftrixは**40のMCPツール**を提供しています（WebDesign専用）。
 ReftrixMCP/
 ├── apps/
 │   ├── cli/                          # スタンドアロンCLI（MCP非依存）
-│   └── mcp-server/                   # MCP Server（40ツール）
+│   └── mcp-server/                   # MCP Server（<!-- gen:tool-count -->27<!-- /gen:tool-count -->ツール）
 │       └── src/
 │           └── tools/                # MCPツール定義
 │
@@ -566,12 +549,12 @@ AGPL-3.0の条件が適合しないユースケース（プロプライエタリ
 
 ## ドキュメント
 
-| ガイド                                                               | 内容                                 |
-| -------------------------------------------------------------------- | ------------------------------------ |
-| [Getting Started](./users-guide/01-getting-started.md)               | インストール、セットアップ、初回分析 |
-| [MCP Tools Guide](./users-guide/02-mcp-tools-guide.md)               | 全40ツールの使用例                   |
-| [page.analyze Deep Dive](./users-guide/03-page-analyze-deep-dive.md) | 非同期分析フローとデータ構造         |
-| [Troubleshooting](./users-guide/04-troubleshooting.md)               | よくある問題と解決方法               |
+| ガイド                                                               | 内容                                                              |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| [Getting Started](./users-guide/01-getting-started.md)               | インストール、セットアップ、初回分析                              |
+| [MCP Tools Guide](./users-guide/02-mcp-tools-guide.md)               | 全<!-- gen:tool-count -->27<!-- /gen:tool-count -->ツールの使用例 |
+| [page.analyze Deep Dive](./users-guide/03-page-analyze-deep-dive.md) | 非同期分析フローとデータ構造                                      |
+| [Troubleshooting](./users-guide/04-troubleshooting.md)               | よくある問題と解決方法                                            |
 
 ---
 

@@ -276,7 +276,6 @@ export type {
 } from "./middleware/auth";
 // service-client.ts exports removed: project.get/project.list tools unregistered (backend API未実装)
 // ServiceClient, serviceClient, API_BASE_URL, Project* types は現在未使用
-// Palette types (ColorToken, PaletteResponse) は style.get_palette が DB直接アクセスのため不要
 export { webPageService, createWebPageService } from "./services/web-page.service";
 export type { IWebPageService, WebPageResult } from "./services/web-page.service";
 export {
@@ -372,15 +371,6 @@ export {
   type QualityEvaluateErrorInfo,
   type QualityEvaluatorOptions,
   type QualityEvaluatorResult,
-  // Palette
-  executeGetPalette,
-  type GetPaletteInput,
-  type GetPaletteResult,
-  type GetPaletteOptions,
-  type PaletteDetail,
-  type PaletteListItem,
-  type ColorTokenApi,
-  type GradientApi,
   // Layout Generate Code
   executeLayoutGenerateCode,
   setPrismaClientFactory,

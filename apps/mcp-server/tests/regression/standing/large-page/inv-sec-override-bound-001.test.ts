@@ -35,8 +35,8 @@
  * `ip-address` / `fast-uri`、addendum v1 §2.1 / E-50) + control (ii) 固有 instance `undici` `7.30.0` / `body-parser` `2.3.0` / `qs` `6.16.0`。
  * R2-OF = override floor 3 行 (`proxy-addr` / `compression` / `source-map-js`、E-96) + control (ii)
  * 固有 instance 3 件 (各 package の base 版 `2.0.7` / `1.8.1` / `1.2.1`)。
- * CO-R2-97 = override floor 2 行 (`handlebars` / `@modelcontextprotocol/sdk`) + control (ii) 固有
- * instance 2 件 (advisory range 内の `4.7.9` / `1.30.1`)。
+ * CO-R2-97 = override floor 1 行 (`@modelcontextprotocol/sdk`) + control (ii) 固有 instance 1 件
+ * (advisory range 内の `1.30.1`)。`handlebars` の行は 2026-11-04 に依存ごと削除したので退役。
  * R2-SH = override floor 1 行 (`sharp`、GHSA-wq5f-xc86-pv6w の修正版 0.35.5 + minor cap、E-124) +
  * control (ii) 固有 instance `sharp` `0.35.4`。
  * R2-D = override 行 1 (`dompurify`、GHSA-6688 / p98j の修正版 3.4.16 + major cap) + control (ii) 固有
@@ -52,9 +52,9 @@
  * rows + control (ii) specific instances (`@hono/node-server` 1.19.14, `hono` 4.13.5 per E-46) +
  * CO-R2-39 non-vacuity guard; R2-U = 5 transitive rows + control (ii) instances `undici` 7.30.0 / `body-parser` 2.3.0 / `qs` 6.16.0;
  * R2-OF = 3 override-floor rows (`proxy-addr` / `compression` / `source-map-js`, E-96) + control (ii)
- * instances at their base versions 2.0.7 / 1.8.1 / 1.2.1; CO-R2-97 = 2 override-floor rows
- * (`handlebars` / `@modelcontextprotocol/sdk`) + control (ii) instances 4.7.9 / 1.30.1 (inside the
- * advisory ranges); R2-SH = 1 override-floor row (`sharp`,
+ * instances at their base versions 2.0.7 / 1.8.1 / 1.2.1; CO-R2-97 = 1 override-floor row
+ * (`@modelcontextprotocol/sdk`; the `handlebars` row was retired on 2026-11-04 when the dependency
+ * was removed) + control (ii) instance 1.30.1 (inside the advisory range); R2-SH = 1 override-floor row (`sharp`,
  * first patched version 0.35.5 for GHSA-wq5f-xc86-pv6w plus a minor cap, E-124) + control (ii)
  * instance `sharp` 0.35.4; R2-D appends rows. ip-address floor raised to 10.7.4 with control (ii)
  * instance `ip-address` 10.7.3; control (ii) also gains the `hono` 4.13.10 and `@vitest/mocker`
@@ -89,8 +89,7 @@
  * range 内) / `body-parser` `2.3.0` (GHSA-27r3-jxmh-p828 の `< 2.4.0` range 内) / `qs` `6.16.0` (floor 6.16.1 の 1 つ下) / `proxy-addr` `2.0.7` (GHSA-jqcg-44mw-7w3h の `< 2.0.8` range 内、R2-OF) /
  * `compression` `1.8.1` (GHSA-vc2v-76pw-4v95 の `< 1.8.2` range 内、R2-OF) / `source-map-js` `1.2.1`
  * (GHSA-68fv-2mgg-jv7q の `< 1.2.2` range 内、R2-OF)。
- * CO-R2-97 の固有 instance: `handlebars` `4.7.9` (GHSA-8r5x-fm3f-whwj / GHSA-p8wg-vrv2-v86f の
- * `<= 4.7.9` range 内) / `@modelcontextprotocol/sdk` `1.30.1` (GHSA-6qxp-vccf-f47h の `< 1.31.0`
+ * CO-R2-97 の固有 instance: `@modelcontextprotocol/sdk` `1.30.1` (GHSA-6qxp-vccf-f47h の `< 1.31.0`
  * range 内)。
  * R2-SH の固有 instance: `sharp` `0.35.4` (GHSA-wq5f-xc86-pv6w の `< 0.35.5` range 内)。
  * ip-address floor 10.7.4 の固有 instance: `ip-address` `10.7.3` (10.7.4 未満)。あわせて `hono` `4.13.10`
@@ -206,9 +205,9 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
   { name: "compression", source: "overrides", contract: ">=1.8.2 <2" },
   { name: "source-map-js", source: "overrides", contract: ">=1.2.2 <2" },
   // CO-R2-97: floors at the first patched version.
-  // GHSA-8r5x-fm3f-whwj / GHSA-p8wg-vrv2-v86f (handlebars <= 4.7.9) /
-  // GHSA-6qxp-vccf-f47h (@modelcontextprotocol/sdk < 1.31.0).
-  { name: "handlebars", source: "overrides", contract: ">=4.7.10 <5" },
+  // GHSA-6qxp-vccf-f47h (@modelcontextprotocol/sdk < 1.31.0). The handlebars row
+  // (GHSA-8r5x-fm3f-whwj / GHSA-p8wg-vrv2-v86f) was retired on 2026-11-04: handlebars left the
+  // dependency tree with report.generate, so no override is needed.
   // GHSA-22jm-h49p-29qw / GHSA-46jr-4wx8-v453 (@modelcontextprotocol/sdk < 1.32.0): the first
   // patched version is 1.32.0; the floor 1.32.1 is the stricter choice, minor cap 1.33.
   { name: "@modelcontextprotocol/sdk", source: "overrides", contract: ">=1.32.1 <1.33" },
@@ -568,9 +567,8 @@ const LANDED_VERSIONS: Readonly<Record<string, string>> = {
   "proxy-addr": "2.0.8",
   compression: "1.8.2",
   "source-map-js": "1.2.2",
-  // CO-R2-97 2 行: override commit の `pnpm install` 後の実解決版 (H-1)。実 repo の判定は leg (c) の range で行う。
+  // CO-R2-97 1 行 (handlebars は 2026-11-04 退役): override commit の `pnpm install` 後の実解決版 (H-1)。実 repo の判定は leg (c) の range で行う。
   // CO-R2-97 rows: post-install resolution (H-1); the real-repo check is the leg (c) range.
-  handlebars: "4.7.10",
   "@modelcontextprotocol/sdk": "1.32.1",
   // GHSA-587h-7wmj-h5pm: post-install resolution (H-1).
   vite: "8.1.6",
@@ -754,8 +752,8 @@ function checkExpressChain(lockText: string): string[] {
 // ---------------------------------------------------------------------------
 
 describe("INV-SEC-OVERRIDE-BOUND-001 (large-page)", () => {
-  it("契約表 (R2-BE-a 4 + R2-BE-b 4 + R2-C 4 + R2-U 5 + R2-OF 3 + CO-R2-97 2 + R2-SH 1 + R2-D 1 + vite 1 + zod 1) の文字列はすべて上限付きで解釈できる / the contract table itself parses", () => {
-    expect(CONTRACT_TABLE.length).toBe(26);
+  it("契約表 (R2-BE-a 4 + R2-BE-b 4 + R2-C 4 + R2-U 5 + R2-OF 3 + CO-R2-97 1 + R2-SH 1 + R2-D 1 + vite 1 + zod 1) の文字列はすべて上限付きで解釈できる / the contract table itself parses", () => {
+    expect(CONTRACT_TABLE.length).toBe(25);
     for (const row of CONTRACT_TABLE) expect(contractSpec(row).ceiling).not.toBeNull();
     // cdxgen のみ devDependencies (UB2-2)。他は pnpm.overrides / only cdxgen is a declaration
     expect(
@@ -907,7 +905,7 @@ describe("INV-SEC-OVERRIDE-BOUND-001 (large-page)", () => {
     // R2-C: @hono/node-server 1.19.14 (GHSA-frvp-7c67-39w9 `< 1.19.15`) / hono 4.13.5
     // (GHSA-hxh3-vqpv-xpqv `< 4.13.7`、E-46)。R2-U/PR-A: undici 7.30.0 (`< 7.30.1`) / body-parser 2.3.0 (`< 2.4.0`) / qs 6.16.0 (`< 6.16.1`)。
     // R2-OF: proxy-addr 2.0.7 / compression 1.8.1 / source-map-js 1.2.1 (E-96)。
-    // CO-R2-97: handlebars 4.7.9 / @modelcontextprotocol/sdk 1.30.1 (GHSA-8r5x / -p8wg / -6qxp)。
+    // CO-R2-97: @modelcontextprotocol/sdk 1.30.1 (GHSA-6qxp)。handlebars は 2026-11-04 に退役。
     // R2-SH: sharp 0.35.4 (GHSA-wq5f-xc86-pv6w `< 0.35.5`、E-124)。
     // R2-D: dompurify 3.4.13 (GHSA-6688 / -p98j、E-47)。
     // ip-address 10.7.3 (GHSA-rxp7-6hxx-x8q5 `< 10.7.4`) / hono 4.13.10 / @vitest/mocker 4.1.11 (現 floor の 1 つ下)。
@@ -923,8 +921,7 @@ describe("INV-SEC-OVERRIDE-BOUND-001 (large-page)", () => {
       { name: "proxy-addr", mutated: ">=2.0.7 <3", floor: "2.0.7" },
       { name: "compression", mutated: ">=1.8.1 <2", floor: "1.8.1" },
       { name: "source-map-js", mutated: ">=1.2.1 <2", floor: "1.2.1" },
-      // CO-R2-97: floors inside the GHSA-8r5x / -p8wg / -6qxp vulnerable ranges.
-      { name: "handlebars", mutated: ">=4.7.9 <5", floor: "4.7.9" },
+      // CO-R2-97: floor inside the GHSA-6qxp vulnerable range.
       { name: "@modelcontextprotocol/sdk", mutated: ">=1.31.0 <1.33", floor: "1.31.0" },
       // GHSA-587h-7wmj-h5pm: floor inside the vulnerable range.
       { name: "vite", mutated: ">=8.1.5 <8.2", floor: "8.1.5" },

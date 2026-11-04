@@ -150,7 +150,6 @@ const KNOWN_AUDIT_EMIT_FILES: readonly string[] = [
   "src/workers/page-analyze-worker.ts",
   "src/workers/phases/shared/bbox-resolution.helper.ts",
   "src/tools/data/data.tool.ts",
-  "src/tools/preference/reset.tool.ts",
   "src/scripts/repair-false-failed-backfill.ts",
 ] as const;
 

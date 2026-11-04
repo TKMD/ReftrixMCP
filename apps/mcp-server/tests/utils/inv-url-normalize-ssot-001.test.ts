@@ -573,7 +573,8 @@ describe("INV-URL-NORMALIZE-SSOT-001: SSOT-import AST sweep — queue jobId + DB
     // Ground-truth (IO-verified 2026-06-05): 7 files contain a
     // `webPage.create` / `webPage.upsert` writing `web_pages.url`. 6 route
     // through normalizeUrlForStorage; 1 (web-page.service.ts) is the
-    // documented CO-DID-03 exception. NOTE: this is 7, not the Registry's
+    // documented CO-DID-03 exception. 2026-11-04: 6 after layout.batch_ingest
+    // (batch-ingest.tool.ts) was removed. NOTE: this was 7, not the Registry's
     // forecast of 5 — the plan's KNOWN_DB_UPSERT_FILES (4-file) under-counted
     // db-handler.ts + worker-supervisor-failure-path.service.ts, the very
     // omission CO-DID-02 closes (flagged to IO for V1 reconciliation).
@@ -582,7 +583,6 @@ describe("INV-URL-NORMALIZE-SSOT-001: SSOT-import AST sweep — queue jobId + DB
       "src/workers/phases/phase-0-ingest.ts",
       "src/workers/page-analyze-worker.ts",
       "src/tools/layout/ingest.tool.ts",
-      "src/tools/layout/batch-ingest.tool.ts",
       "src/tools/page/handlers/db-handler.ts",
       "src/services/worker-supervisor-failure-path.service.ts",
     ];
@@ -603,7 +603,7 @@ describe("INV-URL-NORMALIZE-SSOT-001: SSOT-import AST sweep — queue jobId + DB
       underMatch,
       `AST sweep under-matched (ground-truth callsites NOT discovered): ${underMatch.join(", ")}`
     ).toEqual([]);
-    expect(normalizedDiscovered.size, "exactly 7 url-writing create/upsert callsite files").toBe(7);
+    expect(normalizedDiscovered.size, "exactly 6 url-writing create/upsert callsite files").toBe(6);
   });
 
   // ==========================================================================

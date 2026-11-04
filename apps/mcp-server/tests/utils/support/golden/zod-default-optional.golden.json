@@ -1,34 +1,6 @@
 {
-  "_doc": "INV-ZOD-DEFAULT-OPTIONAL-GOLDEN-001. One entry per `.default(x).optional()` site (20, AST-fixed at the start of PR-C1). `default` is the value the reordered schema must produce for an omitted key (the zod 4 result). `consumer` is the tool-layer reader measured on zod 3 BEFORE the reorder: `effectiveBefore` is what that reader used when the key was omitted; `needle` must still occur in `file`. status: equal = same value before and after; aligned = the schema default was changed to the value the reader already used; newly-passed = the reader used to pass nothing and now passes the default; unread = no reader looks at the key.",
+  "_doc": "INV-ZOD-DEFAULT-OPTIONAL-GOLDEN-001. One entry per `.default(x).optional()` site (20 AST-fixed at the start of PR-C1; 18 after the 2 preference.hear sites were removed with the tool on 2026-11-04). `default` is the value the reordered schema must produce for an omitted key (the zod 4 result). `consumer` is the tool-layer reader measured on zod 3 BEFORE the reorder: `effectiveBefore` is what that reader used when the key was omitted; `needle` must still occur in `file`. status: equal = same value before and after; aligned = the schema default was changed to the value the reader already used; newly-passed = the reader used to pass nothing and now passes the default; unread = no reader looks at the key.",
   "entries": [
-    {
-      "id": "preference.limit",
-      "module": "src/tools/preference/schemas.ts",
-      "schema": "preferenceHearInputSchema",
-      "key": "limit",
-      "minimal": {},
-      "default": 1,
-      "consumer": {
-        "file": "src/services/preference-profile.service.ts",
-        "needle": "options?.limit ?? 1",
-        "effectiveBefore": 1,
-        "status": "equal"
-      }
-    },
-    {
-      "id": "preference.offset",
-      "module": "src/tools/preference/schemas.ts",
-      "schema": "preferenceHearInputSchema",
-      "key": "offset",
-      "minimal": {},
-      "default": 0,
-      "consumer": {
-        "file": "src/services/preference-profile.service.ts",
-        "needle": "options?.offset ?? 0",
-        "effectiveBefore": 0,
-        "status": "equal"
-      }
-    },
     {
       "id": "layout.colorTolerance",
       "module": "src/tools/layout/schemas.ts",
@@ -188,7 +160,9 @@
       "module": "src/tools/motion/detect.schemas.ts",
       "schema": "lighthouseOptionsSchema",
       "key": "categories",
-      "minimal": { "enabled": true },
+      "minimal": {
+        "enabled": true
+      },
       "default": ["performance"],
       "consumer": {
         "file": "src/tools/motion/detect.tool.ts",
@@ -202,7 +176,9 @@
       "module": "src/tools/motion/detect.schemas.ts",
       "schema": "lighthouseOptionsSchema",
       "key": "throttling",
-      "minimal": { "enabled": true },
+      "minimal": {
+        "enabled": true
+      },
       "default": false,
       "consumer": {
         "file": "src/tools/motion/detect.tool.ts",
@@ -216,7 +192,9 @@
       "module": "src/tools/motion/detect.schemas.ts",
       "schema": "lighthouseOptionsSchema",
       "key": "timeout",
-      "minimal": { "enabled": true },
+      "minimal": {
+        "enabled": true
+      },
       "default": 60000,
       "consumer": {
         "file": "src/tools/motion/detect.tool.ts",
@@ -230,7 +208,9 @@
       "module": "src/tools/motion/detect.schemas.ts",
       "schema": "lighthouseOptionsSchema",
       "key": "save_to_db",
-      "minimal": { "enabled": true },
+      "minimal": {
+        "enabled": true
+      },
       "default": false,
       "consumer": {
         "file": "src/tools/motion/detect.tool.ts",
