@@ -7,13 +7,13 @@
  *
  * workflow YAML から notify job の step を取り出し、`Build Slack payload` step の
  * `run:` script を GitHub Actions 既定 shell (`bash --noprofile --norc -eo pipefail`)
- * と同じ形で実行する。生成された payload file は slackapi/slack-github-action@v2.1.0
+ * と同じ形で実行する。生成された payload file は slackapi/slack-github-action@v3.0.5
  * の `getContentPayloadFilePath` と同じ規則 (`.json` 拡張子 → `JSON.parse`) で読む。
  *
  * Extracts the notify-job steps from a workflow file and executes the
  * `Build Slack payload` step script the way GitHub Actions does
  * (`bash --noprofile --norc -eo pipefail`). The generated payload file is read
- * with the same rule as slackapi/slack-github-action@v2.1.0
+ * with the same rule as slackapi/slack-github-action@v3.0.5
  * `getContentPayloadFilePath` (`.json` extension → `JSON.parse`).
  *
  * @module tests/scripts/slack-payload-step.helper
@@ -123,7 +123,7 @@ export function runPayloadStep(
 }
 
 /**
- * slackapi/slack-github-action@v2.1.0 `getContentPayloadFilePath` の `.json` 分岐と同じく
+ * slackapi/slack-github-action@v3.0.5 `getContentPayloadFilePath` の `.json` 分岐と同じく
  * `JSON.parse` で読む。workflow は `.json` file だけを生成するため、他の拡張子は error。
  *
  * Parses the payload file the way the action's `.json` branch of

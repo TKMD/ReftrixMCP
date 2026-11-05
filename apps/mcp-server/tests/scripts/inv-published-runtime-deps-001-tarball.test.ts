@@ -281,6 +281,40 @@ describe("both modes: createRequire and require forms that must fail or be count
     symlinkSync(join(root, "packages/a/src/ok.ts"), join(root, "packages/a/src/link.ts"));
     expect(node("--src", "--root", root).rc).not.toBe(0);
   });
+  it("reads publish-targets.sh without a shell: array references expand, other syntax fails closed", () => {
+    const setup = (targets: string): string => {
+      const root = tmp();
+      put(root, "scripts/publish-targets.sh", targets);
+      put(root, "package.json", "{}");
+      put(root, "packages/a/package.json", '{"name":"@x/a"}');
+      put(root, "packages/a/src/ok.ts", "export {};");
+      return root;
+    };
+    // 別の配列の参照を展開する / references to another array expand
+    const ok = node("--src", "--root", setup('T1=("packages/a")\nPUBLISH_PACKAGES=("${T1[@]}")\n'));
+    expect(ok.rc, ok.out).toBe(0);
+    // 解釈できない要素・未定義の参照・コマンド置換は読まずに失敗する / unknown syntax fails closed
+    const base = 'PUBLISH_PACKAGES=("packages/a")\n';
+    for (const bad of [
+      "PUBLISH_PACKAGES=(packages/a)\n",
+      'PUBLISH_PACKAGES=("${MISSING[@]}")\n',
+      'PUBLISH_PACKAGES=("$(echo packages/a)")\n',
+      // bash なら一覧が増える・変わる書き方 / forms bash would read differently
+      base + 'PUBLISH_PACKAGES+=("packages/b")\n',
+      base + 'PUBLISH_PACKAGES[1]="packages/b"\n',
+      base + 'if true; then PUBLISH_PACKAGES=("packages/b"); fi\n',
+      'declare -a PUBLISH_PACKAGES=("packages/a")\n',
+      'PUBLISH_PACKAGES=("packages/a"\n  "packages/b")\n',
+      base + ': <<X\nPUBLISH_PACKAGES=("packages/b")\nX\n',
+      base + "source extra.sh\n",
+      base + 'f() { PUBLISH_PACKAGES=("packages/b"); }\n',
+      'OTHER=("packages/a")\n',
+    ]) {
+      const r = node("--src", "--root", setup(bad));
+      expect(r.rc, bad).not.toBe(0);
+      expect(r.out, bad).toMatch(/UNSCANNABLE reason=publish-targets-empty-or-unreadable/);
+    }
+  });
 });
 
 describe("parity: src mode on a TypeScript fixture equals tarball mode on its tsc output", () => {

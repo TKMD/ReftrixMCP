@@ -114,9 +114,9 @@ describe("INV-INFRA-LICENSE-GATE-CLOSURE-001", () => {
     const r = run([], false);
     expect(r.status, r.out).toBe(0);
     for (const d of PKG_DIRS) {
-      const m = new RegExp(`${readPkg(d).name.replace(/[/@]/g, "\\$&")}: inspected=(\\d+)`).exec(
-        r.out
-      );
+      const m = new RegExp(
+        `${readPkg(d).name.replace(/[.*+?^${}()|[\]\\/@-]/g, "\\$&")}: inspected=(\\d+)`
+      ).exec(r.out);
       expect(m, `${d} missing from output:\n${r.out}`).not.toBeNull();
       expect(Number(m?.[1])).toBeGreaterThan(0);
     }

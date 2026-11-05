@@ -93,7 +93,19 @@ describe("INV-PUBLISHED-RUNTIME-DEPS-001 src mode: real tree", () => {
     expect(r.out).toContain("RESULT PASS");
     expect(r.rc).toBe(0);
     const scanned = [...r.out.matchAll(/^SCANNED pkg=(\S+) files=(\d+)/gm)];
-    expect(scanned.length).toBeGreaterThanOrEqual(1);
+    // bash で source した件数と一致する（読み落としで検査対象が減らない）/ equals bash's count
+    const bash = spawnSync(
+      "bash",
+      [
+        "-c",
+        'source "$1"; echo "${#PUBLISH_PACKAGES[@]}"',
+        "_",
+        join(REPO_ROOT, "scripts/publish-targets.sh"),
+      ],
+      { encoding: "utf-8" }
+    );
+    expect(bash.status, bash.stderr).toBe(0);
+    expect(scanned.length).toBe(Number(bash.stdout.trim()));
     for (const m of scanned) expect(Number(m[2])).toBeGreaterThan(0);
   });
 });

@@ -56,12 +56,71 @@ const readJson = (p) => {
   }
 };
 
+/**
+ * Read PUBLISH_PACKAGES from publish-targets.sh without running a shell. Every non-blank,
+ * non-comment line must be one of the forms below; any other line (`+=`, an indexed
+ * assignment, `declare`, `source`, a multi-line array, a heredoc, a conditional other than
+ * the sourced-not-executed guard, ...), an array element other than "literal" or
+ * "${NAME[@]}", an undefined reference or a missing PUBLISH_PACKAGES yields [] and the caller
+ * reports UNSCANNABLE. A file that bash could read differently is therefore never half-read.
+ *   NAME=("literal" "${OTHER[@]}" ...)      one-line array assignment
+ *   NAME="literal"                          scalar assignment
+ *   name() { ... }                          one-line function definition without assignments
+ *   if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then / echo "..." >&2 / exit 1 / fi   guard block
+ */
 function readTargets(root) {
   const file = join(root, "scripts/publish-targets.sh");
   if (!existsSync(file)) return [];
-  const script = 'source "$1"; printf "%s\\n" "${PUBLISH_PACKAGES[@]}"';
-  const r = spawnSync("bash", ["-c", script, "_", file], { encoding: "utf-8" });
-  return r.status === 0 ? r.stdout.split("\n").filter(Boolean) : [];
+  const NAME = "[A-Z][A-Z0-9_]*";
+  const arrayRe = new RegExp(`^(${NAME})=\\((.*)\\)$`);
+  const scalarRe = new RegExp(`^${NAME}="[^"$\`\\\\]*"$`);
+  const funcRe = /^[a-z_][a-z0-9_]*\(\) \{ (.*) \}$/;
+  const assignmentRe = /[A-Za-z_][A-Za-z0-9_]*(\[[^\]]*\])?\+?=(?!~)/;
+  const guardOpen = 'if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then';
+  const arrays = new Map();
+  let inGuard = false;
+  for (const raw of readFileSync(file, "utf-8").split("\n")) {
+    const line = raw.trim();
+    if (line === "" || line.startsWith("#")) continue;
+    if (inGuard) {
+      if (line === "fi") inGuard = false;
+      else if (!(line === "exit 1" || /^echo "[^"`]*" >&2$/.test(line))) return [];
+      continue;
+    }
+    if (line === guardOpen) {
+      inGuard = true;
+      continue;
+    }
+    if (scalarRe.test(line)) continue;
+    const fn = funcRe.exec(line);
+    if (fn) {
+      if (
+        assignmentRe.test(fn[1]) ||
+        /\b(source|eval|declare|export|readonly)\b|(^|;)\s*\./.test(fn[1])
+      ) {
+        return [];
+      }
+      continue;
+    }
+    const m = arrayRe.exec(line);
+    if (!m) return [];
+    const items = [];
+    for (const tok of m[2].trim().split(/\s+/).filter(Boolean)) {
+      const ref = /^"\$\{([A-Z][A-Z0-9_]*)\[@\]\}"$/.exec(tok);
+      const lit = /^"([^"$`\\]*)"$/.exec(tok);
+      if (ref) {
+        if (!arrays.has(ref[1])) return [];
+        items.push(...arrays.get(ref[1]));
+      } else if (lit) {
+        items.push(lit[1]);
+      } else {
+        return [];
+      }
+    }
+    arrays.set(m[1], items);
+  }
+  if (inGuard) return [];
+  return arrays.get("PUBLISH_PACKAGES") ?? [];
 }
 
 /**
