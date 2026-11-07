@@ -4,11 +4,11 @@
 /**
  * MCP Tool Registration Smoke Test
  *
- * 目的: 全27ツールが正しく登録されていることを確認
+ * 目的: 全28ツールが正しく登録されていることを確認
  *
  * このテストは以下を検証:
- * - toolHandlers に27ツールが登録されている
- * - allToolDefinitions に27ツール定義がある
+ * - toolHandlers に28ツールが登録されている
+ * - allToolDefinitions に28ツール定義がある
  * - 各ツールに対応するハンドラーが存在する
  * - ツール名の形式が正しい（{category}.{action}）
  *
@@ -24,7 +24,7 @@ import {
 } from "../../src/tools/index";
 
 /**
- * 現行27ツールの定義
+ * 現行28ツールの定義
  * v0.1.0: SVG機能削除、WebDesign専用
  * v0.1.0: narrative.search, background.search 追加
  * v0.1.1: responsive.search 追加
@@ -35,6 +35,7 @@ import {
  * WebUI v1 W6 Issue A PR-1: section.inspect 追加（39→40）
  * 2026-11-04: 未使用 9 ツール削除（40→31: style.get_palette / brief.validate / preference.* / section.inspect / design.track_changes / design.regression_test / search.facets）
  * 2026-11-04: さらに 3 ツール削除 + 1 統合（31→27: report.generate / embedding.quality / layout.batch_ingest、page.getBatchStatus は page.getJobStatus(batch_id) へ統合）
+ * 2026-11-06: design.verify_reproduction 追加（27→28）
  */
 const EXPECTED_TOOLS = [
   // System (1)
@@ -65,10 +66,11 @@ const EXPECTED_TOOLS = [
   "part.compare",
   // Search (1)
   "search.unified",
-  // Design (3)
+  // Design (4)
   "design.search_by_image",
   "design.similar_site",
   "design.compare",
+  "design.verify_reproduction",
   // Audit (1) — v0.3.0
   "audit.query",
   // Data (2) — v0.3.0 GDPR
@@ -84,7 +86,7 @@ const EXPECTED_TOOLS = [
   // Report (1) — v0.4.0
 ] as const;
 
-const EXPECTED_TOOL_COUNT = 27;
+const EXPECTED_TOOL_COUNT = 28;
 
 describe("MCP Tool Registration Smoke Test", () => {
   describe("ツール数の検証", () => {

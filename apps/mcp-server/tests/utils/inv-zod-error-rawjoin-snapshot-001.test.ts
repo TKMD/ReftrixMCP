@@ -55,10 +55,10 @@ describe("INV-ZOD-ERROR-RAWJOIN-SNAPSHOT-001 (4b) fixed AST set", () => {
     expect(counts).toEqual(expected);
   });
 
-  it("client-reaching set has 16 call sites in 15 files", () => {
+  it("client-reaching set has 17 call sites in 16 files", () => {
     const files = Object.keys(CLIENT_REACHING_MESSAGE_JOIN_SITES);
-    expect(files).toHaveLength(15);
-    expect(Object.values(CLIENT_REACHING_MESSAGE_JOIN_SITES).reduce((a, b) => a + b, 0)).toBe(16);
+    expect(files).toHaveLength(16);
+    expect(Object.values(CLIENT_REACHING_MESSAGE_JOIN_SITES).reduce((a, b) => a + b, 0)).toBe(17);
   });
 
   it("formatZodError is called from exactly the 5 audited tools", () => {

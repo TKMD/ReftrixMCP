@@ -48,7 +48,7 @@ describe("INV-ZOD-VALIDATOR-COVERAGE-001 client-reaching validators are covered 
   const used = scanClientReachingZodMethods(PKG_ROOT, ENTRY_FILES);
 
   it("the scan sees the schemas (not vacuous)", () => {
-    expect(ENTRY_FILES).toHaveLength(19);
+    expect(ENTRY_FILES).toHaveLength(20);
     for (const m of ["string", "number", "object", "enum", "int", "uuid", "refine"]) {
       expect(used.has(m)).toBe(true);
     }

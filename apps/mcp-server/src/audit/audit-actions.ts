@@ -1030,3 +1030,66 @@ export const AUDIT_ACTION_SCREENSHOT_STORAGE_MIGRATED = "screenshot_storage_migr
  */
 export const AUDIT_ACTOR_SCREENSHOT_STORAGE_MIGRATION =
   "system:screenshot-storage-migration" as const;
+
+/**
+ * `crop_legacy_bulk_deleted` — legacy crop 一括削除 script
+ * (`purge-legacy-crops.ts`) の audit action。
+ *
+ * Emitted by the operator script once per `--confirm` run that deleted at least one
+ * crop directory or cleared at least one `crop_storage_path` value, recording the
+ * bulk deletion as a GDPR Art.30 processing-activity record. `targetId` is
+ * truncated through `truncateAuditTargetId`; `details` carries numeric values only
+ * (CWE-209). Never emitted by a dry-run.
+ */
+export const AUDIT_ACTION_CROP_LEGACY_BULK_DELETED = "crop_legacy_bulk_deleted" as const;
+
+/**
+ * `system:crop-legacy-purge` — canonical `audit_logs.actor` literal for the legacy
+ * crop bulk-deletion script. SSOT-bound `system:` prefixed actor; template-literal
+ * construction is forbidden (see the Worker actor naming SSOT convention).
+ */
+export const AUDIT_ACTOR_CROP_LEGACY_PURGE = "system:crop-legacy-purge" as const;
+
+/**
+ * `screenshot_retention_expired` — 終端ページの screenshot を保持期限で失効させた run 単位の記録。
+ *
+ * Emitted once per non-dry-run retention cycle that cleared at least one stored path
+ * (a file deleted, or a path whose file was already gone), GDPR Art.30 processing-activity
+ * record. One row per run, never per page: `targetId` is the literal `"all"` and `details`
+ * carries only PII-free counts and flags (`retentionDays` / `deletedCount` / `absentCount` /
+ * `failedCount` / `skippedCount` / `invalidPathCount` / `batches` / `capped` / `durationMs`).
+ * Dry-run cycles and runs that cleared nothing never emit.
+ *
+ * `audit_logs` 行: actor = {@link AUDIT_ACTOR_SCREENSHOT_RETENTION_CRON} (手動 CLI は別 actor)。run 単位の
+ * 1 行で、ページ単位の行は書かない (details に id を含めない)。
+ *
+ * The retired TTL-cron action literal must not be reintroduced
+ * (INV-DATA-DELETE-002-B keeps it at 0 occurrences).
+ *
+ * @see CONTRIBUTING.md §"Worker actor naming SSOT"
+ */
+export const AUDIT_ACTION_SCREENSHOT_RETENTION_EXPIRED = "screenshot_retention_expired" as const;
+
+/**
+ * `system:screenshot-retention-cron` — Canonical `audit_logs.actor` literal for the
+ * scheduled screenshot retention cycle.
+ *
+ * SSOT-bound `system:` prefixed actor per the Worker actor naming SSOT convention
+ * (`.claude/rules/security.md`). Template-literal construction is forbidden
+ * (INV-AUDIT-EMIT-SSOT-IMPORT-001 AST sweep). A manual operator run uses a separate
+ * actor, so the Art.30 record tells the two apart.
+ *
+ * @see CONTRIBUTING.md §"Worker actor naming SSOT"
+ */
+export const AUDIT_ACTOR_SCREENSHOT_RETENTION_CRON = "system:screenshot-retention-cron" as const;
+
+/**
+ * `system:screenshot-retention-operator` — `audit_logs.actor` for a manual run of the
+ * operator CLI `expire-screenshots-past-retention --confirm`. A separate literal from
+ * {@link AUDIT_ACTOR_SCREENSHOT_RETENTION_CRON} so the Art.30 record tells a scheduled run
+ * from an operator-initiated one. SSOT-bound; template-literal construction is forbidden.
+ *
+ * @see CONTRIBUTING.md §"Worker actor naming SSOT"
+ */
+export const AUDIT_ACTOR_SCREENSHOT_RETENTION_OPERATOR =
+  "system:screenshot-retention-operator" as const;

@@ -13,6 +13,8 @@
  * @module workers/phases/phase-1-layout
  */
 
+import { stripPartPids } from "../../utils/part-pid";
+import type { PartGeometryMap } from "../../services/part/part-live-geometry";
 import fs from "node:fs";
 import sharp from "../../utils/sharp-safe";
 import { logger, isDevelopment } from "../../utils/logger";
@@ -89,6 +91,7 @@ export interface LayoutPhaseDeps {
     sectionBoundingBox: { x: number; y: number; width: number; height: number };
     fullScreenshot?: Buffer;
     sourceUrl?: string | null;
+    liveGeometry?: PartGeometryMap;
   }) => Promise<{ parts: Array<{ [key: string]: unknown }> }>;
 
   /** Save extracted parts to DB */
@@ -127,6 +130,37 @@ export async function processLayoutPhase(
   ctx: PhaseContext,
   deps: LayoutPhaseDeps
 ): Promise<void> {
+  try {
+    await runLayoutPhase(state, ctx, deps);
+  } finally {
+    releaseLayoutPids(state);
+  }
+}
+
+/**
+ * Phase 1 の終わりに番号付き HTML と実測位置を捨て、後続フェーズ（Narrative など）に渡るセクション
+ * 断片から番号を外す（VR-M-01、`INV-PART-PID-NOT-PERSISTED-001`）。
+ * Drops the numbered HTML and geometry at the end of Phase 1 and strips pids from the section
+ * snippets later phases (Narrative, ...) receive (VR-M-01, `INV-PART-PID-NOT-PERSISTED-001`).
+ */
+export function releaseLayoutPids(state: PipelineState): void {
+  const sections = state.layoutResultForNarrative?.sections;
+  if (Array.isArray(sections)) {
+    for (const section of sections) {
+      if (typeof section.htmlSnippet === "string") {
+        section.htmlSnippet = stripPartPids(section.htmlSnippet);
+      }
+    }
+  }
+  state.layoutHtml = null;
+  state.partGeometry = null;
+}
+
+async function runLayoutPhase(
+  state: PipelineState,
+  ctx: PhaseContext,
+  deps: LayoutPhaseDeps
+): Promise<void> {
   const { options, url, statusTracker, job, effectiveToken, effectiveLockDuration } = ctx;
   const { actualWebPageId, completedPhases, failedPhases } = state;
   const html = state.html;
@@ -150,8 +184,12 @@ export async function processLayoutPhase(
         logger.debug("[PageAnalyzeWorker] Starting layout analysis");
       }
 
+      // 番号付き HTML があればそれで解析する（セクション断片に番号が残り、パーツ抽出が実測位置を引ける）。
+      // 断片は保存時のサニタイズと Phase 1 の終わりで番号を外す。
+      // Analyze the numbered HTML when present so section snippets keep pids for part extraction;
+      // the pids are stripped by the save-time sanitizer and at the end of Phase 1.
       const layoutResult = await deps.defaultAnalyzeLayout(
-        html!,
+        state.layoutHtml ?? html!,
         {
           useVision: options.layoutOptions?.useVision ?? true,
           fullPage: options.layoutOptions?.fullPage ?? true,
@@ -476,6 +514,9 @@ export async function processLayoutPhase(
                     },
                     sourceUrl: url,
                   };
+                  if (state.partGeometry) {
+                    extractionParams.liveGeometry = state.partGeometry;
+                  }
                   if (screenshotBuffer) {
                     extractionParams.fullScreenshot = screenshotBuffer;
                   }

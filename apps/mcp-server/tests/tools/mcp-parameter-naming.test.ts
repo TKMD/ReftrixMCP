@@ -473,8 +473,8 @@ describe("MCP Parameter Naming Convention", () => {
   // 2026-11-04: 未使用 9 ツール削除（40→31）
   // =========================================================================
   describe("ツール数", () => {
-    it("allToolDefinitionsが27ツール（WebDesign専用 + v0.3.0 Tier 2 + page.batch_analyze、2026-11-04 未使用9ツール削除・report.generate/embedding.quality/layout.batch_ingest削除・page.getBatchStatus統合済み、project削除済み、quality.batch_evaluate/getJobStatus削除済み）を含むこと", () => {
-      expect(allToolDefinitions).toHaveLength(27);
+    it("allToolDefinitionsが28ツール（WebDesign専用 + v0.3.0 Tier 2 + page.batch_analyze、2026-11-04 未使用9ツール削除・report.generate/embedding.quality/layout.batch_ingest削除・page.getBatchStatus統合済み、project削除済み、quality.batch_evaluate/getJobStatus削除済み）を含むこと", () => {
+      expect(allToolDefinitions).toHaveLength(28);
     });
   });
 

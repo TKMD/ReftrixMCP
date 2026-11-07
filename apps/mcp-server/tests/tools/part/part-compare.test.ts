@@ -247,6 +247,28 @@ describe("part.compare MCPツール", () => {
       }
     });
 
+    it("reads kebab-case computed styles (as stored by the Phase 5 bbox measurement)", async () => {
+      const partA = createMockPart(UUID_A, {
+        computedStyles: { "background-color": "rgb(37, 99, 235)", "font-size": "16px" },
+      });
+      const partB = createMockPart(UUID_B, {
+        computedStyles: { backgroundColor: "rgb(37, 99, 235)", fontSize: "14px" },
+      });
+      mockFindMany.mockResolvedValueOnce([partA, partB] as never);
+      const result = (await partCompareHandler({
+        part_ids: [UUID_A, UUID_B],
+      })) as PartCompareOutput;
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const props = result.data.comparisons.styles.properties;
+        const bg = props.find((p) => p.property === "backgroundColor");
+        const fs = props.find((p) => p.property === "fontSize");
+        expect(bg?.values.map((v) => v.value)).toEqual(["rgb(37, 99, 235)", "rgb(37, 99, 235)"]);
+        expect(bg?.isIdentical).toBe(true);
+        expect(fs?.values.map((v) => v.value)).toEqual(["16px", "14px"]);
+      }
+    });
+
     it("5パーツ比較で全観点の結果を返すこと", async () => {
       const parts = [UUID_A, UUID_B, UUID_C, UUID_D, UUID_E].map((id) => createMockPart(id));
 

@@ -47,28 +47,29 @@ SVG機能は削除され、WebDesign専用ツールに移行しました。proje
 
 SVG features have been removed; migrated to WebDesign-dedicated tools. project.get/project.list removed due to non-existent backend API dependency.
 
-| カテゴリ / Category | ツール名 / Tool Name       | テストファイル / Test File                  |
-| ------------------- | -------------------------- | ------------------------------------------- |
-| System              | `system.health`            | `tools/system-health.test.ts`               |
-| Layout              | `layout.inspect`           | `tools/layout/inspect.tool.test.ts`         |
-| Layout              | `layout.ingest`            | `tools/layout/ingest.tool.test.ts`          |
-| Layout              | `layout.search`            | `tools/layout/search.tool.test.ts`          |
-| Layout              | `layout.generate_code`     | `tools/layout/to-code.tool.test.ts`         |
-| Quality             | `quality.evaluate`         | `tools/quality/evaluate.tool.test.ts`       |
-| Quality             | ~~quality.batch_evaluate~~ | _(removed in v0.3.0)_                       |
-| Quality             | ~~quality.getJobStatus~~   | _(removed in v0.3.0)_                       |
-| Motion              | `motion.detect`            | `tools/motion/detect.tool.test.ts`          |
-| Motion              | `motion.search`            | `tools/motion/search.tool.test.ts`          |
-| Page                | `page.analyze`             | `tools/page/analyze.tool.test.ts`           |
-| Page                | `page.getJobStatus`        | `tools/page/get-job-status.tool.test.ts`    |
-| Narrative           | `narrative.search`         | `tools/narrative-search.test.ts`            |
-| Background          | `background.search`        | `tools/background-search.test.ts`           |
-| Responsive          | `responsive.search`        | `tools/responsive-search.test.ts`           |
-| Part                | `part.search`              | `tools/part/part-search.test.ts`            |
-| Part                | `part.inspect`             | `tools/part/part-inspect.test.ts`           |
-| Part                | `part.compare`             | `tools/part/part-compare.test.ts`           |
-| Search              | `search.unified`           | `tools/search-unified.tool.test.ts`         |
-| Design              | `design.search_by_image`   | `tools/design/search-by-image.tool.test.ts` |
+| カテゴリ / Category | ツール名 / Tool Name         | テストファイル / Test File                      |
+| ------------------- | ---------------------------- | ----------------------------------------------- |
+| System              | `system.health`              | `tools/system-health.test.ts`                   |
+| Layout              | `layout.inspect`             | `tools/layout/inspect.tool.test.ts`             |
+| Layout              | `layout.ingest`              | `tools/layout/ingest.tool.test.ts`              |
+| Layout              | `layout.search`              | `tools/layout/search.tool.test.ts`              |
+| Layout              | `layout.generate_code`       | `tools/layout/to-code.tool.test.ts`             |
+| Quality             | `quality.evaluate`           | `tools/quality/evaluate.tool.test.ts`           |
+| Quality             | ~~quality.batch_evaluate~~   | _(removed in v0.3.0)_                           |
+| Quality             | ~~quality.getJobStatus~~     | _(removed in v0.3.0)_                           |
+| Motion              | `motion.detect`              | `tools/motion/detect.tool.test.ts`              |
+| Motion              | `motion.search`              | `tools/motion/search.tool.test.ts`              |
+| Page                | `page.analyze`               | `tools/page/analyze.tool.test.ts`               |
+| Page                | `page.getJobStatus`          | `tools/page/get-job-status.tool.test.ts`        |
+| Narrative           | `narrative.search`           | `tools/narrative-search.test.ts`                |
+| Background          | `background.search`          | `tools/background-search.test.ts`               |
+| Responsive          | `responsive.search`          | `tools/responsive-search.test.ts`               |
+| Part                | `part.search`                | `tools/part/part-search.test.ts`                |
+| Part                | `part.inspect`               | `tools/part/part-inspect.test.ts`               |
+| Part                | `part.compare`               | `tools/part/part-compare.test.ts`               |
+| Search              | `search.unified`             | `tools/search-unified.tool.test.ts`             |
+| Design              | `design.search_by_image`     | `tools/design/search-by-image.tool.test.ts`     |
+| Design              | `design.verify_reproduction` | `tools/design/verify-reproduction.tool.test.ts` |
 
 ## テスト実行方法 / Test Execution
 
@@ -111,8 +112,8 @@ pnpm test tests/smoke/
 
 ```typescript
 describe("MCP Tool Registration", () => {
-  it("toolHandlers に27ツールが登録されている");
-  it("allToolDefinitions に27ツール定義がある");
+  it("toolHandlers に28ツールが登録されている");
+  it("allToolDefinitions に28ツール定義がある");
   it("各ツールに対応するハンドラーが存在する");
 });
 ```

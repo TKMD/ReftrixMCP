@@ -32,6 +32,7 @@ import { logger } from "../../utils/logger";
 import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { DINOV2_INPUT_SIZE } from "@reftrixmcp/ml/dinov2";
+import { dinov2Semaphore, type ResidentDinov2 } from "../../services/design/resident-dinov2";
 import { createHash } from "node:crypto";
 import {
   generateCacheKey,
@@ -176,6 +177,14 @@ const prismaClientDI = createDIFactory<IDesignSearchPrismaClient>("DesignSearchP
 
 export const setDesignSearchDINOv2ServiceFactory = dinov2ServiceDI.set;
 export const resetDesignSearchDINOv2ServiceFactory = dinov2ServiceDI.reset;
+/**
+ * The resident DINOv2 shared with design.verify_reproduction (VR-M-04). When set it takes
+ * precedence over the per-call `DesignSearchDINOv2Service` factory, which would create (and keep)
+ * a new model on every call.
+ */
+const dinov2ResidentDI = createDIFactory<ResidentDinov2>("DesignSearchDINOv2Resident");
+export const setDesignSearchDINOv2ResidentFactory = dinov2ResidentDI.set;
+export const resetDesignSearchDINOv2ResidentFactory = dinov2ResidentDI.reset;
 export const setDesignSearchEmbeddingServiceFactory = embeddingServiceDI.set;
 export const resetDesignSearchEmbeddingServiceFactory = embeddingServiceDI.reset;
 export const setDesignSearchPrismaClientFactory = prismaClientDI.set;
@@ -352,7 +361,7 @@ async function fetchImageFromUrl(url: string): Promise<Buffer> {
 /**
  * 画像バッファをDINOv2入力形式（224x224x3 RGB）にリサイズ
  */
-async function preprocessImageForDINOv2(imageBuffer: Buffer): Promise<Buffer> {
+export async function preprocessImageForDINOv2(imageBuffer: Buffer): Promise<Buffer> {
   assertAllowedRaster(imageBuffer, P1_RASTER_ALLOW);
   const resized = await sharp(imageBuffer)
     .resize(DINOV2_INPUT_SIZE, DINOV2_INPUT_SIZE, {
@@ -690,8 +699,9 @@ export async function designSearchByImageHandler(
   }
 
   // DINOv2サービス取得
+  const residentFactory = dinov2ResidentDI.get();
   const dinov2Factory = dinov2ServiceDI.get();
-  if (!dinov2Factory) {
+  if (!residentFactory && !dinov2Factory) {
     return {
       success: false,
       results: [],
@@ -713,7 +723,6 @@ export async function designSearchByImageHandler(
     };
   }
 
-  const dinov2 = dinov2Factory();
   const prisma = prismaFactory();
 
   // キャッシュチェック / Cache check
@@ -781,9 +790,19 @@ export async function designSearchByImageHandler(
     }
 
     // ステップ3: DINOv2でvisual embedding生成
+    // 常駐インスタンス（verify_reproduction と共有）を使う場合は get〜release の間セマフォを保持する。
+    // With the shared resident instance the semaphore is held from get to release.
     const embeddingStartTime = Date.now();
     let visionEmbedding: number[];
+    const resident = residentFactory ? residentFactory() : null;
+    const releaseSlot = resident ? await dinov2Semaphore.acquire() : null;
+    let dinov2: IDesignSearchDINOv2Service | null = null;
+    let broken = false;
     try {
+      dinov2 = resident ? resident.get() : (dinov2Factory?.() ?? null);
+      if (dinov2 === null) {
+        throw new Error("DINOv2 service not available");
+      }
       if (!dinov2.initialized) {
         await dinov2.initialize();
       }
@@ -794,6 +813,7 @@ export async function designSearchByImageHandler(
         throw new Error("Generated embedding contains NaN or Infinity");
       }
     } catch (error) {
+      broken = true;
       return {
         success: false,
         results: [],
@@ -801,6 +821,18 @@ export async function designSearchByImageHandler(
         searchMode: "vision_only",
         error: `${DESIGN_SEARCH_ERROR_CODES.EMBEDDING_FAILED}: ${sanitizeErrorMessage(error)}`,
       };
+    } finally {
+      try {
+        if (resident && dinov2) {
+          await resident.release(dinov2, broken);
+        }
+      } catch (releaseError) {
+        logger.warn("[design.search_by_image] DINOv2 release failed", {
+          error: sanitizeErrorMessage(releaseError),
+        });
+      } finally {
+        releaseSlot?.();
+      }
     }
     const embeddingTimeMs = Date.now() - embeddingStartTime;
 

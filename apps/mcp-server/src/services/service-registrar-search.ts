@@ -71,12 +71,24 @@ import type { IPrismaClient as IPreferencePrismaClient } from "./preference-rera
 
 // Design Search関連インポート（design.search_by_image用）
 import {
+  setDesignSearchDINOv2ResidentFactory,
   setDesignSearchDINOv2ServiceFactory,
   setDesignSearchEmbeddingServiceFactory,
   setDesignSearchPrismaClientFactory,
   type IDesignSearchDINOv2Service,
   type IDesignSearchPrismaClient,
 } from "../tools/design/search-by-image.tool";
+import { DINOV2_INPUT_SIZE } from "@reftrixmcp/ml/dinov2";
+import {
+  preprocessSectionContainForDinov2,
+  preprocessSectionForDinov2,
+} from "../utils/dinov2-section-preprocess";
+import { setDesignVerifyReproductionDepsFactory } from "../tools/design/verify-reproduction.tool";
+import {
+  createDefaultDeps as createVerifyDefaultDeps,
+  type VerifyPrisma,
+} from "./design/reproduction-verify.service";
+import { createResidentDinov2, type ResidentDinov2 } from "./design/resident-dinov2";
 
 // Similar Site関連インポート（design.similar_site用）
 import {
@@ -261,6 +273,7 @@ export function initializeSearchAndAuxiliaryServices(
 
   // Design Compare サービス初期化
   initializeDesignCompareService(config, result);
+  initializeDesignVerifyReproductionService(config, result);
 
   // Part Search サービス初期化
   initializePartSearchService(config, result);
@@ -415,6 +428,69 @@ function initializeResponsiveService(
   }
 }
 
+/**
+ * DINOv2 インスタンスを生成する（lazy、呼び出し時にモデルパスを解決）。
+ * design.search_by_image / design.verify_reproduction が共有する。
+ * Creates a DINOv2 instance lazily (shared by design.search_by_image and design.verify_reproduction).
+ */
+function createDesignDinov2Instance(): IDesignSearchDINOv2Service {
+  // DINOv2 モデルパスを解決（環境変数優先、フォールバック: @reftrixmcp/ml内蔵モデル）
+  let dinov2ModelPath: string;
+  if (process.env["DINOV2_MODEL_PATH"]) {
+    dinov2ModelPath = process.env["DINOV2_MODEL_PATH"];
+  } else {
+    const mlMainPath = require.resolve("@reftrixmcp/ml");
+    const mlRoot = path.resolve(path.dirname(mlMainPath), "..");
+    dinov2ModelPath = path.join(mlRoot, "models", "dinov2-base", "model.onnx");
+  }
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- Dynamic require for DINOv2Service to avoid top-level import of heavy ~800MB model
+  const { DINOv2Service } = require("@reftrixmcp/ml") as {
+    DINOv2Service: new (config: { modelPath: string }) => IDesignSearchDINOv2Service;
+  };
+  return new DINOv2Service({ modelPath: dinov2ModelPath });
+}
+
+/**
+ * One resident DINOv2 instance for the process (idle dispose), shared by design.verify_reproduction
+ * and design.search_by_image so only one copy of the model is ever resident (VR-M-02 / VR-M-04).
+ */
+let sharedResidentDinov2: ResidentDinov2 | null = null;
+function getSharedResidentDinov2(): ResidentDinov2 {
+  sharedResidentDinov2 ??= createResidentDinov2(createDesignDinov2Instance);
+  return sharedResidentDinov2;
+}
+
+function initializeDesignVerifyReproductionService(
+  config: ServiceInitializerConfig,
+  result: SearchRegistrarResult
+): void {
+  try {
+    const verifyBlankEmbeddingCache = new Map<string, number[]>();
+    const residentDinov2 = getSharedResidentDinov2();
+    setDesignVerifyReproductionDepsFactory(() =>
+      createVerifyDefaultDeps(
+        config.prisma as unknown as VerifyPrisma,
+        () => residentDinov2.get(),
+        // Same preprocessing as the stored section embeddings (Phase 5), not the search-by-image one.
+        (png: Buffer) => preprocessSectionForDinov2(png, DINOV2_INPUT_SIZE),
+        {
+          releaseDinov2: (dino, broken) => residentDinov2.release(dino, broken),
+          // Whole-image preprocessing when the screenshot crop is available (both sides fresh).
+          preprocessContainForDinov2: (png: Buffer) =>
+            preprocessSectionContainForDinov2(png, DINOV2_INPUT_SIZE),
+          // The deps object is rebuilt per call: the blank baseline cache lives here.
+          blankEmbeddingCache: verifyBlankEmbeddingCache,
+        }
+      )
+    );
+    result.registeredFactories.push("designVerifyReproductionDeps");
+    result.categories.push("designVerifyReproduction");
+    logger.info("[ServiceInitializer] designVerifyReproduction factory registered (deps)");
+  } catch (error) {
+    recordInitError(result, "DesignVerifyReproduction", ["designVerifyReproductionDeps"], error);
+  }
+}
+
 function initializeDesignSearchService(
   config: ServiceInitializerConfig,
   result: SearchRegistrarResult
@@ -422,23 +498,11 @@ function initializeDesignSearchService(
   // DINOv2はオンデマンドロード（~800MB）のためファクトリパターンで遅延初期化
   try {
     // 1. DINOv2Service ファクトリ（lazy initialization）
-    // 呼び出し時に初めてインスタンス生成→initialize()→使用→dispose()
-    setDesignSearchDINOv2ServiceFactory(() => {
-      // DINOv2 モデルパスを解決（環境変数優先、フォールバック: @reftrixmcp/ml内蔵モデル）
-      let dinov2ModelPath: string;
-      if (process.env["DINOV2_MODEL_PATH"]) {
-        dinov2ModelPath = process.env["DINOV2_MODEL_PATH"];
-      } else {
-        const mlMainPath = require.resolve("@reftrixmcp/ml");
-        const mlRoot = path.resolve(path.dirname(mlMainPath), "..");
-        dinov2ModelPath = path.join(mlRoot, "models", "dinov2-base", "model.onnx");
-      }
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- Dynamic require for DINOv2Service to avoid top-level import of heavy ~800MB model
-      const { DINOv2Service } = require("@reftrixmcp/ml") as {
-        DINOv2Service: new (config: { modelPath: string }) => IDesignSearchDINOv2Service;
-      };
-      return new DINOv2Service({ modelPath: dinov2ModelPath });
-    });
+    // フォールバック: 呼び出しごとにインスタンス生成→initialize()→使用（dispose されない。常駐インスタンス未設定時のみ）
+    // Fallback only (no resident instance): creates and initializes a new instance per call, never disposed
+    setDesignSearchDINOv2ServiceFactory(createDesignDinov2Instance);
+    // 常駐インスタンス（verify_reproduction と共有）が優先される / the shared resident instance takes precedence
+    setDesignSearchDINOv2ResidentFactory(getSharedResidentDinov2);
 
     // 2. EmbeddingService ファクトリ（e5-base、config.embeddingService を使用）
     setDesignSearchEmbeddingServiceFactory(() => config.embeddingService);

@@ -3,32 +3,42 @@
 
 /**
  * Standing Regression Suite — gdpr-delete / INV-SCREENSHOT-RETENTION-001
- * (Screenshot retention = "until data.delete" — structural TTL removal +
- *  H-1 inline fallback contract)
+ * (Screenshot retention = terminal page + N days, `data.delete` removes at once)
  *
- * INV-SCREENSHOT-RETENTION-001 (ADR-0041 §Invariants (2)): screenshot 保持の
- *   trigger-event は `data.delete` のみであり、TTL 構造 (cleanupExpired
- *   orchestrator + cron module) は完全撤去されている。さらに GDPR Art.17
- *   削除経路は DI factory 配線に依存せず削除を成立させる (H-1 inline fallback)。
+ * INV-SCREENSHOT-RETENTION-001 (ADR-0041 Amendment 3): the full-page screenshot of a page
+ *   is kept for `REFTRIX_SCREENSHOT_RETENTION_DAYS` days (default 7, range 1..30, cannot be
+ *   disabled) after the page's embedding backfill reached a TERMINAL state, measured from
+ *   `web_pages.updated_at`, then removed (file deleted, `screenshot_storage_path` cleared).
+ *   Terminal = completed / failed / not_required / skipped_screenshot_missing. Every other
+ *   status (queued / in_progress / skipped_fork_error / skipped_memory_pressure /
+ *   failed_with_known_reason) is non-terminal: the backfill or the recovery cron still
+ *   reads the path, so it is never removed, whatever the age. `data.delete` (GDPR Art.17)
+ *   still removes the screenshot immediately and does not depend on the DI factory wiring
+ *   (H-1 inline fallback). The old TTL cron structure stays removed (PR-SS-B / ADR-0041).
  *
- * INV-SCREENSHOT-RETENTION-001 (ADR-0041 §Invariants (2)): the screenshot
- *   retention trigger event is `data.delete` only, the TTL structure
- *   (cleanupExpired orchestrator + cron module) is fully removed, and the
- *   GDPR Art.17 deletion path completes erasure without depending on the DI
- *   factory wiring (H-1 inline fallback).
+ * INV-SCREENSHOT-RETENTION-001 (ADR-0041 Amendment 3): screenshot は、そのページの embedding
+ *   backfill が終端状態になってから `REFTRIX_SCREENSHOT_RETENTION_DAYS` 日 (既定 7、範囲
+ *   1..30、`updated_at` 起算 (終端になってから少なくとも N 日)) 保持し、その後に削除する (ファイル削除 + path を
+ *   NULL)。終端 = completed / failed / not_required / skipped_screenshot_missing。それ以外の
+ *   status は非終端で、backfill / recovery cron が path を読むため、経過日数に関係なく消さ
+ *   ない。`data.delete` は従来どおり即時削除で、DI factory 配線に依存しない (H-1 inline
+ *   fallback)。旧 TTL cron の構造は撤去されたままである。
  *
- * Assertions (ADR-0041 §Invariants (2)):
- *   #1  factory 未配線 (resetGdprScreenshotPersistenceFactory) で deletePage →
- *       SS ファイル FS 消滅 + web_pages 行削除 + audit_logs 記録 (real-DB + real-FS)
+ * Assertions:
+ *   #1  factory 未配線で deletePage → SS ファイル FS 消滅 + web_pages 行削除 + audit_logs (real-DB + real-FS)
  *   #2  bulk 削除経路 (all_user_data) でも同様 (real-DB + real-FS)
- *   #3  scope 限定 sweep: (a) scheduleScreenshotCleanupCron が production src 全域
- *       0 occurrences (text sweep)、(b) cleanupExpired が screenshot-persistence
- *       module-path 限定で 0 occurrences (crash-dump の同名 export は対象外)
- *   #4  screenshot_storage_migrated が bare literal でなく SSOT 定数
- *       (AUDIT_ACTION_SCREENSHOT_STORAGE_MIGRATED) の import 経由で emit される
- *   #5  (002-B 置換側に単一所掌、ここは cross-ref のみ)
- *       screenshot_ttl_cleanup の non-emit negative assert は
- *       inv-data-delete-002-b-ttl-cron.test.ts に pin (L-06 IO 裁定)。
+ *   #3  旧 TTL 構造の不在: (a) scheduleScreenshotCleanupCron が production src 全域 0、
+ *       (b) cleanupExpired が screenshot-persistence module-path 限定で 0 (crash-dump の同名は対象外)
+ *   #4  screenshot_storage_migrated は SSOT 定数 import 経由で emit
+ *   #5  (002-B 単一所掌) screenshot_ttl_cleanup の non-emit は inv-data-delete-002-b-ttl-cron.test.ts
+ *   #6  status x 経過日数の行列 (real-DB + real-FS): 終端 4 status は 7 日超で削除、7 日以内は保持、
+ *       非終端 5 status は 30 日経過でも保持、解析未完了 (pending/processing) も保持。
+ *       status の一覧は enum 全値と一致 (新 status は分類を強制される)
+ *   #7  保持日数 env: 1..30、30 超は 30 に丸める、不正値 (0・非整数) は止める (既定値へ黙って戻さない)
+ *   #8  失効 run は run 単位 1 行の audit (PII なし)。data.delete は期限前でも即時削除 (#1 / #2)
+ *
+ * Related: INV-SCREENSHOT-RETENTION-002 (cycle mechanics: CAS, SKIP LOCKED, failed delete,
+ *   audit gating, wiring) in inv-screenshot-retention-002-cycle.test.ts.
  *
  * Sandbox 制約 (ADR-0041 D-1a / Registry FIND-SSB-PLAN-L-08): FS 操作は
  *   `os.tmpdir()` 配下 sandbox root を REFTRIX_SCREENSHOT_ROOT 注入で使用し、
@@ -36,7 +46,7 @@
  *   mkdir/rmSync を一切行わない。afterAll で「production default root
  *   非作成・非削除」を test-encoded assert として固定化する。
  *
- * @see  §Invariants (2)
+ * @see  §Invariants (2) + Amendment 3
  * @see apps/mcp-server/src/services/gdpr-deletion.service.ts (H-1 inline fallback)
  * @see apps/mcp-server/tests/regression/standing/gdpr-delete/inv-data-delete-002-b-ttl-cron.test.ts (assertion #5)
  */
@@ -76,6 +86,28 @@ import {
   type AuditLogPrismaClient,
 } from "../../../../src/services/audit-log.service";
 import { clearResolvedRootCache } from "../../../../src/services/screenshot-persistence.service";
+import { EmbeddingBackfillStatus } from "@prisma/client";
+import {
+  AUDIT_ACTION_SCREENSHOT_RETENTION_EXPIRED,
+  AUDIT_ACTOR_SCREENSHOT_RETENTION_CRON,
+} from "../../../../src/audit/audit-actions";
+import {
+  SCREENSHOT_RETENTION_DAYS_ENV,
+  SCREENSHOT_RETENTION_DEFAULT_DAYS,
+  SCREENSHOT_RETENTION_MAX_DAYS,
+  SCREENSHOT_RETENTION_MIN_DAYS,
+  ScreenshotRetentionConfigError,
+  createScreenshotRetentionService,
+  getScreenshotRetentionDays,
+  type RetentionPrismaClient,
+} from "../../../../src/services/screenshot-retention.service";
+import {
+  NON_TERMINAL_STATUSES,
+  TERMINAL_STATUSES,
+  readRetentionAuditRows,
+  readStoragePath,
+  seedRetentionPage,
+} from "../_setup/screenshot-retention-fixtures";
 
 // ============================================================================
 // Production default root — must never be created or deleted by this test
@@ -95,7 +127,7 @@ function resolveProductionDefaultRoot(): string {
 let prisma: PrismaClient;
 let productionRootExistedBefore: boolean;
 
-describe("INV-SCREENSHOT-RETENTION-001: screenshot retention = until data.delete (TTL removal + H-1 fallback)", () => {
+describe("INV-SCREENSHOT-RETENTION-001: screenshot retention = terminal page + N days; data.delete removes at once (H-1 fallback)", () => {
   beforeAll(async () => {
     await ensureSchemaAppliedOnce(process.env.DATABASE_URL!);
     prisma = createTestPrismaClient();
@@ -302,6 +334,135 @@ describe("INV-SCREENSHOT-RETENTION-001: screenshot retention = until data.delete
       "migration CLI must NOT use a bare 'screenshot_storage_migrated' literal as the emit action"
     ).toBe(false);
   });
+
+  // ==========================================================================
+  // Assertion #6: status x age matrix (real DB + real FS)
+  // ==========================================================================
+  it("INV-SCREENSHOT-RETENTION-001: the status list covers every EmbeddingBackfillStatus exactly once (a new status must be classified here)", () => {
+    assertInvName(expect.getState().currentTestName ?? "", "INV-SCREENSHOT-RETENTION-001");
+    const all = Object.values(EmbeddingBackfillStatus).sort();
+    const listed = [...TERMINAL_STATUSES, ...NON_TERMINAL_STATUSES].sort();
+    expect(listed).toEqual(all);
+    expect(TERMINAL_STATUSES).toHaveLength(4);
+    expect(NON_TERMINAL_STATUSES).toHaveLength(5);
+  });
+
+  it("INV-SCREENSHOT-RETENTION-001: terminal + older than 7 days -> file deleted and path cleared; non-terminal -> kept even at 30 days", async () => {
+    assertInvName(expect.getState().currentTestName ?? "", "INV-SCREENSHOT-RETENTION-001");
+    clearResolvedRootCache();
+
+    const terminal = [];
+    for (const status of TERMINAL_STATUSES) {
+      terminal.push({ status, ...(await seedRetentionPage(prisma, { status, ageDays: 8 })) });
+    }
+    const nonTerminal = [];
+    for (const status of NON_TERMINAL_STATUSES) {
+      nonTerminal.push({ status, ...(await seedRetentionPage(prisma, { status, ageDays: 30 })) });
+    }
+
+    const result = await createScreenshotRetentionService({
+      prisma: prisma as unknown as RetentionPrismaClient,
+    }).runRetentionCycle({ retentionDays: 7, dryRun: false });
+    expect(result.aborted).toBeNull();
+    expect(result.deletedCount).toBe(4);
+
+    for (const p of terminal) {
+      expect(fs.existsSync(p.filePath), `${p.status}: file must be deleted`).toBe(false);
+      expect(await readStoragePath(prisma, p.id), `${p.status}: path must be cleared`).toBeNull();
+    }
+    for (const p of nonTerminal) {
+      expect(fs.existsSync(p.filePath), `${p.status}: file must be kept`).toBe(true);
+      expect(await readStoragePath(prisma, p.id), `${p.status}: path must be kept`).toBe(
+        p.filePath
+      );
+    }
+  }, 60_000);
+
+  it("INV-SCREENSHOT-RETENTION-001: a terminal page inside the retention window is kept; the window follows the configured days", async () => {
+    assertInvName(expect.getState().currentTestName ?? "", "INV-SCREENSHOT-RETENTION-001");
+    clearResolvedRootCache();
+    const service = createScreenshotRetentionService({
+      prisma: prisma as unknown as RetentionPrismaClient,
+    });
+    const fresh = await seedRetentionPage(prisma, { status: "completed", ageDays: 6 });
+    const old = await seedRetentionPage(prisma, { status: "completed", ageDays: 8 });
+
+    await service.runRetentionCycle({ retentionDays: 7, dryRun: false });
+    expect(fs.existsSync(fresh.filePath)).toBe(true);
+    expect(await readStoragePath(prisma, fresh.id)).toBe(fresh.filePath);
+    expect(fs.existsSync(old.filePath)).toBe(false);
+
+    // the same 6-day-old page is removed once the window is 5 days
+    await service.runRetentionCycle({ retentionDays: 5, dryRun: false });
+    expect(fs.existsSync(fresh.filePath)).toBe(false);
+    expect(await readStoragePath(prisma, fresh.id)).toBeNull();
+  }, 60_000);
+
+  it("INV-SCREENSHOT-RETENTION-001: a terminal backfill status on a page whose analysis is not finished is kept", async () => {
+    assertInvName(expect.getState().currentTestName ?? "", "INV-SCREENSHOT-RETENTION-001");
+    clearResolvedRootCache();
+    const pending = await seedRetentionPage(prisma, {
+      status: "not_required",
+      analysis: "pending",
+      ageDays: 30,
+    });
+    const processing = await seedRetentionPage(prisma, {
+      status: "completed",
+      analysis: "processing",
+      ageDays: 30,
+    });
+    const result = await createScreenshotRetentionService({
+      prisma: prisma as unknown as RetentionPrismaClient,
+    }).runRetentionCycle({ retentionDays: 7, dryRun: false });
+    expect(result.scannedCount).toBe(0);
+    expect(fs.existsSync(pending.filePath)).toBe(true);
+    expect(fs.existsSync(processing.filePath)).toBe(true);
+  }, 60_000);
+
+  // ==========================================================================
+  // Assertion #7: retention days env — 1..30; above 30 clamps; invalid stops
+  // ==========================================================================
+  it("INV-SCREENSHOT-RETENTION-001: REFTRIX_SCREENSHOT_RETENTION_DAYS is 1..30; above 30 clamps to 30; an invalid value stops (never a silent shorter fallback)", () => {
+    assertInvName(expect.getState().currentTestName ?? "", "INV-SCREENSHOT-RETENTION-001");
+    const read = (v: string | undefined): number =>
+      getScreenshotRetentionDays({ [SCREENSHOT_RETENTION_DAYS_ENV]: v });
+    expect(SCREENSHOT_RETENTION_DEFAULT_DAYS).toBe(7);
+    expect(read(undefined)).toBe(SCREENSHOT_RETENTION_DEFAULT_DAYS);
+    expect(read("")).toBe(SCREENSHOT_RETENTION_DEFAULT_DAYS);
+    expect(read("1")).toBe(SCREENSHOT_RETENTION_MIN_DAYS);
+    expect(read("30")).toBe(SCREENSHOT_RETENTION_MAX_DAYS);
+    for (const big of ["31", "365", "99999999999999999999"]) {
+      expect(read(big), `value ${big} clamps to the maximum`).toBe(SCREENSHOT_RETENTION_MAX_DAYS);
+    }
+    for (const bad of ["0", "-1", "off", "false", "never", "7days", "1e1", "Infinity", "+7"]) {
+      expect(() => read(bad), `value ${JSON.stringify(bad)} must be rejected`).toThrow(
+        ScreenshotRetentionConfigError
+      );
+    }
+  });
+
+  // ==========================================================================
+  // Assertion #8: one PII-free audit row per run that removed something
+  // ==========================================================================
+  it("INV-SCREENSHOT-RETENTION-001: a run that removed screenshots writes ONE audit row (actor/action from SSOT, targetId 'all', numbers only)", async () => {
+    assertInvName(expect.getState().currentTestName ?? "", "INV-SCREENSHOT-RETENTION-001");
+    clearResolvedRootCache();
+    const a = await seedRetentionPage(prisma, { status: "completed", ageDays: 9 });
+    await seedRetentionPage(prisma, { status: "failed", ageDays: 9 });
+    await createScreenshotRetentionService({
+      prisma: prisma as unknown as RetentionPrismaClient,
+    }).runRetentionCycle({ retentionDays: 7, dryRun: false });
+
+    const rows = await readRetentionAuditRows(prisma, AUDIT_ACTION_SCREENSHOT_RETENTION_EXPIRED);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.actor).toBe(AUDIT_ACTOR_SCREENSHOT_RETENTION_CRON);
+    expect(rows[0]!.target_id).toBe("all");
+    expect(rows[0]!.result).toBe("success");
+    expect(rows[0]!.details).toMatchObject({ deletedCount: 2, retentionDays: 7 });
+    const serialized = JSON.stringify(rows[0]);
+    expect(serialized).not.toContain(a.id);
+    expect(serialized).not.toContain("/tmp/");
+  }, 60_000);
 
   // Assertion #5 — cross-ref only (single-owned by inv-data-delete-002-b-ttl-cron.test.ts
   // per Registry FIND-SSB-PLAN-L-06 IO ruling). The screenshot_ttl_cleanup non-emit

@@ -19,6 +19,7 @@
 import { JSDOM } from "jsdom";
 import createDOMPurify from "dompurify";
 import { logger, isDevelopment } from "./logger";
+import { PART_PID_ATTR, stripPartPids } from "./part-pid";
 
 // =============================================
 // 型定義
@@ -373,7 +374,7 @@ const DEFAULT_DOMPURIFY_CONFIG = {
   // 危険なタグを禁止
   FORBID_TAGS: [...DANGEROUS_TAGS],
   // 危険な属性を禁止
-  FORBID_ATTR: [...DANGEROUS_ATTRIBUTES],
+  FORBID_ATTR: [...DANGEROUS_ATTRIBUTES, PART_PID_ATTR],
   // javascript: などの危険なURIを除去
   ALLOW_UNKNOWN_PROTOCOLS: false,
   // data属性を許可
@@ -416,7 +417,10 @@ const DEFAULT_DOMPURIFY_CONFIG = {
  * // => '<p>Safe content</p>'
  * ```
  */
-export function sanitizeHtml(html: string, options?: SanitizeOptions): string {
+export function sanitizeHtml(input: string, options?: SanitizeOptions): string {
+  // パーツ番号属性は保存される文字列に残さない（DOMPurify を通らない巨大 HTML の経路も含む）。
+  // Part pids never survive sanitization, including the DOMPurify-bypass path for huge HTML.
+  const html = typeof input === "string" ? stripPartPids(input) : input;
   if (!html || html.trim() === "") {
     return "";
   }
@@ -733,7 +737,7 @@ function sanitizeHtmlWholeDocument(html: string, options?: SanitizeOptions): str
     // 危険なタグを禁止（title, metaは除外）
     FORBID_TAGS: [...DANGEROUS_TAGS_WHOLE_DOCUMENT],
     // 危険な属性を禁止
-    FORBID_ATTR: [...DANGEROUS_ATTRIBUTES],
+    FORBID_ATTR: [...DANGEROUS_ATTRIBUTES, PART_PID_ATTR],
     // javascript: などの危険なURIを除去
     ALLOW_UNKNOWN_PROTOCOLS: false,
     // data属性を許可

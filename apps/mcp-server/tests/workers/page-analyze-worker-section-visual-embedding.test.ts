@@ -179,9 +179,15 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
       // acquireSectionCropBuffer ヘルパー関数に抽出済み
       const fnStart = workerSource.indexOf("acquireSectionCropBuffer");
       const cropBody = workerSource.slice(fnStart, fnStart + 3000);
+      expect(cropBody).toContain("preprocessSectionForDinov2(");
       expect(cropBody).toContain("dinov2InputSize");
-      expect(cropBody).toContain("resize");
-      expect(cropBody).toContain("removeAlpha");
+      // The resize chain lives in the shared helper (same preprocessing as design.verify_reproduction)
+      const helperSource = fs.readFileSync(
+        path.resolve(__dirname, "../../src/utils/dinov2-section-preprocess.ts"),
+        "utf8"
+      );
+      expect(helperSource).toContain("resize(inputSize, inputSize");
+      expect(helperSource).toContain("removeAlpha");
     });
 
     it("should call generateVisualEmbedding with dinov2Service and rawCropBuffer", () => {
@@ -535,11 +541,17 @@ describe("PageAnalyzeWorker - Section Visual Embedding (DINOv2)", () => {
       const cropBody = workerSource.slice(fnStart, fnStart + 3000);
       expect(cropBody).toContain("sharp(screenshotBuffer)");
       expect(cropBody).toContain(".extract(");
-      expect(cropBody).toContain(".resize(");
-      expect(cropBody).toContain(".removeAlpha()");
-      expect(cropBody).toContain('.toColorspace("srgb")');
-      expect(cropBody).toContain(".raw()");
-      expect(cropBody).toContain(".toBuffer()");
+      expect(cropBody).toContain("preprocessSectionForDinov2(");
+      // The resize chain lives in the shared helper (same preprocessing as design.verify_reproduction)
+      const helperSource = fs.readFileSync(
+        path.resolve(__dirname, "../../src/utils/dinov2-section-preprocess.ts"),
+        "utf8"
+      );
+      expect(helperSource).toContain(".resize(");
+      expect(helperSource).toContain(".removeAlpha()");
+      expect(helperSource).toContain('.toColorspace("srgb")');
+      expect(helperSource).toContain(".raw()");
+      expect(helperSource).toContain(".toBuffer()");
     });
 
     it("should query section_patterns by webPageId to get position data", () => {

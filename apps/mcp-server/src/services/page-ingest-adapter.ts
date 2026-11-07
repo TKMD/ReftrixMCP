@@ -22,6 +22,11 @@ import { isBlockedHost } from "../utils/url-validator";
 import { isNonPublicAddress } from "@reftrixmcp/core";
 import { sanitizeErrorMessage } from "../utils/sanitize-error";
 import net from "node:net";
+import {
+  PartGeometryCapture,
+  stripPartPids,
+  type PartGeometryMap,
+} from "./part/part-live-geometry";
 
 // =============================================
 // 型定義
@@ -119,6 +124,13 @@ export interface IngestAdapterOptions {
   simulateUserInteraction?: boolean;
   /** スクリーンショットをスキップ */
   skipScreenshot?: boolean;
+  /**
+   * パーツ候補の位置と computed style をスクリーンショットの前後で測る（VR-M-01）。true のとき
+   * `html` には `data-reftrix-pid` が残り、`partGeometry` が返る。保存前に `stripPartPids` で外すこと。
+   * Measure part-candidate geometry around the screenshot (VR-M-01). When true and geometry is
+   * returned, `html` keeps `data-reftrix-pid`; strip it with `stripPartPids` before persisting.
+   */
+  capturePartGeometry?: boolean;
   /** Computed Styles取得（デフォルトfalse、パフォーマンス考慮） */
   includeComputedStyles?: boolean;
   /** ソースタイプ */
@@ -342,6 +354,11 @@ export interface IngestResult {
   screenshots?: IngestScreenshotResult[];
   /** セクション要素のComputed Styles（include_computed_styles: true時のみ） */
   computedStyles?: ComputedStyleInfo[];
+  /**
+   * パーツ候補の文書座標の位置（`capturePartGeometry` 時のみ）。このとき `html` は番号付き。
+   * Part-candidate document geometry (only with `capturePartGeometry`); `html` is then numbered.
+   */
+  partGeometry?: PartGeometryMap;
   viewportInfo: IngestViewportInfo;
   metadata: IngestPageMetadata;
   ingestedAt: Date;
@@ -1834,6 +1851,8 @@ class PageIngestAdapter {
       });
 
       const globalTimeoutMs = timeout + 5000;
+      // パーツの描画確認はこの締め切りより前に終える / The part paint check ends before this
+      const ingestDeadlineAt = Date.now() + timeout;
 
       globalTimeoutId = setTimeout(async () => {
         const timeoutError = new Error(
@@ -2023,12 +2042,20 @@ class PageIngestAdapter {
       const isWebGLSiteForTimeout = webglDetection?.detected ?? false;
       const timeoutMultiplier = isWebGLSiteForTimeout ? OPERATION_TIMEOUTS.WEBGL_MULTIPLIER : 1;
 
+      // パーツ候補に番号を振る（HTML 取得の直前）/ Number part candidates right before page.content()
+      const partCapture = ingestOptions.capturePartGeometry ? new PartGeometryCapture() : null;
+      if (partCapture) {
+        await partCapture.start(page);
+      }
+      let partGeometry: PartGeometryMap | null = null;
+
       // HTML取得（操作レベルタイムアウト付き）
-      const html = await withTimeout(
+      const rawHtml = await withTimeout(
         page.content(),
         OPERATION_TIMEOUTS.CONTENT_EXTRACTION * timeoutMultiplier,
         "page.content()"
       );
+      partCapture?.noteSerializedHtml(rawHtml);
 
       // メタデータ抽出（操作レベルタイムアウト付き）
       const metadata = await withTimeout(
@@ -2149,6 +2176,9 @@ class PageIngestAdapter {
             }
           }
 
+          if (partCapture) {
+            await partCapture.beforeScreenshot(page);
+          }
           const screenshotBuffer = await withGlobalTimeout(
             page.screenshot({
               fullPage: effectiveFullPage,
@@ -2157,6 +2187,15 @@ class PageIngestAdapter {
             }),
             "page.screenshot"
           );
+          if (partCapture) {
+            partGeometry = await partCapture.afterScreenshot(
+              page,
+              effectiveFullPage,
+              viewportInfo.viewportHeight,
+              screenshotBuffer,
+              ingestDeadlineAt
+            );
+          }
           const screenshotBase64 = screenshotBuffer.toString("base64");
           screenshots = [
             {
@@ -2184,6 +2223,13 @@ class PageIngestAdapter {
           });
         }
       }
+
+      // 撮影が失敗しても止めたアニメーションを再開する / Resume animations even if the shot failed
+      await partCapture?.release();
+
+      // 位置が取れたときだけ番号付きの HTML を返す。それ以外は番号を外して従来と同じ HTML にする。
+      // Return numbered HTML only with geometry; otherwise strip so callers see the usual HTML.
+      const html = partGeometry ? rawHtml : stripPartPids(rawHtml);
 
       // Computed Styles取得（includeComputedStyles: true の場合のみ）
       let computedStyles: ComputedStyleInfo[] | undefined;
@@ -2228,6 +2274,10 @@ class PageIngestAdapter {
       // computedStylesは値がある場合のみ設定
       if (computedStyles) {
         result.computedStyles = computedStyles;
+      }
+
+      if (partGeometry) {
+        result.partGeometry = partGeometry;
       }
 
       // WebGL検出結果（検出された場合のみ設定）

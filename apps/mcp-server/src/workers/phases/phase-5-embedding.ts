@@ -18,6 +18,7 @@ import { logger, isDevelopment } from "../../utils/logger";
 // eslint `complexity` override.
 import { isScreenshotTruncated } from "./screenshot-truncation";
 import sharp from "../../utils/sharp-safe";
+import { preprocessSectionForDinov2 } from "../../utils/dinov2-section-preprocess";
 import path from "path";
 import * as os from "node:os";
 import * as fs from "node:fs";
@@ -2846,15 +2847,10 @@ async function processDynamicFallbackBatch(
       if (!matchingSection) continue;
 
       try {
-        const rawCropBuffer = await sharp(fbResult.screenshotBuffer)
-          .resize(DINOV2_INPUT_SIZE, DINOV2_INPUT_SIZE, {
-            fit: "cover",
-            kernel: "cubic",
-          })
-          .removeAlpha()
-          .toColorspace("srgb")
-          .raw()
-          .toBuffer();
+        const rawCropBuffer = await preprocessSectionForDinov2(
+          fbResult.screenshotBuffer,
+          DINOV2_INPUT_SIZE
+        );
 
         // LCC MUST-FIX-3: 動的Fallbackスクリーンショットバッファの参照解除
         fbResult.screenshotBuffer = null;

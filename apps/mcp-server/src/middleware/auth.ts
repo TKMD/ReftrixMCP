@@ -246,6 +246,9 @@ export const TOOL_PERMISSIONS: Record<string, string[]> = {
   // デザイン多次元比較（v0.3.0 T2-CMP）
   "design.compare": [PERMISSIONS.LAYOUT_READ],
 
+  // HTML/CSS 再現の検証（read-only）
+  "design.verify_reproduction": [PERMISSIONS.LAYOUT_READ],
+
   // 監査系（v0.3.0 GDPR Art.30）
   "audit.query": [PERMISSIONS.SYSTEM_READ],
 

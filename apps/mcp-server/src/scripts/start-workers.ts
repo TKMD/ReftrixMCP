@@ -94,6 +94,14 @@ import {
   type BackfillRecoveryCronHandle,
 } from "../cron/backfill-recovery-cron";
 import { createPhase0CleanupService } from "../services/phase0-cleanup.service";
+// Screenshot retention (ADR-0041 Amendment 3): expire the full-page screenshot of terminal
+// pages N days (default 7) after the backfill ended. Wired in the backfill child like the
+// other crons; INV-SCREENSHOT-RETENTION-002 pins the wiring.
+import {
+  scheduleScreenshotRetentionCron,
+  type ScreenshotRetentionCronHandle,
+} from "../cron/screenshot-retention-cron";
+import { createScreenshotRetentionService } from "../services/screenshot-retention.service";
 // Plan v4.5 PR1 Track P0 (P0.2 Wave 3 retro wiring + NEW-U-11 L1+L3 + Track 1
 // --force-cpu-provider CLI flag).
 import {
@@ -174,6 +182,7 @@ let embeddingBackfillDuplicatedDetach: (() => void) | null = null;
 let backfillReconciliationCron: BackfillReconciliationCronHandle | null = null;
 // PR-B (v0.4.0 PR7e P4): Phase 0 stale row cleanup cron handle
 let phase0CleanupCron: Phase0CleanupCronHandle | null = null;
+let screenshotRetentionCron: ScreenshotRetentionCronHandle | null = null;
 // PR-C4 §3 D4 (INV-BACKFILL-RECOVERY-CRON-WIRED-008): backfill recovery cron handle
 let backfillRecoveryCron: BackfillRecoveryCronHandle | null = null;
 // Plan v4.5 PR1 Track P0 (P0.2 Wave 3 retro wiring): crash report watcher
@@ -644,18 +653,16 @@ async function startWorkers(mode: StartMode): Promise<void> {
   // v0.4.0 PR6: Schedule periodic maintenance cron jobs alongside workers.
   // v0.4.0 PR6: Worker と並行して定期メンテナンス cron を起動する。
   if (includesBackfill) {
-    // PR-SS-A (D-3 / L-01) + PR-SS-B: screenshot TTL cleanup cron は構造撤去済。
-    // PR-SS-A で scheduling を撤去 (挙動停止) し、PR-SS-B で cron モジュール +
-    // cleanupExpired orchestrator を完全削除した (ADR-0041)。screenshot の保持
-    // 契約は「ユーザーが data.delete で明示削除するまで」に再定義済。env vars
-    // SCREENSHOT_CLEANUP_INTERVAL_MS / SCREENSHOT_CLEANUP_OLDER_THAN_MS /
-    // SCREENSHOT_CLEANUP_MAX_BATCH_SIZE / SCREENSHOT_CLEANUP_RUN_ON_START は retire。
+    // Screenshot 保持: 旧 TTL cleanup cron (PR-SS-A/B で構造撤去、ADR-0041) とは別物。
+    // 終端ページ (completed / failed / not_required / skipped_screenshot_missing) だけを
+    // `updated_at` から N 日 (REFTRIX_SCREENSHOT_RETENTION_DAYS、既定 7、1..30)
+    // 後に失効させる。非終端 (backfill が path を読む行) は対象外。下の
+    // scheduleScreenshotRetentionCron がその定期実行 (ADR-0041 Amendment 3)。
     //
-    // PR-SS-A (D-3 / L-01) + PR-SS-B: the screenshot TTL cleanup cron is
-    // structurally removed. PR-SS-A removed the scheduling (behaviorally
-    // stopped); PR-SS-B deleted the cron module + cleanupExpired orchestrator
-    // entirely (ADR-0041). Screenshot retention is "until the user explicitly
-    // deletes via data.delete"; the 4 SCREENSHOT_CLEANUP_* env vars are retired.
+    // Screenshot retention: unrelated to the removed TTL cleanup cron (PR-SS-A/B, ADR-0041).
+    // Only terminal pages are expired, N days after `updated_at`; non-terminal rows (the
+    // backfill still reads their path) are never touched. Scheduled right below
+    // (ADR-0041 Amendment 3).
     try {
       const reconcileQueue = createEmbeddingBackfillQueue();
       // TPA R-2: 起動直後の stale backfill job 回収を有効化（1h 待機せず即時実行）。
@@ -726,6 +733,25 @@ async function startWorkers(mode: StartMode): Promise<void> {
     } catch (error) {
       console.warn(
         "[WorkerStartup] Failed to schedule Phase 0 cleanup cron (non-fatal):",
+        sanitizeErrorMessage(error)
+      );
+    }
+
+    // Screenshot retention cron (ADR-0041 Amendment 3). Non-fatal on failure to schedule,
+    // like the sibling crons; the CLI `expire-screenshots-past-retention` is the fallback.
+    try {
+      const retentionService = createScreenshotRetentionService({ prisma });
+      screenshotRetentionCron = scheduleScreenshotRetentionCron({ service: retentionService });
+      if (screenshotRetentionCron.scheduled) {
+        console.log("[WorkerStartup] Screenshot retention cron scheduled");
+      } else {
+        console.error(
+          "[WorkerStartup] Screenshot retention cron NOT scheduled (invalid REFTRIX_SCREENSHOT_RETENTION_DAYS); screenshots are not being expired"
+        );
+      }
+    } catch (error) {
+      console.warn(
+        "[WorkerStartup] Failed to schedule screenshot retention cron (non-fatal):",
         sanitizeErrorMessage(error)
       );
     }
@@ -841,7 +867,6 @@ async function shutdownWorkers(): Promise<void> {
 
   // v0.4.0 PR6: Stop cron jobs first so they don't fire after worker close.
   // v0.4.0 PR6: Worker close 前に cron を停止して、close 後の発火を防ぐ。
-  // (PR-SS-A D-3 + PR-SS-B: screenshot TTL cron stop は構造撤去済、ADR-0041。)
   if (backfillReconciliationCron) {
     try {
       backfillReconciliationCron.stop();
@@ -890,6 +915,19 @@ async function shutdownWorkers(): Promise<void> {
       );
     }
     phase0CleanupCron = null;
+  }
+
+  // Screenshot retention cron: stop before Worker.close(); an in-flight run stops between rows.
+  if (screenshotRetentionCron) {
+    try {
+      screenshotRetentionCron.stop();
+    } catch (error) {
+      console.warn(
+        "[WorkerStartup] Error stopping screenshot retention cron:",
+        sanitizeErrorMessage(error)
+      );
+    }
+    screenshotRetentionCron = null;
   }
 
   // PR-C4 §3 D4 (INV-BACKFILL-RECOVERY-CRON-WIRED-008): stop backfill recovery

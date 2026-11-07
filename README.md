@@ -23,7 +23,7 @@ AIエージェントと統合するプラットフォームです。
 
 **主要機能**: レイアウト分析 / モーション検出 / 品質評価 / セマンティック検索 / 横断検索 / 画像類似検索 / レスポンシブ解析 / パーツ分析 / レート制限 / 検索キャッシュ / BullMQ UI / SBOM
 
-**<!-- gen:tool-count -->27<!-- /gen:tool-count -->のMCPツール**を提供: Layout(4) / Motion(2) / Quality(1) / Page(3) / Narrative(1) / Background(1) / Responsive(2) / Part(3) / System(1) / Search(1) / Design(3) / Data(2) / Audit(1) / Accessibility(1) / Performance(1)
+**<!-- gen:tool-count -->28<!-- /gen:tool-count -->のMCPツール**を提供: Layout(4) / Motion(2) / Quality(1) / Page(3) / Narrative(1) / Background(1) / Responsive(2) / Part(3) / System(1) / Search(1) / Design(3) / Data(2) / Audit(1) / Accessibility(1) / Performance(1)
 
 詳細な日本語ドキュメント: [docs/README.ja.md](docs/README.ja.md)
 
@@ -58,7 +58,7 @@ AIエージェントと統合するプラットフォームです。
 | **Searchable**       | 768-dim multilingual embeddings (e5-base) with HNSW index and hybrid RRF ranking                                                                   |
 | **Preference-aware** | Search tools accept an optional `profile_id` and rerank with an existing profile from an older version; profile creation was removed on 2026-11-04 |
 | **Part-aware**       | 16 UI part types extracted with DINOv2 visual embeddings for cross-site component comparison                                                       |
-| **MCP-native**       | <!-- gen:tool-count -->27<!-- /gen:tool-count --> tools purpose-built for Claude Desktop and MCP Client CLI                                        |
+| **MCP-native**       | <!-- gen:tool-count -->28<!-- /gen:tool-count --> tools purpose-built for Claude Desktop and MCP Client CLI                                        |
 
 ## Quickstart
 
@@ -141,7 +141,7 @@ Add to your MCP config:
 
 ## Example tools
 
-ReftrixMCP provides **<!-- gen:tool-count -->27<!-- /gen:tool-count --> MCP tools**. Key examples:
+ReftrixMCP provides **<!-- gen:tool-count -->28<!-- /gen:tool-count --> MCP tools**. Key examples:
 
 - `layout.ingest` -- fetch a web page, take a screenshot, and extract section patterns
 - `layout.search` -- semantic search over layout sections by natural-language query
@@ -158,7 +158,7 @@ Full tool reference: [MCP Tools Guide](docs/users-guide/02-mcp-tools-guide.md)
 ## Architecture
 
 ```
-MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (<!-- gen:tool-count -->27<!-- /gen:tool-count --> tools, Zod)
+MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (<!-- gen:tool-count -->28<!-- /gen:tool-count --> tools, Zod)
   +-- Service Layer: Playwright, Sharp+Pixelmatch, DOMPurify
   +-- ML Layer: ONNX Runtime (multilingual-e5-base + DINOv2 ViT-B/14, 768-dim)
   +-- BullMQ Workers: page.analyze, quality.evaluate
@@ -170,7 +170,7 @@ MCP Client (Claude Desktop / Code)  --stdio-->  MCP Server (<!-- gen:tool-count 
 | Guide                                                                   | Description                                                                     |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | [Getting Started](docs/users-guide/01-getting-started.md)               | Installation, setup, and first analysis                                         |
-| [MCP Tools Guide](docs/users-guide/02-mcp-tools-guide.md)               | All <!-- gen:tool-count -->27<!-- /gen:tool-count --> tools with usage examples |
+| [MCP Tools Guide](docs/users-guide/02-mcp-tools-guide.md)               | All <!-- gen:tool-count -->28<!-- /gen:tool-count --> tools with usage examples |
 | [page.analyze Deep Dive](docs/users-guide/03-page-analyze-deep-dive.md) | Async analysis flow and data structures                                         |
 | [Troubleshooting](docs/users-guide/04-troubleshooting.md)               | Common issues and solutions                                                     |
 

@@ -14,6 +14,7 @@ export const CLIENT_REACHING_MESSAGE_JOIN_SITES: Readonly<Record<string, number>
   "src/tools/design/compare.tool.ts": 1,
   "src/tools/design/search-by-image.tool.ts": 1,
   "src/tools/design/similar-site.tool.ts": 1,
+  "src/tools/design/verify-reproduction.tool.ts": 1,
   "src/tools/layout/search.tool.ts": 1,
   "src/tools/layout/to-code.tool.ts": 1,
   "src/tools/narrative/analyze.tool.ts": 1,

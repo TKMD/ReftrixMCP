@@ -17,6 +17,8 @@ import type { Browser } from "playwright";
 
 import type { IngestAdapterOptions, IngestResult } from "../../services/page-ingest-adapter";
 import { sanitizeHtml } from "../../utils/html-sanitizer";
+import { stripPartPids } from "../../utils/part-pid";
+import { isPartLiveGeometryEnabled } from "../../services/part/part-live-geometry";
 import { logger, isDevelopment } from "../../utils/logger";
 import { normalizeUrlForStorage } from "../../utils/url-normalizer";
 import type { IScreenshotPersistenceService } from "../../services/screenshot-persistence.service";
@@ -128,6 +130,7 @@ export async function processIngestPhase(
     waitForDomStable: true,
     simulateUserInteraction: true,
     skipScreenshot: false,
+    capturePartGeometry: isPartLiveGeometryEnabled(),
     ...(options.layoutOptions?.viewport
       ? {
           viewport: {
@@ -143,7 +146,16 @@ export async function processIngestPhase(
     throw new Error(ingestResult.error ?? "Failed to fetch HTML content");
   }
 
-  const html: string | null = ingestResult.html;
+  // 番号付き HTML はレイアウト解析とパーツ抽出だけに渡す。他の全フェーズと保存は従来と同じ HTML を使う。
+  // Numbered HTML goes only to layout analysis and part extraction; every other phase and every
+  // persisted string keeps the usual (unnumbered) HTML.
+  const html: string = ingestResult.partGeometry
+    ? stripPartPids(ingestResult.html)
+    : ingestResult.html;
+  if (ingestResult.partGeometry) {
+    state.layoutHtml = ingestResult.html;
+    state.partGeometry = ingestResult.partGeometry;
+  }
   // Extract screenshot reference early; ingestResult will be released after Phase 0.5
   const screenshotBase64: string | undefined = ingestResult.screenshots?.[0]?.data;
   statusTracker.completePhase("initializing");
@@ -308,6 +320,15 @@ export async function processIngestPhase(
   // guarantees FK integrity. state.screenshotPngPath points to this persisted path
   // (Phase 5 RAW decode reads from the same location). screenshotBase64 stays in
   // memory because Phases 2/2.5 still need it.
+  //
+  // 保持期限削除との関係 (ADR-0041 Amendment 3): `analysis_status` は上の Phase 0.5 / W0 で
+  // 既に `pending` に戻っている。保持期限削除 (`screenshot-retention.service.ts`) は
+  // `analysis_status IN (completed, failed)` の行だけを対象にし、行ロックで再確認するので、
+  // 再解析中のページの新しい screenshot をここで保存した後に消すことはない。
+  // Relation to the retention expiry (ADR-0041 Amendment 3): `analysis_status` was already reset
+  // to `pending` in Phase 0.5 / W0 above. The expiry only selects `analysis_status IN
+  // (completed, failed)` and re-checks under a row lock, so the new screenshot of a page being
+  // re-analyzed is never deleted after it is saved here.
   if (screenshotBase64) {
     try {
       const pngBuffer = Buffer.from(screenshotBase64, "base64");

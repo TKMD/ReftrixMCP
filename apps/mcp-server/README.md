@@ -129,7 +129,7 @@ pnpm start
 }
 ```
 
-## MCPツール一覧（<!-- gen:tool-count -->27<!-- /gen:tool-count -->ツール） / MCP Tool List (<!-- gen:tool-count -->27<!-- /gen:tool-count --> Tools)
+## MCPツール一覧（<!-- gen:tool-count -->28<!-- /gen:tool-count -->ツール） / MCP Tool List (<!-- gen:tool-count -->28<!-- /gen:tool-count --> Tools)
 
 ### Layoutツール（4ツール） / Layout Tools (4 Tools)
 
@@ -694,12 +694,12 @@ stdout is reserved for JSON-RPC. Server logs (`console.error` and the loggers) g
 
 ### レート制限 / Rate Limiting
 
-Token Bucket + Redis Lua（CWE-770 DoS対策）。全<!-- gen:tool-count -->27<!-- /gen:tool-count -->ツールに自動適用。
-Token Bucket + Redis Lua (CWE-770 DoS prevention). Auto-applied to all <!-- gen:tool-count -->27<!-- /gen:tool-count --> tools.
+Token Bucket + Redis Lua（CWE-770 DoS対策）。全<!-- gen:tool-count -->28<!-- /gen:tool-count -->ツールに自動適用。
+Token Bucket + Redis Lua (CWE-770 DoS prevention). Auto-applied to all <!-- gen:tool-count -->28<!-- /gen:tool-count --> tools.
 
 | ティア / Tier | RPM | 対象ツール / Target Tools                                                                                                                                                      |
 | ------------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| analysis      | 10  | page.analyze, page.batch_analyze, layout.ingest, accessibility.audit, performance.evaluate                                                                                     |
+| analysis      | 10  | page.analyze, page.batch_analyze, layout.ingest, accessibility.audit, performance.evaluate, design.verify_reproduction                                                         |
 | search        | 120 | layout.search, motion.search, narrative.search, background.search, responsive.search, part.search, search.unified, design.search_by_image, design.similar_site, design.compare |
 | default       | 60  | その他すべて / All others                                                                                                                                                      |
 
@@ -712,8 +712,8 @@ npm で `@reftrixmcp/mcp-server` を利用する場合、リポジトリ root �
 
 ### エラーメッセージサニタイズ / Error Message Sanitization (CWE-209)
 
-`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。<!-- gen:sanitize-usage-count -->108<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->27<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->99<!-- /gen:sanitize-import-count -->ファイルでインポート）。
-`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to <!-- gen:sanitize-usage-count -->108<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->27<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->99<!-- /gen:sanitize-import-count --> import files).
+`sanitizeErrorMessage()` ユーティリティ（`utils/sanitize-error.ts`）で内部構造の漏洩を防止。<!-- gen:sanitize-usage-count -->109<!-- /gen:sanitize-usage-count -->ファイル・<!-- gen:tool-count -->28<!-- /gen:tool-count -->ツールに適用（<!-- gen:sanitize-import-count -->100<!-- /gen:sanitize-import-count -->ファイルでインポート）。
+`sanitizeErrorMessage()` utility (`utils/sanitize-error.ts`) prevents internal structure leakage. Applied to <!-- gen:sanitize-usage-count -->109<!-- /gen:sanitize-usage-count --> files and <!-- gen:tool-count -->28<!-- /gen:tool-count --> tools (<!-- gen:sanitize-import-count -->100<!-- /gen:sanitize-import-count --> import files).
 
 ---
 

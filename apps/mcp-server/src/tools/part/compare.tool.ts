@@ -189,7 +189,13 @@ function buildStylesComparison(
   for (const key of STYLE_COMPARISON_KEYS) {
     const values = parts.map((p) => ({
       partId: p.id,
-      value: (p.computedStyles as Record<string, unknown>)[key] ?? null,
+      // Phase 5 stores kebab-case keys; older rows and callers may use camelCase.
+      value:
+        (p.computedStyles as Record<string, unknown>)[key] ??
+        (p.computedStyles as Record<string, unknown>)[
+          key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)
+        ] ??
+        null,
     }));
 
     properties.push({

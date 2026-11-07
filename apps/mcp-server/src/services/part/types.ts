@@ -230,6 +230,12 @@ export interface PartExtractionResult {
   skipReason?: "memory_pressure" | "timeout" | "disabled";
   /** 抽出処理時間（ミリ秒） / Extraction duration (milliseconds) */
   durationMs: number;
+  /**
+   * 実測の位置が無い（非表示・画面外・未測定）ため候補から外した要素数。実測を渡したときだけ。
+   * Elements dropped as candidates for lacking a live geometry (hidden, off-page or unmeasured);
+   * only when live geometry was given.
+   */
+  notVisibleCount?: number;
 }
 
 // ============================================================================
@@ -297,3 +303,35 @@ export const ROLE_TO_PART_TYPE: Record<string, string> = {
   menu: "dropdown",
   listbox: "dropdown",
 };
+
+/**
+ * Computed style properties stored per part (`component_parts.computed_styles`, kebab-case keys).
+ * Read in the browser by the Phase 5 bbox measurement (`runBboxPageEvaluate`) together with the
+ * bounding box. Covers the keys used by the part text embedding, design.verify_reproduction and
+ * part.compare (17).
+ *
+ * パーツごとに保存する computed style（kebab-case）。Phase 5 の bbox 測定で位置と一緒にブラウザ内で読む。
+ */
+export const PART_COMPUTED_STYLE_KEYS = [
+  "font-size",
+  "font-weight",
+  "font-family",
+  "line-height",
+  "letter-spacing",
+  "color",
+  "background-color",
+  // not "background": its computed value carries absolute url(...) of third-party assets (SEC L-2)
+  "border",
+  "border-radius",
+  "box-shadow",
+  "padding",
+  "margin",
+  "gap",
+  "display",
+  "opacity",
+  "text-align",
+  "transition",
+] as const;
+
+/** Each stored value is cut to this length in the browser (page-controlled strings). */
+export const PART_COMPUTED_STYLE_MAX_CHARS = 128;

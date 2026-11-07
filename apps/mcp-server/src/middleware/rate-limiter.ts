@@ -80,6 +80,7 @@ export const TOOL_TIER_MAP: Record<string, RateLimitTier> = {
   "accessibility.audit": "analysis",
   "performance.evaluate": "analysis",
   "page.batch_analyze": "analysis",
+  "design.verify_reproduction": "analysis",
   // 検索系（軽い処理、120 RPM）
   "layout.search": "search",
   "motion.search": "search",

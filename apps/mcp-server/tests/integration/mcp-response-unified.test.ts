@@ -118,10 +118,10 @@ function hasRequestId(response: unknown): boolean {
 }
 
 // =============================================================================
-// 全27ツールのMcpResponse形式検証テスト
+// 全28ツールのMcpResponse形式検証テスト
 // =============================================================================
 
-describe("MCP-RESP-08: All 27 Tools McpResponse Format Verification", () => {
+describe("MCP-RESP-08: All 28 Tools McpResponse Format Verification", () => {
   beforeEach(() => {
     clearToolHandlers();
     resetToolMetrics();
@@ -134,13 +134,13 @@ describe("MCP-RESP-08: All 27 Tools McpResponse Format Verification", () => {
     resetRateLimiter();
   });
 
-  describe("27 tools registered correctly", () => {
-    it("should have exactly 27 tools defined in allToolDefinitions", () => {
-      expect(allToolDefinitions.length).toBe(27);
+  describe("28 tools registered correctly", () => {
+    it("should have exactly 28 tools defined in allToolDefinitions", () => {
+      expect(allToolDefinitions.length).toBe(28);
     });
 
-    it("should have exactly 27 tools in toolHandlers", () => {
-      expect(Object.keys(toolHandlers).length).toBe(27);
+    it("should have exactly 28 tools in toolHandlers", () => {
+      expect(Object.keys(toolHandlers).length).toBe(28);
     });
 
     it.each(ALL_TOOLS)("%s is registered in toolHandlers", (toolName) => {

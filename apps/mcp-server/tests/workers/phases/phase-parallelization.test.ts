@@ -626,3 +626,41 @@ describe("Phase 1/3 Sequential Execution", () => {
     });
   });
 });
+
+describe("Phase 1 numbered HTML (VR-M-01)", () => {
+  const NUMBERED = `<html><body><section data-reftrix-pid="0"><h1 data-reftrix-pid="1">T</h1></section></body></html>`;
+
+  it("analyzes the numbered HTML and releases it with stripped snippets after the phase", async () => {
+    const state = createInitialState({ layoutHtml: NUMBERED, partGeometry: new Map() });
+    const deps = createMockLayoutDeps({
+      defaultAnalyzeLayout: vi.fn().mockResolvedValue({
+        sectionCount: 1,
+        sections: [
+          {
+            id: "section-1",
+            sectionType: "hero",
+            htmlSnippet: `<section data-reftrix-pid="0"><h1 data-reftrix-pid="1">T</h1></section>`,
+            position: { startY: 0, height: 600 },
+          },
+        ],
+        backgroundDesigns: [],
+        cssSnippet: "",
+      }),
+    });
+    await processLayoutPhase(state, createMockContext(), deps);
+    expect(vi.mocked(deps.defaultAnalyzeLayout).mock.calls[0]![0]).toBe(NUMBERED);
+    expect(state.layoutHtml).toBeNull();
+    expect(state.partGeometry).toBeNull();
+    expect(JSON.stringify(state.layoutResultForNarrative)).not.toContain("data-reftrix-pid");
+  });
+
+  it("releases the numbered HTML when layout analysis fails", async () => {
+    const state = createInitialState({ layoutHtml: NUMBERED, partGeometry: new Map() });
+    const deps = createMockLayoutDeps({
+      defaultAnalyzeLayout: vi.fn().mockRejectedValue(new Error("Layout failed")),
+    });
+    await processLayoutPhase(state, createMockContext(), deps);
+    expect(state.layoutHtml).toBeNull();
+    expect(state.partGeometry).toBeNull();
+  });
+});

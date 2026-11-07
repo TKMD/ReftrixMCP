@@ -5,7 +5,7 @@
  * MCP Tools Export
  * WebDesign専用ツールハンドラーとツール定義のエクスポート
  *
- * Total: 27 tools
+ * Total: 28 tools
  * - System: system.health
  * - Layout: layout.inspect, layout.ingest, layout.search, layout.generate_code
  * - Quality: quality.evaluate
@@ -16,7 +16,7 @@
  * - Responsive: responsive.search, responsive.capture
  * - Part: part.search, part.inspect, part.compare
  * - Search: search.unified
- * - Design: design.search_by_image, design.similar_site, design.compare
+ * - Design: design.search_by_image, design.similar_site, design.compare, design.verify_reproduction
  * - Data: data.delete, data.export
  * - Audit: audit.query
  * - Accessibility: accessibility.audit
@@ -359,6 +359,18 @@ export {
   type DesignSimilarSiteOutput,
 } from "./design/similar-site.tool";
 
+// design.verify_reproduction ツール（HTML/CSS 再現の検証）
+export {
+  designVerifyReproductionHandler,
+  designVerifyReproductionToolDefinition,
+  verifyReproductionInputSchema,
+  setDesignVerifyReproductionDepsFactory,
+  resetDesignVerifyReproductionDepsFactory,
+  DESIGN_VERIFY_ERROR_CODES,
+  type VerifyReproductionInput,
+  type VerifyReproductionOutput,
+} from "./design/verify-reproduction.tool";
+
 // data.delete ツール（GDPR Art.17 データ完全削除）
 export {
   dataDeleteHandler,
@@ -474,6 +486,7 @@ import { searchUnifiedToolDefinition } from "./search-unified.tool";
 import { designSearchByImageToolDefinition } from "./design/search-by-image.tool";
 import { designSimilarSiteToolDefinition } from "./design/similar-site.tool";
 import { designCompareToolDefinition } from "./design/compare.tool";
+import { designVerifyReproductionToolDefinition } from "./design/verify-reproduction.tool";
 import { auditQueryToolDefinition } from "./audit/query.tool";
 import { dataDeleteToolDefinition, dataExportToolDefinition } from "./data/data.tool";
 import { accessibilityAuditToolDefinition } from "./accessibility/audit.tool";
@@ -524,6 +537,8 @@ export const allToolDefinitions = [
   designSimilarSiteToolDefinition,
   // design.compare（多次元デザイン比較、v0.3.0 T2-CMP）
   designCompareToolDefinition,
+  // design.verify_reproduction（HTML/CSS 再現の検証）
+  designVerifyReproductionToolDefinition,
   // audit.query（監査ログ検索、GDPR Art.30）
   auditQueryToolDefinition,
   // data.delete（GDPR Art.17 データ完全削除）
@@ -568,6 +583,7 @@ import { searchUnifiedHandler } from "./search-unified.tool";
 import { designSearchByImageHandler } from "./design/search-by-image.tool";
 import { designSimilarSiteHandler } from "./design/similar-site.tool";
 import { designCompareHandler } from "./design/compare.tool";
+import { designVerifyReproductionHandler } from "./design/verify-reproduction.tool";
 import { auditQueryHandler } from "./audit/query.tool";
 import { dataDeleteHandler, dataExportHandler } from "./data/data.tool";
 import { accessibilityAuditHandler } from "./accessibility/audit.tool";
@@ -618,6 +634,8 @@ export const toolHandlers: Record<string, (input: unknown) => Promise<unknown>> 
   "design.similar_site": designSimilarSiteHandler,
   // design.compare（多次元デザイン比較、v0.3.0 T2-CMP）
   "design.compare": designCompareHandler,
+  // design.verify_reproduction（HTML/CSS 再現の検証）
+  "design.verify_reproduction": designVerifyReproductionHandler,
   // audit.query（監査ログ検索、GDPR Art.30）
   "audit.query": auditQueryHandler,
   // data.delete（GDPR Art.17 データ完全削除）

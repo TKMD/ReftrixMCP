@@ -8,9 +8,9 @@
 
 ## はじめに / Introduction
 
-Reftrixは **WebDesign専用プラットフォーム** です。このガイドでは、**<!-- gen:tool-count -->27<!-- /gen:tool-count -->のWebDesign専用MCPツール**を活用して、Webページの解析・品質評価・コード生成・横断検索・画像類似検索・アクセシビリティ監査・パフォーマンス評価を行う方法を解説します。
+Reftrixは **WebDesign専用プラットフォーム** です。このガイドでは、**<!-- gen:tool-count -->28<!-- /gen:tool-count -->のWebDesign専用MCPツール**を活用して、Webページの解析・品質評価・コード生成・横断検索・画像類似検索・アクセシビリティ監査・パフォーマンス評価を行う方法を解説します。
 
-Reftrix is a **WebDesign-specialized platform**. This guide explains how to use **<!-- gen:tool-count -->27<!-- /gen:tool-count --> WebDesign-focused MCP tools** to analyze web pages, evaluate design quality, generate code, perform unified cross-service search, find visually similar designs, audit accessibility, and evaluate performance.
+Reftrix is a **WebDesign-specialized platform**. This guide explains how to use **<!-- gen:tool-count -->28<!-- /gen:tool-count --> WebDesign-focused MCP tools** to analyze web pages, evaluate design quality, generate code, perform unified cross-service search, find visually similar designs, audit accessibility, and evaluate performance.
 
 > **重要 / Important**: v0.1.0でSVG機能は削除されました。本ガイドはWebDesign専用ツールのみを扱います。
 > All SVG features were removed in v0.1.0. This guide covers WebDesign-only tools.
@@ -99,7 +99,7 @@ const result = await page.analyze({
 
 ## 2. ツールカテゴリ概要 / Tool Category Overview
 
-### WebDesign MCPツール（<!-- gen:tool-count -->27<!-- /gen:tool-count -->ツール） / WebDesign MCP Tools (<!-- gen:tool-count -->27<!-- /gen:tool-count --> Tools)
+### WebDesign MCPツール（<!-- gen:tool-count -->28<!-- /gen:tool-count -->ツール） / WebDesign MCP Tools (<!-- gen:tool-count -->28<!-- /gen:tool-count --> Tools)
 
 | カテゴリ / Category | ツール数 / Count | 主な用途 / Primary Purpose                                                                                        |
 | ------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------- |
@@ -146,7 +146,8 @@ const result = await page.analyze({
 │
 ├─ デザインを比較したい
 │  ├─ 類似サイト検索 → design.similar_site
-│  └─ デザイン比較 → design.compare
+│  ├─ デザイン比較 → design.compare
+│  └─ 再現HTML/CSSの検証 → design.verify_reproduction
 │
 ├─ 品質監査を行いたい
 │  ├─ アクセシビリティ → accessibility.audit
@@ -1475,6 +1476,8 @@ const comparison = await mcp__reftrix__part_compare({
 });
 ```
 
+スタイルの値は、Phase 5 でパーツの位置を実ページで測れたときに一緒に保存される computed style（kebab-case のキー、1 値 128 文字まで）です。位置を測れなかったパーツは値が `null` になります。/ Style values are the computed styles saved when Phase 5 measured the part on the live page (kebab-case keys, up to 128 characters per value); parts that could not be measured show `null`.
+
 ---
 
 ## 15. Search（横断検索）ツール / Search (Unified Search) Tools
@@ -1669,6 +1672,59 @@ const result = await design.compare({
 | `page_ids`             | string[]  | （必須 / required）            | 比較対象ページID（2-5件、UUID） / Page IDs to compare (2-5, UUID format)           |
 | `dimensions`           | string[]  | layout, visual, quality, color | 比較次元 / Comparison dimensions                                                   |
 | `include_details`      | boolean   | false                          | 共通パターン・差分ポイントを含めるか / Include common patterns and key differences |
+
+---
+
+### 16.4 design.verify_reproduction -- 再現の検証 / Reproduction Verification
+
+**用途 / Purpose**: LLMが書いたHTML/CSSが保存済みセクションにどれだけ近いかを検証し、直すべき差分を構造化して返す（生成 → 検証 → 修正のループ用）/ Verify how closely your HTML/CSS reproduces a stored section and get structured differences to fix (for a generate → verify → fix loop)
+
+**安全性 / Safety**: 候補はオフライン・JavaScript無効で描画されます。`data:` 以外のリクエスト（画像・Webフォント・`@import`・外部CSS）は全て遮断され、件数（`blockedRequests.count`）だけが返ります。画像やフォントは `data:` URI でインライン化してください。候補は保存・ログ出力・返却されません。/ The candidate is rendered offline with JavaScript disabled. Every non-`data:` request (images, web fonts, `@import`, external CSS) is blocked and only the count (`blockedRequests.count`) is returned; inline images and fonts as `data:` URIs. The candidate is never stored, logged or returned.
+
+**利用上の注意 / Use Responsibly**: レイアウトとスタイルを学ぶための参考用です。第三者の本文・画像・ロゴ・商標は利用前に自分のものに置き換えてください。本文の一致はスコア（レイアウト照合）に影響するため、プレースホルダの文章ではスコアが下がります（`options.ignore_text: true` で本文を照合から外せます）。元サイトの権利と利用規約の確認は利用者の責任です（FAQ「デザインを参考にして独自実装」と同じ方針）。/ For learning layout and style only. Replace third-party text, images, logos and trademarks with your own before use. Matching text affects the score (part matching), so placeholder text lowers it (`options.ignore_text: true` leaves text out of the match). Respecting the source site's rights and terms is your responsibility (same policy as the FAQ: use designs as a reference and build your own).
+
+**基本的な使い方 / Basic Usage**
+
+```typescript
+const result = await design.verify_reproduction({
+  pattern_id: "section-pattern-uuid",
+  candidate: { html: "<section>...</section>", css: "section { padding: 40px; }" },
+  options: { max_diffs: 20 },
+});
+
+// レスポンス / Response:
+// - scores: { pixelMismatchRatio, visualSimilarity, layoutScore, styleScore, overall }
+// - diffs: [{ partType, textPreview, property: 'font-size', expected: '40px', actual: '24px', severity }]
+// - missingParts / extraParts / beyondReferenceCap / matchedParts / heightDelta
+// - coverage: { referenceParts, referencePartsWithPosition, referencePartsTotal, stylesCompared, pixel, visual, visualBasis, visualBlankBaseline, visualRescaled }
+```
+
+**スコアの読み方 / Reading the Scores**
+
+- `overall` はレイアウト 0.40 / スタイル 0.25 / 視覚(DINOv2) 0.25 / ピクセル 0.10 の加重平均（利用できた成分のみで再正規化）。ピクセルは Webフォントと画像が使えないため参考値です。/ `overall` is a weighted mean (layout 0.40, style 0.25, visual DINOv2 0.25, pixel 0.10) renormalised over the components that were available. Pixel is advisory because web fonts and images cannot load.
+- 参照のスクリーンショットが無い（期限切れ・削除済み）場合はエラーにならず、`coverage.pixel = "unavailable"` でピクセル比較だけが省略されます。/ A missing reference screenshot (expired or deleted) is not an error: only the pixel comparison is skipped (`coverage.pixel = "unavailable"`).
+- 高PIIパーツを含むセクションは `coverage.pixel` / `coverage.visual` が `"pii_excluded"` になり、ピクセル・視覚比較は行われません。高PIIパーツの本文は返りません。/ A section holding a high-PII part reports `coverage.pixel` / `coverage.visual` as `"pii_excluded"` and skips those comparisons; the text of high-PII parts is never returned.
+- 保存済みの computed style が無いセクションでは `coverage.stylesCompared` が 0 になり、スタイル差分は出ません。computed style は Phase 5 でパーツの位置を実ページで測れたときだけ保存されます（測れるのは 1 割程度）。それより前に解析したセクションは保存されていないため、スタイル差分は出ません（tracked）。/ For sections without stored computed styles, `coverage.stylesCompared` is 0 and no style diffs are produced. Computed styles are saved only when Phase 5 measures a part on the live page (about one part in ten); sections analysed before that have none (tracked).
+- 参照は 1 タイプにつき先頭 5 パーツまでしか保存されません。参照がその上限に達したタイプでは、候補の余分なパーツは減点せず `beyondReferenceCap` の件数として返します。20px 未満のパーツは参照と同じく比較しません。/ The reference keeps at most 5 parts per type. For a type at that cap, unmatched candidate parts are not penalized and are counted in `beyondReferenceCap`. Parts smaller than 20px are ignored, as in the reference.
+- セクション位置がスクリーンショットの範囲を超える場合は `coverage.pixelReason = "section_region_out_of_range"` でピクセル比較を省略します。差分画像には差分のピクセルだけが描かれます。/ When the stored region runs past the screenshot, the pixel comparison is skipped (`section_region_out_of_range`). The diff image draws only the differing pixels.
+- `visualSimilarity` は、同じ大きさの空ページと同程度で 0、参照と同一で 1 になるよう補正した値です（`coverage.visualBlankBaseline` が補正前の空ページの類似度）。参照スクリーンショットがあれば切り抜きと候補をその場で比べ（`coverage.visualBasis = "screenshot"`）、無ければ保存済みの埋め込みと比べます（`"stored_embedding"`）。参照自体が空ページに近い（基準との差が 0.02 未満）ときは補正せず生の類似度を返し、`coverage.visualRescaled = false` になります。/ `visualSimilarity` is rescaled so that an empty page of the same size scores 0 and the reference itself scores 1 (`coverage.visualBlankBaseline` is the empty page's raw similarity). With the reference screenshot the crop and the candidate are compared directly (`coverage.visualBasis = "screenshot"`); without it, against the stored embedding (`"stored_embedding"`). When the reference itself looks blank (baseline within 0.02 of 1) the raw similarity is returned and `coverage.visualRescaled` is `false`.
+- 位置と大きさを比べるのは、位置が保存されたパーツ（`coverage.referencePartsWithPosition` / `referencePartsTotal`）だけです。それ以外はタイプと本文だけで照合するため、要素をずらしても `layoutScore` は変わりません。/ Position and size are compared only for parts with a stored position (`coverage.referencePartsWithPosition` / `referencePartsTotal`); the rest are matched by type and text only, so moving them does not change `layoutScore`.
+- `options.ignore_text: true` にすると、本文がパーツの対応付け・位置なしパーツの照合・差分と欠落パーツに付く本文プレビューから外れます。本文の中身は比べませんが、本文の違いで箱の大きさが変われば位置・サイズの比較には反映されます。ピクセル・視覚スコア（したがって `overall`）は描画画像を比べるため文字の見た目は残り、`include_diff_image: true` の差分画像には参照の文字の形が出ることがあります。同じタイプのパーツは重なりが無くても対応付けられることがあり、置く場所を間違えたパーツは欠落ではなく位置の差分として出ます。結果に `textIgnored: true` と注記（`textIgnoredNote`）が付きます。既定（false）の挙動は変わりません。/ With `options.ignore_text: true`, text is left out of part pairing, the match of parts without a stored position and the text previews on diffs and missing parts. The text content is not compared, but when different text changes a box's size the position/size comparison still reflects it. Pixel and visual scores (and so `overall`) compare the rendered image, so glyph appearance remains, and the diff image from `include_diff_image: true` can show the reference glyph shapes. Parts of the same type may be paired even without overlap, so a misplaced part shows up as a position diff rather than as missing. The result carries `textIgnored: true` and a note (`textIgnoredNote`). Default (false) behaviour is unchanged.
+- 参照のキャプチャ幅が保存されていないため、スクリーンショットが無いときの描画幅は 1920px です。/ The capture width is not stored, so the render width is 1920px when no screenshot is available.
+
+**主要パラメータ / Key Parameters**
+
+| パラメータ / Parameter       | 型 / Type | デフォルト / Default | 説明 / Description                                                                                   |
+| ---------------------------- | --------- | -------------------- | ---------------------------------------------------------------------------------------------------- |
+| `pattern_id`                 | string    | （必須 / required）  | 比較対象セクションID（UUID）/ Stored section id                                                      |
+| `candidate.html`             | string    | （必須 / required）  | 再現HTML（html+css合計2MiB以下、各 `data:` URI 1MiB以下）/ Reproduction HTML                         |
+| `candidate.css`              | string    | -                    | 再現CSS / Reproduction CSS                                                                           |
+| `options.max_diffs`          | number    | 20                   | 差分の最大件数（1-50）/ Maximum diffs (1-50)                                                         |
+| `options.include_diff_image` | boolean   | false                | 256px幅の差分ヒートマップを含める / Include a ≤256px diff heat-map                                   |
+| `options.mask_images`        | boolean   | true                 | 画像パーツをピクセル比較から除外 / Mask image parts in the pixel comparison                          |
+| `options.ignore_text`        | boolean   | false                | 本文をレイアウト・スタイル照合から外す（下記）/ Leave text out of the layout/style match (see below) |
+
+レート制限は `analysis` ティア（10 RPM）です。/ Rate limit: `analysis` tier (10 RPM).
 
 ---
 
@@ -2189,9 +2245,9 @@ await page.analyze({
 
 ## まとめ / Summary
 
-このガイドでは、Reftrixの<!-- gen:tool-count -->27<!-- /gen:tool-count --> WebDesign MCPツールを活用してWebページの解析・品質評価・コード生成・アクセシビリティ監査・パフォーマンス評価を行う方法を解説しました。
+このガイドでは、Reftrixの<!-- gen:tool-count -->28<!-- /gen:tool-count --> WebDesign MCPツールを活用してWebページの解析・品質評価・コード生成・アクセシビリティ監査・パフォーマンス評価を行う方法を解説しました。
 
-This guide explained how to use Reftrix's <!-- gen:tool-count -->27<!-- /gen:tool-count --> WebDesign MCP tools for web page analysis, quality evaluation, code generation, accessibility auditing, and performance evaluation.
+This guide explained how to use Reftrix's <!-- gen:tool-count -->28<!-- /gen:tool-count --> WebDesign MCP tools for web page analysis, quality evaluation, code generation, accessibility auditing, and performance evaluation.
 
 ### 次のステップ / Next Steps
 

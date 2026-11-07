@@ -177,4 +177,41 @@ describe("INV-CROP-PATH-TRAVERSAL-001: crop path traversal shares the screenshot
       "crop helper must NOT re-declare a bare UUID regex literal (use imported UUID_REGEX)"
     ).toBe(false);
   });
+
+  // ==========================================================================
+  // Surface 4 — the bulk-deletion script deletes only through buildSafeCropDir
+  // ==========================================================================
+
+  it("INV-CROP-PATH-TRAVERSAL-001: surface 4 — purge-legacy-crops imports buildSafeCropDir, removes only the directory it returns, and has no resolver of its own", () => {
+    const script = stripLineComments(
+      fs.readFileSync(path.resolve(__dirname, "../../../../scripts/purge-legacy-crops.ts"), "utf8")
+    );
+    expect(
+      /import\s*\{[^}]*\bbuildSafeCropDir\b[^}]*\}\s*from\s*["'][^"']*part\/crop-persistence\.helper["']/.test(
+        script
+      ),
+      "the script must import buildSafeCropDir from the crop helper"
+    ).toBe(true);
+    // every recursive removal takes the validated directory, never a raw join
+    const removals = script.match(/fs\.rm\(([^,)]*)/g) ?? [];
+    expect(removals.length, "the script must remove directories").toBeGreaterThan(0);
+    for (const call of removals) {
+      expect(call, "fs.rm must be given the buildSafeCropDir result").toBe("fs.rm(dir");
+    }
+    const dirAssignments = script.match(/const\s+dir\s*=\s*[^;]+;/g) ?? [];
+    expect(dirAssignments.length, "the script must build directories").toBeGreaterThan(0);
+    for (const assignment of dirAssignments) {
+      expect(assignment, "every `dir` must come from buildSafeCropDir").toMatch(
+        /=\s*await\s+buildSafeCropDir\(/
+      );
+    }
+    // no second allowlist resolver / realpath chain
+    expect(
+      /\.startsWith\([^)]*path\.sep/.test(script),
+      "the script must not implement its own startsWith allowlist resolver"
+    ).toBe(false);
+    expect(/\brealpath\b/.test(script), "the script must not resolve real paths itself").toBe(
+      false
+    );
+  });
 });

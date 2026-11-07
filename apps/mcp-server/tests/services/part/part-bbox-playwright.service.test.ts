@@ -40,6 +40,10 @@ vi.mock("../../../src/utils/logger", () => ({
 }));
 
 import { logger } from "../../../src/utils/logger";
+import {
+  PART_COMPUTED_STYLE_KEYS,
+  PART_COMPUTED_STYLE_MAX_CHARS,
+} from "../../../src/services/part/types";
 
 // url-validator モック / URL validator mock
 vi.mock("../../../src/utils/url-validator", () => ({
@@ -279,6 +283,187 @@ describe("PartBboxPlaywrightService", () => {
         // $transaction に渡されるのは Promise[] の配列
         const transactionArgs = mockTransaction.mock.calls[0][0] as unknown[];
         expect(transactionArgs).toHaveLength(2);
+      });
+
+      it("stores the computed styles measured with the bounding box (kebab-case keys)", async () => {
+        const mockParts = [
+          createMockDbPart({ id: MOCK_PART_ID_1, partType: "heading", boundingBox: null }),
+          createMockDbPart({ id: MOCK_PART_ID_2, partType: "button", boundingBox: null }),
+        ];
+        const evaluateResult = [
+          {
+            id: MOCK_PART_ID_1,
+            x: 0,
+            y: 0,
+            width: 800,
+            height: 60,
+            styles: { "font-size": "32px", color: "rgb(0, 0, 0)" },
+          },
+          // no styles measured: the stored computed_styles must be left alone
+          { id: MOCK_PART_ID_2, x: 10, y: 10, width: 120, height: 40 },
+        ];
+        const mockPage = createMockPage({ evaluate: vi.fn().mockResolvedValue(evaluateResult) });
+        const mockBrowser = createMockBrowser(createMockContext(mockPage));
+        const update = vi.fn().mockResolvedValue({});
+        const mockPrisma = createMockPrisma({
+          componentPartFindMany: vi.fn().mockResolvedValue(mockParts),
+          sectionPatternFindMany: vi
+            .fn()
+            .mockResolvedValue([
+              { id: MOCK_SECTION_ID_1, layoutInfo: { position: { startY: 0 } } },
+            ]),
+          componentPartUpdate: update,
+          $transaction: vi.fn().mockResolvedValue([]),
+        });
+        mockChromiumLaunch.mockResolvedValue(mockBrowser);
+
+        await resolvePartBoundingBoxes({
+          webPageId: MOCK_WEB_PAGE_ID,
+          url: MOCK_URL,
+          prisma: mockPrisma as unknown as ResolvePartBoundingBoxesParams["prisma"],
+        });
+
+        const byId = new Map(
+          update.mock.calls.map(([arg]) => [
+            (arg as { where: { id: string } }).where.id,
+            (arg as { data: Record<string, unknown> }).data,
+          ])
+        );
+        expect(byId.get(MOCK_PART_ID_1)).toEqual({
+          boundingBox: { x: 0, y: 0, width: 800, height: 60 },
+          computedStyles: { "font-size": "32px", color: "rgb(0, 0, 0)" },
+        });
+        expect(byId.get(MOCK_PART_ID_2)).toEqual({
+          boundingBox: { x: 10, y: 10, width: 120, height: 40 },
+        });
+      });
+
+      it("re-validates page-returned styles in Node before saving (hostile page, SEC M-1)", async () => {
+        const mockParts = [createMockDbPart({ id: MOCK_PART_ID_1, boundingBox: null })];
+        const evaluateResult = [
+          {
+            id: MOCK_PART_ID_1,
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 20,
+            styles: {
+              "font-size": "A".repeat(200_000),
+              color: { toString: "x" },
+              "not-a-key": "1px",
+              "font-family": "a\u0000b",
+              "line-height": "x".repeat(127) + "\uD83D\uDE00",
+            },
+          },
+        ];
+        const update = vi.fn().mockResolvedValue({});
+        mockChromiumLaunch.mockResolvedValue(
+          createMockBrowser(
+            createMockContext(
+              createMockPage({ evaluate: vi.fn().mockResolvedValue(evaluateResult) })
+            )
+          )
+        );
+        await resolvePartBoundingBoxes({
+          webPageId: MOCK_WEB_PAGE_ID,
+          url: MOCK_URL,
+          prisma: createMockPrisma({
+            componentPartFindMany: vi.fn().mockResolvedValue(mockParts),
+            sectionPatternFindMany: vi.fn().mockResolvedValue([]),
+            componentPartUpdate: update,
+          }) as unknown as ResolvePartBoundingBoxesParams["prisma"],
+        });
+        const data = (update.mock.calls[0]?.[0] as { data: Record<string, unknown> }).data;
+        const styles = data["computedStyles"] as Record<string, string>;
+        expect(Object.keys(styles).sort()).toEqual(["font-family", "font-size", "line-height"]);
+        expect(styles["font-size"]).toHaveLength(PART_COMPUTED_STYLE_MAX_CHARS);
+        expect(styles["font-family"]).toBe("ab");
+        // the surrogate pair cut at the limit leaves no lone surrogate
+        expect(styles["line-height"]).toBe("x".repeat(127));
+      });
+
+      it("drops styles entirely when nothing valid remains", async () => {
+        const mockParts = [createMockDbPart({ id: MOCK_PART_ID_1, boundingBox: null })];
+        const update = vi.fn().mockResolvedValue({});
+        mockChromiumLaunch.mockResolvedValue(
+          createMockBrowser(
+            createMockContext(
+              createMockPage({
+                evaluate: vi
+                  .fn()
+                  .mockResolvedValue([
+                    { id: MOCK_PART_ID_1, x: 0, y: 0, width: 10, height: 30, styles: ["1px"] },
+                  ]),
+              })
+            )
+          )
+        );
+        await resolvePartBoundingBoxes({
+          webPageId: MOCK_WEB_PAGE_ID,
+          url: MOCK_URL,
+          prisma: createMockPrisma({
+            componentPartFindMany: vi.fn().mockResolvedValue(mockParts),
+            sectionPatternFindMany: vi.fn().mockResolvedValue([]),
+            componentPartUpdate: update,
+          }) as unknown as ResolvePartBoundingBoxesParams["prisma"],
+        });
+        const data = (update.mock.calls[0]?.[0] as { data: Record<string, unknown> }).data;
+        expect(data).not.toHaveProperty("computedStyles");
+      });
+
+      it("reload pass ignores a result whose id or numbers the page altered (SEC L-1)", async () => {
+        const prev = process.env["BBOX_RESOLVE_RELOAD_ENABLED"];
+        process.env["BBOX_RESOLVE_RELOAD_ENABLED"] = "true";
+        try {
+          const mockParts = [createMockDbPart({ id: MOCK_PART_ID_1, boundingBox: null })];
+          let bboxCalls = 0;
+          const bboxEvaluate = vi.fn(async () => {
+            bboxCalls++;
+            if (bboxCalls === 1) return [null]; // sweep: unresolved
+            return bboxCalls === 2
+              ? [{ id: MOCK_PART_ID_2, x: 0, y: 0, width: 10, height: 10 }] // foreign id
+              : [{ id: MOCK_PART_ID_1, x: Number.NaN, y: 0, width: 10, height: 10 }];
+          });
+          const page = createMockPage({ evaluate: createSweepEvaluateMock(bboxEvaluate) });
+          (page as unknown as Record<string, unknown>).reload = vi.fn().mockResolvedValue(null);
+          mockChromiumLaunch.mockResolvedValue(createMockBrowser(createMockContext(page)));
+          const update = vi.fn().mockResolvedValue({});
+          const tx = vi.fn().mockResolvedValue([]);
+          const r = await resolvePartBoundingBoxes({
+            webPageId: MOCK_WEB_PAGE_ID,
+            url: MOCK_URL,
+            prisma: createMockPrisma({
+              componentPartFindMany: vi.fn().mockResolvedValue(mockParts),
+              sectionPatternFindMany: vi.fn().mockResolvedValue([]),
+              componentPartUpdate: update,
+              $transaction: tx,
+            }) as unknown as ResolvePartBoundingBoxesParams["prisma"],
+          });
+          expect(bboxCalls).toBeGreaterThanOrEqual(3);
+          expect(update).not.toHaveBeenCalled();
+          expect(r.resolvedCount).toBe(0);
+        } finally {
+          if (prev === undefined) delete process.env["BBOX_RESOLVE_RELOAD_ENABLED"];
+          else process.env["BBOX_RESOLVE_RELOAD_ENABLED"] = prev;
+        }
+      });
+
+      it("passes the style key list and value cap to the browser measurement", async () => {
+        const mockParts = [createMockDbPart({ id: MOCK_PART_ID_1, boundingBox: null })];
+        const bboxEvaluate = vi.fn().mockResolvedValue([null]);
+        const mockPage = createMockPage({ evaluate: createSweepEvaluateMock(bboxEvaluate) });
+        mockChromiumLaunch.mockResolvedValue(createMockBrowser(createMockContext(mockPage)));
+        await resolvePartBoundingBoxes({
+          webPageId: MOCK_WEB_PAGE_ID,
+          url: MOCK_URL,
+          prisma: createMockPrisma({
+            componentPartFindMany: vi.fn().mockResolvedValue(mockParts),
+            sectionPatternFindMany: vi.fn().mockResolvedValue([]),
+          }) as unknown as ResolvePartBoundingBoxesParams["prisma"],
+        });
+        const sent = bboxEvaluate.mock.calls[0]?.[1] as Array<Record<string, unknown>>;
+        expect(sent[0]?.["styleKeys"]).toEqual([...PART_COMPUTED_STYLE_KEYS]);
+        expect(sent[0]?.["styleMaxChars"]).toBe(PART_COMPUTED_STYLE_MAX_CHARS);
       });
 
       it("既に有効な bounding box を持つパーツはスキップされる", async () => {

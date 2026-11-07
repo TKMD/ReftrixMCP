@@ -229,8 +229,10 @@ model WebPage {
 
   // スクリーンショット永続化パス（Phase 5 Queue-based Backfill 用 / v0.4.0）
   // Screenshot persistence path (for Phase 5 Queue-based Backfill / v0.4.0)
-  // ScreenshotPersistenceService.saveScreenshot() が設定、cleanupExpired() で NULL 化
-  // Set by ScreenshotPersistenceService.saveScreenshot(), nulled by cleanupExpired()
+  // ScreenshotPersistenceService.saveScreenshot() が設定。終端ページは保持期限後に
+  // ScreenshotRetentionService.runRetentionCycle() が NULL 化 (ADR-0041 Amendment 3)、data.delete は即時
+  // Set by ScreenshotPersistenceService.saveScreenshot(); nulled after the retention period for
+  // terminal pages by ScreenshotRetentionService.runRetentionCycle() (ADR-0041 Amendment 3), immediately by data.delete
   screenshotStoragePath String? @map("screenshot_storage_path") @db.Text
 
   // Embedding backfill 状態（v0.4.0 PR2: サイレント skip 観測性）

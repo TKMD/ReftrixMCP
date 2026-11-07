@@ -36,8 +36,9 @@ import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { getLazyScrollMaxIterations } from "../page-ingest-adapter";
 import { truncateId } from "./schemas";
 import { waitForRafSettle } from "./section-selector.helper";
-import { TAG_TO_PART_TYPE } from "./types";
+import { PART_COMPUTED_STYLE_KEYS, PART_COMPUTED_STYLE_MAX_CHARS, TAG_TO_PART_TYPE } from "./types";
 import { launchChromium } from "../../utils/launch-chromium";
+import { sanitizePartComputedStyles } from "./part-live-geometry";
 
 // ============================================================================
 // Constants / 定数
@@ -245,7 +246,7 @@ export interface ResolvePartBoundingBoxesResult {
  * page.evaluate に渡すパーツセレクタデータ
  * Part selector data passed to page.evaluate
  */
-interface PartSelectorData {
+export interface PartSelectorData {
   /** DB パーツID / DB part ID */
   id: string;
   /**
@@ -267,13 +268,17 @@ interface PartSelectorData {
   sectionStartY: number;
   /** 同一セクション内の同一partType別インデックス / Per-partType index within section */
   sampleIndex: number;
+  /** Computed style properties to read for the matched element (`PART_COMPUTED_STYLE_KEYS`). */
+  styleKeys?: readonly string[];
+  /** Each value is cut to this length in the browser. */
+  styleMaxChars?: number;
 }
 
 /**
  * page.evaluate から返るbounding box結果
  * Bounding box result returned from page.evaluate
  */
-interface BboxResult {
+export interface BboxResult {
   /** DB パーツID / DB part ID */
   id: string;
   /** セクション相対X座標 / Section-relative X coordinate */
@@ -284,6 +289,8 @@ interface BboxResult {
   width: number;
   /** 高さ / Height */
   height: number;
+  /** Computed styles as the page returned them; untrusted until `sanitizePartComputedStyles`. */
+  styles?: Record<string, string> | undefined;
 }
 
 // ============================================================================
@@ -408,6 +415,8 @@ export async function resolvePartBoundingBoxes(
     selectors: buildSelectorsForPart(p.partType, p.cssClasses),
     sectionStartY: sectionStartYMap.get(p.sectionPatternId) ?? 0,
     sampleIndex: p.sampleIndex,
+    styleKeys: PART_COMPUTED_STYLE_KEYS,
+    styleMaxChars: PART_COMPUTED_STYLE_MAX_CHARS,
   }));
 
   // 5. Playwright でページをレンダリングし bounding box を取得
@@ -517,9 +526,14 @@ export async function resolvePartBoundingBoxes(
     });
 
     // 7. DB を一括更新 / Batch update DB
+    const stylesField = (raw: unknown): { styles?: Record<string, string> } => {
+      const styles = sanitizePartComputedStyles(raw);
+      return styles ? { styles } : {};
+    };
     const updates: Array<{
       id: string;
       bbox: { x: number; y: number; width: number; height: number };
+      styles?: Record<string, string>;
     }> = [];
     const skippedSelectors: PartSelectorData[] = [];
 
@@ -529,6 +543,7 @@ export async function resolvePartBoundingBoxes(
         updates.push({
           id: bbox.id,
           bbox: { x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height },
+          ...stylesField(bbox.styles),
         });
       } else {
         // selectorData[i] is the corresponding skipped part (resolvedBboxes
@@ -566,6 +581,7 @@ export async function resolvePartBoundingBoxes(
           updates.push({
             id: bbox.id,
             bbox: { x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height },
+            ...stylesField(bbox.styles),
           });
         }
       }
@@ -578,7 +594,11 @@ export async function resolvePartBoundingBoxes(
         updates.map((u) =>
           prisma.componentPart.update({
             where: { id: u.id },
-            data: { boundingBox: u.bbox as unknown as Prisma.InputJsonValue },
+            data: {
+              boundingBox: u.bbox as unknown as Prisma.InputJsonValue,
+              // Only overwrite computed_styles when the browser measured some.
+              ...(u.styles ? { computedStyles: u.styles as unknown as Prisma.InputJsonValue } : {}),
+            },
           })
         )
       );
@@ -739,7 +759,13 @@ async function runBboxReloadPass(params: BboxReloadPassParams): Promise<BboxRelo
       const bbox = evalResult[i];
       const selector = remainingSelectors[i];
       if (selector === undefined) continue;
-      if (bbox !== null && bbox !== undefined) {
+      // The result is page-controlled: accept it only for this part and with finite sizes (SEC L-1).
+      if (
+        bbox !== null &&
+        bbox !== undefined &&
+        bbox.id === selector.id &&
+        isFiniteNonZeroBbox(bbox)
+      ) {
         recovered.push(bbox);
       } else {
         stillUnresolved.push(selector);
@@ -785,7 +811,10 @@ async function runBboxReloadPass(params: BboxReloadPassParams): Promise<BboxRelo
  *
  * @internal exported for unit tests via the public service surface
  */
-async function runBboxPageEvaluate(
+export { sanitizePartComputedStyles };
+
+/** @internal exported for the real-Chromium test */
+export async function runBboxPageEvaluate(
   page: Page,
   selectors: PartSelectorData[]
 ): Promise<Array<BboxResult | null>> {
@@ -853,12 +882,32 @@ async function runBboxPageEvaluate(
               const absoluteY = rect.top + window.scrollY;
               if (absoluteY < part.sectionStartY) return null; // (C) honest-skip garbage crop
               matched.add(el); // clamp 判定後に add (shared `matched` Set 共有)
+              // Computed styles, read and cut in the browser so a page cannot hand back an
+              // unbounded value (inline only: no named helper, INV-PAGE-EVALUATE-NO-NAME-INJECTION-001).
+              // Single-element map: an anonymous scoped callback (no named binding).
+              const styles = [el].map((target): Record<string, string> => {
+                const acc: Record<string, string> = {};
+                const maxChars = part.styleMaxChars ?? 0;
+                if (!part.styleKeys || part.styleKeys.length === 0 || maxChars <= 0) return acc;
+                let cs: CSSStyleDeclaration | null = null;
+                try {
+                  cs = window.getComputedStyle(target);
+                } catch {
+                  return acc;
+                }
+                for (const key of part.styleKeys) {
+                  const v = cs.getPropertyValue(key);
+                  if (typeof v === "string" && v.length > 0) acc[key] = v.slice(0, maxChars);
+                }
+                return acc;
+              })[0];
               return {
                 id: part.id,
                 x: Math.max(0, rect.left),
                 y: absoluteY - part.sectionStartY, // self-cancel (absoluteY >= sectionStartY)
                 width: rect.width,
                 height: rect.height,
+                styles, // may be empty; re-validated in Node (sanitizePartComputedStyles)
               };
             }
             matchIndex++;
@@ -1023,6 +1072,7 @@ function mergeSweepStepResults(
     const bbox = stepResults[i];
     const part = pending[i];
     if (part === undefined || bbox === null || bbox === undefined) continue;
+    if (bbox.id !== part.id) continue; // page-controlled result: only for the part asked for
     if (confirmed.has(bbox.id)) continue;
     if (!isFiniteNonZeroBbox(bbox)) continue;
     confirmed.set(bbox.id, bbox);

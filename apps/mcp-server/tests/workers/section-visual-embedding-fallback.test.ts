@@ -183,7 +183,7 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
       // Sharp crop のパスが残っている
       expect(cropBody).toContain("sharp(screenshotBuffer)");
       expect(cropBody).toContain(".extract(");
-      expect(cropBody).toContain(".resize(");
+      expect(cropBody).toContain("preprocessSectionForDinov2(");
     });
 
     it("should route sections based on imgHeight comparison", () => {
@@ -342,7 +342,7 @@ describe("PageAnalyzeWorker - Section Visual Embedding Fallback Integration", ()
 
       // リサイズパスがあることを確認
       expect(cropBody).toContain("dinov2InputSize");
-      expect(cropBody).toContain("resize");
+      expect(cropBody).toContain("preprocessSectionForDinov2(fb, dinov2InputSize)");
     });
   });
 

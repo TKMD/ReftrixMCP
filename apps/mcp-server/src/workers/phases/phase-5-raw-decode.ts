@@ -38,6 +38,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import sharp from "../../utils/sharp-safe";
+import { preprocessSectionForDinov2 } from "../../utils/dinov2-section-preprocess";
 
 import { isBlankImage } from "../../utils/blank-image-detector";
 import { logger } from "../../utils/logger";
@@ -413,12 +414,7 @@ export async function acquireSectionCropBufferFromRaw(
   }
 
   // DINOv2 用: resize → removeAlpha → srgb → raw
-  const rawCropBuffer = await sharp(croppedPngBuffer)
-    .resize(dinov2InputSize, dinov2InputSize, { fit: "cover", kernel: "cubic" })
-    .removeAlpha()
-    .toColorspace("srgb")
-    .raw()
-    .toBuffer();
+  const rawCropBuffer = await preprocessSectionForDinov2(croppedPngBuffer, dinov2InputSize);
 
   return { rawCropBuffer, isBlank: false };
 }

@@ -20,6 +20,7 @@ import type {
 } from "../../queues/page-analyze-queue";
 import type { ExecutionStatusTrackerV2 } from "../../tools/page/handlers/execution-status-tracker";
 import type { ScrollCapture } from "../../services/vision/scroll-vision-capture.service";
+import type { PartGeometryMap } from "../../services/part/part-live-geometry";
 import { logger, isDevelopment } from "../../utils/logger";
 import { isBlankImage } from "../../utils/blank-image-detector";
 import { safeParseInt } from "../../utils/safe-parse-int";
@@ -40,6 +41,7 @@ import type { SaveScrollVisionResult } from "../../services/vision/scroll-vision
 import type { ScrollVisionResult } from "../../services/vision/scroll-vision.analyzer";
 import type { Browser } from "playwright";
 import sharp from "../../utils/sharp-safe";
+import { preprocessSectionForDinov2 } from "../../utils/dinov2-section-preprocess";
 import { sanitizeErrorMessage } from "../../utils/sanitize-error";
 import { emitSupervisorAuditLog } from "../../services/worker-supervisor-helpers";
 
@@ -1406,6 +1408,14 @@ export interface PipelineState {
   scrollVisionCapturesForDeferred: ScrollCapture[] | null;
   /** HTML — null after Phase 4 release */
   html: string | null;
+  /**
+   * 番号付き HTML（VR-M-01）。レイアウト解析とパーツ抽出だけが使い、Phase 1 の終わりで null にする。
+   * Numbered HTML (VR-M-01); used only by layout analysis and part extraction, nulled at the end
+   * of Phase 1. Never persist it.
+   */
+  layoutHtml?: string | null;
+  /** Phase 0 で測ったパーツ候補の位置（VR-M-01）/ Part-candidate geometry measured in Phase 0 */
+  partGeometry?: PartGeometryMap | null;
   /** Screenshot (base64) — undefined after Phase 5 release */
   screenshotBase64: string | undefined;
   /** Screenshot PNG file path — Phase 0 saves to tmp, Phase 5 reads (TMP-5: Optional) */
@@ -2035,12 +2045,7 @@ export async function acquireSectionCropBuffer(
       return { rawCropBuffer: null, isBlank: true };
     }
 
-    const rawCropBuffer = await sharp(fb)
-      .resize(dinov2InputSize, dinov2InputSize, { fit: "cover", kernel: "cubic" })
-      .removeAlpha()
-      .toColorspace("srgb")
-      .raw()
-      .toBuffer();
+    const rawCropBuffer = await preprocessSectionForDinov2(fb, dinov2InputSize);
 
     fallbackScreenshots.delete(sectionPatternId);
     return { rawCropBuffer, isBlank: false };
@@ -2064,12 +2069,7 @@ export async function acquireSectionCropBuffer(
     return { rawCropBuffer: null, isBlank: true };
   }
 
-  const rawCropBuffer = await sharp(croppedPngBuffer)
-    .resize(dinov2InputSize, dinov2InputSize, { fit: "cover", kernel: "cubic" })
-    .removeAlpha()
-    .toColorspace("srgb")
-    .raw()
-    .toBuffer();
+  const rawCropBuffer = await preprocessSectionForDinov2(croppedPngBuffer, dinov2InputSize);
 
   return { rawCropBuffer, isBlank: false };
 }

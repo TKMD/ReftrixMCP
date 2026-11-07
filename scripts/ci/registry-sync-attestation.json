@@ -17,6 +17,10 @@
     {
       "sha256": "6ffbfd1832a849cec6a39bb18437a0a26f7b066066113c6c6e4e9426c8de8f06",
       "attested_on": "2026-11-04"
+    },
+    {
+      "sha256": "b5274eb0c1a030ec6e5ddf378e261f8957fc1d57aa43fa447bba3d33e984c13e",
+      "attested_on": "2026-11-06"
     }
   ]
 }

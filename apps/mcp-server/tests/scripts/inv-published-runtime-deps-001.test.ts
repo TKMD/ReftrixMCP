@@ -94,15 +94,11 @@ describe("INV-PUBLISHED-RUNTIME-DEPS-001 src mode: real tree", () => {
     expect(r.rc).toBe(0);
     const scanned = [...r.out.matchAll(/^SCANNED pkg=(\S+) files=(\d+)/gm)];
     // bash で source した件数と一致する（読み落としで検査対象が減らない）/ equals bash's count
+    // 固定のコマンド文字列を repo root で実行し、パスを引数にしない（CodeQL #92）/ fixed command run in the repo root; no path argument (CodeQL #92)
     const bash = spawnSync(
       "bash",
-      [
-        "-c",
-        'source "$1"; echo "${#PUBLISH_PACKAGES[@]}"',
-        "_",
-        join(REPO_ROOT, "scripts/publish-targets.sh"),
-      ],
-      { encoding: "utf-8" }
+      ["-c", 'source ./scripts/publish-targets.sh; echo "${#PUBLISH_PACKAGES[@]}"'],
+      { cwd: REPO_ROOT, encoding: "utf-8" }
     );
     expect(bash.status, bash.stderr).toBe(0);
     expect(scanned.length).toBe(Number(bash.stdout.trim()));

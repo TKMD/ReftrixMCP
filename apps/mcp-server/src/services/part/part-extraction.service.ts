@@ -33,6 +33,8 @@ import {
   ALL_PART_TYPES,
 } from "./types";
 import { logger, isDevelopment } from "../../utils/logger";
+import { PART_PID_ATTR, readPartPid } from "../../utils/part-pid";
+import type { PartGeometryMap, PartLiveGeometry } from "./part-live-geometry";
 
 // ============================================================================
 // Constants / 定数
@@ -112,6 +114,7 @@ const PART_DOMPURIFY_CONFIG = {
     "title",
   ] as string[],
   FORBID_ATTR: [
+    PART_PID_ATTR,
     "onclick",
     "ondblclick",
     "onmousedown",
@@ -165,10 +168,24 @@ export async function extractPartsFromSection(params: {
   sectionBoundingBox: BoundingBox;
   fullScreenshot?: Buffer;
   sourceUrl?: string | null;
+  /**
+   * 取り込み時に測った文書座標の位置（VR-M-01）。あるときは、番号が付き位置が測れた（見えている）
+   * 要素だけをパーツ候補にし、位置と computed style はこの実測値を使う。
+   * Ingest-time document geometry (VR-M-01). When given, only numbered elements with a measured
+   * (visible) geometry are candidates, and their position and computed styles come from it.
+   */
+  liveGeometry?: PartGeometryMap;
 }): Promise<PartExtractionResult> {
   const startTime = Date.now();
-  const { sectionHtml, config, computedStylesMap, sectionBoundingBox, fullScreenshot, sourceUrl } =
-    params;
+  const {
+    sectionHtml,
+    config,
+    computedStylesMap,
+    sectionBoundingBox,
+    fullScreenshot,
+    sourceUrl,
+    liveGeometry,
+  } = params;
 
   // 空入力 / Empty input guard
   if (!sectionHtml || typeof sectionHtml !== "string" || sectionHtml.trim() === "") {
@@ -184,10 +201,16 @@ export async function extractPartsFromSection(params: {
   const allElements = body.querySelectorAll("*");
   const candidates: Array<{ element: Element; partType: PartType }> = [];
 
+  let notVisibleCount = 0;
   for (const element of allElements) {
     const partType = identifyPartType(element);
     if (partType === null) continue;
     if (!allowedTypes.has(partType)) continue;
+    if (liveGeometry && !lookupLiveGeometry(element, liveGeometry)) {
+      // 非表示・画面外・測定外の要素は選ばない / Hidden, off-page or unmeasured: not a candidate
+      notVisibleCount++;
+      continue;
+    }
     candidates.push({ element, partType });
   }
 
@@ -205,7 +228,8 @@ export async function extractPartsFromSection(params: {
     }
 
     // minPartSize フィルタ（JSDOMではgetBoundingClientRectが0を返す場合がある）
-    const rect = candidate.element.getBoundingClientRect();
+    const live = liveGeometry ? lookupLiveGeometry(candidate.element, liveGeometry) : undefined;
+    const rect = live ?? candidate.element.getBoundingClientRect();
     if (rect.width > 0 && rect.height > 0) {
       if (rect.width < config.minPartSize && rect.height < config.minPartSize) {
         skippedCount++;
@@ -230,6 +254,7 @@ export async function extractPartsFromSection(params: {
     // 属性を収集 / Collect attributes
     const rawAttributes: Record<string, string> = {};
     for (const attr of element.attributes) {
+      if (attr.name === PART_PID_ATTR) continue;
       rawAttributes[attr.name] = attr.value;
     }
     const attributes = maskPiiInAttributes(rawAttributes);
@@ -245,17 +270,21 @@ export async function extractPartsFromSection(params: {
     }
 
     // 計算済みスタイル / Computed styles
+    const live = liveGeometry ? lookupLiveGeometry(element, liveGeometry) : undefined;
     const elementId = element.id || element.getAttribute("data-part-id") || "";
-    const computedStyles = computedStylesMap.get(elementId) ?? {};
+    const computedStyles = live?.styles ?? computedStylesMap.get(elementId) ?? {};
 
     // バウンディングボックス（セクション相対）/ Bounding box (section-relative)
-    const rect = element.getBoundingClientRect();
-    const boundingBox: BoundingBox = {
-      x: Math.max(0, rect.left - sectionBoundingBox.x),
-      y: Math.max(0, rect.top - sectionBoundingBox.y),
-      width: rect.width,
-      height: rect.height,
-    };
+    // 実測値はクランプしない（セクション原点を足すと文書座標に正確に戻るように）。
+    // Live values are not clamped, so adding the section origin restores the exact document rect.
+    const boundingBox: BoundingBox = live
+      ? {
+          x: live.x - sectionBoundingBox.x,
+          y: live.y - sectionBoundingBox.y,
+          width: live.width,
+          height: live.height,
+        }
+      : jsdomSectionRelativeBox(element, sectionBoundingBox);
 
     // インタラクション情報 / Interaction info
     const interactionInfo = extractInteractionInfo(element, computedStyles);
@@ -337,7 +366,27 @@ export async function extractPartsFromSection(params: {
     });
   }
 
-  return { parts, skippedCount, durationMs };
+  return liveGeometry
+    ? { parts, skippedCount, durationMs, notVisibleCount }
+    : { parts, skippedCount, durationMs };
+}
+
+function lookupLiveGeometry(
+  element: Element,
+  liveGeometry: PartGeometryMap
+): PartLiveGeometry | undefined {
+  const pid = readPartPid(element);
+  return pid === null ? undefined : liveGeometry.get(pid);
+}
+
+function jsdomSectionRelativeBox(element: Element, sectionBoundingBox: BoundingBox): BoundingBox {
+  const rect = element.getBoundingClientRect();
+  return {
+    x: Math.max(0, rect.left - sectionBoundingBox.x),
+    y: Math.max(0, rect.top - sectionBoundingBox.y),
+    width: rect.width,
+    height: rect.height,
+  };
 }
 
 /**
@@ -351,16 +400,38 @@ export async function extractPartsFromSection(params: {
  * @returns パーツタイプまたはnull / Part type or null
  */
 export function identifyPartType(element: Element): PartType | null {
+  return identifyPartTypeFromAttrs(
+    element.tagName,
+    element.getAttribute("class"),
+    element.getAttribute("role")
+  );
+}
+
+/**
+ * タグ名・class 属性・role 属性からパーツ種別を判定する（DOM 非依存の SSOT）
+ * Identify part type from raw tag / class / role values (DOM-independent SSOT).
+ *
+ * `identifyPartType` と design.verify_reproduction（ブラウザから取得した属性値）が共有する。
+ * Shared by `identifyPartType` and design.verify_reproduction (attribute values read in-browser).
+ *
+ * @param tagName - タグ名 / Tag name
+ * @param classAttr - class 属性値（無ければ null）/ class attribute (null if absent)
+ * @param role - role 属性値（無ければ null）/ role attribute (null if absent)
+ */
+export function identifyPartTypeFromAttrs(
+  tagName: string,
+  classAttr: string | null,
+  role: string | null
+): PartType | null {
   // 1. タグベース検出 / Tag-based detection
-  const tagName = element.tagName.toLowerCase();
-  const tagType = TAG_TO_PART_TYPE[tagName];
+  const tagType = TAG_TO_PART_TYPE[tagName.toLowerCase()];
   if (tagType !== undefined) {
     return tagType;
   }
 
   // 2. クラスパターン検出 / Class pattern detection
   // SVG要素のclassNameはSVGAnimatedStringのためgetAttribute('class')を使用
-  const classAttrValue = element.getAttribute("class") ?? "";
+  const classAttrValue = classAttr ?? "";
   if (classAttrValue.length > 0) {
     for (const { pattern, type } of CLASS_PATTERNS) {
       if (pattern.test(classAttrValue)) {
@@ -370,7 +441,6 @@ export function identifyPartType(element: Element): PartType | null {
   }
 
   // 3. ARIA role検出 / ARIA role detection
-  const role = element.getAttribute("role");
   if (role) {
     const roleType = ROLE_TO_PART_TYPE[role];
     if (roleType !== undefined && CORE_PART_TYPE_SET.has(roleType)) {

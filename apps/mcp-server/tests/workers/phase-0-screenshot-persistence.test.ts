@@ -225,4 +225,48 @@ describe("Phase 0 × ScreenshotPersistenceService integration", () => {
     expect(state.screenshotPngPath).toBe(expectedPath);
     await fs.access(expectedPath);
   });
+
+  describe("part live geometry (VR-M-01)", () => {
+    const NUMBERED = `<html><head><title>T</title></head><body data-reftrix-pid="0"><button data-reftrix-pid="1">Go</button></body></html>`;
+
+    afterEach(() => {
+      delete process.env.PART_LIVE_GEOMETRY_ENABLED;
+    });
+
+    it("keeps the numbered HTML only for layout and strips it from state.html", async () => {
+      process.env.PART_LIVE_GEOMETRY_ENABLED = "true";
+      const state = createPipelineState();
+      const mockPrisma = createMockPrisma();
+      const geometry = new Map([[1, { x: 0, y: 0, width: 10, height: 10 }]]);
+      const adapter = {
+        ingest: vi
+          .fn()
+          .mockResolvedValue({ success: true, html: NUMBERED, partGeometry: geometry }),
+        getSharedBrowser: vi.fn().mockResolvedValue(createMockBrowser()),
+      };
+      await processIngestPhase(state, createPhaseContext(), {
+        pageIngestAdapter: adapter as never,
+        prisma: mockPrisma as never,
+        screenshotPersistenceService: createScreenshotPersistenceService({ prisma: mockPrisma }),
+      });
+      expect(adapter.ingest.mock.calls[0]![0]).toMatchObject({ capturePartGeometry: true });
+      expect(state.html).not.toContain("data-reftrix-pid");
+      expect(state.layoutHtml).toBe(NUMBERED);
+      expect(state.partGeometry).toBe(geometry);
+    });
+
+    it("leaves layoutHtml unset without geometry and does not ask for it when the flag is off", async () => {
+      const state = createPipelineState();
+      const mockPrisma = createMockPrisma();
+      const adapter = createMockAdapter({ screenshot: undefined });
+      await processIngestPhase(state, createPhaseContext(), {
+        pageIngestAdapter: adapter as never,
+        prisma: mockPrisma as never,
+        screenshotPersistenceService: createScreenshotPersistenceService({ prisma: mockPrisma }),
+      });
+      expect(adapter.ingest.mock.calls[0]![0]).toMatchObject({ capturePartGeometry: false });
+      expect(state.layoutHtml).toBeUndefined();
+      expect(state.partGeometry).toBeUndefined();
+    });
+  });
 });

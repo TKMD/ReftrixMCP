@@ -1052,15 +1052,17 @@ async function runVisualSubPhaseFork(args: {
  * @returns Aggregated EmbeddingPhaseResult merged across all sub-phase forks
  */
 // v0.4.0 PR7c / PR-SS-B: IPhase5ScreenshotPersistence 依存を削除
-//   - 削除責務は GDPR `data.delete` (Art.17 同期削除) のみに集約。TTL 構造は
-//     PR-SS-B (ADR-0041) で撤去済 (Screenshot 保持 = `data.delete` まで)。
+//   - Phase 5 は screenshot を削除しない。削除は GDPR `data.delete` (Art.17 同期削除) と、
+//     終端ページの保持期限削除 (`services/screenshot-retention.service.ts`、ADR-0041
+//     Amendment 3) が担う。旧 TTL 構造は PR-SS-B (ADR-0041) で撤去済。
 //   - GDPR 削除経路は引き続き `service-registrar-search.ts` 経由で
 //     `ScreenshotPersistenceService.deleteScreenshot()` を使用するため、
 //     `screenshot-persistence.types.ts` の型定義自体は保持する。
 // v0.4.0 PR7c / PR-SS-B: Removed IPhase5ScreenshotPersistence dependency
-//   - Deletion responsibility is consolidated into GDPR `data.delete` (Art.17,
-//     synchronous) only. The TTL structure was removed in PR-SS-B (ADR-0041);
-//     screenshot retention is "until `data.delete`".
+//   - Phase 5 never deletes a screenshot. Deletion is GDPR `data.delete` (Art.17,
+//     synchronous) and the retention expiry of terminal pages
+//     (`services/screenshot-retention.service.ts`, ADR-0041 Amendment 3). The old TTL
+//     structure was removed in PR-SS-B (ADR-0041).
 //   - GDPR deletion still uses `ScreenshotPersistenceService.deleteScreenshot()`
 //     via `service-registrar-search.ts`, so the type definition itself is retained.
 

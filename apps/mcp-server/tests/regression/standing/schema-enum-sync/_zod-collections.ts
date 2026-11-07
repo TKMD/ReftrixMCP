@@ -55,6 +55,10 @@ export const TOOL_INPUT_ROOTS: Readonly<Record<string, readonly [string, string]
   "design.search_by_image": ["design/search-by-image.tool.ts", "designSearchByImageInputSchema"],
   "design.similar_site": ["design/similar-site.tool.ts", "designSimilarSiteInputSchema"],
   "design.compare": ["design/compare.tool.ts", "designCompareInputSchema"],
+  "design.verify_reproduction": [
+    "design/verify-reproduction.tool.ts",
+    "verifyReproductionInputSchema",
+  ],
   "audit.query": ["audit/query.tool.ts", "auditQueryInputSchema"],
   "data.delete": ["data/data.tool.ts", "dataDeleteInputSchema"],
   "data.export": ["data/data.tool.ts", "dataExportInputSchema"],
