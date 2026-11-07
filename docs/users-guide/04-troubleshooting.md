@@ -313,7 +313,7 @@ Error: ETIMEDOUT
 **症状 / Symptoms:**
 
 ```
-Browser for page crawling is not installed. Run: npx playwright@1.57.0 install chromium
+Browser for page crawling is not installed. Run: npx playwright@1.64.1 install chromium
 ```
 
 **原因と解決策 / Cause and Solution:**
@@ -339,8 +339,8 @@ Error: Cannot find module 'playwright'
 The npm package `@reftrixmcp/mcp-server` 0.7.0 and earlier does not declare `playwright` as a runtime dependency (known issue), so an npm installation fails with this error when a tool that fetches pages runs. As a workaround, add `playwright` with the pinned version in the directory where you installed the package, then get the browser:
 
 ```bash
-npm install playwright@1.57.0
-npx playwright@1.57.0 install chromium
+npm install playwright@1.64.1
+npx playwright@1.64.1 install chromium
 ```
 
 ---

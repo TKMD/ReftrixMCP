@@ -52,12 +52,12 @@ pnpm build
 
 ```bash
 npm install @reftrixmcp/mcp-server
-npx playwright@1.57.0 install chromium
+npx playwright@1.64.1 install chromium
 ```
 
-2 行目は版を固定しているため、どのディレクトリで実行しても同じ revision のブラウザが入ります（版は本パッケージが使う Playwright の版 <!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright --> です）。ブラウザが未取得のときにツールが返す文言と対処は、下の「ブラウザ未取得時の固定文言」節を参照してください。
+2 行目は版を固定しているため、どのディレクトリで実行しても同じ revision のブラウザが入ります（版は本パッケージが使う Playwright の版 <!-- gen:ver-playwright -->1.64.1<!-- /gen:ver-playwright --> です）。ブラウザが未取得のときにツールが返す文言と対処は、下の「ブラウザ未取得時の固定文言」節を参照してください。
 
-The second line pins the version, so it installs the same browser revision whichever directory you run it in (the version is the Playwright version this package uses, <!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright -->). For the message the tools return when the browser is missing and what to do, see "Fixed Message When the Browser Is Missing" below.
+The second line pins the version, so it installs the same browser revision whichever directory you run it in (the version is the Playwright version this package uses, <!-- gen:ver-playwright -->1.64.1<!-- /gen:ver-playwright -->). For the message the tools return when the browser is missing and what to do, see "Fixed Message When the Browser Is Missing" below.
 
 #### ブラウザの取得について / Getting the Browser
 
@@ -89,9 +89,9 @@ npm rebuild @prisma/client
 
 ### ブラウザ未取得時の固定文言 / Fixed Message When the Browser Is Missing
 
-ページ取得（`layout.ingest` / `page.analyze`）に使う Chromium が未取得の場合、クライアントには内部 path や Call log を含まない固定文言 `Browser for page crawling is not installed. Run: npx playwright@<!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright --> install chromium` を返します。`layout.ingest` の文言は固定文言そのもので、`page.analyze`（同期実行）の文言は固定文言で始まり、末尾に ` (after N attempt(s))` が付くことがあります。版を固定しているため、実行ディレクトリに依らず同じ revision が入ります。元のエラー本文はサーバー側ログにのみ残ります。
+ページ取得（`layout.ingest` / `page.analyze`）に使う Chromium が未取得の場合、クライアントには内部 path や Call log を含まない固定文言 `Browser for page crawling is not installed. Run: npx playwright@<!-- gen:ver-playwright -->1.64.1<!-- /gen:ver-playwright --> install chromium` を返します。`layout.ingest` の文言は固定文言そのもので、`page.analyze`（同期実行）の文言は固定文言で始まり、末尾に ` (after N attempt(s))` が付くことがあります。版を固定しているため、実行ディレクトリに依らず同じ revision が入ります。元のエラー本文はサーバー側ログにのみ残ります。
 
-When the Chromium used for page crawling (`layout.ingest` / `page.analyze`) is not installed, clients receive the fixed message `Browser for page crawling is not installed. Run: npx playwright@<!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright --> install chromium`, with no internal path or call log. For `layout.ingest` the message is exactly the fixed message; for `page.analyze` (synchronous run) it starts with the fixed message and may end with ` (after N attempt(s))`. The version is pinned, so the same revision is installed regardless of the working directory. The raw error text stays in the server-side log only.
+When the Chromium used for page crawling (`layout.ingest` / `page.analyze`) is not installed, clients receive the fixed message `Browser for page crawling is not installed. Run: npx playwright@<!-- gen:ver-playwright -->1.64.1<!-- /gen:ver-playwright --> install chromium`, with no internal path or call log. For `layout.ingest` the message is exactly the fixed message; for `page.analyze` (synchronous run) it starts with the fixed message and may end with ` (after N attempt(s))`. The version is pinned, so the same revision is installed regardless of the working directory. The raw error text stays in the server-side log only.
 
 ブラウザを起動するすべてのツール（`layout.ingest` / `page.analyze` / `motion.detect` / `responsive.capture` / `accessibility.audit` など）は、ブラウザ未取得のとき Playwright の起動エラーをそのまま返さず、固定文言を返します（固定文言のみ、またはより長い文言の一部として）。Chromium の起動は `src/utils/launch-chromium.ts` の 1 箇所に集約しています。
 

@@ -99,7 +99,7 @@ interface IUser {
 | Backend             | Node.js               | 22.23.4+ / 24.22.1+ / 26.12.1+ (`^22.23.4 \|\| ^24.22.1 \|\| ^26.12.1`) |
 | Database            | PostgreSQL + pgvector | 18.x + 0.8.x                                                            |
 | Testing             | Vitest                | 4.x（全パッケージ / all packages）                                      |
-| Testing             | Playwright            | <!-- gen:ver-playwright -->1.57.0<!-- /gen:ver-playwright -->           |
+| Testing             | Playwright            | <!-- gen:ver-playwright -->1.64.1<!-- /gen:ver-playwright -->           |
 | Cache               | lru-cache             | 11.x                                                                    |
 | Queue UI            | @bull-board/express   | 6.x                                                                     |
 | SBOM                | @cyclonedx/cdxgen     | 12.x                                                                    |

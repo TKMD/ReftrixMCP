@@ -1,5 +1,5 @@
 #!/usr/bin/env tsx
-// SPDX-FileCopyrightText: 2026 Reftrix Contributors
+// SPDX-FileCopyrightText: 2025-2026 Reftrix Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * multilingual-e5-base ONNX Cache Integrity Check + Repair / 整合性チェック + 修復

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Copyright (C) 2026 TKMD & Reftrix Contributors
+// SPDX-FileCopyrightText: 2025-2026 Reftrix Contributors
 
 /**
  * isBlankImage テスト / isBlankImage tests

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Copyright (C) 2026 TKMD & Reftrix Contributors
+// SPDX-FileCopyrightText: 2025-2026 Reftrix Contributors
 
 /**
  * sharp-safe: libvips の SVG / Magick（IM6 / IM7）/ PDF loader を process 全体で block した sharp。

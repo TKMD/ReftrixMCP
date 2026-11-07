@@ -21,13 +21,13 @@
  * dependencies / installed playwright-core; asserted by browser-missing.test.ts).
  * 版固定により、実行 dir に依らず同じ Chromium revision が入る。
  */
-export const PLAYWRIGHT_PINNED_VERSION = "1.57.0";
+export const PLAYWRIGHT_PINNED_VERSION = "1.64.1";
 
 /** Fixed client-facing message. No path, stack, call log or error body. */
 export const BROWSER_MISSING_MESSAGE = `Browser for page crawling is not installed. Run: npx playwright@${PLAYWRIGHT_PINNED_VERSION} install chromium`;
 
 /**
- * playwright-core 1.57.0 emits two variants:
+ * playwright-core 1.64.1 emits two variants:
  * - `Executable doesn't exist at <path>` (registry)
  * - `executable doesn't exist at <path>` (browserType.js)
  * plus the `npx playwright install` hint. Compared lower-cased (OR).

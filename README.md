@@ -96,7 +96,7 @@ ollama serve                                     # keep running in a separate te
 
 ### Using the npm package
 
-If you install `@reftrixmcp/mcp-server` from npm instead of cloning, the Playwright browser is not included: get it with `npx playwright@1.57.0 install chromium` (any directory). See "Using the npm Package" in the [MCP Server README](apps/mcp-server/README.md) for the browser notice (third-party software, not covered by this project's license, not redistributed, not in the SBOM) and the `--ignore-scripts` step (`npm rebuild @prisma/client`).
+If you install `@reftrixmcp/mcp-server` from npm instead of cloning, the Playwright browser is not included: get it with `npx playwright@1.64.1 install chromium` (any directory). See "Using the npm Package" in the [MCP Server README](apps/mcp-server/README.md) for the browser notice (third-party software, not covered by this project's license, not redistributed, not in the SBOM) and the `--ignore-scripts` step (`npm rebuild @prisma/client`).
 
 ### Connect to Claude
 

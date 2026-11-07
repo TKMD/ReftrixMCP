@@ -24,7 +24,7 @@ import { sanitizeErrorMessage } from "../../src/utils/sanitize-error";
 const PKG_ROOT = path.resolve(__dirname, "../..");
 const REPO_ROOT = path.resolve(PKG_ROOT, "../..");
 
-// playwright-core 1.57.0 の 2 variant / the two variants in playwright-core 1.57.0
+// playwright-core 1.64.1 の 2 variant / the two variants in playwright-core 1.64.1
 const VARIANT_UPPER =
   "browserType.launch: Executable doesn't exist at /home/u/.cache/ms-playwright/chromium_headless_shell-1200/chrome-headless-shell-linux64/chrome-headless-shell\n" +
   "║     npx playwright install                                              ║";
@@ -56,7 +56,7 @@ describe("INV-SEC-BROWSER-MISSING-FIXED-MESSAGE-001", () => {
       expect(isBrowserMissingError(new Error("please run npx playwright install"))).toBe(true);
     });
     it("does not match Playwright's missing-host-dependencies text (install-deps)", () => {
-      // playwright-core 1.57.0 registry/dependencies.js: wrong remedy if matched
+      // playwright-core 1.64.1 registry/dependencies.js: wrong remedy if matched
       const deps =
         "browserType.launch: Host system is missing dependencies to run browsers.\n" +
         "Please install them with the following command:\n\n" +

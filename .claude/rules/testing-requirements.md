@@ -292,7 +292,7 @@ vi.spyOn(phaseTypes, "checkMemoryPressure").mockImplementation(() => ({
 | 種別 / Type      | ツール / Tool | バージョン / Version               |
 | ---------------- | ------------- | ---------------------------------- |
 | Unit/Integration | Vitest        | 4.x（全パッケージ / all packages） |
-| E2E              | Playwright    | 1.57.0                             |
+| E2E              | Playwright    | 1.64.1                             |
 
 ## Vitest設定 / Vitest Configuration
 
