@@ -11,27 +11,10 @@
  * @module services/responsive/shared-browser-manager
  */
 
-import { type Browser } from "playwright";
-import { ROBOTS_TXT, REFTRIXBOT_INFO_URL } from "@reftrixmcp/core";
+import { type Browser, type BrowserContextOptions } from "playwright";
 import { logger, isDevelopment } from "../../utils/logger";
 import { launchChromium } from "../../utils/launch-chromium";
-
-/**
- * ReftrixBot 識別子
- * robots.txt 確認時と同一の識別子を Playwright UA に付与し、法的整合性を保つ。
- * constants.ts の PRODUCT_TOKEN と同期。
- */
-const BOT_SUFFIX = `${ROBOTS_TXT.PRODUCT_TOKEN}/1.0 (+${REFTRIXBOT_INFO_URL})`;
-
-/**
- * ユーザーエージェント定数
- * モバイル/デスクトップのUA文字列を定義
- * 末尾に ReftrixBot 識別子を付与し、robots.txt 確認時の UA と整合させる
- */
-export const USER_AGENTS = {
-  MOBILE: `Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1 ${BOT_SUFFIX}`,
-  DESKTOP: `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 ${BOT_SUFFIX}`,
-} as const;
+import { browserUserAgent } from "../../utils/browser-user-agent";
 
 /**
  * Shared Browser Manager
@@ -108,12 +91,36 @@ export class SharedBrowserManager {
   }
 
   /**
-   * viewport name に応じたUserAgent文字列を返す
+   * viewport に付ける User-Agent。起動中のブラウザの実際のバージョンを使い、`mobile` だけ
+   * Android 版 Chrome の形にする (固定のバージョンや別ブラウザは名乗らない、CAP-L-02)。
+   *
+   * The User-Agent for a viewport: the running browser's real version; `mobile` uses the Chrome on
+   * Android form (no fixed versions, never another browser; CAP-L-02). INV-CRAWLER-UA-IDENTITY-001.
    *
    * @param viewportName - ビューポート名 ('mobile' | 'desktop' | 'tablet' 等)
-   * @returns UserAgent文字列
+   * @param browser - context を作るブラウザ / the browser the context is created on
    */
-  static getUserAgent(viewportName: string): string {
-    return viewportName === "mobile" ? USER_AGENTS.MOBILE : USER_AGENTS.DESKTOP;
+  static getUserAgent(viewportName: string, browser: Pick<Browser, "version">): string {
+    return browserUserAgent(browser, { mobile: viewportName === "mobile" });
+  }
+  /**
+   * viewport 用の BrowserContext オプション。`mobile` は UA に加えて `isMobile` / `hasTouch` を付け、
+   * Client Hints (`Sec-CH-UA-Mobile`、`navigator.userAgentData.mobile`) を UA と揃える。meta viewport の
+   * 無いページは実機と同じく約 980px のレイアウトで描画される。ブランド (`HeadlessChrome`) は変えない。
+   *
+   * Context options for a viewport. `mobile` also sets `isMobile` / `hasTouch` so the Client Hints
+   * agree with the UA; a page without a meta viewport lays out at about 980px, as on a real phone.
+   * The brands (`HeadlessChrome`) are left as they are.
+   */
+  static getContextOptions(
+    viewport: { name: string; width: number; height: number },
+    browser: Pick<Browser, "version">
+  ): BrowserContextOptions {
+    const mobile = viewport.name === "mobile";
+    return {
+      viewport: { width: viewport.width, height: viewport.height },
+      userAgent: SharedBrowserManager.getUserAgent(viewport.name, browser),
+      ...(mobile ? { isMobile: true, hasTouch: true } : {}),
+    };
   }
 }

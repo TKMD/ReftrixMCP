@@ -65,10 +65,6 @@ vi.mock("../../src/services/responsive/shared-browser-manager", () => ({
     close: vi.fn().mockResolvedValue(undefined),
     isUsingSharedBrowser: false,
   })),
-  USER_AGENTS: {
-    MOBILE: "Mozilla/5.0 (iPhone)",
-    DESKTOP: "Mozilla/5.0 (Windows NT 10.0)",
-  },
 }));
 
 import {

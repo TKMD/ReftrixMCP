@@ -43,6 +43,19 @@ describe("INV-CRAWLER-UA-IDENTITY-001 crawler User-Agent", () => {
   it("falls back to the plain bot UA for an unreadable version (never a UA without the token)", () => {
     for (const bad of ["", "abc", "156.0; evil", "1".repeat(64)]) {
       expect(buildBrowserUserAgent(bad)).toBe(ROBOTS_TXT.USER_AGENT);
+      expect(buildBrowserUserAgent(bad, { mobile: true })).toBe(ROBOTS_TXT.USER_AGENT);
     }
+  });
+
+  it("mobile: Chrome on Android with the real version and the Mobile token, same bot token (CAP-L-02)", () => {
+    expect(buildBrowserUserAgent("156.0.7499.4", { mobile: true })).toBe(
+      "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) " +
+        "Chrome/156.0.7499.4 Mobile Safari/537.36 " +
+        `(compatible; ${ROBOTS_TXT.PRODUCT_TOKEN}/1.0; +${REFTRIXBOT_INFO_URL})`
+    );
+    // the desktop form is unchanged when mobile is false or omitted
+    expect(buildBrowserUserAgent("156.0.7499.4", { mobile: false })).toBe(
+      buildBrowserUserAgent("156.0.7499.4")
+    );
   });
 });

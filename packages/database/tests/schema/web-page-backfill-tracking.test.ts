@@ -389,6 +389,19 @@ describe.skipIf(!DATABASE_URL)(
       expect(rows[0]!.embeddingBackfillSkippedAt).toBeInstanceOf(Date);
     });
 
+    it("Partial index idx_web_pages_screenshot_retention が定義されていること (screenshot 保持期限の走査用)", async () => {
+      // migration 20261108120000: schema.prisma に書けない partial index なので存在をここで固定する
+      // (prisma migrate dev が DROP を提案しても気付けるように)
+      const rows = await prisma.$queryRaw<
+        Array<{ indexname: string; indexdef: string }>
+      >`SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'web_pages' AND indexname = 'idx_web_pages_screenshot_retention'`;
+
+      expect(rows.length).toBe(1);
+      const indexdef = rows[0]?.indexdef ?? "";
+      expect(indexdef).toContain("(updated_at)");
+      expect(indexdef).toContain("WHERE (screenshot_storage_path IS NOT NULL)");
+    });
+
     it("Partial index idx_web_pages_backfill_skipped が定義されていること", async () => {
       // Partial index (skip recovery cron の高速化) の存在を pg_indexes から検証
       const rows = await prisma.$queryRaw<

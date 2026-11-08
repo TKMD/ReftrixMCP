@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": [
+    "src/**/*",
+    "scripts/expire-screenshots-past-retention.ts",
+    "scripts/repair-orphaned-backfill-records.ts",
+    "scripts/repair-truncated-screenshot-terminals.ts",
+    "scripts/migrate-screenshots-to-persistent-root.ts",
+    "scripts/batch-analyze-webpages.ts"
+  ]
+}

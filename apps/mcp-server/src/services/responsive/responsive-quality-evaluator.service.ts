@@ -134,10 +134,7 @@ export class ResponsiveQualityEvaluatorService {
     let page: Page | null = null;
 
     try {
-      context = await browser.newContext({
-        viewport: { width: viewport.width, height: viewport.height },
-        userAgent: SharedBrowserManager.getUserAgent(viewport.name),
-      });
+      context = await browser.newContext(SharedBrowserManager.getContextOptions(viewport, browser));
 
       page = await context.newPage();
       page.setDefaultTimeout(timeout);

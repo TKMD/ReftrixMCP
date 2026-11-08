@@ -55,6 +55,12 @@ export const ROBOTS_TXT = {
   ENV_FLAG: "REFTRIX_RESPECT_ROBOTS_TXT",
 } as const;
 
+/** {@link buildBrowserUserAgent} のオプション / options for {@link buildBrowserUserAgent} */
+export interface BrowserUserAgentOptions {
+  /** モバイルの viewport 用 (Android 版 Chrome の形) / for a mobile viewport (Chrome on Android form) */
+  mobile?: boolean;
+}
+
 /** `browser.version()` から読む Chrome のバージョン / Chrome version read from `browser.version()` */
 const CHROME_VERSION_PATTERN = /^(?:HeadlessChrome\/|Chrome\/)?(\d{1,4}(?:\.\d{1,6}){0,3})$/;
 
@@ -70,13 +76,26 @@ const CHROME_VERSION_PATTERN = /^(?:HeadlessChrome\/|Chrome\/)?(\d{1,4}(?:\.\d{1
  * robots.txt matching still uses `ROBOTS_TXT.PRODUCT_TOKEN`.
  *
  * @param browserVersion - `browser.version()` の値 / value of `browser.version()`
+ * @param options - `mobile: true` でモバイルの形 / `mobile: true` for the mobile form
  */
-export function buildBrowserUserAgent(browserVersion: string): string {
+export function buildBrowserUserAgent(
+  browserVersion: string,
+  options: BrowserUserAgentOptions = {}
+): string {
   const match = CHROME_VERSION_PATTERN.exec(browserVersion.trim());
   if (!match) return ROBOTS_TXT.USER_AGENT;
+  const bot = `(compatible; ${ROBOTS_TXT.PRODUCT_TOKEN}/1.0; +${REFTRIXBOT_INFO_URL})`;
+  if (options.mobile === true) {
+    // Chrome の Android 版と同じ形 (UA reduction 後の固定 "Android 10; K")。エンジンは同じ Chromium
+    // なので別ブラウザを名乗らない / Chrome on Android (the reduced "Android 10; K" form): the same
+    // Chromium engine, so the UA never claims a different browser.
+    return (
+      "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) " +
+      `Chrome/${match[1]} Mobile Safari/537.36 ${bot}`
+    );
+  }
   return (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) " +
-    `Chrome/${match[1]} Safari/537.36 ` +
-    `(compatible; ${ROBOTS_TXT.PRODUCT_TOKEN}/1.0; +${REFTRIXBOT_INFO_URL})`
+    `Chrome/${match[1]} Safari/537.36 ${bot}`
   );
 }

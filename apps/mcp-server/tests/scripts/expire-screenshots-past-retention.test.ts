@@ -47,6 +47,7 @@ function result(over: Partial<RetentionCycleResult> = {}): RetentionCycleResult 
     failedCount: 0,
     skippedCount: 0,
     invalidPathCount: 1,
+    staleCapClearedCount: 3,
     reclaimableFileCount: 9,
     batches: 1,
     capped: false,
@@ -77,6 +78,9 @@ describe("formatReport", () => {
     expect(text).toContain("eligible rows: 12");
     expect(text).toContain("files that would be deleted: 9");
     expect(text).toContain("reclaimable: 5.0 MiB");
+    expect(text).toContain(
+      "of the cleared rows (files to delete + already gone), cleared only by the 30-day cap: 3"
+    );
     expect(text).toContain("Re-run with --confirm");
   });
 

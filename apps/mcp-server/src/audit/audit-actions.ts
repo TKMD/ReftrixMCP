@@ -1054,10 +1054,13 @@ export const AUDIT_ACTOR_CROP_LEGACY_PURGE = "system:crop-legacy-purge" as const
  * `screenshot_retention_expired` — 終端ページの screenshot を保持期限で失効させた run 単位の記録。
  *
  * Emitted once per non-dry-run retention cycle that cleared at least one stored path
- * (a file deleted, or a path whose file was already gone), GDPR Art.30 processing-activity
- * record. One row per run, never per page: `targetId` is the literal `"all"` and `details`
- * carries only PII-free counts and flags (`retentionDays` / `deletedCount` / `absentCount` /
- * `failedCount` / `skippedCount` / `invalidPathCount` / `batches` / `capped` / `durationMs`).
+ * (a file deleted, or a path whose file was already gone): accountability evidence (GDPR
+ * Art.5(2)) for the processing activity recorded in the Art.30 register (DATA_RETENTION §9.6, "GDPR Compliance" table). One row per run, never per page: `targetId` is the literal `"all"` and `details`
+ * carries only PII-free counts and flags (`retentionDays` / `staleCapDays` / `deletedCount` /
+ * `absentCount` / `failedCount` / `skippedCount` / `invalidPathCount` / `retentionClearedCount` /
+ * `staleCapClearedCount` / `batches` / `capped` / `durationMs`). `retentionClearedCount` +
+ * `staleCapClearedCount` = `deletedCount` + `absentCount`: the split tells how many rows the
+ * terminal retention period cleared and how many only the stale cap cleared.
  * Dry-run cycles and runs that cleared nothing never emit.
  *
  * `audit_logs` 行: actor = {@link AUDIT_ACTOR_SCREENSHOT_RETENTION_CRON} (手動 CLI は別 actor)。run 単位の

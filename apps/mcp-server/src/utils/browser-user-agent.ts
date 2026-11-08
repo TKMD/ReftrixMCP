@@ -17,14 +17,17 @@
  */
 
 import type { Browser } from "playwright";
-import { buildBrowserUserAgent } from "@reftrixmcp/core";
+import { buildBrowserUserAgent, type BrowserUserAgentOptions } from "@reftrixmcp/core";
 
-export function browserUserAgent(browser: Pick<Browser, "version">): string {
+export function browserUserAgent(
+  browser: Pick<Browser, "version">,
+  options: BrowserUserAgentOptions = {}
+): string {
   let version = "";
   try {
     version = typeof browser.version === "function" ? browser.version() : "";
   } catch {
     version = "";
   }
-  return buildBrowserUserAgent(typeof version === "string" ? version : "");
+  return buildBrowserUserAgent(typeof version === "string" ? version : "", options);
 }

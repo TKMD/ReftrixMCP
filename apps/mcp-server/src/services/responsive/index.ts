@@ -12,7 +12,7 @@
 export * from "./types";
 
 // Shared utilities
-export { SharedBrowserManager, USER_AGENTS } from "./shared-browser-manager";
+export { SharedBrowserManager } from "./shared-browser-manager";
 
 // Services
 export {

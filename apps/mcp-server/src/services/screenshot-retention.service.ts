@@ -308,6 +308,13 @@ export interface RetentionCycleResult {
   skippedCount: number;
   /** path が `<phase5>/<id>.png` でない行 (ファイルにも DB にも触れない) / rows left untouched: stored path is not the canonical one */
   invalidPathCount: number;
+  /**
+   * 消した (dry-run では消す予定の) 行のうち、終端の保持期限ではなく上限 (`SCREENSHOT_STALE_CAP_DAYS`) だけで
+   * 対象になった行数。残り (`deletedCount + absentCount - staleCapClearedCount`) は保持期限による。
+   * Rows cleared (in a dry-run, that would be) only because of the stale cap, not the terminal
+   * retention period; the rest of `deletedCount + absentCount` is due to the retention period.
+   */
+  staleCapClearedCount: number;
   /** dry-run のとき、実ファイルがあり削除対象になる行数。実削除では 0 */
   reclaimableFileCount: number;
   batches: number;
@@ -424,6 +431,14 @@ const AUDIT_TARGET_ID_RUN = "all";
 interface CandidateRow {
   id: string;
   path: string;
+  /** 終端の保持期限で適格 (false なら上限だけで適格) / eligible by the terminal period (false = stale cap only) */
+  viaTerminal: boolean;
+}
+
+/** 1 行 tx の結果と、ロック時点で上限だけで適格だったか / per-row tx outcome and whether only the cap applied at lock time */
+interface ExpireOutcome {
+  outcome: RowResult;
+  staleCapOnly: boolean;
 }
 
 /** run の間変わらない値 / Values fixed for the whole run */
@@ -516,6 +531,7 @@ class ScreenshotRetentionService implements IScreenshotRetentionService {
       failedCount: 0,
       skippedCount: 0,
       invalidPathCount: 0,
+      staleCapClearedCount: 0,
       reclaimableFileCount: 0,
       batches: 0,
       capped: false,
@@ -636,12 +652,16 @@ class ScreenshotRetentionService implements IScreenshotRetentionService {
       return false;
     }
     if (options.dryRun) {
-      await this.previewRow(canonical, result);
+      const cleared = await this.previewRow(canonical, result);
+      if (cleared && !row.viaTerminal) result.staleCapClearedCount += 1;
       return false;
     }
-    const outcome = await this.expireRow(row, canonical, ctx);
+    const { outcome, staleCapOnly } = await this.expireRow(row, canonical, ctx);
     cursor.errorStreak = outcome === "error" ? cursor.errorStreak + 1 : 0;
     this.tally(result, outcome);
+    if (staleCapOnly && (outcome === "deleted" || outcome === "absent")) {
+      result.staleCapClearedCount += 1;
+    }
     if (cursor.errorStreak < RETENTION_DB_ERROR_STREAK_LIMIT) return false;
     result.aborted = "db_error_streak";
     logger.warn("[ScreenshotRetention] Consecutive DB errors; run aborted", {
@@ -652,26 +672,37 @@ class ScreenshotRetentionService implements IScreenshotRetentionService {
 
   /** 適格な行を id 順の keyset で 1 batch 取る / one batch of eligible rows, keyset by id */
   private async selectBatch(ctx: RunContext, lastId: string | null): Promise<CandidateRow[]> {
-    const after = lastId === null ? Prisma.empty : Prisma.sql`AND id > ${lastId}::uuid`;
+    // uuid の順序で並べて比べる (出力の `id::text` ではなく列そのもの) / order and compare by the uuid column, not the text alias
+    const after = lastId === null ? Prisma.empty : Prisma.sql`AND web_pages.id > ${lastId}::uuid`;
     return this.prisma.$queryRaw<CandidateRow[]>(
-      Prisma.sql`SELECT id::text AS id, screenshot_storage_path AS path
+      Prisma.sql`SELECT id::text AS id, screenshot_storage_path AS path,
+          (${buildRetentionTerminalPredicate(ctx.cutoff)}) AS "viaTerminal"
         FROM web_pages
         WHERE ${buildRetentionEligibilityPredicate(ctx.cutoff, ctx.dirPrefix, ctx.capCutoff)}
         ${after}
-        ORDER BY id
+        ORDER BY web_pages.id
         LIMIT ${this.batchSize}`
     );
   }
 
-  /** dry-run: 実ファイルの有無と大きさだけ数える (何も変えない) / count only, change nothing */
-  private async previewRow(filePath: string, result: RetentionCycleResult): Promise<void> {
+  /**
+   * dry-run: 実ファイルの有無と大きさだけ数える (何も変えない)。
+   * @returns 実削除なら path を NULL にする行 (ファイルあり or 既に無い) なら true
+   * Count only, change nothing. Returns true when a real run would clear the row.
+   */
+  private async previewRow(filePath: string, result: RetentionCycleResult): Promise<boolean> {
     try {
       const stats = await fs.lstat(filePath);
       result.reclaimableFileCount += 1;
       result.reclaimableBytes += stats.size;
+      return true;
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") result.absentCount += 1;
-      else result.failedCount += 1;
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        result.absentCount += 1;
+        return true;
+      }
+      result.failedCount += 1;
+      return false;
     }
   }
 
@@ -726,25 +757,29 @@ class ScreenshotRetentionService implements IScreenshotRetentionService {
     row: CandidateRow,
     filePath: string,
     ctx: RunContext
-  ): Promise<RowResult> {
+  ): Promise<ExpireOutcome> {
     try {
       return await this.prisma.$transaction(
-        async (tx) => {
-          const locked = await tx.$queryRaw<Array<{ id: string }>>(
-            Prisma.sql`SELECT id::text AS id FROM web_pages
+        async (tx): Promise<ExpireOutcome> => {
+          const locked = await tx.$queryRaw<Array<{ id: string; viaTerminal: boolean }>>(
+            Prisma.sql`SELECT id::text AS id,
+                (${buildRetentionTerminalPredicate(ctx.cutoff)}) AS "viaTerminal"
+              FROM web_pages
               WHERE id = ${row.id}::uuid
                 AND screenshot_storage_path = ${row.path}
                 AND ${buildRetentionEligibilityPredicate(ctx.cutoff, ctx.dirPrefix, ctx.capCutoff)}
               FOR UPDATE SKIP LOCKED`
           );
-          if (locked.length === 0) return "skipped";
+          const lockedRow = locked[0];
+          if (lockedRow === undefined) return { outcome: "skipped", staleCapOnly: false };
+          const staleCapOnly = lockedRow.viaTerminal !== true;
           const fileOutcome = await removeScreenshotFile(filePath, row.id);
-          if (fileOutcome === "failed") return "failed";
+          if (fileOutcome === "failed") return { outcome: "failed", staleCapOnly };
           await tx.$executeRaw(
             Prisma.sql`UPDATE web_pages SET screenshot_storage_path = NULL
               WHERE id = ${row.id}::uuid AND screenshot_storage_path = ${row.path}`
           );
-          return fileOutcome;
+          return { outcome: fileOutcome, staleCapOnly };
         },
         { maxWait: RETENTION_ROW_TX_MAX_WAIT_MS, timeout: RETENTION_ROW_TX_TIMEOUT_MS }
       );
@@ -753,7 +788,7 @@ class ScreenshotRetentionService implements IScreenshotRetentionService {
         webPageId: truncateId(row.id),
         error: rawMessage(error, filePath),
       });
-      return "error";
+      return { outcome: "error", staleCapOnly: false };
     }
   }
 
@@ -781,6 +816,10 @@ class ScreenshotRetentionService implements IScreenshotRetentionService {
           failedCount: result.failedCount,
           skippedCount: result.skippedCount,
           invalidPathCount: result.invalidPathCount,
+          // Art.30: 保持期限による削除と上限による削除を分けて数える / retention-period vs stale-cap clears
+          retentionClearedCount:
+            result.deletedCount + result.absentCount - result.staleCapClearedCount,
+          staleCapClearedCount: result.staleCapClearedCount,
           batches: result.batches,
           capped: result.capped,
           durationMs: result.durationMs,

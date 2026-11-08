@@ -32,11 +32,17 @@
  */
 
 import "@reftrixmcp/core/assert-node-runtime";
-import { PrismaClient } from "@reftrixmcp/database";
+// `@reftrixmcp/database` re-exports `PrismaClient` as a type only, so `new PrismaClient()` needs the
+// runtime value from `@prisma/client` (INV-SCRIPT-PRISMA-VALUE-IMPORT-001).
+import { PrismaClient } from "@prisma/client";
 import { loadEnvLocal } from "@reftrixmcp/core";
 import { AUDIT_ACTOR_SCREENSHOT_RETENTION_OPERATOR } from "../src/audit/audit-actions";
-import { bootstrapAuditLogServiceForScript } from "../src/services/audit-log.service";
 import {
+  bootstrapAuditLogServiceForScript,
+  type AuditLogPrismaClient,
+} from "../src/services/audit-log.service";
+import {
+  SCREENSHOT_STALE_CAP_DAYS,
   ScreenshotRetentionConfigError,
   createScreenshotRetentionService,
   getScreenshotRetentionDays,
@@ -44,7 +50,6 @@ import {
   type RetentionCycleResult,
   type RetentionPrismaClient,
 } from "../src/services/screenshot-retention.service";
-import { sanitizeErrorMessage } from "../src/utils/sanitize-error";
 
 /** CLI が 1 run で見る batch 数 (200 行 x 500 = 10 万行)。全件を数えるため cron より大きい */
 export const CLI_MAX_BATCHES = 500;
@@ -91,6 +96,9 @@ export function formatReport(result: RetentionCycleResult): string {
     lines.push(`  failed (path kept, retry on next run): ${result.failedCount}`);
     lines.push(`  skipped (changed or locked meanwhile): ${result.skippedCount}`);
   }
+  lines.push(
+    `  of the cleared rows (${result.dryRun ? "files to delete + already gone" : "deleted + already gone"}), cleared only by the ${SCREENSHOT_STALE_CAP_DAYS}-day cap: ${result.staleCapClearedCount}`
+  );
   lines.push(`  untouched, path is not <phase5>/<id>.png: ${result.invalidPathCount}`);
   if (result.capped) lines.push("MORE REMAIN beyond this run's batch limit; run again.");
   if (result.dryRun) lines.push("Re-run with --confirm to delete.");
@@ -139,7 +147,8 @@ async function main(): Promise<void> {
   loadEnvLocal({ verbose: false });
   const args = parseArgs(process.argv);
   const prisma = new PrismaClient();
-  bootstrapAuditLogServiceForScript(prisma);
+  // the generated client is structurally wider than the audit sink surface
+  bootstrapAuditLogServiceForScript(prisma as unknown as AuditLogPrismaClient);
   try {
     // eslint-disable-next-line no-console
     process.exitCode = await runCli(prisma, args, (line) => console.log(line));
@@ -155,7 +164,8 @@ const isDirectRun =
 
 if (isDirectRun) {
   main().catch((err: unknown) => {
-    console.error("[expire-screenshots-past-retention] fatal:", sanitizeErrorMessage(err));
+    // server-side log: raw error (rules/security.md — sanitizeErrorMessage is for client responses)
+    console.error("[expire-screenshots-past-retention] fatal:", err);
     process.exit(1);
   });
 }

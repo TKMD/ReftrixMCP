@@ -14,9 +14,21 @@ Pages are opened in Chromium with a Chrome-compatible User-Agent that always end
 Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/<version> Safari/537.36 (compatible; ReftrixBot/1.0; +https://github.com/TKMD/ReftrixMCP/blob/main/docs/legal/REFTRIXBOT.md)
 ```
 
+For viewports named `mobile` (in `responsive.capture`, `page.analyze` with `responsiveOptions`, and `quality.evaluate` with `responsive_evaluation`) the same Chromium uses the Android form, with mobile and touch emulation so the Client Hints say the same:
+
+`mobile` という名前の viewport（`responsive.capture`、`responsiveOptions` 付きの `page.analyze`、`responsive_evaluation` 付きの `quality.evaluate`）では、同じ Chromium の Android 版の形を使い、Client Hints も同じ内容になるようモバイルとタッチのエミュレーションを付けます:
+
+```
+Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/<version> Mobile Safari/537.36 (compatible; ReftrixBot/1.0; +https://github.com/TKMD/ReftrixMCP/blob/main/docs/legal/REFTRIXBOT.md)
+```
+
+The Android part is the fixed value Chrome itself sends; the host OS is not Android. The `Sec-CH-UA` brands are left as they are and include `HeadlessChrome`.
+
+Android の部分は Chrome 自身が送る固定値で、実際に動いている OS は Android ではありません。`Sec-CH-UA` のブランドは変えておらず、`HeadlessChrome` を含みます。
+
 `<version>` is the version of the Chromium that Reftrix runs. Plain HTTP requests (for example the robots.txt fetch) use `Mozilla/5.0 (compatible; ReftrixBot/1.0; +https://github.com/TKMD/ReftrixMCP/blob/main/docs/legal/REFTRIXBOT.md)`.
 
-`<version>` は Reftrix が動かす Chromium のバージョンです。ブラウザを使わない HTTP リクエスト（robots.txt の取得など）は上の 2 つ目の形を使います。
+`<version>` は Reftrix が動かす Chromium のバージョンです。ブラウザを使わない HTTP リクエスト（robots.txt の取得など）は `Mozilla/5.0 (compatible; ReftrixBot/1.0; +https://github.com/TKMD/ReftrixMCP/blob/main/docs/legal/REFTRIXBOT.md)` を使います。
 
 ## robots.txt
 

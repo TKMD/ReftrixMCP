@@ -33,10 +33,10 @@ vi.mock("playwright", () => {
 });
 
 import { chromium, type Browser } from "playwright";
-import {
-  SharedBrowserManager,
-  USER_AGENTS,
-} from "../../../src/services/responsive/shared-browser-manager";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { ROBOTS_TXT, REFTRIXBOT_INFO_URL } from "@reftrixmcp/core";
+import { SharedBrowserManager } from "../../../src/services/responsive/shared-browser-manager";
 
 describe("SharedBrowserManager", () => {
   let manager: SharedBrowserManager;
@@ -137,25 +137,73 @@ describe("SharedBrowserManager", () => {
   });
 
   // ==========================================================================
-  // USER_AGENTS
+  // getUserAgent (CAP-L-02, INV-CRAWLER-UA-IDENTITY-001)
   // ==========================================================================
 
-  describe("USER_AGENTS 定数", () => {
-    it("MOBILE が iPhone のUserAgent文字列を含む", () => {
-      expect(USER_AGENTS.MOBILE).toContain("iPhone");
-      expect(USER_AGENTS.MOBILE).toContain("Mobile");
+  describe("getUserAgent()", () => {
+    const browser = { version: (): string => "156.0.7499.4" };
+    const bot = `(compatible; ${ROBOTS_TXT.PRODUCT_TOKEN}/1.0; +${REFTRIXBOT_INFO_URL})`;
+
+    it("INV-CRAWLER-UA-IDENTITY-001: mobile uses Chrome on Android with the running browser's version and the Mobile token", () => {
+      const ua = SharedBrowserManager.getUserAgent("mobile", browser);
+      expect(ua).toContain("(Linux; Android 10; K)");
+      expect(ua).toContain("Chrome/156.0.7499.4 Mobile Safari/537.36");
+      expect(ua.endsWith(bot)).toBe(true);
     });
 
-    it("DESKTOP が Windows NT のUserAgent文字列を含む", () => {
-      expect(USER_AGENTS.DESKTOP).toContain("Windows NT");
-      expect(USER_AGENTS.DESKTOP).toContain("Chrome");
+    it("INV-CRAWLER-UA-IDENTITY-001: desktop, tablet and unknown names use the desktop form with the running browser's version", () => {
+      for (const name of ["desktop", "tablet", "unknown"]) {
+        const ua = SharedBrowserManager.getUserAgent(name, browser);
+        expect(ua).toContain("Chrome/156.0.7499.4 Safari/537.36");
+        expect(ua).not.toContain("Mobile");
+        expect(ua.endsWith(bot)).toBe(true);
+      }
     });
 
-    it("getUserAgent() が viewport name に応じた正しいUA文字列を返す", () => {
-      expect(SharedBrowserManager.getUserAgent("mobile")).toBe(USER_AGENTS.MOBILE);
-      expect(SharedBrowserManager.getUserAgent("desktop")).toBe(USER_AGENTS.DESKTOP);
-      expect(SharedBrowserManager.getUserAgent("tablet")).toBe(USER_AGENTS.DESKTOP);
-      expect(SharedBrowserManager.getUserAgent("unknown")).toBe(USER_AGENTS.DESKTOP);
+    it("INV-CRAWLER-UA-IDENTITY-001: no fixed browser versions and no other browser are claimed", () => {
+      for (const name of ["mobile", "desktop"]) {
+        const ua = SharedBrowserManager.getUserAgent(name, browser);
+        expect(ua).not.toMatch(/Chrome\/120\.|iPhone|Version\/16|Windows NT/);
+      }
+    });
+
+    it("INV-CRAWLER-UA-IDENTITY-001: getContextOptions adds isMobile/hasTouch only for mobile so the Client Hints agree with the UA", () => {
+      const mobile = SharedBrowserManager.getContextOptions(
+        { name: "mobile", width: 375, height: 812 },
+        browser
+      );
+      expect(mobile).toEqual({
+        viewport: { width: 375, height: 812 },
+        userAgent: SharedBrowserManager.getUserAgent("mobile", browser),
+        isMobile: true,
+        hasTouch: true,
+      });
+      for (const name of ["desktop", "tablet"]) {
+        expect(
+          SharedBrowserManager.getContextOptions({ name, width: 1024, height: 768 }, browser)
+        ).toEqual({
+          viewport: { width: 1024, height: 768 },
+          userAgent: SharedBrowserManager.getUserAgent(name, browser),
+        });
+      }
+    });
+
+    it("INV-CRAWLER-UA-IDENTITY-001: all three responsive services build their contexts with getContextOptions(viewport, browser)", () => {
+      const dir = path.resolve(__dirname, "../../../src/services/responsive");
+      for (const f of [
+        "multi-device-capture.service.ts",
+        "multi-viewport-capture.service.ts",
+        "responsive-quality-evaluator.service.ts",
+      ]) {
+        const text = fs.readFileSync(path.join(dir, f), "utf8");
+        expect(text, f).toContain("SharedBrowserManager.getContextOptions(viewport, browser)");
+      }
+    });
+
+    it("INV-CRAWLER-UA-IDENTITY-001: an unreadable browser version falls back to the plain bot UA", () => {
+      const broken = { version: (): string => "" };
+      expect(SharedBrowserManager.getUserAgent("mobile", broken)).toBe(ROBOTS_TXT.USER_AGENT);
+      expect(SharedBrowserManager.getUserAgent("desktop", broken)).toBe(ROBOTS_TXT.USER_AGENT);
     });
   });
 });

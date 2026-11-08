@@ -47,6 +47,7 @@ import * as path from "node:path";
 import { describe, it, expect } from "vitest";
 
 import { assertInvName } from "../_setup/inv-assert";
+import { grepTsFiles } from "../_setup/source-sweep";
 
 const SCREENSHOT_TTL_CLEANUP_LITERAL = "screenshot_ttl_cleanup";
 
@@ -59,7 +60,7 @@ describe("INV-DATA-DELETE-002-B: Screenshot TTL cron removed (screenshot_ttl_cle
     assertInvName(expect.getState().currentTestName ?? "", "INV-DATA-DELETE-002-B");
 
     const srcRoot = path.resolve(__dirname, "../../../../src");
-    const hits = grepSrc(srcRoot, SCREENSHOT_TTL_CLEANUP_LITERAL);
+    const hits = grepTsFiles(srcRoot, SCREENSHOT_TTL_CLEANUP_LITERAL);
 
     expect(
       hits,
@@ -79,7 +80,7 @@ describe("INV-DATA-DELETE-002-B: Screenshot TTL cron removed (screenshot_ttl_cle
     // `data.delete` is a literal that MUST exist in production src
     // (gdpr-deletion.service.ts / data.tool.ts). If the sweep cannot find it,
     // the negative assert above would be vacuously green.
-    const sentinelHits = grepSrc(srcRoot, "data.delete");
+    const sentinelHits = grepTsFiles(srcRoot, "data.delete");
     expect(
       sentinelHits.length,
       "source-sweep must be able to find the 'data.delete' literal — a 0 result here means " +
@@ -110,32 +111,3 @@ describe("INV-DATA-DELETE-002-B: Screenshot TTL cron removed (screenshot_ttl_cle
     ).toBe(false);
   });
 });
-
-// ============================================================================
-// Source-sweep helper (scope-limited, no node_modules / dist)
-// ============================================================================
-
-/** Recursively list `*.ts` files under `dir`, skipping `*.d.ts`. */
-function listSrcFiles(dir: string): string[] {
-  const out: string[] = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      out.push(...listSrcFiles(full));
-    } else if (entry.isFile() && entry.name.endsWith(".ts") && !entry.name.endsWith(".d.ts")) {
-      out.push(full);
-    }
-  }
-  return out;
-}
-
-/** Return the list of src files (relative to `srcRoot`) containing `needle`. */
-function grepSrc(srcRoot: string, needle: string): string[] {
-  const hits: string[] = [];
-  for (const file of listSrcFiles(srcRoot)) {
-    if (fs.readFileSync(file, "utf8").includes(needle)) {
-      hits.push(path.relative(srcRoot, file));
-    }
-  }
-  return hits;
-}

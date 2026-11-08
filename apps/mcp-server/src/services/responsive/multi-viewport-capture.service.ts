@@ -161,14 +161,8 @@ export class MultiViewportCaptureService {
     let page: Page | null = null;
 
     try {
-      // コンテキストを作成（ビューポートサイズ設定）
-      context = await browser.newContext({
-        viewport: {
-          width: viewport.width,
-          height: viewport.height,
-        },
-        userAgent: SharedBrowserManager.getUserAgent(viewport.name),
-      });
+      // コンテキストを作成（ビューポートサイズ・UA・モバイルの端末エミュレーション）
+      context = await browser.newContext(SharedBrowserManager.getContextOptions(viewport, browser));
 
       page = await context.newPage();
       page.setDefaultTimeout(options.timeout);

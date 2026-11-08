@@ -38,7 +38,12 @@
  *   #7  保持日数 env: 1..30、30 超は 30 に丸める、不正値 (0・非整数) は止める (既定値へ黙って戻さない)
  *   #8  失効 run は run 単位 1 行の audit (PII なし)。data.delete は期限前でも即時削除 (#1 / #2)
  *   #9  上限 (ADR-0041 Amendment 5): 状態に関係なく `updated_at` から 30 日更新の無いページは
- *       screenshot を削除 (非終端 5 status と解析未完了)、89 日は保持
+ *       screenshot を削除 (非終端 5 status と解析未完了)、29 日は保持
+ *   #10 上限を過ぎても path が `<phase5>/<id>.png` でない行は削除せず、`invalidPathCount` に数える
+ *   #11 audit details は保持期限による削除 (`retentionClearedCount`) と上限だけによる削除
+ *       (`staleCapClearedCount`) を分けて数える (Art.30)
+ *   #12 上限は「状態を変える writer は Prisma 経由で `updated_at` を進める」前提に立つ。production src の
+ *       raw `UPDATE web_pages` は `screenshot_storage_path` 以外の列を変えない (source sweep)
  *
  * Related: INV-SCREENSHOT-RETENTION-002 (cycle mechanics: CAS, SKIP LOCKED, failed delete,
  *   audit gating, wiring) in inv-screenshot-retention-002-cycle.test.ts.
@@ -112,6 +117,7 @@ import {
   readStoragePath,
   seedRetentionPage,
 } from "../_setup/screenshot-retention-fixtures";
+import { grepTsFiles, listTsFiles } from "../_setup/source-sweep";
 
 // ============================================================================
 // Production default root — must never be created or deleted by this test
@@ -262,7 +268,7 @@ describe("INV-SCREENSHOT-RETENTION-001: screenshot retention = terminal page + N
 
     // (a) scheduleScreenshotCleanupCron: production src 全域でテキスト 0 occurrences。
     //     UB-3 / FB-6 のコメント更新完了後、固有名は src から完全消滅する。
-    const cronHits = grepSrc(srcRoot, "scheduleScreenshotCleanupCron");
+    const cronHits = grepTsFiles(srcRoot, "scheduleScreenshotCleanupCron");
     expect(
       cronHits,
       `scheduleScreenshotCleanupCron must have 0 occurrences in production src (found in: ${cronHits.join(", ")})`
@@ -276,7 +282,7 @@ describe("INV-SCREENSHOT-RETENTION-001: screenshot retention = terminal page + N
 
     // (b) cleanupExpired: screenshot-persistence* module-path 限定で 0 occurrences。
     //     crash-dump-cleanup-cron.ts の同名 export は SWEEP 対象外で存続。
-    const ssPersistenceFiles = listSrcFiles(srcRoot).filter((f) => {
+    const ssPersistenceFiles = listTsFiles(srcRoot).filter((f) => {
       const rel = path.relative(srcRoot, f);
       return (
         rel.startsWith("services/screenshot-persistence") || rel.startsWith("cron/screenshot-")
@@ -501,6 +507,143 @@ describe("INV-SCREENSHOT-RETENTION-001: screenshot retention = terminal page + N
   }, 60_000);
 
   // ==========================================================================
+  // Assertion #10: past the stale cap, a non-canonical path is reported, never deleted
+  // ==========================================================================
+  it("INV-SCREENSHOT-RETENTION-001: a row past the stale cap whose path is not <phase5>/<id>.png is not deleted and is counted in invalidPathCount", async () => {
+    assertInvName(expect.getState().currentTestName ?? "", "INV-SCREENSHOT-RETENTION-001");
+    clearResolvedRootCache();
+    const odd = await seedRetentionPage(prisma, {
+      status: "queued",
+      ageDays: SCREENSHOT_STALE_CAP_DAYS + 1,
+    });
+    const nonCanonical = `${odd.filePath}.moved`;
+    fs.copyFileSync(odd.filePath, nonCanonical);
+    await prisma.$executeRawUnsafe(
+      `UPDATE web_pages SET screenshot_storage_path = $1 WHERE id = $2::uuid`,
+      nonCanonical,
+      odd.id
+    );
+    const normal = await seedRetentionPage(prisma, {
+      status: "queued",
+      ageDays: SCREENSHOT_STALE_CAP_DAYS + 1,
+    });
+
+    const result = await createScreenshotRetentionService({
+      prisma: prisma as unknown as RetentionPrismaClient,
+    }).runRetentionCycle({ retentionDays: SCREENSHOT_RETENTION_MAX_DAYS, dryRun: false });
+
+    expect(result.aborted).toBeNull();
+    expect(result.invalidPathCount).toBe(1);
+    expect(result.deletedCount).toBe(1);
+    expect(fs.existsSync(nonCanonical), "non-canonical file must be kept").toBe(true);
+    expect(fs.existsSync(odd.filePath), "canonical-named file of that row must be kept").toBe(true);
+    expect(await readStoragePath(prisma, odd.id)).toBe(nonCanonical);
+    expect(fs.existsSync(normal.filePath)).toBe(false);
+    expect(await readStoragePath(prisma, normal.id)).toBeNull();
+    fs.rmSync(nonCanonical, { force: true });
+  }, 60_000);
+
+  // ==========================================================================
+  // Assertion #11: audit splits retention-period and stale-cap clears (Art.30)
+  // ==========================================================================
+  it("INV-SCREENSHOT-RETENTION-001: the audit row counts retention-period clears and stale-cap-only clears separately", async () => {
+    assertInvName(expect.getState().currentTestName ?? "", "INV-SCREENSHOT-RETENTION-001");
+    clearResolvedRootCache();
+    // two terminal rows past the 7-day period (one of them also past the cap: the period applies)
+    await seedRetentionPage(prisma, { status: "completed", ageDays: 9 });
+    await seedRetentionPage(prisma, { status: "failed", ageDays: SCREENSHOT_STALE_CAP_DAYS + 2 });
+    // three non-terminal rows cleared only by the cap (one already without its file)
+    await seedRetentionPage(prisma, { status: "queued", ageDays: SCREENSHOT_STALE_CAP_DAYS + 1 });
+    await seedRetentionPage(prisma, {
+      status: "in_progress",
+      ageDays: SCREENSHOT_STALE_CAP_DAYS + 1,
+    });
+    await seedRetentionPage(prisma, {
+      status: "queued",
+      ageDays: SCREENSHOT_STALE_CAP_DAYS + 1,
+      withFile: false,
+    });
+
+    const service = createScreenshotRetentionService({
+      prisma: prisma as unknown as RetentionPrismaClient,
+    });
+    const preview = await service.runRetentionCycle({ retentionDays: 7, dryRun: true });
+    expect(preview.staleCapClearedCount).toBe(3);
+
+    const result = await service.runRetentionCycle({ retentionDays: 7, dryRun: false });
+    expect(result.deletedCount + result.absentCount).toBe(5);
+    expect(result.staleCapClearedCount).toBe(3);
+
+    const rows = await readRetentionAuditRows(prisma, AUDIT_ACTION_SCREENSHOT_RETENTION_EXPIRED);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.details).toMatchObject({
+      retentionClearedCount: 2,
+      staleCapClearedCount: 3,
+      staleCapDays: SCREENSHOT_STALE_CAP_DAYS,
+    });
+  }, 60_000);
+
+  // ==========================================================================
+  // Assertion #12: raw UPDATE web_pages in production src only touches the screenshot path
+  // ==========================================================================
+  it("INV-SCREENSHOT-RETENTION-001: raw UPDATE web_pages statements in production src change nothing but screenshot_storage_path (the stale cap relies on Prisma writers moving updated_at)", () => {
+    assertInvName(expect.getState().currentTestName ?? "", "INV-SCREENSHOT-RETENTION-001");
+    const roots = [
+      path.resolve(__dirname, "../../../../src"),
+      path.resolve(__dirname, "../../../../scripts"),
+      path.resolve(__dirname, "../../../../../cli/src"),
+      path.resolve(__dirname, "../../../../../../packages/core/src"),
+      path.resolve(__dirname, "../../../../../../packages/database/src"),
+      path.resolve(__dirname, "../../../../../../packages/ml/src"),
+      path.resolve(__dirname, "../../../../../../packages/webdesign-core/src"),
+    ].filter((r) => fs.existsSync(r));
+    expect(roots.length).toBeGreaterThan(0);
+    // UPDATE [ONLY] [public.]web_pages [[AS] alias] SET ... (up to WHERE / ; / end of template)
+    const statement =
+      /UPDATE\s+(?:ONLY\s+)?(?:"?public"?\.)?"?web_pages"?(?:\s+(?:AS\s+)?(?!SET\b)\w+)?\s+SET\s+([\s\S]*?)(?=\s+WHERE\b|;|`|$)/gi;
+    // a table name built at runtime cannot be checked, so none is allowed
+    const dynamicTable = /UPDATE\s+(?:ONLY\s+)?\$\{/g;
+    // an upsert that updates web_pages on conflict changes state too
+    const upsert =
+      /INSERT\s+INTO\s+(?:"?public"?\.)?"?web_pages"?[\s\S]*?ON\s+CONFLICT[\s\S]*?DO\s+UPDATE\b/gi;
+    const offenders: string[] = [];
+    let seen = 0;
+    for (const root of roots) {
+      for (const file of listTsFiles(root)) {
+        const rel = path.relative(root, file);
+        const text = fs.readFileSync(file, "utf8");
+        for (const m of text.matchAll(statement)) {
+          seen += 1;
+          const assigned = m[1]!
+            .split(",")
+            .map((part) => part.split("=")[0]!.trim().replace(/"/g, ""));
+          if (assigned.some((col) => col !== "screenshot_storage_path")) {
+            offenders.push(`${rel}: SET ${m[1]!.trim()}`);
+          }
+        }
+        for (const m of text.matchAll(dynamicTable))
+          offenders.push(`${rel}: ${m[0]} (dynamic table)`);
+        for (const _m of text.matchAll(upsert))
+          offenders.push(`${rel}: INSERT INTO web_pages ... ON CONFLICT DO UPDATE`);
+      }
+    }
+    // the sweep must find the two known writers (data.delete fallback, retention expiry)
+    expect(seen).toBeGreaterThanOrEqual(2);
+    // the matcher itself: alias, schema and ONLY forms are seen; SET of another column is flagged
+    const probe = (sql: string): string[] => [...sql.matchAll(statement)].map((m) => m[1]!.trim());
+    expect(probe("UPDATE public.web_pages wp SET analysis_status = 'x' WHERE id = 1")).toEqual([
+      "analysis_status = 'x'",
+    ]);
+    expect(probe('UPDATE ONLY "web_pages" AS w SET screenshot_storage_path = NULL;')).toEqual([
+      "screenshot_storage_path = NULL",
+    ]);
+    expect(
+      offenders,
+      "raw UPDATE web_pages may only set screenshot_storage_path; change state through Prisma so updated_at moves"
+    ).toEqual([]);
+  });
+
+  // ==========================================================================
   // Assertion #7: retention days env — 1..30; above 30 clamps; invalid stops
   // ==========================================================================
   it("INV-SCREENSHOT-RETENTION-001: REFTRIX_SCREENSHOT_RETENTION_DAYS is 1..30; above 30 clamps to 30; an invalid value stops (never a silent shorter fallback)", () => {
@@ -549,32 +692,3 @@ describe("INV-SCREENSHOT-RETENTION-001: screenshot retention = terminal page + N
   // per Registry FIND-SSB-PLAN-L-06 IO ruling). The screenshot_ttl_cleanup non-emit
   // negative assert lives there; do not duplicate it here.
 });
-
-// ============================================================================
-// Source-sweep helpers (scope-limited, no node_modules / dist)
-// ============================================================================
-
-/** Recursively list `*.ts` files under `dir`, skipping `*.d.ts`. */
-function listSrcFiles(dir: string): string[] {
-  const out: string[] = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      out.push(...listSrcFiles(full));
-    } else if (entry.isFile() && entry.name.endsWith(".ts") && !entry.name.endsWith(".d.ts")) {
-      out.push(full);
-    }
-  }
-  return out;
-}
-
-/** Return the list of src files (relative to `srcRoot`) containing `needle`. */
-function grepSrc(srcRoot: string, needle: string): string[] {
-  const hits: string[] = [];
-  for (const file of listSrcFiles(srcRoot)) {
-    if (fs.readFileSync(file, "utf8").includes(needle)) {
-      hits.push(path.relative(srcRoot, file));
-    }
-  }
-  return hits;
-}

@@ -100,6 +100,7 @@ function createMockBrowser(context: BrowserContext): Browser {
   return {
     newContext: vi.fn().mockResolvedValue(context),
     isConnected: vi.fn().mockReturnValue(true),
+    version: vi.fn().mockReturnValue("156.0.7499.4"),
   } as unknown as Browser;
 }
 
@@ -175,6 +176,28 @@ describe("MultiDeviceCaptureService", () => {
       expect(result.url).toBe("https://example.com");
       expect(result.captures).toHaveLength(3);
       expect(result.captures.map((c) => c.viewport.name)).toEqual(["desktop", "tablet", "mobile"]);
+    });
+
+    it("INV-CRAWLER-UA-IDENTITY-001: mobile gets the Chrome on Android UA plus isMobile/hasTouch; desktop and tablet get the desktop UA without them (CAP-L-02)", async () => {
+      await service.captureAllDevices("https://example.com", { timeout: 30000 }, mockBrowser);
+      const calls = vi
+        .mocked(mockBrowser.newContext as ReturnType<typeof vi.fn>)
+        .mock.calls.map((c) => c[0] as Record<string, unknown>);
+      const mobile = calls.filter((o) => (o.viewport as { width: number }).width === 375);
+      const others = calls.filter((o) => (o.viewport as { width: number }).width !== 375);
+      expect(mobile).toHaveLength(1);
+      expect(mobile[0]!.userAgent).toMatch(
+        /\(Linux; Android 10; K\).*Chrome\/156\.0\.7499\.4 Mobile Safari\/537\.36 \(compatible; ReftrixBot\/1\.0; /
+      );
+      expect(mobile[0]).toMatchObject({ isMobile: true, hasTouch: true });
+      expect(others).toHaveLength(2);
+      for (const o of others) {
+        expect(o.userAgent).toMatch(
+          /\(X11; Linux x86_64\).*Chrome\/156\.0\.7499\.4 Safari\/537\.36 /
+        );
+        expect(o.isMobile).toBeUndefined();
+        expect(o.hasTouch).toBeUndefined();
+      }
     });
 
     it("各キャプチャにDOM構造情報が含まれる", async () => {

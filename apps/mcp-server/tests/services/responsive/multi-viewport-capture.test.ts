@@ -43,6 +43,7 @@ const { mockPage, mockContext, mockBrowser } = vi.hoisted(() => {
   const _mockBrowser = {
     newContext: vi.fn().mockResolvedValue(_mockContext),
     close: vi.fn().mockResolvedValue(undefined),
+    version: vi.fn().mockReturnValue("156.0.7499.4"),
   };
 
   return { mockPage: _mockPage, mockContext: _mockContext, mockBrowser: _mockBrowser };
@@ -388,7 +389,7 @@ describe("MultiViewportCaptureService", () => {
       expect(mockPage.setDefaultTimeout).toHaveBeenCalledWith(45000);
     });
 
-    it("mobile ビューポートにはモバイル UserAgent が設定される", async () => {
+    it("mobile ビューポートにはモバイル UserAgent (Android 版 Chrome、実バージョン) が設定される", async () => {
       setupMultiViewportEvaluateMock(1);
 
       const options = createDefaultOptions({
@@ -399,12 +400,16 @@ describe("MultiViewportCaptureService", () => {
 
       expect(mockBrowser.newContext).toHaveBeenCalledWith(
         expect.objectContaining({
-          userAgent: expect.stringContaining("iPhone"),
+          userAgent: expect.stringMatching(
+            /\(Linux; Android 10; K\).*Chrome\/156\.0\.7499\.4 Mobile Safari\/537\.36 \(compatible; ReftrixBot\/1\.0; /
+          ),
+          isMobile: true,
+          hasTouch: true,
         })
       );
     });
 
-    it("desktop ビューポートにはデスクトップ UserAgent が設定される", async () => {
+    it("desktop ビューポートにはデスクトップ UserAgent (実バージョン、Mobile なし) が設定される", async () => {
       setupMultiViewportEvaluateMock(1);
 
       const options = createDefaultOptions({
@@ -415,7 +420,9 @@ describe("MultiViewportCaptureService", () => {
 
       expect(mockBrowser.newContext).toHaveBeenCalledWith(
         expect.objectContaining({
-          userAgent: expect.stringContaining("Windows"),
+          userAgent: expect.stringMatching(
+            /\(X11; Linux x86_64\).*Chrome\/156\.0\.7499\.4 Safari\/537\.36 \(compatible; ReftrixBot\/1\.0; /
+          ),
         })
       );
     });

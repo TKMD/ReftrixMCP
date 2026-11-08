@@ -39,7 +39,9 @@
 
 import "@reftrixmcp/core/assert-node-runtime";
 import * as fs from "node:fs";
-import { PrismaClient } from "@reftrixmcp/database";
+// Runtime value from `@prisma/client`; `@reftrixmcp/database` re-exports the type only
+// (INV-SCRIPT-PRISMA-VALUE-IMPORT-001).
+import { PrismaClient } from "@prisma/client";
 // PR7e-β1: shared .env.local loader.
 // PR7e-β1: 共通 .env.local ローダー。
 import { loadEnvLocal } from "@reftrixmcp/core";
@@ -50,6 +52,7 @@ import { sanitizeErrorMessage } from "../src/utils/sanitize-error";
 // v0.4.0 PR7d-3 (LCC MEDIUM-2): record repair executions into audit_logs (GDPR Art.30).
 import {
   bootstrapAuditLogServiceForScript,
+  type AuditLogPrismaClient,
   getAuditLogService,
 } from "../src/services/audit-log.service";
 
@@ -287,7 +290,8 @@ async function main(): Promise<void> {
   const prisma = new PrismaClient();
   // PR7e-β1: register PrismaClient into AuditLogService DI (see repair-page-analyze.ts).
   // PR7e-β1: AuditLogService の DI に PrismaClient を登録する (詳細は repair-page-analyze.ts)。
-  bootstrapAuditLogServiceForScript(prisma);
+  // the generated client is structurally wider than the audit sink surface
+  bootstrapAuditLogServiceForScript(prisma as unknown as AuditLogPrismaClient);
 
   // eslint-disable-next-line no-console
   console.log(

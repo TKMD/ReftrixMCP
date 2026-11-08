@@ -48,6 +48,36 @@ describe("INV-CRAWLER-UA-IDENTITY-001 browserUserAgent", () => {
     await context.close();
   });
 
+  it("mobile (CAP-L-02): the page sees the Chrome on Android UA with the real version and the ReftrixBot token", async () => {
+    browser ??= await chromium.launch({ headless: true });
+    const ua = browserUserAgent(browser, { mobile: true });
+    const version = browser.version().replace(/^HeadlessChrome\//, "");
+    expect(ua).toContain("(Linux; Android 10; K)");
+    expect(ua).toContain(`Chrome/${version} Mobile Safari/537.36 `);
+    expect(ua).toContain(`(compatible; ${ROBOTS_TXT.PRODUCT_TOKEN}/1.0; +${REFTRIXBOT_INFO_URL})`);
+
+    const context = await browser.newContext({
+      viewport: { width: 375, height: 667 },
+      userAgent: ua,
+      isMobile: true,
+      hasTouch: true,
+    });
+    const page = await context.newPage();
+    expect(await page.evaluate("navigator.userAgent")).toBe(ua);
+    // the Client Hints sent with the request agree with the mobile UA (TDA M-1); the request is
+    // fulfilled by the route (no connection is made); 127.0.0.1 is a secure context, so hints are sent
+    let hints: Record<string, string> = {};
+    await page.route("http://127.0.0.1:9/**", async (route) => {
+      hints = await route.request().allHeaders();
+      await route.fulfill({ status: 200, contentType: "text/html", body: "<p>ok</p>" });
+    });
+    await page.goto("http://127.0.0.1:9/");
+    expect(hints["user-agent"]).toBe(ua);
+    expect(hints["sec-ch-ua-mobile"]).toBe("?1");
+    expect(hints["sec-ch-ua-platform"]).toBe('"Android"');
+    await context.close();
+  });
+
   it("falls back to the plain bot UA when the version cannot be read", () => {
     const throwing = {
       version: (): string => {
@@ -92,7 +122,11 @@ describe("INV-CRAWLER-UA-IDENTITY-001 browserUserAgent", () => {
           else if (text[end] === ")" && --depth === 0) break;
         }
         const args = text.slice(m.index, end + 1);
-        if (!/userAgent:\s*(browserUserAgent\(|SharedBrowserManager\.getUserAgent\()/.test(args)) {
+        if (
+          !/userAgent:\s*(browserUserAgent\(|SharedBrowserManager\.getUserAgent\()|SharedBrowserManager\.getContextOptions\(/.test(
+            args
+          )
+        ) {
           const line = text.slice(0, m.index).split("\n").length;
           offenders.push(`${rel}:${line}: newContext without a ReftrixBot User-Agent`);
         }
