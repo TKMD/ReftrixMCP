@@ -19,6 +19,8 @@
  * @module tools/design/search-by-image.tool
  */
 
+import { ROBOTS_TXT } from "@reftrixmcp/core";
+import { robotsTxtBlockMessage } from "../../utils/robots-blocked";
 import { z } from "zod";
 import sharp from "../../utils/sharp-safe";
 import {
@@ -141,6 +143,8 @@ export const DESIGN_SEARCH_ERROR_CODES = {
   INVALID_INPUT: "INVALID_INPUT",
   IMAGE_TOO_LARGE: "IMAGE_TOO_LARGE",
   SSRF_BLOCKED: "SSRF_BLOCKED",
+  /** robots.txt で拒否 (CAP-M-03) / Disallowed by robots.txt */
+  ROBOTS_TXT_BLOCKED: "ROBOTS_TXT_BLOCKED",
   IMAGE_FETCH_FAILED: "IMAGE_FETCH_FAILED",
   IMAGE_DECODE_FAILED: "IMAGE_DECODE_FAILED",
   UNSUPPORTED_IMAGE_FORMAT: "UNSUPPORTED_IMAGE_FORMAT",
@@ -265,7 +269,8 @@ async function fetchImageHopManual(safeUrl: string): Promise<Response> {
       ...({ dispatcher: getEgressDispatcher() } as RequestInit),
       signal: controller.signal,
       headers: {
-        "User-Agent": "Reftrix/1.0 (design-search)",
+        // ReftrixBot のトークンと識別 URL (INV-CRAWLER-UA-IDENTITY-001) / ReftrixBot token and info URL
+        "User-Agent": ROBOTS_TXT.USER_AGENT,
         Accept: "image/*",
       },
     });
@@ -696,6 +701,21 @@ export async function designSearchByImageHandler(
       searchMode: "vision_only",
       error: `${DESIGN_SEARCH_ERROR_CODES.INVALID_INPUT}: ${message}`,
     };
+  }
+
+  // robots.txt: 画像 URL を取得する前に確認する (CAP-M-03、INV-ROBOTS-URL-TOOLS-001)
+  // Check robots.txt before fetching an image URL.
+  if (isImageUrl(parsed.image)) {
+    const robotsBlock = await robotsTxtBlockMessage(parsed.image, "design.search_by_image");
+    if (robotsBlock) {
+      return {
+        success: false,
+        results: [],
+        total: 0,
+        searchMode: "vision_only",
+        error: `${DESIGN_SEARCH_ERROR_CODES.ROBOTS_TXT_BLOCKED}: ${robotsBlock}`,
+      };
+    }
   }
 
   // DINOv2サービス取得

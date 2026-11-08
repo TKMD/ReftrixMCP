@@ -14,6 +14,7 @@
  * @module tools/responsive/capture.tool
  */
 
+import { robotsTxtBlockMessage } from "../../utils/robots-blocked";
 import { ZodError } from "zod";
 import { logger, isDevelopment } from "../../utils/logger";
 import { sanitizeErrorMessage } from "../../utils/sanitize-error";
@@ -180,6 +181,15 @@ export async function responsiveCaptureHandler(input: unknown): Promise<Responsi
         code: RESPONSIVE_CAPTURE_ERROR_CODES.SSRF_BLOCKED,
         message: urlValidation.error ?? "URL validation failed",
       },
+    };
+  }
+
+  // robots.txt (CAP-M-03、INV-ROBOTS-URL-TOOLS-001)
+  const robotsBlock = await robotsTxtBlockMessage(validated.url, "responsive.capture");
+  if (robotsBlock) {
+    return {
+      success: false,
+      error: { code: RESPONSIVE_CAPTURE_ERROR_CODES.ROBOTS_TXT_BLOCKED, message: robotsBlock },
     };
   }
 

@@ -14,6 +14,7 @@
  * @module tools/accessibility/audit.tool
  */
 
+import { robotsTxtBlockMessage } from "../../utils/robots-blocked";
 import { z, ZodError } from "zod";
 import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
@@ -48,6 +49,8 @@ export const ACCESSIBILITY_AUDIT_ERROR_CODES = {
   SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
   SSRF_BLOCKED: "SSRF_BLOCKED",
   FETCH_FAILED: "FETCH_FAILED",
+  /** robots.txt で拒否 (CAP-M-03) / Disallowed by robots.txt */
+  ROBOTS_TXT_BLOCKED: "ROBOTS_TXT_BLOCKED",
 } as const;
 
 export type AccessibilityAuditErrorCode =
@@ -178,6 +181,14 @@ export async function accessibilityAuditHandler(input: unknown): Promise<Accessi
           code: ACCESSIBILITY_AUDIT_ERROR_CODES.SSRF_BLOCKED,
           message: urlValidation.error ?? "URL validation failed",
         },
+      };
+    }
+    // robots.txt (CAP-M-03、INV-ROBOTS-URL-TOOLS-001)
+    const robotsBlock = await robotsTxtBlockMessage(validated.url, "accessibility.audit");
+    if (robotsBlock) {
+      return {
+        success: false,
+        error: { code: ACCESSIBILITY_AUDIT_ERROR_CODES.ROBOTS_TXT_BLOCKED, message: robotsBlock },
       };
     }
   }

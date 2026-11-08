@@ -237,7 +237,7 @@ describe(`${INV}: screenshot retention cycle mechanics`, () => {
   it(`${INV}: the eligibility SQL is generated from the classifier and never hand-lists a status`, () => {
     assertInvName(expect.getState().currentTestName ?? "", INV);
     const prefix = "/data/phase5/";
-    const sql = buildRetentionEligibilityPredicate(new Date(0), prefix);
+    const sql = buildRetentionEligibilityPredicate(new Date(0), prefix, new Date(0));
     const strings = sql.values.filter((v) => typeof v === "string");
     expect(strings.filter((v) => v !== prefix).sort()).toEqual(
       [...RETENTION_TERMINAL_BACKFILL_STATUSES, ...RETENTION_TERMINAL_ANALYSIS_STATUSES].sort()

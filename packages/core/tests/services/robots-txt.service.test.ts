@@ -447,6 +447,32 @@ describe("RobotsTxtService", () => {
   // ===========================================================================
 
   describe("HTTP Fetch テスト", () => {
+    it("本文が上限を超えるストリームは Content-Length が無くても読み取りを止めて拒否する (SEC M-2)", async () => {
+      // 上限 + 1 バイトを少しずつ流し、Content-Length は付けない / stream past the cap, no Content-Length
+      const chunk = new TextEncoder().encode("#".repeat(64 * 1024));
+      let sent = 0;
+      const body = new ReadableStream<Uint8Array>({
+        pull(controller): void {
+          // 上限の 4 倍まで流せる (全部読む実装なら sent は約 4 MB になる) / up to 4x the cap
+          if (sent > ROBOTS_TXT.MAX_FILE_SIZE * 4) {
+            controller.close();
+            return;
+          }
+          sent += chunk.byteLength;
+          controller.enqueue(chunk);
+        },
+      });
+      mockFetch.mockResolvedValue(
+        new Response(body, { status: 200, headers: { "content-type": "text/plain" } })
+      );
+
+      const result = await service.isAllowed("https://example.com/page");
+
+      expect(result.allowed).toBe(false);
+      // 上限を少し超えたところで読み取りを止めている / reading stopped just past the cap
+      expect(sent).toBeLessThanOrEqual(ROBOTS_TXT.MAX_FILE_SIZE + chunk.byteLength * 4);
+    });
+
     it("200 OK → robots.txtをパースして判定する", async () => {
       // Arrange
       mockFetch.mockResolvedValue(createMockResponse({ status: 200, body: DISALLOW_ALL }));

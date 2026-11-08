@@ -17,7 +17,7 @@
  */
 
 import { createLogger } from "../utils/logger";
-import { safeFetch } from "@reftrixmcp/core";
+import { ROBOTS_TXT, safeFetch } from "@reftrixmcp/core";
 
 // =============================================
 // ロガー
@@ -132,8 +132,8 @@ const DEFAULT_MAX_SIZE = 5 * 1024 * 1024;
 /** デフォルト最大並列取得数 */
 const DEFAULT_MAX_CONCURRENT = 5;
 
-/** デフォルトUser-Agent */
-const DEFAULT_USER_AGENT = "Mozilla/5.0 (compatible; ReftrixCssFetcher/1.0; +https://reftrix.app)";
+/** デフォルトUser-Agent (ReftrixBot のトークンと識別 URL、INV-CRAWLER-UA-IDENTITY-001) / Default UA: ReftrixBot token and info URL */
+const DEFAULT_USER_AGENT = ROBOTS_TXT.USER_AGENT;
 
 // =============================================
 // SSRF対策 - プライベートIPチェック

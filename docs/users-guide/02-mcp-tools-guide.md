@@ -399,6 +399,8 @@ Motion tools detect and classify CSS animations, transitions, and keyframes, and
 
 ### 4.1 motion.detect - CSSアニメーション検出 / CSS Animation Detection
 
+**robots.txt**: `url` を渡すと、ページを開く前に robots.txt を `ReftrixBot` のトークンで確認し、拒否されていれば `ROBOTS_TXT_BLOCKED` で返します（ブラウザは起動しません）。robots.txt を取得できないとき（タイムアウトや 5xx）も拒否として扱います。確認するのは渡した URL だけで、リダイレクト先やページが読み込むファイルは確認しません。この確認はツールごとには外せず、サーバー全体の `REFTRIX_RESPECT_ROBOTS_TXT=false` でだけ止まります。/ When `url` is given, robots.txt is checked with the `ReftrixBot` token before the page is opened; a disallowed URL returns `ROBOTS_TXT_BLOCKED` without launching a browser. A robots.txt that cannot be fetched (timeout, 5xx) also blocks. Only the given URL is checked, not redirect targets or files the page loads. The check cannot be turned off per call, only for the whole server with `REFTRIX_RESPECT_ROBOTS_TXT=false`.
+
 **用途 / Purpose**: HTMLからCSSアニメーション・トランジション・キーフレームを検出 / Detect CSS animations, transitions, and keyframes from HTML
 
 **省略時の既定値 / Defaults when omitted**: `video_options.wait_until` は `domcontentloaded`、`lighthouse_options.timeout` は `60000` ms(省略時に Lighthouse に渡される) / `video_options.wait_until` defaults to `domcontentloaded`; `lighthouse_options.timeout` defaults to `60000` ms (passed to Lighthouse when omitted)
@@ -1375,6 +1377,8 @@ const results = await responsive.search({
 
 ### 12.2 responsive.capture - マルチデバイス同時キャプチャ / Multi-Device Simultaneous Capture
 
+**robots.txt**: `url` を渡すと、ページを開く前に robots.txt を `ReftrixBot` のトークンで確認し、拒否されていれば `ROBOTS_TXT_BLOCKED` で返します（ブラウザは起動しません）。robots.txt を取得できないとき（タイムアウトや 5xx）も拒否として扱います。確認するのは渡した URL だけで、リダイレクト先やページが読み込むファイルは確認しません。この確認はツールごとには外せず、サーバー全体の `REFTRIX_RESPECT_ROBOTS_TXT=false` でだけ止まります。/ When `url` is given, robots.txt is checked with the `ReftrixBot` token before the page is opened; a disallowed URL returns `ROBOTS_TXT_BLOCKED` without launching a browser. A robots.txt that cannot be fetched (timeout, 5xx) also blocks. Only the given URL is checked, not redirect targets or files the page loads. The check cannot be turned off per call, only for the whole server with `REFTRIX_RESPECT_ROBOTS_TXT=false`.
+
 **用途 / Purpose**: 3ビューポート（desktop 1920x1080, tablet 768x1024, mobile 375x812）でWebページを同時キャプチャし、レスポンシブレイアウトの差分を分析 / Simultaneously capture a web page across 3 viewports (desktop 1920x1080, tablet 768x1024, mobile 375x812) and analyze responsive layout differences
 
 **基本的な使い方 / Basic Usage**
@@ -1563,6 +1567,8 @@ Design tools provide 3 capabilities: image similarity search, similar site searc
 
 **用途 / Purpose**: Base64画像またはURLからDINOv2 visual embeddingを生成し、HNSW + RRF 3ソースで類似デザインを検索 / Generate DINOv2 visual embeddings from Base64 images or URLs and search for similar designs via HNSW + RRF 3-source fusion
 
+**robots.txt**: 画像 URL を渡すと、取得する前に robots.txt を `ReftrixBot` のトークンで確認し、拒否されていれば `ROBOTS_TXT_BLOCKED` で返します（取得できないときも拒否）。止めるにはサーバー全体で `REFTRIX_RESPECT_ROBOTS_TXT=false` にします。/ An image URL is checked against robots.txt with the `ReftrixBot` token before it is fetched; a disallowed (or unfetchable) robots.txt returns `ROBOTS_TXT_BLOCKED`. Only `REFTRIX_RESPECT_ROBOTS_TXT=false` turns this off, for the whole server.
+
 **送信先の検査（0.7.1〜）/ Destination check (0.7.1+)**: 画像 URL の取得は、リダイレクトの各 hop で名前解決後の全アドレスを検査し、公開アドレスにだけ接続します。社内アドレスに解決される URL は `SSRF_BLOCKED` で失敗します（[troubleshooting §2.12](./04-troubleshooting.md)）。/ Image URL fetches check every resolved address of every redirect hop and connect only to public addresses; URLs that resolve to internal addresses fail with `SSRF_BLOCKED` (see troubleshooting §2.12).
 
 ```typescript
@@ -1736,6 +1742,8 @@ Accessibility tools perform WCAG 2.1-compliant accessibility audits, reporting s
 
 ### 17.1 accessibility.audit -- WCAG監査 / WCAG Audit
 
+**robots.txt**: `url` を渡すと、ページを開く前に robots.txt を `ReftrixBot` のトークンで確認し、拒否されていれば `ROBOTS_TXT_BLOCKED` で返します（ブラウザは起動しません）。robots.txt を取得できないとき（タイムアウトや 5xx）も拒否として扱います。確認するのは渡した URL だけで、リダイレクト先やページが読み込むファイルは確認しません。この確認はツールごとには外せず、サーバー全体の `REFTRIX_RESPECT_ROBOTS_TXT=false` でだけ止まります。/ When `url` is given, robots.txt is checked with the `ReftrixBot` token before the page is opened; a disallowed URL returns `ROBOTS_TXT_BLOCKED` without launching a browser. A robots.txt that cannot be fetched (timeout, 5xx) also blocks. Only the given URL is checked, not redirect targets or files the page loads. The check cannot be turned off per call, only for the whole server with `REFTRIX_RESPECT_ROBOTS_TXT=false`.
+
 **用途 / Purpose**: axe-coreを使用してWCAG 2.1アクセシビリティ監査を実行し、OKLCHコントラスト比チェックも併せて実施 / Run WCAG 2.1 accessibility audit using axe-core with OKLCH contrast ratio checking
 
 **送信先の検査（0.7.1〜）/ Destination check (0.7.1+)**: URL 入力の取得は、リダイレクトの各 hop で名前解決後の全アドレスを検査し、公開アドレスにだけ接続します。社内アドレスに解決されるページは取得に失敗します（[troubleshooting §2.12](./04-troubleshooting.md)）。/ URL fetches check every resolved address of every redirect hop and connect only to public addresses; pages that resolve to internal addresses cannot be fetched (see troubleshooting §2.12).
@@ -1788,6 +1796,8 @@ const result = await accessibility.audit({
 Performance tools measure Core Web Vitals (LCP, FID, CLS, INP, TTFB) and provide performance scores with improvement recommendations.
 
 ### 18.1 performance.evaluate -- パフォーマンス評価 / Performance Evaluation
+
+**robots.txt**: `url` を渡すと、ページを開く前に robots.txt を `ReftrixBot` のトークンで確認し、拒否されていれば `ROBOTS_TXT_BLOCKED` で返します（ブラウザは起動しません）。robots.txt を取得できないとき（タイムアウトや 5xx）も拒否として扱います。確認するのは渡した URL だけで、リダイレクト先やページが読み込むファイルは確認しません。この確認はツールごとには外せず、サーバー全体の `REFTRIX_RESPECT_ROBOTS_TXT=false` でだけ止まります。/ When `url` is given, robots.txt is checked with the `ReftrixBot` token before the page is opened; a disallowed URL returns `ROBOTS_TXT_BLOCKED` without launching a browser. A robots.txt that cannot be fetched (timeout, 5xx) also blocks. Only the given URL is checked, not redirect targets or files the page loads. The check cannot be turned off per call, only for the whole server with `REFTRIX_RESPECT_ROBOTS_TXT=false`.
 
 **用途 / Purpose**: Playwright PerformanceObserver APIを使用してCore Web Vitalsを測定し、Google推奨基準に基づいてスコア・グレードを算出 / Measure Core Web Vitals using Playwright PerformanceObserver API and calculate scores/grades based on Google's recommended thresholds
 

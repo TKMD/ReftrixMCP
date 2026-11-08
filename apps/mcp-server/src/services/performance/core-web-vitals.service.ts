@@ -16,6 +16,7 @@
  * @module services/performance/core-web-vitals.service
  */
 
+import { browserUserAgent } from "../../utils/browser-user-agent";
 import type { Page, Browser, BrowserContext } from "playwright";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { logger } from "../../utils/logger";
@@ -382,6 +383,7 @@ export class CoreWebVitalsService implements ICoreWebVitalsService {
       if (!page && options?.browser) {
         context = await options.browser.newContext({
           viewport: { width: 1920, height: 1080 },
+          userAgent: browserUserAgent(options.browser),
         });
         page = await context.newPage();
         needsCleanup = true;

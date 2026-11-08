@@ -8,6 +8,7 @@
  * @module services/responsive/multi-viewport-capture.service
  */
 
+import { browserUserAgent } from "../../utils/browser-user-agent";
 import { type Browser, type Page, type BrowserContext } from "playwright";
 import { logger, isDevelopment } from "../../utils/logger";
 import { SharedBrowserManager } from "./shared-browser-manager";
@@ -806,6 +807,7 @@ export class MultiViewportCaptureService {
     try {
       context = await browser.newContext({
         viewport: { width, height: 800 },
+        userAgent: browserUserAgent(browser),
       });
       page = await context.newPage();
       page.setDefaultTimeout(timeout);

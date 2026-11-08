@@ -34,6 +34,7 @@ import {
   SCREENSHOT_RETENTION_DAYS_ENV,
   ScreenshotRetentionConfigError,
   SCREENSHOT_RETENTION_DEFAULT_DAYS,
+  SCREENSHOT_STALE_CAP_DAYS,
   SCREENSHOT_RETENTION_MAX_DAYS,
   buildNonCanonicalPathPredicate,
   buildRetentionEligibilityPredicate,
@@ -157,18 +158,21 @@ describe("terminal classification", () => {
     }
   });
 
-  it("the predicate binds exactly the generated lists, cutoff, the phase5 prefix and no hand-written status", () => {
+  it("the predicate binds exactly the generated lists, cutoff, the stale-cap cutoff, the phase5 prefix and no hand-written status", () => {
     const cutoff = new Date(
       NOW.getTime() - SCREENSHOT_RETENTION_DEFAULT_DAYS * RETENTION_MS_PER_DAY
     );
+    const capCutoff = new Date(NOW.getTime() - SCREENSHOT_STALE_CAP_DAYS * RETENTION_MS_PER_DAY);
     const prefix = "/data/phase5/";
-    const predicate = buildRetentionEligibilityPredicate(cutoff, prefix);
+    const predicate = buildRetentionEligibilityPredicate(cutoff, prefix, capCutoff);
     expect(predicate.values).toEqual([
       ...RETENTION_TERMINAL_BACKFILL_STATUSES,
       ...RETENTION_TERMINAL_ANALYSIS_STATUSES,
       cutoff,
+      capCutoff,
       prefix,
     ]);
+    expect(predicate.sql).toContain(" OR ");
     expect(predicate.sql).toContain("screenshot_storage_path IS NOT NULL");
     expect(predicate.sql).toContain("updated_at <");
     expect(predicate.sql).toContain("screenshot_storage_path = ?");
@@ -178,11 +182,12 @@ describe("terminal classification", () => {
     }
   });
 
-  it("the non-canonical predicate is the terminal part AND NOT the canonical match (same bindings)", () => {
+  it("the non-canonical predicate is the age part AND NOT the canonical match (same bindings)", () => {
     const cutoff = new Date(NOW.getTime() - RETENTION_MS_PER_DAY);
+    const capCutoff = new Date(NOW.getTime() - SCREENSHOT_STALE_CAP_DAYS * RETENTION_MS_PER_DAY);
     const prefix = "/data/phase5/";
-    const eligible = buildRetentionEligibilityPredicate(cutoff, prefix);
-    const other = buildNonCanonicalPathPredicate(cutoff, prefix);
+    const eligible = buildRetentionEligibilityPredicate(cutoff, prefix, capCutoff);
+    const other = buildNonCanonicalPathPredicate(cutoff, prefix, capCutoff);
     expect(other.values).toEqual(eligible.values);
     expect(other.sql).toContain("NOT (");
   });

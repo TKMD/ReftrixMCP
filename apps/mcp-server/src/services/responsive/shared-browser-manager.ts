@@ -12,7 +12,7 @@
  */
 
 import { type Browser } from "playwright";
-import { ROBOTS_TXT } from "@reftrixmcp/core";
+import { ROBOTS_TXT, REFTRIXBOT_INFO_URL } from "@reftrixmcp/core";
 import { logger, isDevelopment } from "../../utils/logger";
 import { launchChromium } from "../../utils/launch-chromium";
 
@@ -21,7 +21,7 @@ import { launchChromium } from "../../utils/launch-chromium";
  * robots.txt 確認時と同一の識別子を Playwright UA に付与し、法的整合性を保つ。
  * constants.ts の PRODUCT_TOKEN と同期。
  */
-const BOT_SUFFIX = `${ROBOTS_TXT.PRODUCT_TOKEN}/1.0 (+https://reftrix.dev/bot)`;
+const BOT_SUFFIX = `${ROBOTS_TXT.PRODUCT_TOKEN}/1.0 (+${REFTRIXBOT_INFO_URL})`;
 
 /**
  * ユーザーエージェント定数

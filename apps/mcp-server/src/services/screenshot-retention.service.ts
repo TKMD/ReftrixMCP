@@ -7,7 +7,8 @@
  * 終端 (backfill が終わった) ページの `<root>/phase5/<id>.png` を、最後の更新
  * (`web_pages.updated_at`、Prisma `@updatedAt` なので「終端になってから少なくとも N 日」) から
  * N 日 (既定 7 日・範囲 1..30) 後に削除し、DB の path を NULL にする。非終端ページ
- * (backfill がこれから path を読む行) は期限に関係なく対象にしない。path が
+ * (backfill がこれから path を読む行) は保持期限の対象にしないが、状態に関係なく最後の更新から
+ * `SCREENSHOT_STALE_CAP_DAYS` (30) 日たったページは削除する (止まったページの保持の上限)。path が
  * `<phase5>/<id>.png` でない行は削除せず、run ごとに件数だけ報告する。
  * 失効 cycle (`runRetentionCycle`) は worker 内の定期実行 (`cron/screenshot-retention-cron.ts`)
  * と operator CLI (`scripts/expire-screenshots-past-retention.ts`) から呼ばれる。
@@ -16,8 +17,9 @@
  * update (`updated_at`, Prisma `@updatedAt`, i.e. at least N days after the terminal state).
  * `EmbeddingBackfillStatus` is classified exhaustively (a new status fails to compile until
  * classified) and the SQL eligibility predicate is generated from that classification.
- * Non-terminal rows (the backfill still reads their path) are never eligible, whatever their
- * age; rows whose stored path is not `<phase5>/<id>.png` are reported as one count per run and
+ * Non-terminal rows (the backfill still reads their path) are outside the retention period, but
+ * any row not updated for `SCREENSHOT_STALE_CAP_DAYS` (30) days is removed whatever its status
+ * (the cap on stuck pages); rows whose stored path is not `<phase5>/<id>.png` are reported as one count per run and
  * never deleted. The cycle is driven by the in-worker scheduled run and the operator CLI.
  *
  * @module services/screenshot-retention.service
@@ -51,6 +53,22 @@ export const SCREENSHOT_RETENTION_DEFAULT_DAYS = 7;
 export const SCREENSHOT_RETENTION_MIN_DAYS = 1;
 /** 保持日数の上限 (無効化・長期化は不可) / Upper bound (days) */
 export const SCREENSHOT_RETENTION_MAX_DAYS = 30;
+
+/**
+ * 上限日数: 状態に関係なく、最後の更新 (`updated_at`) からこの日数たったページの screenshot を消す。
+ * 非終端のまま止まったページ (recovery が path を読まなくなったもの、解析が pending のまま等) は
+ * 終端にならず保持期限が働かないため、その保持に上限を付ける (ADR-0041 Amendment 5、LCC M-1)。
+ * 回復中のページは状態が変わるたびに `updated_at` が進むので対象にならない。env では変えない。
+ * 値は終端ページの保持期限の上限 (30 日) と同じ: 運用者が修復できる猶予として、終端ページに
+ * 認めている最長の期間をそのまま使う (LCC M-1)。
+ *
+ * Stale cap: a page whose last update (`updated_at`) is this many days old loses its screenshot,
+ * whatever its status. Pages stuck in a non-terminal state never reach the retention period, so
+ * this bounds their retention (ADR-0041 Amendment 5, LCC M-1). A page under recovery moves its
+ * `updated_at` on every state change and is not affected. Not configurable. The value equals the
+ * longest retention allowed for terminal pages (30 days), the same repair grace period (LCC M-1).
+ */
+export const SCREENSHOT_STALE_CAP_DAYS = SCREENSHOT_RETENTION_MAX_DAYS;
 
 /** 解析が終わった `analysis_status` の値 / Finished `analysis_status` values */
 export const RETENTION_TERMINAL_ANALYSIS_STATUSES = ["completed", "failed"] as const;
@@ -185,6 +203,24 @@ export function buildRetentionTerminalPredicate(cutoff: Date): Prisma.Sql {
 }
 
 /**
+ * 上限の条件: path があり、`updated_at` が上限の cutoff より前 (状態は問わない)。
+ * Stale-cap part: a path and `updated_at` before the cap cutoff, whatever the status.
+ */
+export function buildRetentionStaleCapPredicate(capCutoff: Date): Prisma.Sql {
+  return Prisma.sql`screenshot_storage_path IS NOT NULL
+    AND updated_at < ${capCutoff}`;
+}
+
+/**
+ * 期限の条件 = 終端条件 OR 上限の条件。
+ * Age part of the eligibility = terminal part OR stale-cap part.
+ */
+export function buildRetentionAgePredicate(cutoff: Date, capCutoff: Date): Prisma.Sql {
+  return Prisma.sql`((${buildRetentionTerminalPredicate(cutoff)})
+    OR (${buildRetentionStaleCapPredicate(capCutoff)}))`;
+}
+
+/**
  * 保存 path が `<phase5>/<id>.png` に一致する条件。非一致の行を SQL の段階で除くので、
  * 削除できない行が選択窓を埋めて新しい行を止めることがない。
  *
@@ -196,20 +232,28 @@ export function buildCanonicalPathPredicate(phase5DirPrefix: string): Prisma.Sql
 }
 
 /**
- * 失効の適格条件 = 終端条件 + 正規 path。batch 選択と行ロックの再確認の両方がこの 1 つを使う。
- * Eligibility = terminal part + canonical path; shared by batch selection and the row-lock re-check.
+ * 失効の適格条件 = 期限の条件 (終端 OR 上限) + 正規 path。batch 選択と行ロックの再確認の両方が
+ * この 1 つを使う。
+ *
+ * Eligibility = age part (terminal OR stale cap) + canonical path; shared by batch selection and
+ * the row-lock re-check.
  */
 export function buildRetentionEligibilityPredicate(
   cutoff: Date,
-  phase5DirPrefix: string
+  phase5DirPrefix: string,
+  capCutoff: Date
 ): Prisma.Sql {
-  return Prisma.sql`${buildRetentionTerminalPredicate(cutoff)}
+  return Prisma.sql`${buildRetentionAgePredicate(cutoff, capCutoff)}
     AND ${buildCanonicalPathPredicate(phase5DirPrefix)}`;
 }
 
-/** 終端だが path が正規でない行 (報告のみ、削除しない) / Terminal rows with a non-canonical path (reported, never deleted) */
-export function buildNonCanonicalPathPredicate(cutoff: Date, phase5DirPrefix: string): Prisma.Sql {
-  return Prisma.sql`${buildRetentionTerminalPredicate(cutoff)}
+/** 期限を過ぎたが path が正規でない行 (報告のみ、削除しない) / Rows past their period with a non-canonical path (reported, never deleted) */
+export function buildNonCanonicalPathPredicate(
+  cutoff: Date,
+  phase5DirPrefix: string,
+  capCutoff: Date
+): Prisma.Sql {
+  return Prisma.sql`${buildRetentionAgePredicate(cutoff, capCutoff)}
     AND NOT (${buildCanonicalPathPredicate(phase5DirPrefix)})`;
 }
 
@@ -388,6 +432,8 @@ interface RunContext {
   /** `<phase5>/` (SQL の正規 path 比較に使う) / used by the SQL canonical-path match */
   dirPrefix: string;
   cutoff: Date;
+  /** 上限の cutoff (`now - SCREENSHOT_STALE_CAP_DAYS`) / stale-cap cutoff */
+  capCutoff: Date;
 }
 
 interface RunLimits {
@@ -491,6 +537,7 @@ class ScreenshotRetentionService implements IScreenshotRetentionService {
       phase5Dir,
       dirPrefix: phase5Dir + path.sep,
       cutoff: new Date(this.now().getTime() - options.retentionDays * RETENTION_MS_PER_DAY),
+      capCutoff: new Date(this.now().getTime() - SCREENSHOT_STALE_CAP_DAYS * RETENTION_MS_PER_DAY),
     };
 
     try {
@@ -511,7 +558,7 @@ class ScreenshotRetentionService implements IScreenshotRetentionService {
   private async reportNonCanonical(ctx: RunContext, result: RetentionCycleResult): Promise<void> {
     const rows = await this.prisma.$queryRaw<Array<{ count: number | bigint }>>(
       Prisma.sql`SELECT count(*)::int AS count FROM web_pages
-        WHERE ${buildNonCanonicalPathPredicate(ctx.cutoff, ctx.dirPrefix)}`
+        WHERE ${buildNonCanonicalPathPredicate(ctx.cutoff, ctx.dirPrefix, ctx.capCutoff)}`
     );
     const count = Number(rows[0]?.count ?? 0);
     result.invalidPathCount = Number.isFinite(count) ? count : 0;
@@ -609,7 +656,7 @@ class ScreenshotRetentionService implements IScreenshotRetentionService {
     return this.prisma.$queryRaw<CandidateRow[]>(
       Prisma.sql`SELECT id::text AS id, screenshot_storage_path AS path
         FROM web_pages
-        WHERE ${buildRetentionEligibilityPredicate(ctx.cutoff, ctx.dirPrefix)}
+        WHERE ${buildRetentionEligibilityPredicate(ctx.cutoff, ctx.dirPrefix, ctx.capCutoff)}
         ${after}
         ORDER BY id
         LIMIT ${this.batchSize}`
@@ -660,7 +707,9 @@ class ScreenshotRetentionService implements IScreenshotRetentionService {
    * 再解析との関係: page.analyze は screenshot を保存する前に (Phase 0 の upsert / W0 で)
    * `analysis_status` を `pending` に戻すので、再解析中のページは終端条件から外れ、
    * 新しいファイルを古い選択のまま消すことはない。選択後に再解析が始まっても、
-   * 行ロックの再確認が `analysis_status` を見て skipped にする。
+   * 行ロックの再確認が `analysis_status` を見て skipped にする。上限の条件 (状態を問わない) に
+   * 対しては、Phase 0 の upsert が新しい screenshot を保存する前に `updated_at` を進めることで守る
+   * (raw SQL で状態を変える writer を足すと `updated_at` が進まず、この前提が崩れる)。
    *
    * Order: row lock + re-check -> delete file -> NULL the path, in one tx. The file goes
    * first because the reverse order can strand a file with no DB pointer (never found again,
@@ -669,7 +718,9 @@ class ScreenshotRetentionService implements IScreenshotRetentionService {
    * selected value (compare-and-set); a concurrent run skips. Re-analysis: page.analyze resets
    * `analysis_status` to `pending` before it saves a new screenshot, so a page being re-analyzed
    * is outside the terminal predicate, and the lock re-check skips a row that started
-   * re-analysis after it was selected.
+   * re-analysis after it was selected. Against the stale cap (any status), the protection is that
+   * the Phase 0 upsert moves `updated_at` before the new screenshot is saved; a writer that changes
+   * state with raw SQL would not move `updated_at` and would break this.
    */
   private async expireRow(
     row: CandidateRow,
@@ -683,7 +734,7 @@ class ScreenshotRetentionService implements IScreenshotRetentionService {
             Prisma.sql`SELECT id::text AS id FROM web_pages
               WHERE id = ${row.id}::uuid
                 AND screenshot_storage_path = ${row.path}
-                AND ${buildRetentionEligibilityPredicate(ctx.cutoff, ctx.dirPrefix)}
+                AND ${buildRetentionEligibilityPredicate(ctx.cutoff, ctx.dirPrefix, ctx.capCutoff)}
               FOR UPDATE SKIP LOCKED`
           );
           if (locked.length === 0) return "skipped";
@@ -724,6 +775,7 @@ class ScreenshotRetentionService implements IScreenshotRetentionService {
         targetId: AUDIT_TARGET_ID_RUN,
         details: {
           retentionDays: result.retentionDays,
+          staleCapDays: SCREENSHOT_STALE_CAP_DAYS,
           deletedCount: result.deletedCount,
           absentCount: result.absentCount,
           failedCount: result.failedCount,

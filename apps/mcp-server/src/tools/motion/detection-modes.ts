@@ -10,6 +10,7 @@
  * @module tools/motion/detection-modes
  */
 
+import { browserUserAgent } from "../../utils/browser-user-agent";
 import type { Browser, Page } from "playwright";
 import { logger, isDevelopment } from "../../utils/logger";
 import { validateExternalUrl } from "../../utils/url-validator";
@@ -276,8 +277,7 @@ export async function executeFrameCapture(
     const viewport = options.viewport ?? { width: 1440, height: 900 };
     const context = await browser.newContext({
       viewport,
-      userAgent:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.3.0",
+      userAgent: browserUserAgent(browser),
     });
 
     const page = await context.newPage();
@@ -392,8 +392,7 @@ export async function executeRuntimeDetection(
 
     const context = await browser.newContext({
       viewport: { width: 1280, height: 720 },
-      userAgent:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.3.0",
+      userAgent: browserUserAgent(browser),
     });
 
     page = await context.newPage();

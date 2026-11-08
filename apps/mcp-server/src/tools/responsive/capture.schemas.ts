@@ -21,6 +21,8 @@ export const RESPONSIVE_CAPTURE_ERROR_CODES = {
   SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
   MEMORY_PRESSURE: "MEMORY_PRESSURE",
   INTERNAL_ERROR: "INTERNAL_ERROR",
+  /** robots.txt で拒否 (CAP-M-03) / Disallowed by robots.txt */
+  ROBOTS_TXT_BLOCKED: "ROBOTS_TXT_BLOCKED",
 } as const;
 
 export type ResponsiveCaptureErrorCode =

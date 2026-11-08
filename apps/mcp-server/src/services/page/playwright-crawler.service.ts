@@ -16,11 +16,12 @@
  * @module services/page/playwright-crawler.service
  */
 
+import { browserUserAgent } from "../../utils/browser-user-agent";
 import type { Browser, Page, BrowserContext } from "playwright";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { logger, isDevelopment } from "../../utils/logger";
 import { withTimeout } from "../../tools/page/handlers/timeout-utils";
-import { isUrlAllowedByRobotsTxt, ROBOTS_TXT } from "@reftrixmcp/core";
+import { isUrlAllowedByRobotsTxt } from "@reftrixmcp/core";
 import { launchChromium } from "../../utils/launch-chromium";
 
 // =====================================================
@@ -260,7 +261,7 @@ export class PlaywrightCrawlerService {
       // 新しいコンテキストを作成（分離のため）
       context = await browser.newContext({
         viewport: opts.viewport ?? null,
-        userAgent: ROBOTS_TXT.USER_AGENT,
+        userAgent: browserUserAgent(browser),
         // セキュリティ設定
         javaScriptEnabled: true,
         bypassCSP: false,

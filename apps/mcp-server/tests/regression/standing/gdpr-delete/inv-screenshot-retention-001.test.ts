@@ -12,7 +12,8 @@
  *   Terminal = completed / failed / not_required / skipped_screenshot_missing. Every other
  *   status (queued / in_progress / skipped_fork_error / skipped_memory_pressure /
  *   failed_with_known_reason) is non-terminal: the backfill or the recovery cron still
- *   reads the path, so it is never removed, whatever the age. `data.delete` (GDPR Art.17)
+ *   reads the path, so the retention period does not apply; any page not updated for
+ *   `SCREENSHOT_STALE_CAP_DAYS` (30) days is removed whatever its status (Amendment 5). `data.delete` (GDPR Art.17)
  *   still removes the screenshot immediately and does not depend on the DI factory wiring
  *   (H-1 inline fallback). The old TTL cron structure stays removed (PR-SS-B / ADR-0041).
  *
@@ -20,8 +21,8 @@
  *   backfill が終端状態になってから `REFTRIX_SCREENSHOT_RETENTION_DAYS` 日 (既定 7、範囲
  *   1..30、`updated_at` 起算 (終端になってから少なくとも N 日)) 保持し、その後に削除する (ファイル削除 + path を
  *   NULL)。終端 = completed / failed / not_required / skipped_screenshot_missing。それ以外の
- *   status は非終端で、backfill / recovery cron が path を読むため、経過日数に関係なく消さ
- *   ない。`data.delete` は従来どおり即時削除で、DI factory 配線に依存しない (H-1 inline
+ *   status は非終端で、backfill / recovery cron が path を読むため、保持期限では消さ
+ *   ない (ただし状態に関係なく最後の更新から 30 日で削除、Amendment 5)。`data.delete` は従来どおり即時削除で、DI factory 配線に依存しない (H-1 inline
  *   fallback)。旧 TTL cron の構造は撤去されたままである。
  *
  * Assertions:
@@ -32,10 +33,12 @@
  *   #4  screenshot_storage_migrated は SSOT 定数 import 経由で emit
  *   #5  (002-B 単一所掌) screenshot_ttl_cleanup の non-emit は inv-data-delete-002-b-ttl-cron.test.ts
  *   #6  status x 経過日数の行列 (real-DB + real-FS): 終端 4 status は 7 日超で削除、7 日以内は保持、
- *       非終端 5 status は 30 日経過でも保持、解析未完了 (pending/processing) も保持。
+ *       非終端 5 status は上限の手前 (29 日) まで保持、解析未完了 (pending/processing) も保持。
  *       status の一覧は enum 全値と一致 (新 status は分類を強制される)
  *   #7  保持日数 env: 1..30、30 超は 30 に丸める、不正値 (0・非整数) は止める (既定値へ黙って戻さない)
  *   #8  失効 run は run 単位 1 行の audit (PII なし)。data.delete は期限前でも即時削除 (#1 / #2)
+ *   #9  上限 (ADR-0041 Amendment 5): 状態に関係なく `updated_at` から 30 日更新の無いページは
+ *       screenshot を削除 (非終端 5 status と解析未完了)、89 日は保持
  *
  * Related: INV-SCREENSHOT-RETENTION-002 (cycle mechanics: CAS, SKIP LOCKED, failed delete,
  *   audit gating, wiring) in inv-screenshot-retention-002-cycle.test.ts.
@@ -96,6 +99,7 @@ import {
   SCREENSHOT_RETENTION_DEFAULT_DAYS,
   SCREENSHOT_RETENTION_MAX_DAYS,
   SCREENSHOT_RETENTION_MIN_DAYS,
+  SCREENSHOT_STALE_CAP_DAYS,
   ScreenshotRetentionConfigError,
   createScreenshotRetentionService,
   getScreenshotRetentionDays,
@@ -347,7 +351,7 @@ describe("INV-SCREENSHOT-RETENTION-001: screenshot retention = terminal page + N
     expect(NON_TERMINAL_STATUSES).toHaveLength(5);
   });
 
-  it("INV-SCREENSHOT-RETENTION-001: terminal + older than 7 days -> file deleted and path cleared; non-terminal -> kept even at 30 days", async () => {
+  it("INV-SCREENSHOT-RETENTION-001: terminal + older than 7 days -> file deleted and path cleared; non-terminal -> kept up to the stale cap (29 days)", async () => {
     assertInvName(expect.getState().currentTestName ?? "", "INV-SCREENSHOT-RETENTION-001");
     clearResolvedRootCache();
 
@@ -357,7 +361,10 @@ describe("INV-SCREENSHOT-RETENTION-001: screenshot retention = terminal page + N
     }
     const nonTerminal = [];
     for (const status of NON_TERMINAL_STATUSES) {
-      nonTerminal.push({ status, ...(await seedRetentionPage(prisma, { status, ageDays: 30 })) });
+      nonTerminal.push({
+        status,
+        ...(await seedRetentionPage(prisma, { status, ageDays: SCREENSHOT_STALE_CAP_DAYS - 1 })),
+      });
     }
 
     const result = await createScreenshotRetentionService({
@@ -404,12 +411,12 @@ describe("INV-SCREENSHOT-RETENTION-001: screenshot retention = terminal page + N
     const pending = await seedRetentionPage(prisma, {
       status: "not_required",
       analysis: "pending",
-      ageDays: 30,
+      ageDays: SCREENSHOT_STALE_CAP_DAYS - 1,
     });
     const processing = await seedRetentionPage(prisma, {
       status: "completed",
       analysis: "processing",
-      ageDays: 30,
+      ageDays: SCREENSHOT_STALE_CAP_DAYS - 1,
     });
     const result = await createScreenshotRetentionService({
       prisma: prisma as unknown as RetentionPrismaClient,
@@ -417,6 +424,80 @@ describe("INV-SCREENSHOT-RETENTION-001: screenshot retention = terminal page + N
     expect(result.scannedCount).toBe(0);
     expect(fs.existsSync(pending.filePath)).toBe(true);
     expect(fs.existsSync(processing.filePath)).toBe(true);
+  }, 60_000);
+
+  // ==========================================================================
+  // Assertion #9: stale cap — any page untouched for SCREENSHOT_STALE_CAP_DAYS loses its
+  // screenshot, terminal or not (ADR-0041 Amendment 5, LCC M-1)
+  // ==========================================================================
+  it("INV-SCREENSHOT-RETENTION-001: a page not updated for the stale cap (30 days) loses its screenshot whatever its status; one day inside the cap is kept", async () => {
+    assertInvName(expect.getState().currentTestName ?? "", "INV-SCREENSHOT-RETENTION-001");
+    clearResolvedRootCache();
+    expect(SCREENSHOT_STALE_CAP_DAYS).toBe(30);
+    expect(SCREENSHOT_STALE_CAP_DAYS).toBe(SCREENSHOT_RETENTION_MAX_DAYS);
+
+    const stale = [];
+    for (const status of NON_TERMINAL_STATUSES) {
+      stale.push({
+        label: status,
+        ...(await seedRetentionPage(prisma, { status, ageDays: SCREENSHOT_STALE_CAP_DAYS + 1 })),
+      });
+    }
+    stale.push({
+      label: "analysis pending",
+      ...(await seedRetentionPage(prisma, {
+        status: "not_required",
+        analysis: "pending",
+        ageDays: SCREENSHOT_STALE_CAP_DAYS + 1,
+      })),
+    });
+    stale.push({
+      label: "analysis processing",
+      ...(await seedRetentionPage(prisma, {
+        status: "queued",
+        analysis: "processing",
+        ageDays: SCREENSHOT_STALE_CAP_DAYS + 1,
+      })),
+    });
+    const inside = [];
+    for (const status of NON_TERMINAL_STATUSES) {
+      inside.push({
+        label: status,
+        ...(await seedRetentionPage(prisma, { status, ageDays: SCREENSHOT_STALE_CAP_DAYS - 1 })),
+      });
+    }
+
+    // boundary pinned to one hour on each side (TDA L-1)
+    const HOUR_IN_DAYS = 1 / 24;
+    stale.push({
+      label: "queued, cap + 1h",
+      ...(await seedRetentionPage(prisma, {
+        status: "queued",
+        ageDays: SCREENSHOT_STALE_CAP_DAYS + HOUR_IN_DAYS,
+      })),
+    });
+    inside.push({
+      label: "queued, cap - 1h",
+      ...(await seedRetentionPage(prisma, {
+        status: "queued",
+        ageDays: SCREENSHOT_STALE_CAP_DAYS - HOUR_IN_DAYS,
+      })),
+    });
+
+    const result = await createScreenshotRetentionService({
+      prisma: prisma as unknown as RetentionPrismaClient,
+    }).runRetentionCycle({ retentionDays: SCREENSHOT_RETENTION_MAX_DAYS, dryRun: false });
+    expect(result.aborted).toBeNull();
+    expect(result.deletedCount).toBe(stale.length);
+
+    for (const p of stale) {
+      expect(fs.existsSync(p.filePath), `${p.label}: file must be deleted`).toBe(false);
+      expect(await readStoragePath(prisma, p.id), `${p.label}: path must be cleared`).toBeNull();
+    }
+    for (const p of inside) {
+      expect(fs.existsSync(p.filePath), `${p.label}: file must be kept`).toBe(true);
+      expect(await readStoragePath(prisma, p.id), `${p.label}: path must be kept`).toBe(p.filePath);
+    }
   }, 60_000);
 
   // ==========================================================================

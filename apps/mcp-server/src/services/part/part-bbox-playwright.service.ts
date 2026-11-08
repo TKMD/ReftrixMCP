@@ -27,9 +27,10 @@
  * @module services/part/part-bbox-playwright.service
  */
 
+import { browserUserAgent } from "../../utils/browser-user-agent";
 import type { Browser, BrowserContext, Page } from "playwright";
 import type { PrismaClient, Prisma } from "@prisma/client";
-import { ROBOTS_TXT, escapeCssIdentifier } from "@reftrixmcp/core";
+import { escapeCssIdentifier } from "@reftrixmcp/core";
 import { validateExternalUrl } from "../../utils/url-validator";
 import { logger, isDevelopment } from "../../utils/logger";
 import { sanitizeErrorMessage } from "../../utils/sanitize-error";
@@ -455,7 +456,8 @@ export async function resolvePartBoundingBoxes(
       // PR-C4 D2: honest declared-bot UA に統一 (SSOT `ROBOTS_TXT.USER_AGENT` 参照、
       // hardcode 禁止)。Chrome-spoof UA を除去し ingest path (`ROBOTS_TXT.USER_AGENT`、
       // 同一 host から 200 取得済) と内部一貫させる。これは bot-evasion ではなく
-      // Chrome-spoofing UA を透明な declared-bot (`+https://reftrix.dev/bot`) に置換する是正。
+      // トークンの無い Chrome-spoofing UA を透明な declared-bot に置換する是正。2026-11-08 から
+      // Chrome 互換 + ReftrixBot トークン (`browserUserAgent`、INV-CRAWLER-UA-IDENTITY-001、LCC 条件付き承認)。
       // robots.txt gating は Phase 0 ingest (`isUrlAllowedByRobotsTxt`,
       // `REFTRIX_RESPECT_ROBOTS_TXT`) で実施済。本 path はその ingest 許可済 URL の
       // 同一 host re-navigation であり、ここで robots.txt を再 check しない。
@@ -465,10 +467,11 @@ export async function resolvePartBoundingBoxes(
       // internal consistency with the ingest path (which already fetched 200 from
       // the same host via `ROBOTS_TXT.USER_AGENT`). This is not bot-evasion but a
       // correction replacing the Chrome-spoofing UA with a transparent declared-bot
-      // (`+https://reftrix.dev/bot`). robots.txt gating is performed in Phase 0
+      // (since 2026-11-08: Chrome-compatible + the ReftrixBot token via `browserUserAgent`,
+      // INV-CRAWLER-UA-IDENTITY-001, LCC conditional approval). robots.txt gating is performed in Phase 0
       // ingest; this path is a same-host re-navigation of an ingest-permitted URL,
       // so robots.txt is not re-checked here.
-      userAgent: ROBOTS_TXT.USER_AGENT,
+      userAgent: browserUserAgent(browser),
       javaScriptEnabled: true,
       bypassCSP: false,
     });

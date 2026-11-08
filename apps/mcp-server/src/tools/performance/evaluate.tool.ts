@@ -17,6 +17,7 @@
  * @module tools/performance/evaluate.tool
  */
 
+import { robotsTxtBlockMessage } from "../../utils/robots-blocked";
 import { z } from "zod";
 import { createDIFactory } from "../../utils/di-factory";
 import { logger, isDevelopment } from "../../utils/logger";
@@ -45,6 +46,8 @@ export const PERFORMANCE_MCP_ERROR_CODES = {
   MEASUREMENT_FAILED: "MEASUREMENT_FAILED",
   INTERNAL_ERROR: "INTERNAL_ERROR",
   BROWSER_UNAVAILABLE: "BROWSER_UNAVAILABLE",
+  /** robots.txt で拒否 (CAP-M-03) / Disallowed by robots.txt */
+  ROBOTS_TXT_BLOCKED: "ROBOTS_TXT_BLOCKED",
 } as const;
 
 export type PerformanceMcpErrorCode =
@@ -210,6 +213,15 @@ export async function performanceEvaluateHandler(
         code: PERFORMANCE_MCP_ERROR_CODES.SSRF_BLOCKED,
         message: `URL validation failed: ${urlValidation.error ?? "blocked by SSRF policy"}`,
       },
+    };
+  }
+
+  // robots.txt (CAP-M-03、INV-ROBOTS-URL-TOOLS-001)
+  const robotsBlock = await robotsTxtBlockMessage(validated.url, "performance.evaluate");
+  if (robotsBlock) {
+    return {
+      success: false,
+      error: { code: PERFORMANCE_MCP_ERROR_CODES.ROBOTS_TXT_BLOCKED, message: robotsBlock },
     };
   }
 

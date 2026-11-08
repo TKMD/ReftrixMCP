@@ -10,9 +10,11 @@
  * `<REFTRIX_SCREENSHOT_ROOT>/phase5/<id>.png` を削除し、`web_pages.screenshot_storage_path`
  * を NULL にする。worker 内の定期実行 (`cron/screenshot-retention-cron.ts`) と同じ
  * service を使う手動実行用。非終端 (`queued` / `in_progress` / `skipped_*` /
- * `failed_with_known_reason`) は対象外。
+ * `failed_with_known_reason`) は保持期限の対象外だが、状態に関係なく最後の更新から
+ * `SCREENSHOT_STALE_CAP_DAYS` (30) 日たったページは削除する (ADR-0041 Amendment 5)。
  *
- * Expires the persisted screenshot of terminal pages older than the retention period;
+ * Expires the persisted screenshot of terminal pages older than the retention period, and of
+ * any page not updated for `SCREENSHOT_STALE_CAP_DAYS` (30) days whatever its status;
  * the same service as the in-worker scheduled run, for manual use.
  *
  * Usage:

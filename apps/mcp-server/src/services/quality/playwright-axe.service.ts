@@ -21,6 +21,7 @@
  * @module services/quality/playwright-axe.service
  */
 
+import { browserUserAgent } from "../../utils/browser-user-agent";
 import { logger, isDevelopment } from "../../utils/logger";
 import type { AxeResults } from "axe-core";
 
@@ -140,7 +141,9 @@ export class PlaywrightAxeService {
     this.browser = await launchChromium({
       headless: this.options.headless,
     });
-    this.browserContext = await this.browser.newContext();
+    this.browserContext = await this.browser.newContext({
+      userAgent: browserUserAgent(this.browser),
+    });
 
     if (isDevelopment()) {
       logger.info("[PlaywrightAxeService] Browser initialized");

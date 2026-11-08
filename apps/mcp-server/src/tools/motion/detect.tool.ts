@@ -18,6 +18,9 @@
  * @module tools/motion/detect.tool
  */
 
+import { validateExternalUrl } from "../../utils/url-validator";
+import { robotsTxtBlockMessage } from "../../utils/robots-blocked";
+import { browserUserAgent } from "../../utils/browser-user-agent";
 import { ZodError } from "zod";
 import { logger, isDevelopment } from "../../utils/logger";
 import { sanitizeErrorMessage } from "../../utils/sanitize-error";
@@ -376,8 +379,36 @@ export async function motionDetectHandler(input: unknown): Promise<MotionDetectO
     return createTimeoutResponse("validation", elapsedAfterValidation);
   }
 
-  // 残りの時間でタイムアウト付き処理を実行
-  const remainingTimeout = timeout - elapsedAfterValidation;
+  // robots.txt: URL を開くすべてのモードの前に確認する (CAP-M-03、INV-ROBOTS-URL-TOOLS-001)。
+  // 先に SSRF の検査を通し、内部アドレスに robots.txt を取りに行かない (SEC M-1)。
+  // Check robots.txt before any mode opens the URL, after the SSRF check (SEC M-1).
+  if (validated.url) {
+    const urlValidation = validateExternalUrl(validated.url);
+    if (!urlValidation.valid) {
+      return {
+        success: false,
+        error: {
+          code: MOTION_MCP_ERROR_CODES.SSRF_BLOCKED,
+          // 各モードの SSRF 応答と同じく、クライアントには汎用文だけを返す (CWE-209)
+          // Same as the per-mode SSRF responses: a generic message only.
+          message: sanitizeErrorMessage(new Error(urlValidation.error ?? "URL blocked")),
+        },
+      };
+    }
+    const robotsBlock = await robotsTxtBlockMessage(validated.url, "motion.detect");
+    if (robotsBlock) {
+      return {
+        success: false,
+        error: { code: MOTION_MCP_ERROR_CODES.ROBOTS_TXT_BLOCKED, message: robotsBlock },
+      };
+    }
+  }
+
+  // 残りの時間でタイムアウト付き処理を実行 (robots.txt の確認にかかった時間を含める、SEC L-1)
+  const remainingTimeout = timeout - (Date.now() - startTime);
+  if (remainingTimeout <= 0) {
+    return createTimeoutResponse("validation", Date.now() - startTime);
+  }
 
   // =====================================================
   // Video Mode Detection
@@ -966,7 +997,7 @@ async function handleHybridMode(
         headless: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
       });
-      const context = await browser.newContext();
+      const context = await browser.newContext({ userAgent: browserUserAgent(browser) });
       const page = await context.newPage();
       // WebGL/3Dサイト対応: domcontentloadedで待機（loadは3Dサイトで非常に時間がかかる）
       await page.goto(validated.url!, { waitUntil: "domcontentloaded", timeout: 30000 });
@@ -1584,8 +1615,7 @@ async function executeJSAnimationDetectionWithUrl(
 
     const context = await browser.newContext({
       viewport: { width: 1280, height: 720 },
-      userAgent:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.3.0",
+      userAgent: browserUserAgent(browser),
     });
 
     const page = await context.newPage();

@@ -31,6 +31,7 @@ import {
   RETENTION_SCAN_BATCH_MULTIPLIER,
   RETENTION_MS_PER_DAY,
   RETENTION_DB_ERROR_STREAK_LIMIT,
+  SCREENSHOT_STALE_CAP_DAYS,
 } from "../../src/services/screenshot-retention.service";
 import { FakeDb, pageId } from "../helpers/retention-fake-db";
 import { clearResolvedRootCache } from "../../src/services/screenshot-persistence.service";
@@ -155,7 +156,12 @@ describe("runRetentionCycle", () => {
     expect(entry.actor).toBe(AUDIT_ACTOR_SCREENSHOT_RETENTION_CRON);
     expect(entry.targetId).toBe("all");
     expect(entry.result).toBe("success");
-    expect(entry.details).toMatchObject({ deletedCount: 2, absentCount: 0, retentionDays: 7 });
+    expect(entry.details).toMatchObject({
+      deletedCount: 2,
+      absentCount: 0,
+      retentionDays: 7,
+      staleCapDays: SCREENSHOT_STALE_CAP_DAYS,
+    });
     // details carry numbers/enums only: no id, no path, no url
     const serialized = JSON.stringify(entry);
     expect(serialized).not.toContain(pageId(1));
@@ -422,6 +428,10 @@ describe("runRetentionCycle", () => {
     expect(spy).toHaveBeenCalled();
     expect(seen[0]!.toISOString()).toBe(
       new Date(NOW.getTime() - 3 * RETENTION_MS_PER_DAY).toISOString()
+    );
+    // the stale-cap cutoff comes from the same clock
+    expect(seen.map((d) => d.toISOString())).toContain(
+      new Date(NOW.getTime() - SCREENSHOT_STALE_CAP_DAYS * RETENTION_MS_PER_DAY).toISOString()
     );
   });
 });

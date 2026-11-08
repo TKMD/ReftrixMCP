@@ -8,6 +8,7 @@
  * @module tools/page/handlers/webgl-animation-handler
  */
 
+import { browserUserAgent } from "../../../utils/browser-user-agent";
 import { type Browser, type Page } from "playwright";
 import { logger, isDevelopment } from "../../../utils/logger";
 import { sanitizeErrorMessage } from "../../../utils/sanitize-error";
@@ -173,6 +174,7 @@ export async function executeWebGLAnimationDetection(
 
     const browserContext = await browser.newContext({
       viewport: { width: 1440, height: 900 },
+      userAgent: browserUserAgent(browser),
       // v0.1.0: 本番環境ではHTTPS証明書エラーを無視しない
       ignoreHTTPSErrors: process.env.NODE_ENV === "development",
     });

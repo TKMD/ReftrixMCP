@@ -300,7 +300,8 @@ export class RobotsTxtService {
           redirectCount++;
         }
 
-        clearTimeout(timeoutId);
+        // タイムアウトは本文を読み終えるまで生かす (finally で解除、SEC M-2 / CWE-770)
+        // Keep the timeout alive until the body is read (cleared in finally).
 
         // 404: robots.txt doesn't exist → allow everything
         if (response.status === 404) {
@@ -346,7 +347,15 @@ export class RobotsTxtService {
           return null;
         }
 
-        const text = await response.text();
+        // 本文は上限まで読んだら止める (Content-Length が無い・偽の場合も、SEC M-2 / CWE-770)
+        // Stop reading at the cap, even without or with a false Content-Length.
+        const text = await readBodyWithCap(response, ROBOTS_TXT.MAX_FILE_SIZE);
+        if (text === null) {
+          logger.warn("[RobotsTxtService] robots.txt body too large, treating as deny", {
+            domain,
+          });
+          return null;
+        }
 
         // 実際のサイズ再チェック（Content-Lengthがない場合）
         if (text.length > ROBOTS_TXT.MAX_FILE_SIZE) {
@@ -562,4 +571,34 @@ export function resetRobotsTxtService(): void {
     instance.dispose();
     instance = null;
   }
+}
+
+/**
+ * 本文を最大 `maxBytes` まで読む。超えたら読み取りを止めて null を返す (SEC M-2、CWE-770)。
+ * Reads the body up to `maxBytes`; past it, cancels the read and returns null.
+ */
+async function readBodyWithCap(response: Response, maxBytes: number): Promise<string | null> {
+  // 本文のストリームが無い応答 (テストの mock 等) は text() に任せ、呼び出し側のサイズ確認で止める
+  // Without a body stream (e.g. test mocks), fall back to text(); the caller still checks the size.
+  if (!response.body || typeof response.body.getReader !== "function") return response.text();
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(merged);
 }

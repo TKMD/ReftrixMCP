@@ -18,6 +18,7 @@
  * @module services/vision/scroll-vision-capture.service
  */
 
+import { browserUserAgent } from "../../utils/browser-user-agent";
 import type { Browser, BrowserContext, Page } from "playwright";
 import { validateExternalUrl } from "../../utils/url-validator.js";
 import { createLogger } from "../../utils/logger.js";
@@ -295,8 +296,7 @@ export async function captureScrollPositions(
     // 新しいコンテキスト作成
     context = await browser.newContext({
       viewport,
-      userAgent:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Reftrix/0.3.0",
+      userAgent: browserUserAgent(browser),
       javaScriptEnabled: true,
       bypassCSP: false,
     });

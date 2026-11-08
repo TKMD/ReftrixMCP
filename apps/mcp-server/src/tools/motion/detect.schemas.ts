@@ -1671,6 +1671,8 @@ export const MOTION_MCP_ERROR_CODES = {
   VIDEO_TIMEOUT_ERROR: "VIDEO_TIMEOUT_ERROR",
   /** Phase1: SSRFブロック */
   SSRF_BLOCKED: "SSRF_BLOCKED",
+  /** robots.txt で拒否 (CAP-M-03) / Disallowed by robots.txt */
+  ROBOTS_TXT_BLOCKED: "ROBOTS_TXT_BLOCKED",
 } as const;
 
 export type MotionMcpErrorCode =

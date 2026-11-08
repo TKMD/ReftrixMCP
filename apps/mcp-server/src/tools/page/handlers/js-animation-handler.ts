@@ -12,6 +12,7 @@
  * @module tools/page/handlers/js-animation-handler
  */
 
+import { browserUserAgent } from "../../../utils/browser-user-agent";
 import type { Browser } from "playwright";
 import { logger, isDevelopment } from "../../../utils/logger";
 import { sanitizeErrorMessage } from "../../../utils/sanitize-error";
@@ -967,6 +968,7 @@ export async function executeJSAnimationMode(
         width: JS_ANIMATION_DEFAULTS.VIEWPORT_WIDTH,
         height: JS_ANIMATION_DEFAULTS.VIEWPORT_HEIGHT,
       },
+      userAgent: browserUserAgent(browser),
       ignoreHTTPSErrors: true,
     });
     const page = await context.newPage();

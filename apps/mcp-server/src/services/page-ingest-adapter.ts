@@ -10,13 +10,18 @@
  * @module services/page-ingest-adapter
  */
 
+import { browserUserAgent } from "../utils/browser-user-agent";
 import { type Browser, type Page, type BrowserContext } from "playwright";
 import { logger, isDevelopment } from "../utils/logger";
 import { GPU_BROWSER_BASE_ARGS } from "../utils/gpu-browser-args";
 import { BrowserProcessManager } from "./browser-process-manager";
-import { isUrlAllowedByRobotsTxt, ROBOTS_TXT } from "@reftrixmcp/core";
+import { isUrlAllowedByRobotsTxt } from "@reftrixmcp/core";
 import { McpError, ErrorCode } from "../utils/errors";
 import { BROWSER_MISSING_MESSAGE, isBrowserMissingError } from "../utils/browser-missing";
+import {
+  waitForFiniteAnimations,
+  FINITE_ANIMATION_WAIT_MAX_MS,
+} from "../utils/wait-for-finite-animations";
 import { launchChromium } from "../utils/launch-chromium";
 import { isBlockedHost } from "../utils/url-validator";
 import { isNonPublicAddress } from "@reftrixmcp/core";
@@ -1832,7 +1837,7 @@ class PageIngestAdapter {
       context = await browser.newContext({
         viewport,
         javaScriptEnabled: !ingestOptions.disableJavaScript,
-        userAgent: ROBOTS_TXT.USER_AGENT,
+        userAgent: browserUserAgent(browser),
       });
 
       page = await context.newPage();
@@ -2174,6 +2179,27 @@ class PageIngestAdapter {
                 error: scrollError instanceof Error ? scrollError.message : String(scrollError),
               });
             }
+          }
+
+          // 有限のアニメーション（フェードイン等）の完了を上限付きで待つ。パーツ撮影が
+          // アニメーションを止める前に行う (INV-CAPTURE-FINITE-ANIMATION-WAIT-001)。
+          // Wait, with a cap, for finite animations (fade-ins etc.) before part capture
+          // freezes animations. Failure is non-fatal.
+          try {
+            const animationWait = await withGlobalTimeout(
+              waitForFiniteAnimations(page, FINITE_ANIMATION_WAIT_MAX_MS),
+              "waitForFiniteAnimations"
+            );
+            if (isDevelopment()) {
+              logger.debug("[PageIngestAdapter] Finite animation wait completed", animationWait);
+            }
+          } catch (animationWaitError) {
+            logger.warn("[PageIngestAdapter] Finite animation wait failed (non-fatal)", {
+              error:
+                animationWaitError instanceof Error
+                  ? animationWaitError.message
+                  : String(animationWaitError),
+            });
           }
 
           if (partCapture) {
